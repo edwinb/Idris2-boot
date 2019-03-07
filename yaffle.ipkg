@@ -1,0 +1,31 @@
+package yaffle
+
+modules = 
+    Control.Delayed,
+
+    Core.Core,
+    Core.Env,
+    Core.FC,
+    Core.Name,
+    Core.TT,
+    Core.Value,
+
+    Data.Bool.Extra,
+    Data.StringMap,
+
+    Parser.Lexer,
+    Parser.Support,
+
+    Text.Lexer,
+    Text.Lexer.Core,
+    Text.Parser,
+    Text.Parser.Core,
+    Text.Quantity,
+    Text.Token
+
+sourcedir = src
+-- executable = ttimp
+opts = "--partial-eval"
+
+-- main = TTImp.Main
+
