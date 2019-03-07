@@ -1,11 +1,13 @@
-module Data.StringMap
+module Data.NameMap
+
+import Core.Name
 
 -- Hand specialised map, for efficiency...
 
 %default covering
 
 Key : Type
-Key = String
+Key = Name
 
 -- TODO: write split
 
@@ -200,21 +202,21 @@ treeToList = treeToList' (:: [])
     treeToList' cont (Branch3 t1 _ t2 _ t3) = treeToList' (:: treeToList' (:: treeToList' cont t3) t2) t1
 
 export
-data StringMap : Type -> Type where
-  Empty : StringMap v
-  M : (n : Nat) -> Tree n v -> StringMap v
+data NameMap : Type -> Type where
+  Empty : NameMap v
+  M : (n : Nat) -> Tree n v -> NameMap v
 
 export
-empty : StringMap v
+empty : NameMap v
 empty = Empty
 
 export
-lookup : String -> StringMap v -> Maybe v
+lookup : Name -> NameMap v -> Maybe v
 lookup _ Empty = Nothing
 lookup k (M _ t) = treeLookup k t
 
 export
-insert : String -> v -> StringMap v -> StringMap v
+insert : Name -> v -> NameMap v -> NameMap v
 insert k v Empty = M Z (Leaf k v)
 insert k v (M _ t) =
   case treeInsert k v t of
@@ -222,11 +224,11 @@ insert k v (M _ t) =
     Right t' => (M _ t')
 
 export
-insertFrom : Foldable f => f (String, v) -> StringMap v -> StringMap v
+insertFrom : Foldable f => f (Name, v) -> NameMap v -> NameMap v
 insertFrom = flip $ foldl $ flip $ uncurry insert
 
 export
-delete : String -> StringMap v -> StringMap v
+delete : Name -> NameMap v -> NameMap v
 delete _ Empty = Empty
 delete k (M Z t) =
   case treeDelete k t of
@@ -238,22 +240,22 @@ delete k (M (S _) t) =
     Right t' => (M _ t')
 
 export
-fromList : List (String, v) -> StringMap v
+fromList : List (Name, v) -> NameMap v
 fromList l = foldl (flip (uncurry insert)) empty l
 
 export
-toList : StringMap v -> List (String, v)
+toList : NameMap v -> List (Name, v)
 toList Empty = []
 toList (M _ t) = treeToList t
 
 ||| Gets the Keys of the map.
 export
-keys : StringMap v -> List String
+keys : NameMap v -> List Name
 keys = map fst . toList
 
 ||| Gets the values of the map. Could contain duplicates.
 export
-values : StringMap v -> List v
+values : NameMap v -> List v
 values = map snd . toList
 
 treeMap : (a -> b) -> Tree n a -> Tree n b 
@@ -263,14 +265,14 @@ treeMap f (Branch3 t1 k1 t2 k2 t3)
     = Branch3 (treeMap f t1) k1 (treeMap f t2) k2 (treeMap f t3)
 
 export
-implementation Functor StringMap where
+implementation Functor NameMap where
   map _ Empty = Empty
   map f (M n t) = M _ (treeMap f t)
 
 ||| Merge two maps. When encountering duplicate keys, using a function to combine the values.
 ||| Uses the ordering of the first map given.
 export
-mergeWith : (v -> v -> v) -> StringMap v -> StringMap v -> StringMap v
+mergeWith : (v -> v -> v) -> NameMap v -> NameMap v -> NameMap v
 mergeWith f x y = insertFrom inserted x where
   inserted : List (Key, v)
   inserted = do
@@ -281,12 +283,12 @@ mergeWith f x y = insertFrom inserted x where
 ||| Merge two maps using the Semigroup (and by extension, Monoid) operation.
 ||| Uses mergeWith internally, so the ordering of the left map is kept.
 export
-merge : Semigroup v => StringMap v -> StringMap v -> StringMap v
+merge : Semigroup v => NameMap v -> NameMap v -> NameMap v
 merge = mergeWith (<+>)
 
 ||| Left-biased merge, also keeps the ordering specified  by the left map.
 export
-mergeLeft : StringMap v -> StringMap v -> StringMap v
+mergeLeft : NameMap v -> NameMap v -> NameMap v
 mergeLeft = mergeWith const
 
 -- TODO: is this the right variant of merge to use for this? I think it is, but
@@ -295,9 +297,9 @@ mergeLeft = mergeWith const
 -- the `First` monoid. However, this does require more code to do the same
 -- thing.
 export
-Semigroup v => Semigroup (StringMap v) where
+Semigroup v => Semigroup (NameMap v) where
   (<+>) = merge
 
 export
-(Semigroup v) => Monoid (StringMap v) where
+(Semigroup v) => Monoid (NameMap v) where
   neutral = empty

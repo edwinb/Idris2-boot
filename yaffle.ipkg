@@ -11,6 +11,8 @@ modules =
     Core.Value,
 
     Data.Bool.Extra,
+    Data.IntMap,
+    Data.NameMap,
     Data.StringMap,
 
     Parser.Lexer,
