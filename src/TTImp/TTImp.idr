@@ -47,6 +47,10 @@ mutual
   data ImpTy : Type where
        MkImpTy : FC -> (n : Name) -> (ty : RawImp) -> ImpTy
 
+  export
+  Show ImpTy where
+    show (MkImpTy fc n ty) = "(%claim " ++ show n ++ " " ++ show ty ++ ")"
+
   public export
   data DataOpt : Type where
        SearchBy : List Name -> DataOpt -- determining arguments
@@ -65,9 +69,23 @@ mutual
                    (datacons : List ImpTy) -> ImpData
        MkImpLater : FC -> (n : Name) -> (tycon : RawImp) -> ImpData
 
+  export
+  Show ImpData where
+    show (MkImpData fc n tycon _ cons)
+        = "(%data " ++ show n ++ " " ++ show tycon ++ " " ++
+           show cons ++ ")"
+    show (MkImpLater fc n tycon)
+        = "(%datadecl " ++ show n ++ " " ++ show tycon ++ ")"
+
   public export
   data ImpDecl : Type where
        IClaim : FC -> RigCount -> Visibility -> List FnOpt ->
                 ImpTy -> ImpDecl
        IData : FC -> Visibility -> ImpData -> ImpDecl
        IDef : FC -> Name -> RawImp -> ImpDecl
+
+  export
+  Show ImpDecl where
+    show (IClaim _ _ _ _ ty) = show ty
+    show (IData _ _ d) = show d
+    show (IDef _ n d) = "(%def " ++ show n ++ " " ++ show d ++ ")"

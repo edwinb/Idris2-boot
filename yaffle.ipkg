@@ -30,8 +30,8 @@ modules =
     TTImp.TTImp
 
 sourcedir = src
--- executable = ttimp
+executable = yaffle
 opts = "--partial-eval"
 
--- main = TTImp.Main
+main = Yaffle.Main
 
