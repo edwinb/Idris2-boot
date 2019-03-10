@@ -366,7 +366,8 @@ interface Weaken (tm : List Name -> Type) where
 
   weaken = weakenNs [_]
 
-insertVar : (idx : _) -> 
+insertVar : {outer : _} ->
+            (idx : _) -> 
             IsVar name idx (outer ++ inner) ->
             (idx' ** IsVar name idx' (outer ++ n :: inner))
 insertVar {outer = []} idx x = (_ ** Later x)
@@ -375,9 +376,27 @@ insertVar {n} {outer = (x :: xs)} (S i) (Later y)
     = let (_ ** prf) = insertVar {n} i y in
           (_ ** Later prf)
 
+weakenVar : (ns : List Name) -> IsVar name idx inner ->
+            (idx' ** IsVar name idx' (ns ++ inner))
+weakenVar [] x = (_ ** x)
+weakenVar (y :: xs) x 
+   = let (_ ** x') = weakenVar xs x in
+         (_ ** Later x')
+
+insertVarNames : {outer, ns : _} ->
+                 (idx : _) -> 
+                 IsVar name idx (outer ++ inner) ->
+                 (idx' ** IsVar name idx' (outer ++ (ns ++ inner)))
+insertVarNames {ns} {outer = []} idx prf = weakenVar ns prf
+insertVarNames {outer = (y :: xs)} Z First = (_ ** First)
+insertVarNames {ns} {outer = (y :: xs)} (S i) (Later x) 
+    = let (_ ** prf) = insertVarNames {ns} i x in
+          (_ ** Later prf)
+
 mutual
   export
-  thin : (n : Name) -> Term (outer ++ inner) -> Term (outer ++ n :: inner)
+  thin : {outer, inner : _} ->
+         (n : Name) -> Term (outer ++ inner) -> Term (outer ++ n :: inner)
   thin n (Local fc r idx prf) 
       = let (idx' ** var') = insertVar {n} idx prf in
             Local fc r idx' var'
@@ -392,23 +411,118 @@ mutual
       = Case fc (map (thinVar {outer} {inner} n) cs)
                      (thin {outer} {inner} n ty) 
                      (map (thinTree n) tree)
-                     (map (thinAlt n) alts)
+                     (map (thinPatAlt n) alts)
   thin n (PrimVal fc c) = PrimVal fc c
   thin n (Erased fc) = Erased fc
   thin n (TType fc) = TType fc
+  
+  export
+  insertNames : {outer, inner : _} ->
+                (ns : List Name) -> Term (outer ++ inner) ->
+                Term (outer ++ (ns ++ inner))
+  insertNames ns (Local fc r idx prf) 
+      = let (_ ** prf') = insertVarNames {ns} idx prf in
+            Local fc r _ prf'
+  insertNames ns (Ref fc nt name) = Ref fc nt name
+  insertNames ns (ULet i val sc) 
+      = ULet i (insertNames ns val) (insertNames ns sc)
+  insertNames {outer} {inner} ns (Bind fc x b scope) 
+      = Bind fc x (assert_total (map (insertNames ns) b)) 
+             (insertNames {outer = x :: outer} {inner} ns scope)
+  insertNames ns (App fc fn p arg) 
+      = App fc (insertNames ns fn) p (insertNames ns arg)
+  insertNames {outer} {inner} ns (Case fc cs ty tree alts) 
+      = Case fc (map (insertNamesVar {outer} {inner} ns) cs)
+                (insertNames ns ty)
+                (map (insertCaseNames ns) tree)
+                (map (insertPatAltNames ns) alts)
+  insertNames ns (PrimVal fc c) = PrimVal fc c
+  insertNames ns (Erased fc) = Erased fc
+  insertNames ns (TType fc) = TType fc
+
+  insertCaseNames : (ns : List Name) -> CaseTree (outer ++ inner) ->
+                    CaseTree (outer ++ (ns ++ inner))
+  insertCaseNames {inner} {outer} ns (Switch idx prf scTy alts) 
+      = let (_ ** prf') = insertVarNames {outer} {inner} {ns} _ prf in
+            Switch _ prf' (insertNames {outer} ns scTy)
+                (map (insertCaseAltNames {outer} {inner} ns) alts)
+  insertCaseNames {outer} ns (STerm x) = STerm (insertNames {outer} ns x)
+  insertCaseNames ns (Unmatched msg) = Unmatched msg
+  insertCaseNames ns Impossible = Impossible
+  
+  insertCaseAltNames : (ns : List Name) -> 
+                       CaseAlt (outer ++ inner) -> 
+                       CaseAlt (outer ++ (ns ++ inner))
+  insertCaseAltNames {outer} {inner} ns (ConCase x tag args ct) 
+      = ConCase x tag args 
+           (rewrite appendAssociative args outer (ns ++ inner) in
+                    insertCaseNames {outer = args ++ outer} {inner} ns
+                        (rewrite sym (appendAssociative args outer inner) in
+                                 ct))
+  insertCaseAltNames ns (ConstCase x ct) 
+      = ConstCase x (insertCaseNames ns ct)
+  insertCaseAltNames ns (DefaultCase ct) 
+      = DefaultCase (insertCaseNames ns ct)
 
   thinVar : (n : Name) -> Var (outer ++ inner) -> Var (outer ++ n :: inner)
+  thinVar n (MkVar prf) 
+      = let (_ ** prf') = insertVar {n} _ prf in
+            MkVar prf'
+
+  insertNamesVar : (ns : List Name) -> Var (outer ++ inner) -> Var (outer ++ (ns ++ inner))
+  insertNamesVar ns (MkVar prf) 
+      = let (_ ** prf') = insertVarNames {ns} _ prf in
+            MkVar prf'
 
   thinTree : (n : Name) -> CaseTree (outer ++ inner) -> CaseTree (outer ++ n :: inner)
+  thinTree n (Switch idx prf scTy alts) 
+      = let (_ ** prf') = insertVar {n} _ prf in
+            Switch _ prf' (thin n scTy) (map (insertCaseAltNames [n]) alts)
+  thinTree n (STerm tm) = STerm (thin n tm)
+  thinTree n (Unmatched msg) = Unmatched msg
+  thinTree n Impossible = Impossible
 
-  thinAlt : (n : Name) -> PatAlt (outer ++ inner) -> PatAlt (outer ++ n :: inner)
+  thinPat : (n : Name) -> Pat (outer ++ inner) -> Pat (outer ++ n :: inner)
+  thinPat n (PAs fc idx prf p) 
+      = let (_ ** prf') = insertVar {n} _ prf in
+            PAs fc _ prf' (thinPat n p)
+  thinPat n (PCon fc x tag arity args) 
+      = PCon fc x tag arity (map (thinPat n) args)
+  thinPat n (PLoc fc idx prf) 
+      = let (_ ** prf') = insertVar {n} _ prf in
+            PLoc fc _ prf'
+  thinPat n (PUnmatchable fc tm) = PUnmatchable fc (thin n tm)
+  
+  insertPatNames : (ns : List Name) -> 
+                   Pat (outer ++ inner) -> Pat (outer ++ (ns ++ inner))
+  insertPatNames ns (PAs fc idx prf p) 
+      = let (_ ** prf') = insertVarNames {ns} _ prf in
+            PAs fc _ prf' (insertPatNames ns p)
+  insertPatNames ns (PCon fc x tag arity args) 
+      = PCon fc x tag arity (map (insertPatNames ns) args)
+  insertPatNames ns (PLoc fc idx prf) 
+      = let (_ ** prf') = insertVarNames {ns} _ prf in
+            PLoc fc _ prf'
+  insertPatNames ns (PUnmatchable fc tm) 
+      = PUnmatchable fc (insertNames ns tm)
 
+  thinPatAlt : (n : Name) -> PatAlt (outer ++ inner) -> PatAlt (outer ++ n :: inner)
+  thinPatAlt {outer} n (CBind r x ty alt) 
+      = CBind r x (thin n ty) (thinPatAlt {outer = x :: outer} n alt)
+  thinPatAlt n (CPats pats tm) 
+      = CPats (map (thinPat n) pats) (thin n tm)
 
-
+  insertPatAltNames : (ns : List Name) -> 
+                      PatAlt (outer ++ inner) -> PatAlt (outer ++ (ns ++ inner))
+  insertPatAltNames {outer} ns (CBind r x ty alt) 
+      = CBind r x (insertNames ns ty) (insertPatAltNames {outer = x :: outer} ns alt)
+  insertPatAltNames ns (CPats pats tm) 
+      = CPats (map (insertPatNames ns) pats) (insertNames ns tm)
 
 export 
 Weaken Term where
   weaken tm = thin {outer = []} _ tm
+  weakenNs ns tm = insertNames {outer = []} ns tm
 
 --- Some test stuff
 loc : (n : Name) -> {auto prf : IsVar n idx vars} -> Term vars
