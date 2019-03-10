@@ -6,6 +6,7 @@ modules =
     Core.Context,
     Core.Core,
     Core.Env,
+    Core.Normalise,
     Core.FC,
     Core.Name,
     Core.TT,

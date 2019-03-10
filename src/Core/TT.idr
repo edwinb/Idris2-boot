@@ -3,6 +3,8 @@ module Core.TT
 import public Core.FC
 import public Core.Name
 
+import Data.Vect
+
 %default covering
 
 %hide Raw -- from Reflection in the Prelude
@@ -276,7 +278,7 @@ mutual
        Case : FC -> (cs : List (Var vars)) -> 
               (ty : Term vars) ->
               Maybe (CaseTree vars) ->
-              (alts : List (PatAlt cs vars)) -> 
+              (alts : List (PatAlt vars)) -> 
               Term vars
        PrimVal : FC -> (c : Constant) -> Term vars
        Erased : FC -> Term vars
@@ -291,10 +293,10 @@ mutual
        PUnmatchable : FC -> Term vars -> Pat vars
 
   public export
-  data PatAlt : List (Var vs) -> List Name -> Type where
+  data PatAlt : List Name -> Type where
        CBind : RigCount -> (x : Name) -> (ty : Term vars) ->
-               PatAlt cs (x :: vars) -> PatAlt cs vars
-       CPats : CList cs (Pat vars) -> Term vars -> PatAlt cs vars
+               PatAlt (x :: vars) -> PatAlt vars
+       CPats : List (Pat vars) -> Term vars -> PatAlt vars
 
   public export
   data CaseTree : List Name -> Type where
@@ -353,6 +355,60 @@ Ord Visibility where
   compare Export Private = GT
   compare Public Private = GT
   compare Public Export = GT
+
+public export
+interface Weaken (tm : List Name -> Type) where
+  weaken : tm vars -> tm (n :: vars)
+  weakenNs : (ns : List Name) -> tm vars -> tm (ns ++ vars)
+
+  weakenNs [] t = t
+  weakenNs (n :: ns) t = weaken (weakenNs ns t)
+
+  weaken = weakenNs [_]
+
+insertVar : (idx : _) -> 
+            IsVar name idx (outer ++ inner) ->
+            (idx' ** IsVar name idx' (outer ++ n :: inner))
+insertVar {outer = []} idx x = (_ ** Later x)
+insertVar {outer = (name :: xs)} Z First = (_ ** First)
+insertVar {n} {outer = (x :: xs)} (S i) (Later y) 
+    = let (_ ** prf) = insertVar {n} i y in
+          (_ ** Later prf)
+
+mutual
+  export
+  thin : (n : Name) -> Term (outer ++ inner) -> Term (outer ++ n :: inner)
+  thin n (Local fc r idx prf) 
+      = let (idx' ** var') = insertVar {n} idx prf in
+            Local fc r idx' var'
+  thin n (Ref fc nt name) = Ref fc nt name
+  thin n (ULet i val sc) 
+      = ULet i (thin n val) (thin n sc)
+  thin {outer} {inner} n (Bind fc x b scope) 
+      = let sc' = thin {outer = x :: outer} {inner} n scope in
+            Bind fc x (assert_total (map (thin n) b)) sc'
+  thin n (App fc fn p arg) = App fc (thin n fn) p (thin n arg)
+  thin {outer} {inner} n (Case fc cs ty tree alts) 
+      = Case fc (map (thinVar {outer} {inner} n) cs)
+                     (thin {outer} {inner} n ty) 
+                     (map (thinTree n) tree)
+                     (map (thinAlt n) alts)
+  thin n (PrimVal fc c) = PrimVal fc c
+  thin n (Erased fc) = Erased fc
+  thin n (TType fc) = TType fc
+
+  thinVar : (n : Name) -> Var (outer ++ inner) -> Var (outer ++ n :: inner)
+
+  thinTree : (n : Name) -> CaseTree (outer ++ inner) -> CaseTree (outer ++ n :: inner)
+
+  thinAlt : (n : Name) -> PatAlt (outer ++ inner) -> PatAlt (outer ++ n :: inner)
+
+
+
+
+export 
+Weaken Term where
+  weaken tm = thin {outer = []} _ tm
 
 --- Some test stuff
 loc : (n : Name) -> {auto prf : IsVar n idx vars} -> Term vars

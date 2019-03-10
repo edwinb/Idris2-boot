@@ -1,7 +1,8 @@
 module Core.Value
 
-import Core.TT
+import Core.Context
 import Core.Env
+import Core.TT
 
 public export
 record EvalOpts where
@@ -10,6 +11,23 @@ record EvalOpts where
   evalAll : Bool -- evaluate everything, including private names
   tcInline : Bool -- inline for totality checking
   fuel : Maybe Nat -- Limit for recursion depth
+
+-- Context for local unification variables
+export
+data UCtxt : List Name -> Type where
+     MkUCtxt : {wkns : List Name} -> Context (Term vars) ->
+               UCtxt (wkns ++ vars)
+
+export
+Weaken UCtxt where
+  weaken (MkUCtxt {wkns} ctxt) = MkUCtxt {wkns = _ :: wkns} ctxt
+
+export
+lookup : Int -> UCtxt ns -> Core (Maybe (Term ns))
+lookup i (MkUCtxt {wkns} ctxt)
+    = do Just tm <- lookupCtxtExact (Resolved i) ctxt
+              | Nothing => pure Nothing
+         pure (Just (weakenNs wkns tm))
 
 mutual
   public export

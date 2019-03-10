@@ -1,8 +1,8 @@
 module Core.Context
 
-import Core.Core
-import Core.Name
-import Core.TT
+import public Core.Core
+import public Core.Name
+import public Core.TT
 
 import Data.IOArray
 import Data.NameMap
@@ -125,3 +125,14 @@ data Def : Type where
            Def
     Hole : (numlocs : Nat) -> (invertible : Bool) -> Def
 
+public export
+record Defs where
+  constructor MkDefs
+  gamma : Context Def
+
+export
+initDefs : Core Defs
+initDefs 
+    = do gam <- initCtxt
+         pure (MkDefs gam)
+      

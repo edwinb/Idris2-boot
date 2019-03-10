@@ -2,6 +2,15 @@ data Bool : Type where
      False : Bool
      True : Bool
 
+{-
+plus : Nat -> Nat -> Nat
+plus 
+    = \x, y =>
+          case x of
+               Z => y
+               S k => S (plus k y)
+-}
+
 data Nat : Type where
      Z : Nat
      S : Nat -> Nat
