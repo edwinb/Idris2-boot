@@ -24,7 +24,10 @@ modules =
     Text.Parser,
     Text.Parser.Core,
     Text.Quantity,
-    Text.Token
+    Text.Token,
+
+    TTImp.Parser,
+    TTImp.TTImp
 
 sourcedir = src
 -- executable = ttimp

@@ -12,9 +12,6 @@ data Name : Type where
      Nested : Name -> Name -> Name -- nested function name
      Resolved : Int -> Name -- resolved, index into context
 
-export Show Name where
-  show n = "[not done yet]"
-
 export
 userNameRoot : Name -> Maybe String
 userNameRoot (NS _ n) = userNameRoot n
@@ -26,6 +23,15 @@ showSep : String -> List String -> String
 showSep sep [] = ""
 showSep sep [x] = x
 showSep sep (x :: xs) = x ++ sep ++ showSep sep xs
+
+export Show Name where
+  show (NS ns n) = showSep "." (reverse ns) ++ "." ++ show n
+  show (UN x) = x
+  show (MN x y) = "{" ++ x ++ ":" ++ show y ++ "}"
+  show (PV n d) = "{P:" ++ show n ++ ":" ++ show d ++ "}"
+  show (MV x) = "{meta-" ++ show x ++ "}"
+  show (Nested outer inner) = show outer ++ ":" ++ show inner
+  show (Resolved x) = "$resolved" ++ show x
 
 export
 Eq Name where

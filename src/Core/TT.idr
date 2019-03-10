@@ -91,6 +91,12 @@ Eq Constant where
 public export
 data PiInfo = Implicit | Explicit | AutoImplicit
 
+export
+Show PiInfo where
+  show Implicit = "Implicit"
+  show Explicit = "Explicit"
+  show AutoImplicit = "AutoImplicit"
+
 public export
 data RigCount = Rig0 | Rig1 | RigW
 
