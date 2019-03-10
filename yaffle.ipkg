@@ -3,6 +3,7 @@ package yaffle
 modules = 
     Control.Delayed,
 
+    Core.Context,
     Core.Core,
     Core.Env,
     Core.FC,
@@ -11,7 +12,7 @@ modules =
     Core.Value,
 
     Data.Bool.Extra,
-    Data.IntMap,
+    Data.IOArray,
     Data.NameMap,
     Data.StringMap,
 

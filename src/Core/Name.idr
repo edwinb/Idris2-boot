@@ -16,6 +16,12 @@ export Show Name where
   show n = "[not done yet]"
 
 export
+userNameRoot : Name -> Maybe String
+userNameRoot (NS _ n) = userNameRoot n
+userNameRoot (UN n) = Just n
+userNameRoot _ = Nothing
+
+export
 showSep : String -> List String -> String
 showSep sep [] = ""
 showSep sep [x] = x
