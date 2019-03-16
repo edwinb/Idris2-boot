@@ -99,6 +99,13 @@ Show PiInfo where
   show Explicit = "Explicit"
   show AutoImplicit = "AutoImplicit"
 
+export
+Eq PiInfo where
+  (==) Implicit Implicit = True
+  (==) Explicit Explicit = True
+  (==) AutoImplicit AutoImplicit = True
+  (==) _ _ = False
+
 public export
 data RigCount = Rig0 | Rig1 | RigW
 

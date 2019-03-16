@@ -280,20 +280,79 @@ interface Convert (tm : List Name -> Type) where
            convGen q defs ucs env tm tm'
 
 mutual
+  allConv : Ref QVar Int -> Defs -> UCtxt vars -> Env Term vars ->
+            List (Closure vars) -> List (Closure vars) -> Core Bool
+  allConv q defs ucs env [] [] = pure True
+  allConv q defs ucs env (x :: xs) (y :: ys)
+      = pure $ !(convGen q defs ucs env x y) && !(allConv q defs ucs env xs ys)
+  allConv q defs ucs env _ _ = pure False
+
+  chkConvHead : NHead vars -> NHead vars -> Bool 
+  chkConvHead (NLocal _ idx _) (NLocal _ idx' _) = idx == idx'
+  chkConvHead (NRef _ n) (NRef _ n') = n == n'
+  chkConvHead _ _ = False
+
+  -- Comparing multiplicities when converting pi binders
+  subRig : RigCount -> RigCount -> Bool
+  subRig Rig1 RigW = True -- we can pass a linear function if a general one is expected
+  subRig x y = x == y -- otherwise, the multiplicities need to match up
+
+  convBinders : Ref QVar Int -> Defs -> UCtxt vars -> Env Term vars ->
+                Binder (NF vars) -> Binder (NF vars) -> Core Bool
+  convBinders q defs ucs env (Pi cx ix tx) (Pi cy iy ty)
+      = if ix /= iy || not (subRig cx cy)
+           then pure False
+           else convGen q defs ucs env tx ty
+  convBinders q defs ucs env (Lam cx ix tx) (Lam cy iy ty)
+      = if ix /= iy || cx /= cy
+           then pure False
+           else convGen q defs ucs env tx ty
+  convBinders q defs ucs env bx by
+      = if multiplicity bx /= multiplicity by
+           then pure False
+           else convGen q defs ucs env (binderType bx) (binderType by)
+
+
   export
   Convert NF where
-    convGen q defs ucs env (NBind _ x b sc) (NBind _ x' b' sc') = ?conv_1
+    convGen q defs ucs env (NBind fc x b sc) (NBind _ x' b' sc') 
+        = do var <- genName "conv"
+             let c = MkClosure defaultOpts ucs [] env (Ref fc Bound var)
+             bok <- convBinders q defs ucs env b b'
+             if bok
+                then do bsc <- sc c
+                        bsc' <- sc' c
+                        convGen q defs ucs env bsc bsc'
+                else pure False
 
-    convGen q defs ucs env tmx@(NBind fc x (Lam c ix tx) scx) tmy = ?conv_2
-    convGen q defs ucs env tmx tmy@(NBind fc y (Lam c iy ty) scy) = ?conv_3
+    convGen q defs ucs env tmx@(NBind fc x (Lam c ix tx) scx) tmy 
+        = do empty <- clearDefs defs
+             etay <- nf defs ucs env 
+                        (Bind fc x (Lam c ix !(quote empty ucs env tx))
+                           (App fc (weaken !(quote empty ucs env tmy))
+                                (appInf ix) (Local fc Nothing _ First)))
+             convGen q defs ucs env tmx etay
+    convGen q defs ucs env tmx tmy@(NBind fc y (Lam c iy ty) scy)
+        = do empty <- clearDefs defs
+             etax <- nf defs ucs env 
+                        (Bind fc y (Lam c iy !(quote empty ucs env ty))
+                           (App fc (weaken !(quote empty ucs env tmx))
+                                (appInf iy) (Local fc Nothing _ First)))
+             convGen q defs ucs env etax tmy
 
     convGen q defs ucs env (NApp _ val args) (NApp _ val' args')
-        = ?conv_4
+        = if chkConvHead val val'
+             then allConv q defs ucs env (map snd args) (map snd args')
+             else pure False
 
     convGen q defs ucs env (NDCon _ nm tag _ args) (NDCon _ nm' tag' _ args')
-        = ?conv_5
+        = if tag == tag'
+             then allConv q defs ucs env (map snd args) (map snd args')
+             else pure False
     convGen q defs ucs env (NTCon _ nm tag _ args) (NTCon _ nm' tag' _ args')
-        = ?conv_6
+        = if nm == nm'
+             then allConv q defs ucs env (map snd args) (map snd args')
+             else pure False
 
     convGen q defs ucs env (NDelayed _ r arg) (NDelayed _ r' arg')
         = if r == r'
@@ -314,6 +373,10 @@ mutual
 
   export
   Convert Term where
+    convGen q defs ucs env x y
+        = convGen q defs ucs env !(nf defs ucs env x) !(nf defs ucs env y)
 
   export
   Convert Closure where
+    convGen q defs ucs env x y
+        = convGen q defs ucs env !(evalClosure defs x) !(evalClosure defs y)

@@ -139,6 +139,12 @@ record Defs where
   gamma : Context GlobalDef
 
 export
+clearDefs : Defs -> Core Defs
+clearDefs defs
+    = do gam <- initCtxt
+         pure (record { gamma = gam } defs)
+
+export
 initDefs : Core Defs
 initDefs 
     = do gam <- initCtxt
