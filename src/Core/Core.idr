@@ -388,6 +388,15 @@ traverse : (a -> Core b) -> List a -> Core (List b)
 traverse f xs = traverse' f xs []
 
 export
+mapBinder : (a -> Core b) -> Binder a -> Core (Binder b)
+mapBinder f (Lam r p ty) = pure $ Lam r p !(f ty)
+mapBinder f (Let r val ty) = pure $ Let r !(f val) !(f ty)
+mapBinder f (Pi r p ty) = pure $ Pi r p !(f ty)
+mapBinder f (PVar r ty) = pure $ PVar r !(f ty)
+mapBinder f (PVTy r ty) = pure $ PVTy r !(f ty)
+
+
+export
 data Ref : label -> Type -> Type where
 	   MkRef : IORef a -> Ref x a
 

@@ -82,3 +82,37 @@ Ord Name where
     compare (Resolved x) (Resolved y) = compare x y
 
     compare x y = compare (nameTag x) (nameTag y)
+
+export
+nameEq : (x : Name) -> (y : Name) -> Maybe (x = y)
+nameEq (NS xs x) (NS ys y) with (decEq xs ys)
+  nameEq (NS ys x) (NS ys y) | (Yes Refl) with (nameEq x y)
+    nameEq (NS ys x) (NS ys y) | (Yes Refl) | Nothing = Nothing
+    nameEq (NS ys y) (NS ys y) | (Yes Refl) | (Just Refl) = Just Refl
+  nameEq (NS xs x) (NS ys y) | (No contra) = Nothing
+nameEq (UN x) (UN y) with (decEq x y)
+  nameEq (UN y) (UN y) | (Yes Refl) = Just Refl
+  nameEq (UN x) (UN y) | (No contra) = Nothing
+nameEq (MN x t) (MN x' t') with (decEq x x')
+  nameEq (MN x t) (MN x t') | (Yes Refl) with (decEq t t')
+    nameEq (MN x t) (MN x t) | (Yes Refl) | (Yes Refl) = Just Refl
+    nameEq (MN x t) (MN x t') | (Yes Refl) | (No contra) = Nothing
+  nameEq (MN x t) (MN x' t') | (No contra) = Nothing
+nameEq (PV x t) (PV y t') with (nameEq x y)
+  nameEq (PV y t) (PV y t') | (Just Refl) with (nameEq t t')
+    nameEq (PV y t) (PV y t) | (Just Refl) | (Just Refl) = Just Refl
+    nameEq (PV y t) (PV y t') | (Just Refl) | Nothing = Nothing
+  nameEq (PV x t) (PV y t') | Nothing = Nothing
+nameEq (MV x) (MV y) with (decEq x y)
+  nameEq (MV x) (MV x) | (Yes Refl) = Just Refl
+  nameEq (MV x) (MV y) | (No contra) = Nothing
+nameEq (Nested x y) (Nested x' y') with (nameEq x x')
+  nameEq (Nested x y) (Nested x' y') | Nothing = Nothing
+  nameEq (Nested x y) (Nested x y') | (Just Refl) with (nameEq y y')
+    nameEq (Nested x y) (Nested x y') | (Just Refl) | Nothing = Nothing
+    nameEq (Nested x y) (Nested x y) | (Just Refl) | (Just Refl) = Just Refl
+nameEq (Resolved x) (Resolved y) with (decEq x y)
+  nameEq (Resolved y) (Resolved y) | (Yes Refl) = Just Refl
+  nameEq (Resolved x) (Resolved y) | (No contra) = Nothing
+nameEq _ _ = Nothing 
+

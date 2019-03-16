@@ -1,35 +1,27 @@
 module Core.Value
 
 import Core.Context
+import Core.Core
 import Core.Env
 import Core.TT
 
 public export
 record EvalOpts where
   constructor MkEvalOpts
-  holesOnly : Bool -- only evaluate hole solutions
   evalAll : Bool -- evaluate everything, including private names
   tcInline : Bool -- inline for totality checking
   fuel : Maybe Nat -- Limit for recursion depth
 
--- Context for local unification variables
 export
-data UCtxt : List Name -> Type where
-     MkUCtxt : {wkns : List Name} -> Context (Term vars) ->
-               UCtxt (wkns ++ vars)
-
-export
-Weaken UCtxt where
-  weaken (MkUCtxt {wkns} ctxt) = MkUCtxt {wkns = _ :: wkns} ctxt
-
-export
-lookup : Int -> UCtxt ns -> Core (Maybe (Term ns))
-lookup i (MkUCtxt {wkns} ctxt)
-    = do Just tm <- lookupCtxtExact (Resolved i) ctxt
-              | Nothing => pure Nothing
-         pure (Just (weakenNs wkns tm))
+defaultOpts : EvalOpts
+defaultOpts = MkEvalOpts True False Nothing
 
 mutual
+  -- Context for local unification variables
+  export
+  data UCtxt : List Name -> Type where
+       MkUCtxt : Context (Term vars) -> UCtxt vars 
+
   public export
   data LocalEnv : List Name -> List Name -> Type where
        Nil  : LocalEnv free []
@@ -38,6 +30,7 @@ mutual
   public export
   data Closure : List Name -> Type where
        MkClosure : (opts : EvalOpts) ->
+                   UCtxt free ->
                    LocalEnv free vars -> 
                    Env Term free ->
                    Term (vars ++ free) -> Closure free
@@ -49,19 +42,32 @@ mutual
        NLocal : Maybe RigCount -> (idx : Nat) -> IsVar name idx vars ->
                 NHead vars
        NRef   : NameType -> Name -> NHead vars
-       NBlocked : Closure vars -> NHead vars -- complex blocked term, e.g. Case
 
   -- Values themselves
   public export
   data NF : List Name -> Type where
        NBind    : FC -> (x : Name) -> Binder (NF vars) ->
-                  (Closure vars -> NF vars) -> NF vars
-       NApp     : FC -> NHead vars -> List (Closure vars) -> NF vars
+                  (Closure vars -> Core (NF vars)) -> NF vars
+       NApp     : FC -> NHead vars -> List (AppInfo, Closure vars) -> NF vars
        NDCon    : FC -> Name -> (tag : Int) -> (arity : Nat) -> 
-                  List (Closure vars) -> NF vars
+                  List (AppInfo, Closure vars) -> NF vars
        NTCon    : FC -> Name -> (tag : Int) -> (arity : Nat) -> 
-                  List (Closure vars) -> NF vars
+                  List (AppInfo, Closure vars) -> NF vars
+       NDelayed : FC -> LazyReason -> Closure vars -> NF vars
+       NDelay   : FC -> LazyReason -> Closure vars -> NF vars
+       NForce   : FC -> NF vars -> NF vars
        NPrimVal : FC -> Constant -> NF vars
        NErased  : FC -> NF vars
        NType    : FC -> NF vars
+
+export
+lookup : Int -> UCtxt vars -> Core (Maybe (Term vars))
+lookup i (MkUCtxt ctxt)
+    = lookupCtxtExact (Resolved i) ctxt
+
+export
+initUCtxt : Core (UCtxt vars)
+initUCtxt
+    = do e <- initCtxt
+         pure $ MkUCtxt e
 

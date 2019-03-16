@@ -126,9 +126,17 @@ data Def : Type where
     Hole : (numlocs : Nat) -> (invertible : Bool) -> Def
 
 public export
+record GlobalDef where
+  constructor MkGlobalDef
+  type : ClosedTerm
+  multiplicity : RigCount
+  visibility : Visibility
+  definition : Def
+
+public export
 record Defs where
   constructor MkDefs
-  gamma : Context Def
+  gamma : Context GlobalDef
 
 export
 initDefs : Core Defs

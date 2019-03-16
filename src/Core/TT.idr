@@ -265,12 +265,13 @@ namespace CList
 -- indexed by the names of local variables in scope
 mutual
   public export
+  data LazyReason = LInf | LLazy 
+
+  public export
   data Term : List Name -> Type where
        Local : FC -> Maybe RigCount -> 
                (idx : Nat) -> IsVar name idx vars -> Term vars
        Ref : FC -> NameType -> (name : Name) -> Term vars
-       -- Metavariable solution binding
-       ULet : Int -> Term vars -> Term vars -> Term vars
        Bind : FC -> (x : Name) -> 
               (b : Binder (Term vars)) -> 
               (scope : Term (x :: vars)) -> Term vars
@@ -280,6 +281,9 @@ mutual
               Maybe (CaseTree vars) ->
               (alts : List (PatAlt vars)) -> 
               Term vars
+       TDelayed : FC -> LazyReason -> Term vars -> Term vars
+       TDelay : FC -> LazyReason -> Term vars -> Term vars
+       TForce : FC -> Term vars -> Term vars
        PrimVal : FC -> (c : Constant) -> Term vars
        Erased : FC -> Term vars
        TType : FC -> Term vars
@@ -314,6 +318,18 @@ mutual
        ConstCase : Constant -> CaseTree vars -> CaseAlt vars
        DefaultCase : CaseTree vars -> CaseAlt vars
 
+export
+varExtend : IsVar x idx xs -> IsVar x idx (xs ++ ys)
+-- What Could Possibly Go Wrong?
+-- This relies on the runtime representation of the term being the same
+-- after embedding! It is just an identity function at run time, though, and
+-- we don't need its definition at compile time, so let's do it...
+varExtend p = believe_me p
+
+export
+embed : Term vars -> Term (vars ++ more)
+embed tm = believe_me tm
+
 export Show (Term vars) where
   show tm = "[not done yet]"
 
@@ -325,6 +341,11 @@ export
 apply : FC -> AppInfo -> Term vars -> List (Term vars) -> Term vars
 apply loc p fn [] = fn
 apply loc p fn (a :: args) = apply loc p (App loc fn p a) args
+
+export
+applyInfo : FC -> Term vars -> List (AppInfo, Term vars) -> Term vars
+applyInfo loc fn [] = fn
+applyInfo loc fn ((p, a) :: args) = applyInfo loc (App loc fn p a) args
 
 public export
 data Visibility = Private | Export | Public
@@ -383,6 +404,7 @@ weakenVar (y :: xs) x
    = let (_ ** x') = weakenVar xs x in
          (_ ** Later x')
 
+export
 insertVarNames : {outer, ns : _} ->
                  (idx : _) -> 
                  IsVar name idx (outer ++ inner) ->
@@ -401,8 +423,6 @@ mutual
       = let (idx' ** var') = insertVar {n} idx prf in
             Local fc r idx' var'
   thin n (Ref fc nt name) = Ref fc nt name
-  thin n (ULet i val sc) 
-      = ULet i (thin n val) (thin n sc)
   thin {outer} {inner} n (Bind fc x b scope) 
       = let sc' = thin {outer = x :: outer} {inner} n scope in
             Bind fc x (assert_total (map (thin n) b)) sc'
@@ -412,6 +432,9 @@ mutual
                      (thin {outer} {inner} n ty) 
                      (map (thinTree n) tree)
                      (map (thinPatAlt n) alts)
+  thin n (TDelayed fc r ty) = TDelayed fc r (thin n ty)
+  thin n (TDelay fc r tm) = TDelay fc r (thin n tm)
+  thin n (TForce fc tm) = TForce fc (thin n tm)
   thin n (PrimVal fc c) = PrimVal fc c
   thin n (Erased fc) = Erased fc
   thin n (TType fc) = TType fc
@@ -424,8 +447,6 @@ mutual
       = let (_ ** prf') = insertVarNames {ns} idx prf in
             Local fc r _ prf'
   insertNames ns (Ref fc nt name) = Ref fc nt name
-  insertNames ns (ULet i val sc) 
-      = ULet i (insertNames ns val) (insertNames ns sc)
   insertNames {outer} {inner} ns (Bind fc x b scope) 
       = Bind fc x (assert_total (map (insertNames ns) b)) 
              (insertNames {outer = x :: outer} {inner} ns scope)
@@ -436,6 +457,9 @@ mutual
                 (insertNames ns ty)
                 (map (insertCaseNames ns) tree)
                 (map (insertPatAltNames ns) alts)
+  insertNames ns (TDelayed fc r ty) = TDelayed fc r (insertNames ns ty)
+  insertNames ns (TDelay fc r tm) = TDelay fc r (insertNames ns tm)
+  insertNames ns (TForce fc tm) = TForce fc (insertNames ns tm)
   insertNames ns (PrimVal fc c) = PrimVal fc c
   insertNames ns (Erased fc) = Erased fc
   insertNames ns (TType fc) = TType fc
@@ -523,6 +547,14 @@ export
 Weaken Term where
   weaken tm = thin {outer = []} _ tm
   weakenNs ns tm = insertNames {outer = []} ns tm
+
+public export
+data Bounds : List Name -> Type where
+     None : Bounds []
+     Add : (x : Name) -> Name -> Bounds xs -> Bounds (x :: xs)
+
+-- export
+-- refsToLocals : Bounds bound -> Term vars -> Term (bound ++ vars)
 
 --- Some test stuff
 loc : (n : Name) -> {auto prf : IsVar n idx vars} -> Term vars
