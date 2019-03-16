@@ -319,6 +319,12 @@ mutual
        DefaultCase : CaseTree vars -> CaseAlt vars
 
 export
+Eq LazyReason where
+  (==) LInf LInf = True
+  (==) LLazy LLazy = True
+  (==) _ _ = False
+
+export
 varExtend : IsVar x idx xs -> IsVar x idx (xs ++ ys)
 -- What Could Possibly Go Wrong?
 -- This relies on the runtime representation of the term being the same

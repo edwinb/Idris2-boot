@@ -31,6 +31,10 @@ parameters (defs : Defs, ucs : UCtxt free, opts : EvalOpts)
         = evalLocal env locs fc mrig idx prf stk
     eval env locs (Ref fc nt fn) stk 
         = evalRef env locs fc nt fn stk (NApp fc (NRef nt fn) stk)
+    eval env locs (Bind fc x (Lam r _ ty) scope) ((p, thunk) :: stk)
+         = eval env (thunk :: locs) scope stk
+    eval env locs (Bind fc x (Let r val ty) scope) stk
+         = eval env (MkClosure opts ucs locs env val :: locs) scope stk
     eval env locs (Bind fc x b scope) stk 
          = do b' <- mapBinder (\tm => eval env locs tm stk) b
               pure $ NBind fc x b'
@@ -275,4 +279,41 @@ interface Convert (tm : List Name -> Type) where
       = do q <- newRef QVar 0
            convGen q defs ucs env tm tm'
 
+mutual
+  export
+  Convert NF where
+    convGen q defs ucs env (NBind _ x b sc) (NBind _ x' b' sc') = ?conv_1
 
+    convGen q defs ucs env tmx@(NBind fc x (Lam c ix tx) scx) tmy = ?conv_2
+    convGen q defs ucs env tmx tmy@(NBind fc y (Lam c iy ty) scy) = ?conv_3
+
+    convGen q defs ucs env (NApp _ val args) (NApp _ val' args')
+        = ?conv_4
+
+    convGen q defs ucs env (NDCon _ nm tag _ args) (NDCon _ nm' tag' _ args')
+        = ?conv_5
+    convGen q defs ucs env (NTCon _ nm tag _ args) (NTCon _ nm' tag' _ args')
+        = ?conv_6
+
+    convGen q defs ucs env (NDelayed _ r arg) (NDelayed _ r' arg')
+        = if r == r'
+             then convGen q defs ucs env arg arg'
+             else pure False
+    convGen q defs ucs env (NDelay _ r arg) (NDelay _ r' arg')
+        = if r == r'
+             then convGen q defs ucs env arg arg'
+             else pure False
+    convGen q defs ucs env (NForce _ arg) (NForce _ arg')
+        = convGen q defs ucs env arg arg'
+
+    convGen q defs ucs env (NPrimVal _ c) (NPrimVal _ c') = pure (c == c')
+    convGen q defs ucs env (NErased _) _ = pure True
+    convGen q defs ucs env _ (NErased _) = pure True
+    convGen q defs ucs env (NType _) (NType _) = pure True
+    convGen q defs ucs env x y = pure False
+
+  export
+  Convert Term where
+
+  export
+  Convert Closure where
