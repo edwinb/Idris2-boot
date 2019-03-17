@@ -32,27 +32,30 @@ parameters (defs : Defs, ucs : UCtxt free, opts : EvalOpts)
         = evalLocal env locs fc mrig idx prf stk
     eval env locs (Ref fc nt fn) stk 
         = evalRef env locs fc nt fn stk (NApp fc (NRef nt fn) stk)
+    eval env locs (Meta fc name idx args) stk
+        = do let args' = map (\a => (explApp, MkClosure opts ucs locs env a)) args
+             evalMeta env locs fc name idx args' stk
     eval env locs (Bind fc x (Lam r _ ty) scope) ((p, thunk) :: stk)
-         = eval env (thunk :: locs) scope stk
+        = eval env (thunk :: locs) scope stk
     eval env locs (Bind fc x (Let r val ty) scope) stk
-         = eval env (MkClosure opts ucs locs env val :: locs) scope stk
+        = eval env (MkClosure opts ucs locs env val :: locs) scope stk
     eval env locs (Bind fc x b scope) stk 
-         = do b' <- mapBinder (\tm => eval env locs tm stk) b
-              pure $ NBind fc x b'
-                       (\arg => eval env (arg :: locs) scope stk)
+        = do b' <- mapBinder (\tm => eval env locs tm stk) b
+             pure $ NBind fc x b'
+                      (\arg => eval env (arg :: locs) scope stk)
     eval env locs (App fc fn p arg) stk 
-         = eval env locs fn ((p, MkClosure opts ucs locs env arg) :: stk)
+        = eval env locs fn ((p, MkClosure opts ucs locs env arg) :: stk)
     eval env locs (Case fc cs ty x alts) stk 
-       = throw (InternalError "Case evaluator not implemented")
+        = throw (InternalError "Case evaluator not implemented")
     eval env locs (TDelayed fc r ty) stk 
-       = pure (NDelayed fc r (MkClosure opts ucs locs env ty))
+        = pure (NDelayed fc r (MkClosure opts ucs locs env ty))
     eval env locs (TDelay fc r tm) stk 
-       = pure (NDelay fc r (MkClosure opts ucs locs env tm))
+        = pure (NDelay fc r (MkClosure opts ucs locs env tm))
     eval env locs (TForce fc tm) stk 
-       = do tm' <- eval env locs tm stk
-            case tm' of
-                 NDelay fc r arg => evalClosure defs arg
-                 _ => pure (NForce fc tm')
+        = do tm' <- eval env locs tm stk
+             case tm' of
+                  NDelay fc r arg => evalClosure defs arg
+                  _ => pure (NForce fc tm')
     eval env locs (PrimVal fc c) stk = pure $ NPrimVal fc c
     eval env locs (Erased fc) stk = pure $ NErased fc
     eval env locs (TType fc) stk = pure $ NType fc
@@ -92,15 +95,20 @@ parameters (defs : Defs, ucs : UCtxt free, opts : EvalOpts)
     evalLocal {vars = x :: xs} {free}
               env (_ :: locs) fc mrig (S idx) (Later p) stk
         = evalLocal {vars = xs} env locs fc mrig idx p stk
+    
+    evalMeta : {vars : _} ->
+               Env Term free -> LocalEnv free vars -> 
+               FC -> Name -> Int -> List (AppInfo, Closure free) ->
+               Stack free -> Core (NF free)
+    evalMeta {vars} env locs fc nm i args stk
+        = do Just res <- lookup i ucs
+                  | Nothing => pure (NApp fc (NMeta nm i args) stk)
+             eval env locs (weakenNs vars res) (args ++ stk)
 
     evalRef : {vars : _} ->
               Env Term free -> LocalEnv free vars -> 
               FC -> NameType -> Name -> Stack free -> (def : Lazy (NF free)) ->
               Core (NF free)
-    evalRef {vars} env locs fc nt (MV i) stk def
-        = do Just res <- lookup i ucs
-                  | Nothing => pure def
-             eval env locs (weakenNs vars res) stk
     evalRef env locs fc (DataCon tag arity) fn stk def
         = pure $ NDCon fc fn tag arity stk
     evalRef env locs fc (TyCon tag arity) fn stk def
@@ -117,7 +125,10 @@ parameters (defs : Defs, ucs : UCtxt free, opts : EvalOpts)
               Def -> Stack free -> (def : Lazy (NF free)) ->
               Core (NF free)
     evalDef {vars} env locs (Fn tm) stk def
-        = eval env locs (embed tm) stk
+       -- If evaluating the definition fails (e.g. due to a case being
+       -- stuck) return the default
+        = catch (eval env locs (embed tm) stk)
+                (\err => pure def)
     -- All other cases, use the default value, which is already applied to
     -- the stack
     evalDef env locs _ stk def = pure def
@@ -163,9 +174,10 @@ mutual
                 !(quoteArgs q defs ucs bounds env args))
 
   quoteHead : {bound : _} ->
-              Ref QVar Int -> FC -> Bounds bound -> NHead free -> 
+              Ref QVar Int -> Defs -> UCtxt free -> 
+              FC -> Bounds bound -> Env Term free -> NHead free -> 
               Core (Term (bound ++ free))
-  quoteHead {bound} q fc bounds (NLocal mrig _ prf) 
+  quoteHead {bound} q defs ucs fc bounds env (NLocal mrig _ prf) 
       = let (_ ** prf') = addLater bound prf in
             pure $ Local fc mrig _ prf'
     where
@@ -175,7 +187,7 @@ mutual
       addLater (x :: xs) isv 
           = let (_ ** isv') = addLater xs isv in
                 (_ ** Later isv')
-  quoteHead q fc bounds (NRef Bound n) 
+  quoteHead q defs ucs fc bounds env (NRef Bound n) 
       = case findName bounds of
              Just (_ ** _ ** p) => pure $ Local fc Nothing _ (varExtend p)
              Nothing => pure $ Ref fc Bound n
@@ -188,7 +200,10 @@ mutual
                  Nothing => 
                     do (_ ** _ ** p) <- findName ns
                        Just (_ ** _ ** Later p)
-  quoteHead q fc bounds (NRef nt n) = pure $ Ref fc nt n
+  quoteHead q defs ucs fc bounds env (NRef nt n) = pure $ Ref fc nt n
+  quoteHead q defs ucs fc bounds env (NMeta n i args)
+      = do args' <- quoteArgs q defs ucs bounds env args
+           pure $ Meta fc n i (map snd args')
 
   quoteBinder : {bound : _} ->
                 Ref QVar Int -> Defs -> UCtxt free -> Bounds bound ->
@@ -222,7 +237,7 @@ mutual
            b' <- quoteBinder q defs ucs bound env b
            pure (Bind fc n b' sc')
   quoteGenNF q defs ucs bound env (NApp fc f args)
-      = do f' <- quoteHead q fc bound f
+      = do f' <- quoteHead q defs ucs fc bound env f
            args' <- quoteArgs q defs ucs bound env args
            pure $ applyInfo fc f' args'
   quoteGenNF q defs ucs bound env (NDCon fc n t ar args) 
@@ -288,10 +303,15 @@ mutual
       = pure $ !(convGen q defs ucs env x y) && !(allConv q defs ucs env xs ys)
   allConv q defs ucs env _ _ = pure False
 
-  chkConvHead : NHead vars -> NHead vars -> Bool 
-  chkConvHead (NLocal _ idx _) (NLocal _ idx' _) = idx == idx'
-  chkConvHead (NRef _ n) (NRef _ n') = n == n'
-  chkConvHead _ _ = False
+  chkConvHead : Ref QVar Int -> Defs -> UCtxt vars -> Env Term vars ->
+                NHead vars -> NHead vars -> Core Bool 
+  chkConvHead q defs ucs env (NLocal _ idx _) (NLocal _ idx' _) = pure $ idx == idx'
+  chkConvHead q defs ucs env (NRef _ n) (NRef _ n') = pure $ n == n'
+  chkConvHead q defs ucs env (NMeta n i args) (NMeta n' i' args') 
+     = if i == i'
+          then allConv q defs ucs env (map snd args) (map snd args')
+          else pure False
+  chkConvHead q defs ucs env _ _ = pure False
 
   -- Comparing multiplicities when converting pi binders
   subRig : RigCount -> RigCount -> Bool
@@ -342,7 +362,7 @@ mutual
              convGen q defs ucs env etax tmy
 
     convGen q defs ucs env (NApp _ val args) (NApp _ val' args')
-        = if chkConvHead val val'
+        = if !(chkConvHead q defs ucs env val val')
              then allConv q defs ucs env (map snd args) (map snd args')
              else pure False
 

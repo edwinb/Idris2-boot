@@ -4,7 +4,7 @@ import Core.Context
 import Core.Core
 import Core.Env
 import Core.Normalise
-import Core.QUnify
+-- import Core.QUnify
 import Core.TT
 import Core.Value
 
@@ -15,10 +15,19 @@ data ExpType : Type -> Type where
      Unknown : ExpType a
      Args : List (Name, a) -> a -> ExpType a
 
+public export
+record EState (vars : List Name) where
+  constructor MkEState
+  nextVar : Int
+
+export
+data EST : Type where
+
 mutual
   export
   check : {vars : _} ->
           {auto c : Ref Ctxt Defs} ->
+          {auto e : Ref EST (EState vars)} ->
           {auto v : Ref UVars (UCtxt vars)} ->
           RigCount -> Env Term vars -> RawImp -> 
           ExpType (NF vars) ->
@@ -27,6 +36,7 @@ mutual
 
   checkImp : {vars : _} ->
              {auto c : Ref Ctxt Defs} ->
+             {auto e : Ref EST (EState vars)} ->
              {auto v : Ref UVars (UCtxt vars)} ->
              RigCount -> Env Term vars -> RawImp -> ExpType (NF vars) ->
              Core (Term vars, NF vars)
@@ -45,6 +55,7 @@ mutual
 
   checkApp : {vars : _} ->
              {auto c : Ref Ctxt Defs} ->
+             {auto e : Ref EST (EState vars)} ->
              {auto v : Ref UVars (UCtxt vars)} ->
              RigCount -> Env Term vars -> 
              FC -> (fn : RawImp) -> 
@@ -62,6 +73,7 @@ mutual
   
   checkAppWith : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->
+                 {auto e : Ref EST (EState vars)} ->
                  {auto v : Ref UVars (UCtxt vars)} ->
                  RigCount -> Env Term vars -> 
                  FC -> Term vars -> NF vars ->
@@ -69,11 +81,15 @@ mutual
                  (impargs : List (Maybe Name, RawImp)) ->
                  ExpType (NF vars) ->
                  Core (Term vars, NF vars)
-  checkAppWith rig env fc fntm fnty expargs impargs exp
+  checkAppWith rig env fc fntm (NBind _ x (Pi r Explicit aty) rty) 
+               (arg :: expargs) impargs exp
       = ?doApp
+  checkAppWith rig env fc fntm fnty expargs impargs exp
+      = ?noMoreTy
 
   getNameType : {vars : _} ->
                 {auto c : Ref Ctxt Defs} ->
+                {auto e : Ref EST (EState vars)} ->
                 {auto v : Ref UVars (UCtxt vars)} ->
                 RigCount -> Env Term vars -> FC -> Name -> ExpType (NF vars) ->
                 Core (Term vars, NF vars)
@@ -102,5 +118,4 @@ mutual
       rigSafe Rig0 RigW = throw (LinearMisuse fc x Rig0 RigW)
       rigSafe Rig0 Rig1 = throw (LinearMisuse fc x Rig0 Rig1)
       rigSafe _ _ = pure ()
-
 

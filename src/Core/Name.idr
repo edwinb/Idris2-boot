@@ -8,7 +8,6 @@ data Name : Type where
      UN : String -> Name -- user defined name
      MN : String -> Int -> Name -- machine generated name
      PV : Name -> Name -> Name -- pattern variable name
-     MV : Int -> Name -- metavariable reference
      Nested : Name -> Name -> Name -- nested function name
      Resolved : Int -> Name -- resolved, index into context
 
@@ -29,7 +28,6 @@ export Show Name where
   show (UN x) = x
   show (MN x y) = "{" ++ x ++ ":" ++ show y ++ "}"
   show (PV n d) = "{P:" ++ show n ++ ":" ++ show d ++ "}"
-  show (MV x) = "{meta-" ++ show x ++ "}"
   show (Nested outer inner) = show outer ++ ":" ++ show inner
   show (Resolved x) = "$resolved" ++ show x
 
@@ -39,7 +37,6 @@ Eq Name where
     (==) (UN x) (UN y) = x == y
     (==) (MN x y) (MN x' y') = y == y' && x == x'
     (==) (PV x y) (PV x' y') = x == x' && y == y'
-    (==) (MV x) (MV x') = x == x'
     (==) (Nested x y) (Nested x' y') = x == x' && y == y'
     (==) (Resolved x) (Resolved x') = x == x'
     (==) _ _ = False
@@ -49,9 +46,8 @@ nameTag (NS _ _) = 0
 nameTag (UN _) = 1
 nameTag (MN _ _) = 2
 nameTag (PV _ _) = 3
-nameTag (MV _) = 4
-nameTag (Nested _ _) = 5
-nameTag (Resolved _) = 6
+nameTag (Nested _ _) = 4
+nameTag (Resolved _) = 5
 
 export
 Ord Name where
@@ -73,7 +69,6 @@ Ord Name where
                EQ => compare x x'
                GT => GT
                LT => LT
-    compare (MV x) (MV y) = compare x y
     compare (Nested x y) (Nested x' y')
         = case compare y y' of
                EQ => compare x x'
@@ -103,9 +98,6 @@ nameEq (PV x t) (PV y t') with (nameEq x y)
     nameEq (PV y t) (PV y t) | (Just Refl) | (Just Refl) = Just Refl
     nameEq (PV y t) (PV y t') | (Just Refl) | Nothing = Nothing
   nameEq (PV x t) (PV y t') | Nothing = Nothing
-nameEq (MV x) (MV y) with (decEq x y)
-  nameEq (MV x) (MV x) | (Yes Refl) = Just Refl
-  nameEq (MV x) (MV y) | (No contra) = Nothing
 nameEq (Nested x y) (Nested x' y') with (nameEq x x')
   nameEq (Nested x y) (Nested x' y') | Nothing = Nothing
   nameEq (Nested x y) (Nested x y') | (Just Refl) with (nameEq y y')

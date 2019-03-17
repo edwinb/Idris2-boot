@@ -11,6 +11,7 @@ modules =
     Core.Name,
     Core.QUnify,
     Core.TT,
+    Core.UnifyState,
     Core.Value,
 
     Data.Bool.Extra,

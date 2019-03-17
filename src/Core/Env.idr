@@ -92,3 +92,15 @@ export
 getLetBinder : Weaken tm => IsVar x idx vars -> Env tm vars -> Maybe (tm vars)
 getLetBinder el env = getLetBinderUnder [] el env
 
+-- Make a type which abstracts over an environment
+-- Don't include 'let' bindings, since they have a concrete value and
+-- shouldn't be generalised
+export
+abstractEnvType : FC -> Env Term vars -> (tm : Term vars) -> ClosedTerm
+abstractEnvType fc [] tm = tm
+abstractEnvType fc (Let c val ty :: env) tm
+    = abstractEnvType fc env (Bind fc _ (Let c val ty) tm)
+abstractEnvType fc (b :: env) tm 
+    = abstractEnvType fc env (Bind fc _ 
+						(Pi (multiplicity b) Explicit (binderType b)) tm)
+

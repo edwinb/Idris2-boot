@@ -42,6 +42,7 @@ mutual
        NLocal : Maybe RigCount -> (idx : Nat) -> IsVar name idx vars ->
                 NHead vars
        NRef   : NameType -> Name -> NHead vars
+       NMeta  : Name -> Int -> List (AppInfo, Closure vars) -> NHead vars
 
   -- Values themselves
   public export
@@ -80,5 +81,6 @@ setVar : {auto v : Ref UVars (UCtxt vars)} ->
          Int -> Term vars -> Core ()
 setVar var tm
     = do MkUCtxt ucs <- get UVars
-         put UVars (MkUCtxt !(addCtxt (Resolved var) tm ucs))
+         c' <- addCtxt (Resolved var) tm ucs
+         put UVars (MkUCtxt (snd c'))
 

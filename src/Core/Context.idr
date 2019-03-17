@@ -76,13 +76,13 @@ getPosition n ctxt
 -- Add the name to the context, or update the existing entry if it's already
 -- there.
 export
-addCtxt : Name -> a -> Context a -> Core (Context a)
+addCtxt : Name -> a -> Context a -> Core (Int, Context a)
 addCtxt n val ctxt_in
     = do (idx, ctxt) <- getPosition n ctxt_in
          let a = content ctxt
          arr <- get Arr
          coreLift $ writeArray arr idx val
-         pure ctxt
+         pure (idx, ctxt)
 
 export
 lookupCtxtExact : Name -> Context a -> Core (Maybe a)
@@ -138,15 +138,23 @@ data Def : Type where
            (detpos : List Nat) -> -- determining arguments
            (datacons : List Name) ->
            Def
-    Hole : (numlocs : Nat) -> (invertible : Bool) -> Def
+    Hole : (invertible : Bool) -> Def
+    -- Constraints are integer references into the current map of
+    -- constraints in the UnifyState (see Core.UnifyState)
+    Guess : (guess : ClosedTerm) -> (constraints : List Int) -> Def
 
 public export
 record GlobalDef where
   constructor MkGlobalDef
+  location : FC
   type : ClosedTerm
   multiplicity : RigCount
   visibility : Visibility
   definition : Def
+
+export
+newDef : FC -> RigCount -> ClosedTerm -> Visibility -> Def -> GlobalDef
+newDef fc rig ty vis def = MkGlobalDef fc ty rig vis def
 
 public export
 record Defs where
@@ -168,4 +176,13 @@ initDefs
 -- Label for context references
 export
 data Ctxt : Type where
+
+export
+addDef : {auto c : Ref Ctxt Defs} -> 
+         Name -> GlobalDef -> Core Int
+addDef n def
+    = do defs <- get Ctxt
+         (idx, gam') <- addCtxt n def (gamma defs)
+         put Ctxt (record { gamma = gam' } defs)
+         pure idx
 

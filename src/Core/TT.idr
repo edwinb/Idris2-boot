@@ -279,6 +279,7 @@ mutual
        Local : FC -> Maybe RigCount -> 
                (idx : Nat) -> IsVar name idx vars -> Term vars
        Ref : FC -> NameType -> (name : Name) -> Term vars
+       Meta : FC -> Name -> Int -> List (Term vars) -> Term vars
        Bind : FC -> (x : Name) -> 
               (b : Binder (Term vars)) -> 
               (scope : Term (x :: vars)) -> Term vars
@@ -436,6 +437,7 @@ mutual
       = let (idx' ** var') = insertVar {n} idx prf in
             Local fc r idx' var'
   thin n (Ref fc nt name) = Ref fc nt name
+  thin n (Meta fc name idx args) = Meta fc name idx (map (thin n) args)
   thin {outer} {inner} n (Bind fc x b scope) 
       = let sc' = thin {outer = x :: outer} {inner} n scope in
             Bind fc x (assert_total (map (thin n) b)) sc'
@@ -460,6 +462,8 @@ mutual
       = let (_ ** prf') = insertVarNames {ns} idx prf in
             Local fc r _ prf'
   insertNames ns (Ref fc nt name) = Ref fc nt name
+  insertNames ns (Meta fc name idx args)
+      = Meta fc name idx (map (insertNames ns) args)
   insertNames {outer} {inner} ns (Bind fc x b scope) 
       = Bind fc x (assert_total (map (insertNames ns) b)) 
              (insertNames {outer = x :: outer} {inner} ns scope)
@@ -568,35 +572,4 @@ data Bounds : List Name -> Type where
 
 -- export
 -- refsToLocals : Bounds bound -> Term vars -> Term (bound ++ vars)
-
---- Some test stuff
-loc : (n : Name) -> {auto prf : IsVar n idx vars} -> Term vars
-loc n {prf} = Local emptyFC Nothing _ prf
-
-cvar : (n : Name) -> {auto prf : IsVar n idx vars} -> Var vars
-cvar n {prf} = MkVar prf
-
-ploc : (n : Name) -> {auto prf : IsVar n idx vars} -> Pat vars
-ploc n {prf} = PLoc emptyFC _ prf
-
-lam : (n : Name) -> Term vars -> Term (n :: vars) -> Term vars
-lam n ty sc = Bind emptyFC n (Lam RigW Explicit ty) sc
-
-NatTy : Term vs
-NatTy = Ref emptyFC (TyCon 0 2) (UN "Nat")
-
-testPlus : Term []
-testPlus 
-    = lam (UN "x") NatTy $
-        lam (UN "y") NatTy $
-          Case emptyFC [cvar (UN "x")] NatTy Nothing
-            [CPats [PCon emptyFC (UN "Z") 0 0 []] (loc (UN "y")),
-             CBind RigW (UN "k") NatTy
-                (CPats [PCon emptyFC (UN "S") 1 1 [ploc (UN "k")]] 
-                   (apply emptyFC explApp (Ref emptyFC (DataCon 1 1) (UN "S")) 
-                       [apply emptyFC explApp (Ref emptyFC Func (UN "plus"))
-                               [loc (UN "k"), loc (UN "y")]]))]
-
-
-
 
