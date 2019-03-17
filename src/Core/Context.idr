@@ -17,7 +17,7 @@ export
 record Context a where
     constructor MkContext
     nextEntry : Int
-    -- Map from full name to it position in the context
+    -- Map from full name to its position in the context
     resolvedAs : NameMap Int
     -- Map from strings to all the possible names in all namespaces
     possibles : StringMap (List (Name, Int))
@@ -43,9 +43,21 @@ initCtxt
          aref <- newRef Arr arr
          pure (MkContext 0 empty empty aref [])
 
+addPossible : Name -> Int -> 
+              StringMap (List (Name, Int)) -> StringMap (List (Name, Int))
+addPossible n i ps
+    = case userNameRoot n of
+           Nothing => ps
+           Just nr =>
+              case lookup nr ps of
+                   Nothing => insert nr [(n, i)] ps
+                   Just nis => insert nr ((n, i) :: nis) ps
+
 -- Get the position of the next entry in the context array, growing the
 -- array if it's out of bounds.
+-- Updates the context with the mapping from name to index
 getPosition : Name -> Context a -> Core (Int, Context a)
+getPosition (Resolved idx) ctxt = pure (idx, ctxt)
 getPosition n ctxt
     = case lookup n (resolvedAs ctxt) of
            Just idx => pure (idx, ctxt)
@@ -56,7 +68,10 @@ getPosition n ctxt
                  when (idx >= max arr) $
                          do arr' <- coreLift $ newArrayCopy (max arr + Grow) arr
                             put Arr arr'
-                 pure (idx, record { nextEntry = idx } ctxt)
+                 pure (idx, record { nextEntry = idx,
+                                     resolvedAs $= insert n idx,
+                                     possibles $= addPossible n idx
+                                   } ctxt)
 
 -- Add the name to the context, or update the existing entry if it's already
 -- there.
@@ -150,3 +165,7 @@ initDefs
     = do gam <- initCtxt
          pure (MkDefs gam)
       
+-- Label for context references
+export
+data Ctxt : Type where
+

@@ -61,13 +61,24 @@ mutual
        NType    : FC -> NF vars
 
 export
-lookup : Int -> UCtxt vars -> Core (Maybe (Term vars))
-lookup i (MkUCtxt ctxt)
-    = lookupCtxtExact (Resolved i) ctxt
-
-export
 initUCtxt : Core (UCtxt vars)
 initUCtxt
     = do e <- initCtxt
          pure $ MkUCtxt e
+
+-- Label for UCtxt references
+export
+data UVars : Type where
+
+export
+lookup : Int -> UCtxt vars -> Core (Maybe (Term vars))
+lookup var (MkUCtxt ctxt)
+    = lookupCtxtExact (Resolved var) ctxt
+
+export
+setVar : {auto v : Ref UVars (UCtxt vars)} ->
+         Int -> Term vars -> Core ()
+setVar var tm
+    = do MkUCtxt ucs <- get UVars
+         put UVars (MkUCtxt !(addCtxt (Resolved var) tm ucs))
 

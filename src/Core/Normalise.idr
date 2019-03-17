@@ -16,6 +16,7 @@ evalWithOpts : {vars : _} ->
                Env Term free -> LocalEnv free vars -> 
                Term (vars ++ free) -> Stack free -> Core (NF free)
 
+export
 evalClosure : Defs -> Closure free -> Core (NF free)
 
 export

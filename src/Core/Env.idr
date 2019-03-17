@@ -19,6 +19,17 @@ namespace Env
   length (x :: xs) = S (length xs)
 
 export
+defined : {vars : _} ->
+          (n : Name) -> Env Term vars -> 
+          Maybe (idx ** (RigCount, IsVar n idx vars))
+defined n [] = Nothing
+defined {vars = x :: xs} n (b :: env)
+    = case nameEq n x of
+           Nothing => do (idx ** (rig, prf)) <- defined n env
+                         pure (_ ** (rig, Later prf))
+           Just Refl => Just (_ ** (multiplicity b, First))
+
+export
 bindEnv : FC -> Env Term vars -> (tm : Term vars) -> ClosedTerm
 bindEnv loc [] tm = tm
 bindEnv loc (b :: env) tm 

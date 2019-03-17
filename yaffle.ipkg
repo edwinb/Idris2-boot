@@ -9,6 +9,7 @@ modules =
     Core.Normalise,
     Core.FC,
     Core.Name,
+    Core.QUnify,
     Core.TT,
     Core.Value,
 
@@ -27,7 +28,9 @@ modules =
     Text.Quantity,
     Text.Token,
 
+    TTImp.Elab.Term,
     TTImp.Parser,
+    TTImp.ProcessDecls,
     TTImp.TTImp
 
 sourcedir = src
