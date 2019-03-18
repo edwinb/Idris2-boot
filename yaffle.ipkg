@@ -9,8 +9,8 @@ modules =
     Core.Normalise,
     Core.FC,
     Core.Name,
-    Core.QUnify,
     Core.TT,
+    Core.Unify,
     Core.UnifyState,
     Core.Value,
 
@@ -29,6 +29,8 @@ modules =
     Text.Quantity,
     Text.Token,
 
+    TTImp.Elab.App,
+    TTImp.Elab.Check,
     TTImp.Elab.Term,
     TTImp.Parser,
     TTImp.ProcessDecls,

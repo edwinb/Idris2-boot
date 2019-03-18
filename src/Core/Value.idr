@@ -17,11 +17,6 @@ defaultOpts : EvalOpts
 defaultOpts = MkEvalOpts True False Nothing
 
 mutual
-  -- Context for local unification variables
-  export
-  data UCtxt : List Name -> Type where
-       MkUCtxt : Context (Term vars) -> UCtxt vars 
-
   public export
   data LocalEnv : List Name -> List Name -> Type where
        Nil  : LocalEnv free []
@@ -30,7 +25,6 @@ mutual
   public export
   data Closure : List Name -> Type where
        MkClosure : (opts : EvalOpts) ->
-                   UCtxt free ->
                    LocalEnv free vars -> 
                    Env Term free ->
                    Term (vars ++ free) -> Closure free
@@ -60,27 +54,3 @@ mutual
        NPrimVal : FC -> Constant -> NF vars
        NErased  : FC -> NF vars
        NType    : FC -> NF vars
-
-export
-initUCtxt : Core (UCtxt vars)
-initUCtxt
-    = do e <- initCtxt
-         pure $ MkUCtxt e
-
--- Label for UCtxt references
-export
-data UVars : Type where
-
-export
-lookup : Int -> UCtxt vars -> Core (Maybe (Term vars))
-lookup var (MkUCtxt ctxt)
-    = lookupCtxtExact (Resolved var) ctxt
-
-export
-setVar : {auto v : Ref UVars (UCtxt vars)} ->
-         Int -> Term vars -> Core ()
-setVar var tm
-    = do MkUCtxt ucs <- get UVars
-         c' <- addCtxt (Resolved var) tm ucs
-         put UVars (MkUCtxt (snd c'))
-

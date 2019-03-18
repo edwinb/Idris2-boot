@@ -12,7 +12,7 @@ Stack : List Name -> Type
 Stack vars = List (AppInfo, Closure vars)
 
 evalWithOpts : {vars : _} ->
-               Defs -> UCtxt free -> EvalOpts ->
+               Defs -> EvalOpts ->
                Env Term free -> LocalEnv free vars -> 
                Term (vars ++ free) -> Stack free -> Core (NF free)
 
@@ -20,10 +20,10 @@ export
 evalClosure : Defs -> Closure free -> Core (NF free)
 
 export
-toClosure : EvalOpts -> UCtxt outer -> Env Term outer -> Term outer -> Closure outer
-toClosure opts ucs env tm = MkClosure opts ucs [] env tm
+toClosure : EvalOpts -> Env Term outer -> Term outer -> Closure outer
+toClosure opts env tm = MkClosure opts [] env tm
 
-parameters (defs : Defs, ucs : UCtxt free, opts : EvalOpts)
+parameters (defs : Defs, opts : EvalOpts)
   mutual
     eval : {vars : _} ->
            Env Term free -> LocalEnv free vars -> 
@@ -33,24 +33,24 @@ parameters (defs : Defs, ucs : UCtxt free, opts : EvalOpts)
     eval env locs (Ref fc nt fn) stk 
         = evalRef env locs fc nt fn stk (NApp fc (NRef nt fn) stk)
     eval env locs (Meta fc name idx args) stk
-        = do let args' = map (\a => (explApp, MkClosure opts ucs locs env a)) args
+        = do let args' = map (\a => (explApp, MkClosure opts locs env a)) args
              evalMeta env locs fc name idx args' stk
     eval env locs (Bind fc x (Lam r _ ty) scope) ((p, thunk) :: stk)
         = eval env (thunk :: locs) scope stk
     eval env locs (Bind fc x (Let r val ty) scope) stk
-        = eval env (MkClosure opts ucs locs env val :: locs) scope stk
+        = eval env (MkClosure opts locs env val :: locs) scope stk
     eval env locs (Bind fc x b scope) stk 
         = do b' <- mapBinder (\tm => eval env locs tm stk) b
              pure $ NBind fc x b'
                       (\arg => eval env (arg :: locs) scope stk)
     eval env locs (App fc fn p arg) stk 
-        = eval env locs fn ((p, MkClosure opts ucs locs env arg) :: stk)
+        = eval env locs fn ((p, MkClosure opts locs env arg) :: stk)
     eval env locs (Case fc cs ty x alts) stk 
         = throw (InternalError "Case evaluator not implemented")
     eval env locs (TDelayed fc r ty) stk 
-        = pure (NDelayed fc r (MkClosure opts ucs locs env ty))
+        = pure (NDelayed fc r (MkClosure opts locs env ty))
     eval env locs (TDelay fc r tm) stk 
-        = pure (NDelay fc r (MkClosure opts ucs locs env tm))
+        = pure (NDelay fc r (MkClosure opts locs env tm))
     eval env locs (TForce fc tm) stk 
         = do tm' <- eval env locs tm stk
              case tm' of
@@ -70,8 +70,8 @@ parameters (defs : Defs, ucs : UCtxt free, opts : EvalOpts)
         = case getLetBinder prf env of
                Nothing => pure $ NApp fc (NLocal mrig idx prf) stk
                Just val => eval env [] val stk
-    evalLocal env (MkClosure opts ucs' locs' env' tm' :: locs) fc mrig Z First stk
-        = evalWithOpts defs ucs' opts env' locs' tm' stk
+    evalLocal env (MkClosure opts locs' env' tm' :: locs) fc mrig Z First stk
+        = evalWithOpts defs opts env' locs' tm' stk
     evalLocal {free} {vars = x :: xs} 
               env (MkNFClosure nf :: locs) fc mrig Z First stk
         = applyToStack nf stk
@@ -101,9 +101,8 @@ parameters (defs : Defs, ucs : UCtxt free, opts : EvalOpts)
                FC -> Name -> Int -> List (AppInfo, Closure free) ->
                Stack free -> Core (NF free)
     evalMeta {vars} env locs fc nm i args stk
-        = do Just res <- lookup i ucs
-                  | Nothing => pure (NApp fc (NMeta nm i args) stk)
-             eval env locs (weakenNs vars res) (args ++ stk)
+        = evalRef env locs fc Func (Resolved i) (args ++ stk)
+                  (NApp fc (NMeta nm i args) stk)
 
     evalRef : {vars : _} ->
               Env Term free -> LocalEnv free vars -> 
@@ -135,27 +134,27 @@ parameters (defs : Defs, ucs : UCtxt free, opts : EvalOpts)
 
 -- Make sure implicit argument order is right... 'vars' is used so we'll
 -- write it explicitly, but it does appear after the parameters in 'eval'!
-evalWithOpts {vars} defs ucs opts = eval {vars} defs ucs opts
+evalWithOpts {vars} defs opts = eval {vars} defs opts
 
-evalClosure defs (MkClosure opts ucs locs env tm)
-    = eval defs ucs opts env locs tm []
+evalClosure defs (MkClosure opts locs env tm)
+    = eval defs opts env locs tm []
 evalClosure defs (MkNFClosure nf) = pure nf
 
 export
-nf : Defs -> UCtxt vars -> Env Term vars -> Term vars -> Core (NF vars)
-nf defs ucs env tm = eval defs ucs defaultOpts env [] tm []
+nf : Defs -> Env Term vars -> Term vars -> Core (NF vars)
+nf defs env tm = eval defs defaultOpts env [] tm []
 
 export
 data QVar : Type where
 
 public export
 interface Quote (tm : List Name -> Type) where
-    quote : Defs -> UCtxt vars -> Env Term vars -> tm vars -> Core (Term vars)
-    quoteGen : Ref QVar Int -> Defs -> UCtxt vars -> Env Term vars -> tm vars -> Core (Term vars)
+    quote : Defs -> Env Term vars -> tm vars -> Core (Term vars)
+    quoteGen : Ref QVar Int -> Defs -> Env Term vars -> tm vars -> Core (Term vars)
 
-    quote defs ucs env tm
+    quote defs env tm
         = do q <- newRef QVar 0
-             quoteGen q defs ucs env tm
+             quoteGen q defs env tm
 
 genName : {auto q : Ref QVar Int} -> String -> Core Name
 genName n
@@ -165,19 +164,19 @@ genName n
 
 mutual
   quoteArgs : {bound : _} ->
-              Ref QVar Int -> Defs -> UCtxt free -> Bounds bound ->
+              Ref QVar Int -> Defs -> Bounds bound ->
               Env Term free -> List (AppInfo, Closure free) -> 
               Core (List (AppInfo, Term (bound ++ free)))
-  quoteArgs q defs ucs bounds env [] = pure []
-  quoteArgs q defs ucs bounds env ((p, a) :: args)
-      = pure $ ((p, !(quoteGenNF q defs ucs bounds env !(evalClosure defs a))) ::
-                !(quoteArgs q defs ucs bounds env args))
+  quoteArgs q defs bounds env [] = pure []
+  quoteArgs q defs bounds env ((p, a) :: args)
+      = pure $ ((p, !(quoteGenNF q defs bounds env !(evalClosure defs a))) ::
+                !(quoteArgs q defs bounds env args))
 
   quoteHead : {bound : _} ->
-              Ref QVar Int -> Defs -> UCtxt free -> 
+              Ref QVar Int -> Defs -> 
               FC -> Bounds bound -> Env Term free -> NHead free -> 
               Core (Term (bound ++ free))
-  quoteHead {bound} q defs ucs fc bounds env (NLocal mrig _ prf) 
+  quoteHead {bound} q defs fc bounds env (NLocal mrig _ prf) 
       = let (_ ** prf') = addLater bound prf in
             pure $ Local fc mrig _ prf'
     where
@@ -187,7 +186,7 @@ mutual
       addLater (x :: xs) isv 
           = let (_ ** isv') = addLater xs isv in
                 (_ ** Later isv')
-  quoteHead q defs ucs fc bounds env (NRef Bound n) 
+  quoteHead q defs fc bounds env (NRef Bound n) 
       = case findName bounds of
              Just (_ ** _ ** p) => pure $ Local fc Nothing _ (varExtend p)
              Nothing => pure $ Ref fc Bound n
@@ -200,204 +199,202 @@ mutual
                  Nothing => 
                     do (_ ** _ ** p) <- findName ns
                        Just (_ ** _ ** Later p)
-  quoteHead q defs ucs fc bounds env (NRef nt n) = pure $ Ref fc nt n
-  quoteHead q defs ucs fc bounds env (NMeta n i args)
-      = do args' <- quoteArgs q defs ucs bounds env args
+  quoteHead q defs fc bounds env (NRef nt n) = pure $ Ref fc nt n
+  quoteHead q defs fc bounds env (NMeta n i args)
+      = do args' <- quoteArgs q defs bounds env args
            pure $ Meta fc n i (map snd args')
 
   quoteBinder : {bound : _} ->
-                Ref QVar Int -> Defs -> UCtxt free -> Bounds bound ->
+                Ref QVar Int -> Defs -> Bounds bound ->
                 Env Term free -> Binder (NF free) -> 
                 Core (Binder (Term (bound ++ free)))
-  quoteBinder q defs ucs bounds env (Lam r p ty) 
-      = do ty' <- quoteGenNF q defs ucs bounds env ty
+  quoteBinder q defs bounds env (Lam r p ty) 
+      = do ty' <- quoteGenNF q defs bounds env ty
            pure (Lam r p ty')
-  quoteBinder q defs ucs bounds env (Let r val ty)
-      = do val' <- quoteGenNF q defs ucs bounds env val
-           ty' <- quoteGenNF q defs ucs bounds env ty
+  quoteBinder q defs bounds env (Let r val ty)
+      = do val' <- quoteGenNF q defs bounds env val
+           ty' <- quoteGenNF q defs bounds env ty
            pure (Let r val' ty')
-  quoteBinder q defs ucs bounds env (Pi r p ty)
-      = do ty' <- quoteGenNF q defs ucs bounds env ty
+  quoteBinder q defs bounds env (Pi r p ty)
+      = do ty' <- quoteGenNF q defs bounds env ty
            pure (Pi r p ty')
-  quoteBinder q defs ucs bounds env (PVar r ty)
-      = do ty' <- quoteGenNF q defs ucs bounds env ty
+  quoteBinder q defs bounds env (PVar r ty)
+      = do ty' <- quoteGenNF q defs bounds env ty
            pure (PVar r ty')
-  quoteBinder q defs ucs bounds env (PVTy r ty)
-      = do ty' <- quoteGenNF q defs ucs bounds env ty
+  quoteBinder q defs bounds env (PVTy r ty)
+      = do ty' <- quoteGenNF q defs bounds env ty
            pure (PVTy r ty')
 
   quoteGenNF : {bound : _} ->
                Ref QVar Int ->
-               Defs -> UCtxt vars -> Bounds bound -> 
+               Defs -> Bounds bound -> 
                Env Term vars -> NF vars -> Core (Term (bound ++ vars))
-  quoteGenNF q defs ucs bound env (NBind fc n b sc)
+  quoteGenNF q defs bound env (NBind fc n b sc)
       = do var <- genName "qv"
-           sc' <- quoteGenNF q defs ucs (Add n var bound) env 
-                       !(sc (toClosure defaultOpts ucs env (Ref fc Bound var)))
-           b' <- quoteBinder q defs ucs bound env b
+           sc' <- quoteGenNF q defs (Add n var bound) env 
+                       !(sc (toClosure defaultOpts env (Ref fc Bound var)))
+           b' <- quoteBinder q defs bound env b
            pure (Bind fc n b' sc')
-  quoteGenNF q defs ucs bound env (NApp fc f args)
-      = do f' <- quoteHead q defs ucs fc bound env f
-           args' <- quoteArgs q defs ucs bound env args
+  quoteGenNF q defs bound env (NApp fc f args)
+      = do f' <- quoteHead q defs fc bound env f
+           args' <- quoteArgs q defs bound env args
            pure $ applyInfo fc f' args'
-  quoteGenNF q defs ucs bound env (NDCon fc n t ar args) 
-      = do args' <- quoteArgs q defs ucs bound env args
+  quoteGenNF q defs bound env (NDCon fc n t ar args) 
+      = do args' <- quoteArgs q defs bound env args
            pure $ applyInfo fc (Ref fc (DataCon t ar) n) args'
-  quoteGenNF q defs ucs bound env (NTCon fc n t ar args) 
-      = do args' <- quoteArgs q defs ucs bound env args
+  quoteGenNF q defs bound env (NTCon fc n t ar args) 
+      = do args' <- quoteArgs q defs bound env args
            pure $ applyInfo fc (Ref fc (TyCon t ar) n) args'
-  quoteGenNF q defs ucs bound env (NDelayed fc r arg)
+  quoteGenNF q defs bound env (NDelayed fc r arg)
       = do argNF <- evalClosure defs arg
-           argQ <- quoteGenNF q defs ucs bound env argNF
+           argQ <- quoteGenNF q defs bound env argNF
            pure (TDelayed fc r argQ)
-  quoteGenNF q defs ucs bound env (NDelay fc r arg) 
+  quoteGenNF q defs bound env (NDelay fc r arg) 
       = do argNF <- evalClosure defs arg
-           argQ <- quoteGenNF q defs ucs bound env argNF
+           argQ <- quoteGenNF q defs bound env argNF
            pure (TDelay fc r argQ)
-  quoteGenNF q defs ucs bound env (NForce fc arg) 
+  quoteGenNF q defs bound env (NForce fc arg) 
       = case arg of
              NDelay fc _ arg =>
                 do argNF <- evalClosure defs arg
-                   quoteGenNF q defs ucs bound env argNF
-             t => do arg' <- quoteGenNF q defs ucs bound env arg
+                   quoteGenNF q defs bound env argNF
+             t => do arg' <- quoteGenNF q defs bound env arg
                      pure (TForce fc arg')
-  quoteGenNF q defs ucs bound env (NPrimVal fc c) = pure $ PrimVal fc c
-  quoteGenNF q defs ucs bound env (NErased fc) = pure $ Erased fc
-  quoteGenNF q defs ucs bound env (NType fc) = pure $ TType fc
+  quoteGenNF q defs bound env (NPrimVal fc c) = pure $ PrimVal fc c
+  quoteGenNF q defs bound env (NErased fc) = pure $ Erased fc
+  quoteGenNF q defs bound env (NType fc) = pure $ TType fc
 
 export
 Quote NF where
-  quoteGen q defs ucs env tm = quoteGenNF q defs ucs None env tm
+  quoteGen q defs env tm = quoteGenNF q defs None env tm
 
 export
 Quote Term where
-  quoteGen q defs ucs env tm = pure tm
+  quoteGen q defs env tm = pure tm
 
 export
 Quote Closure where
-  quoteGen q defs ucs env c = quoteGen q defs ucs env !(evalClosure defs c)
+  quoteGen q defs env c = quoteGen q defs env !(evalClosure defs c)
 
 export
 normalise : Defs -> Env Term free -> Term free -> Core (Term free)
-normalise defs env tm 
-    = do ucs <- initUCtxt
-         quote defs ucs env !(nf defs ucs env tm)
+normalise defs env tm = quote defs env !(nf defs env tm)
 
 public export
 interface Convert (tm : List Name -> Type) where
-  convert : Defs -> UCtxt vars -> Env Term vars -> 
+  convert : Defs -> Env Term vars -> 
             tm vars -> tm vars -> Core Bool
   convGen : Ref QVar Int ->
-            Defs -> UCtxt vars -> Env Term vars -> 
+            Defs -> Env Term vars -> 
             tm vars -> tm vars -> Core Bool
 
-  convert defs ucs env tm tm' 
+  convert defs env tm tm' 
       = do q <- newRef QVar 0
-           convGen q defs ucs env tm tm'
+           convGen q defs env tm tm'
 
 mutual
-  allConv : Ref QVar Int -> Defs -> UCtxt vars -> Env Term vars ->
+  allConv : Ref QVar Int -> Defs -> Env Term vars ->
             List (Closure vars) -> List (Closure vars) -> Core Bool
-  allConv q defs ucs env [] [] = pure True
-  allConv q defs ucs env (x :: xs) (y :: ys)
-      = pure $ !(convGen q defs ucs env x y) && !(allConv q defs ucs env xs ys)
-  allConv q defs ucs env _ _ = pure False
+  allConv q defs env [] [] = pure True
+  allConv q defs env (x :: xs) (y :: ys)
+      = pure $ !(convGen q defs env x y) && !(allConv q defs env xs ys)
+  allConv q defs env _ _ = pure False
 
-  chkConvHead : Ref QVar Int -> Defs -> UCtxt vars -> Env Term vars ->
+  chkConvHead : Ref QVar Int -> Defs -> Env Term vars ->
                 NHead vars -> NHead vars -> Core Bool 
-  chkConvHead q defs ucs env (NLocal _ idx _) (NLocal _ idx' _) = pure $ idx == idx'
-  chkConvHead q defs ucs env (NRef _ n) (NRef _ n') = pure $ n == n'
-  chkConvHead q defs ucs env (NMeta n i args) (NMeta n' i' args') 
+  chkConvHead q defs env (NLocal _ idx _) (NLocal _ idx' _) = pure $ idx == idx'
+  chkConvHead q defs env (NRef _ n) (NRef _ n') = pure $ n == n'
+  chkConvHead q defs env (NMeta n i args) (NMeta n' i' args') 
      = if i == i'
-          then allConv q defs ucs env (map snd args) (map snd args')
+          then allConv q defs env (map snd args) (map snd args')
           else pure False
-  chkConvHead q defs ucs env _ _ = pure False
+  chkConvHead q defs env _ _ = pure False
 
   -- Comparing multiplicities when converting pi binders
   subRig : RigCount -> RigCount -> Bool
   subRig Rig1 RigW = True -- we can pass a linear function if a general one is expected
   subRig x y = x == y -- otherwise, the multiplicities need to match up
 
-  convBinders : Ref QVar Int -> Defs -> UCtxt vars -> Env Term vars ->
+  convBinders : Ref QVar Int -> Defs -> Env Term vars ->
                 Binder (NF vars) -> Binder (NF vars) -> Core Bool
-  convBinders q defs ucs env (Pi cx ix tx) (Pi cy iy ty)
+  convBinders q defs env (Pi cx ix tx) (Pi cy iy ty)
       = if ix /= iy || not (subRig cx cy)
            then pure False
-           else convGen q defs ucs env tx ty
-  convBinders q defs ucs env (Lam cx ix tx) (Lam cy iy ty)
+           else convGen q defs env tx ty
+  convBinders q defs env (Lam cx ix tx) (Lam cy iy ty)
       = if ix /= iy || cx /= cy
            then pure False
-           else convGen q defs ucs env tx ty
-  convBinders q defs ucs env bx by
+           else convGen q defs env tx ty
+  convBinders q defs env bx by
       = if multiplicity bx /= multiplicity by
            then pure False
-           else convGen q defs ucs env (binderType bx) (binderType by)
+           else convGen q defs env (binderType bx) (binderType by)
 
 
   export
   Convert NF where
-    convGen q defs ucs env (NBind fc x b sc) (NBind _ x' b' sc') 
+    convGen q defs env (NBind fc x b sc) (NBind _ x' b' sc') 
         = do var <- genName "conv"
-             let c = MkClosure defaultOpts ucs [] env (Ref fc Bound var)
-             bok <- convBinders q defs ucs env b b'
+             let c = MkClosure defaultOpts [] env (Ref fc Bound var)
+             bok <- convBinders q defs env b b'
              if bok
                 then do bsc <- sc c
                         bsc' <- sc' c
-                        convGen q defs ucs env bsc bsc'
+                        convGen q defs env bsc bsc'
                 else pure False
 
-    convGen q defs ucs env tmx@(NBind fc x (Lam c ix tx) scx) tmy 
+    convGen q defs env tmx@(NBind fc x (Lam c ix tx) scx) tmy 
         = do empty <- clearDefs defs
-             etay <- nf defs ucs env 
-                        (Bind fc x (Lam c ix !(quote empty ucs env tx))
-                           (App fc (weaken !(quote empty ucs env tmy))
+             etay <- nf defs env 
+                        (Bind fc x (Lam c ix !(quote empty env tx))
+                           (App fc (weaken !(quote empty env tmy))
                                 (appInf ix) (Local fc Nothing _ First)))
-             convGen q defs ucs env tmx etay
-    convGen q defs ucs env tmx tmy@(NBind fc y (Lam c iy ty) scy)
+             convGen q defs env tmx etay
+    convGen q defs env tmx tmy@(NBind fc y (Lam c iy ty) scy)
         = do empty <- clearDefs defs
-             etax <- nf defs ucs env 
-                        (Bind fc y (Lam c iy !(quote empty ucs env ty))
-                           (App fc (weaken !(quote empty ucs env tmx))
+             etax <- nf defs env 
+                        (Bind fc y (Lam c iy !(quote empty env ty))
+                           (App fc (weaken !(quote empty env tmx))
                                 (appInf iy) (Local fc Nothing _ First)))
-             convGen q defs ucs env etax tmy
+             convGen q defs env etax tmy
 
-    convGen q defs ucs env (NApp _ val args) (NApp _ val' args')
-        = if !(chkConvHead q defs ucs env val val')
-             then allConv q defs ucs env (map snd args) (map snd args')
+    convGen q defs env (NApp _ val args) (NApp _ val' args')
+        = if !(chkConvHead q defs env val val')
+             then allConv q defs env (map snd args) (map snd args')
              else pure False
 
-    convGen q defs ucs env (NDCon _ nm tag _ args) (NDCon _ nm' tag' _ args')
+    convGen q defs env (NDCon _ nm tag _ args) (NDCon _ nm' tag' _ args')
         = if tag == tag'
-             then allConv q defs ucs env (map snd args) (map snd args')
+             then allConv q defs env (map snd args) (map snd args')
              else pure False
-    convGen q defs ucs env (NTCon _ nm tag _ args) (NTCon _ nm' tag' _ args')
+    convGen q defs env (NTCon _ nm tag _ args) (NTCon _ nm' tag' _ args')
         = if nm == nm'
-             then allConv q defs ucs env (map snd args) (map snd args')
+             then allConv q defs env (map snd args) (map snd args')
              else pure False
 
-    convGen q defs ucs env (NDelayed _ r arg) (NDelayed _ r' arg')
+    convGen q defs env (NDelayed _ r arg) (NDelayed _ r' arg')
         = if r == r'
-             then convGen q defs ucs env arg arg'
+             then convGen q defs env arg arg'
              else pure False
-    convGen q defs ucs env (NDelay _ r arg) (NDelay _ r' arg')
+    convGen q defs env (NDelay _ r arg) (NDelay _ r' arg')
         = if r == r'
-             then convGen q defs ucs env arg arg'
+             then convGen q defs env arg arg'
              else pure False
-    convGen q defs ucs env (NForce _ arg) (NForce _ arg')
-        = convGen q defs ucs env arg arg'
+    convGen q defs env (NForce _ arg) (NForce _ arg')
+        = convGen q defs env arg arg'
 
-    convGen q defs ucs env (NPrimVal _ c) (NPrimVal _ c') = pure (c == c')
-    convGen q defs ucs env (NErased _) _ = pure True
-    convGen q defs ucs env _ (NErased _) = pure True
-    convGen q defs ucs env (NType _) (NType _) = pure True
-    convGen q defs ucs env x y = pure False
+    convGen q defs env (NPrimVal _ c) (NPrimVal _ c') = pure (c == c')
+    convGen q defs env (NErased _) _ = pure True
+    convGen q defs env _ (NErased _) = pure True
+    convGen q defs env (NType _) (NType _) = pure True
+    convGen q defs env x y = pure False
 
   export
   Convert Term where
-    convGen q defs ucs env x y
-        = convGen q defs ucs env !(nf defs ucs env x) !(nf defs ucs env y)
+    convGen q defs env x y
+        = convGen q defs env !(nf defs env x) !(nf defs env y)
 
   export
   Convert Closure where
-    convGen q defs ucs env x y
-        = convGen q defs ucs env !(evalClosure defs x) !(evalClosure defs y)
+    convGen q defs env x y
+        = convGen q defs env !(evalClosure defs x) !(evalClosure defs y)
