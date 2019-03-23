@@ -44,6 +44,7 @@ initUState = MkUState [] [] empty 0
 export
 data UST : Type where
 
+export
 genName : {auto u : Ref UST UState} ->
           String -> Core Name
 genName str

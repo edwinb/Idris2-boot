@@ -566,6 +566,98 @@ Weaken Term where
   weakenNs ns tm = insertNames {outer = []} ns tm
 
 public export
+data CompatibleVars : List Name -> List Name -> Type where
+     CompatPre : CompatibleVars xs xs
+     CompatExt : CompatibleVars xs ys -> CompatibleVars (n :: xs) (m :: ys)
+
+export
+areVarsCompatible : (xs : List Name) -> (ys : List Name) -> 
+                    Maybe (CompatibleVars xs ys)
+areVarsCompatible [] [] = pure CompatPre
+areVarsCompatible (x :: xs) (y :: ys)
+    = do compat <- areVarsCompatible xs ys
+         pure (CompatExt compat)
+areVarsCompatible _ _ = Nothing
+
+extendCompats : (args : List Name) ->
+                CompatibleVars xs ys ->
+                CompatibleVars (args ++ xs) (args ++ ys)
+extendCompats [] prf = prf
+extendCompats (x :: xs) prf = CompatExt (extendCompats xs prf)
+
+renameLocalRef : CompatibleVars xs ys -> IsVar name idx xs -> (name' ** IsVar name' idx ys)
+renameLocalRef CompatPre First = (_ ** First)
+renameLocalRef (CompatExt x) First = (_ ** First)
+renameLocalRef CompatPre (Later p) = (_ ** Later p)
+renameLocalRef (CompatExt y) (Later p) 
+    = let (_ ** p') = renameLocalRef y p in (_ ** Later p')
+
+renameVarList : CompatibleVars xs ys -> Var xs -> Var ys
+renameVarList prf (MkVar p) = MkVar (snd (renameLocalRef prf p))
+
+mutual
+  -- TODO: Surely identity at run time, can we replace with 'believe_me'?
+  export
+  renameVars : CompatibleVars xs ys -> Term xs -> Term ys 
+  renameVars CompatPre tm = tm
+  renameVars prf (Local fc r idx vprf) 
+      = Local fc r idx (snd (renameLocalRef prf vprf))
+  renameVars prf (Ref fc x name) = Ref fc x name
+  renameVars prf (Meta fc n i args) 
+      = Meta fc n i (map (renameVars prf) args)
+  renameVars prf (Bind fc x b scope) 
+      = Bind fc x (map (renameVars prf) b) (renameVars (CompatExt prf) scope)
+  renameVars prf (App fc fn p arg) 
+      = App fc (renameVars prf fn) p (renameVars prf arg)
+  renameVars prf (Case fc cs ty tree alts) 
+      = Case fc (map (renameVarList prf) cs) (renameVars prf ty) 
+                (map (renameTree prf) tree) 
+                (map (renamePatAlt prf) alts)
+  renameVars prf (TDelayed fc r ty) = TDelayed fc r (renameVars prf ty)
+  renameVars prf (TDelay fc r tm) = TDelay fc r (renameVars prf tm)
+  renameVars prf (TForce fc x) = TForce fc (renameVars prf x)
+  renameVars prf (PrimVal fc c) = PrimVal fc c
+  renameVars prf (Erased fc) = Erased fc
+  renameVars prf (TType fc) = TType fc
+
+  renameCaseAlt : CompatibleVars xs ys -> CaseAlt xs -> CaseAlt ys
+  renameCaseAlt prf (ConCase x tag args tree) 
+      = ConCase x tag args (renameTree (extendCompats args prf) tree)
+  renameCaseAlt prf (ConstCase c tree) 
+      = ConstCase c (renameTree prf tree)
+  renameCaseAlt prf (DefaultCase tree) 
+      = DefaultCase (renameTree prf tree)
+
+  renameTree : CompatibleVars xs ys -> CaseTree xs -> CaseTree ys
+  renameTree prf (Switch idx x scTy xs) 
+     = Switch idx (snd (renameLocalRef prf x)) (renameVars prf scTy)
+                  (map (renameCaseAlt prf) xs)
+  renameTree prf (STerm tm) = STerm (renameVars prf tm)
+  renameTree prf (Unmatched msg) = Unmatched msg
+  renameTree prf Impossible = Impossible
+
+  renamePat : CompatibleVars xs ys -> Pat xs -> Pat ys
+  renamePat prf (PAs fc idx p pat) 
+      = PAs fc idx (snd (renameLocalRef prf p)) (renamePat prf pat)
+  renamePat prf (PCon fc x tag arity xs) 
+      = PCon fc x tag arity (map (renamePat prf) xs)
+  renamePat prf (PLoc fc idx p) 
+      = PLoc fc idx (snd (renameLocalRef prf p))
+  renamePat prf (PUnmatchable fc tm) 
+      = PUnmatchable fc (renameVars prf tm)
+
+  renamePatAlt : CompatibleVars xs ys -> PatAlt xs -> PatAlt ys
+  renamePatAlt prf (CBind r x ty alt) 
+      = CBind r x (renameVars prf ty) (renamePatAlt (CompatExt prf) alt)
+  renamePatAlt prf (CPats xs tm)
+      = CPats (map (renamePat prf) xs) (renameVars prf tm)
+
+
+export
+renameTop : (m : Name) -> Term (n :: vars) -> Term (m :: vars)
+renameTop m tm = renameVars (CompatExt CompatPre) tm
+
+public export
 data Bounds : List Name -> Type where
      None : Bounds []
      Add : (x : Name) -> Name -> Bounds xs -> Bounds (x :: xs)

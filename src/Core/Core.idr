@@ -49,7 +49,7 @@ data Error
     | NotRecordField FC String (Maybe Name)
     | NotRecordType FC Name
     | IncompatibleFieldUpdate FC (List String)
-    | InvalidImplicit FC (Env Term vars) Name (Term vars)
+    | InvalidImplicits FC (Env Term vars) (List (Maybe Name)) (Term vars)
     | TryWithImplicits FC (Env Term vars) (List (Name, Term vars))
     | CantSolveGoal FC (Term [])
     | DeterminingArg FC Name (Env Term vars) (Term vars)
@@ -164,7 +164,8 @@ Show Error where
       = show fc ++ ":" ++ show ty ++ " is not a record type"
   show (IncompatibleFieldUpdate fc flds) 
       = show fc ++ ":Field update " ++ showSep "->" flds ++ " not compatible with other updates" 
-  show (InvalidImplicit fc env n tm) = show fc ++ ":" ++ show n ++ " is not a valid implicit argument in " ++ show tm 
+  show (InvalidImplicits fc env ns tm) 
+     = show fc ++ ":" ++ show ns ++ " are not valid implicit arguments in " ++ show tm 
   show (TryWithImplicits fc env imps) 
      = show fc ++ ":Need to bind implicits " 
           ++ showSep "," (map (\x => show (fst x) ++ " : " ++ show (snd x)) imps)
@@ -259,7 +260,7 @@ getErrorLoc (RecordTypeNeeded loc _) = Just loc
 getErrorLoc (NotRecordField loc _ _) = Just loc
 getErrorLoc (NotRecordType loc _) = Just loc
 getErrorLoc (IncompatibleFieldUpdate loc _) = Just loc
-getErrorLoc (InvalidImplicit loc _ y tm) = Just loc
+getErrorLoc (InvalidImplicits loc _ y tm) = Just loc
 getErrorLoc (TryWithImplicits loc _ _) = Just loc
 getErrorLoc (CantSolveGoal loc tm) = Just loc
 getErrorLoc (DeterminingArg loc y env tm) = Just loc

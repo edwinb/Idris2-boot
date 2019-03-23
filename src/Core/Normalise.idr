@@ -8,6 +8,21 @@ import Core.Value
 
 %default covering
 
+-- A pair of a term and its normal form. This could be constructed either
+-- from a term (via 'gnf') or a normal form (via 'glueBack') but the other
+-- part will only be constructed when needed, because it's in Core.
+public export
+data Glued : List Name -> Type where
+     MkGlue : Core (Term vars) -> Core (NF vars) -> Glued vars
+
+export
+getTerm : Glued vars -> Core (Term vars)
+getTerm (MkGlue tm _) = tm
+
+export
+getNF : Glued vars -> Core (NF vars)
+getNF (MkGlue _ nf) = nf
+
 Stack : List Name -> Type
 Stack vars = List (AppInfo, Closure vars)
 
@@ -145,6 +160,14 @@ nf : Defs -> Env Term vars -> Term vars -> Core (NF vars)
 nf defs env tm = eval defs defaultOpts env [] tm []
 
 export
+gnf : Defs -> Env Term vars -> Term vars -> Glued vars
+gnf defs env tm = MkGlue (pure tm) (nf defs env tm)
+
+export
+gType : FC -> Glued vars
+gType fc = MkGlue (pure (TType fc)) (pure (NType fc))
+
+export
 data QVar : Type where
 
 public export
@@ -275,6 +298,13 @@ Quote Term where
 export
 Quote Closure where
   quoteGen q defs env c = quoteGen q defs env !(evalClosure defs c)
+
+export
+glueBack : Defs -> Env Term vars -> NF vars -> Glued vars
+glueBack defs env nf 
+    = MkGlue (do empty <- clearDefs defs
+                 quote empty env nf) 
+             (pure nf)
 
 export
 normalise : Defs -> Env Term free -> Term free -> Core (Term free)

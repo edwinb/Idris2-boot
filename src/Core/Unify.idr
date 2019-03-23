@@ -5,7 +5,7 @@ import Core.Core
 import Core.Env
 import Core.Normalise
 import Core.TT
-import Core.UnifyState
+import public Core.UnifyState
 import Core.Value
 
 %default covering

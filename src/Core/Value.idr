@@ -38,7 +38,8 @@ mutual
        NRef   : NameType -> Name -> NHead vars
        NMeta  : Name -> Int -> List (AppInfo, Closure vars) -> NHead vars
 
-  -- Values themselves
+  -- Values themselves. 'Closure' is an unevaluated thunk, which means 
+  -- we can wait until necessary to reduce constructor arguments
   public export
   data NF : List Name -> Type where
        NBind    : FC -> (x : Name) -> Binder (NF vars) ->
@@ -54,3 +55,4 @@ mutual
        NPrimVal : FC -> Constant -> NF vars
        NErased  : FC -> NF vars
        NType    : FC -> NF vars
+

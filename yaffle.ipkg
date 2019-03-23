@@ -30,6 +30,7 @@ modules =
     Text.Token,
 
     TTImp.Elab.App,
+    TTImp.Elab.Binders,
     TTImp.Elab.Check,
     TTImp.Elab.Term,
     TTImp.Parser,
