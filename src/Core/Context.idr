@@ -160,6 +160,7 @@ public export
 record Defs where
   constructor MkDefs
   gamma : Context GlobalDef
+  currentNS : List String -- namespace for current definitions
 
 export
 clearDefs : Defs -> Core Defs
@@ -171,7 +172,7 @@ export
 initDefs : Core Defs
 initDefs 
     = do gam <- initCtxt
-         pure (MkDefs gam)
+         pure (MkDefs gam ["Main"])
       
 -- Label for context references
 export
@@ -186,3 +187,16 @@ addDef n def
          put Ctxt (record { gamma = gam' } defs)
          pure idx
 
+-- Get the name as it would be defined in the current namespace
+-- i.e. if it doesn't have an explicit namespace already, add it,
+-- otherwise leave it alone
+export
+inCurrentNS : {auto c : Ref Ctxt Defs} ->
+              Name -> Core Name
+inCurrentNS (UN n)
+    = do defs <- get Ctxt
+         pure (NS (currentNS defs) (UN n))
+inCurrentNS n@(MN _ _)
+    = do defs <- get Ctxt
+         pure (NS (currentNS defs) n)
+inCurrentNS n = pure n

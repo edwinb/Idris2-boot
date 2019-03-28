@@ -7,10 +7,14 @@ import Core.Core
 import Core.Env
 import Core.Normalise
 import Core.Unify
+import Core.UnifyState
 import Core.TT
 import Core.Value
 
 import TTImp.TTImp
+
+public export
+data ElabMode = InType | InLHS RigCount | InExpr
 
 -- Current elaboration state (preserved/updated throughout elaboration)
 public export
@@ -48,6 +52,7 @@ inScope {e} elab
 public export
 record ElabInfo where
   constructor MkElabInfo
+  elabMode : ElabMode
   level : Nat
 
 export
@@ -95,8 +100,26 @@ convert : {vars : _} ->
           {auto c : Ref Ctxt Defs} ->
           {auto u : Ref UST UState} ->
           {auto e : Ref EST (EState vars)} ->
-          FC -> Env Term vars -> NF vars -> NF vars ->
+          FC -> ElabInfo -> Env Term vars -> Glued vars -> Glued vars ->
           Core (List Int)
+convert fc elabinfo env x y
+    = let umode : UnifyMode
+                = case elabMode elabinfo of
+                       InLHS _ => InLHS
+                       _ => InTerm in
+          catch (do hs <- getHoles
+                    vs <- unify umode fc env !(getNF x) !(getNF y)
+                    hs' <- getHoles
+                    when (isNil vs && length hs' < length hs) $
+                      solveConstraints umode Normal
+                    pure vs)
+                (\err => do xtm <- getTerm x
+                            ytm <- getTerm y
+                            -- See if we can improve the error message by
+                            -- resolving any more constraints
+                            catch (solveConstraints umode Normal)
+                                  (\err => pure ())
+                            throw (WhenUnifying fc env xtm ytm err))
 
 -- Check whether the type we got for the given type matches the expected
 -- type.
@@ -108,12 +131,12 @@ checkExp : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
            {auto u : Ref UST UState} ->
            {auto e : Ref EST (EState vars)} ->
-           RigCount -> Env Term vars -> FC ->
+           RigCount -> ElabInfo -> Env Term vars -> FC ->
            (term : Term vars) -> 
            (got : Glued vars) -> (expected : Maybe (Glued vars)) -> 
            Core (Term vars, Glued vars)
-checkExp rig env fc tm got (Just exp) 
-    = do constr <- convert fc env !(getNF got) !(getNF exp)
+checkExp rig elabinfo env fc tm got (Just exp) 
+    = do constr <- convert fc elabinfo env got exp
          case constr of
               [] => pure (tm, got)
               cs => do defs <- get Ctxt
@@ -121,4 +144,4 @@ checkExp rig env fc tm got (Just exp)
                        cty <- getTerm exp
                        ctm <- newConstant fc rig env tm cty cs
                        pure (ctm, exp)
-checkExp rig env fc tm got Nothing = pure (tm, got)
+checkExp rig elabinfo env fc tm got Nothing = pure (tm, got)

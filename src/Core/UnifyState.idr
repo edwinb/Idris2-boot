@@ -37,9 +37,11 @@ record UState where
   guesses : List (FC, Name, Int) -- Names which will be defined when constraints solved
   constraints : IntMap Constraint -- map for finding constraints by ID
   nextName : Int
+  nextConstraint : Int
 
+export
 initUState : UState
-initUState = MkUState [] [] empty 0
+initUState = MkUState [] [] empty 0 0
 
 export
 data UST : Type where
@@ -63,6 +65,45 @@ addGuessName : {auto u : Ref UST UState} ->
 addGuessName fc n i
     = do ust <- get UST
          put UST (record { guesses $= ((fc, n, i) ::)  } ust)
+
+export
+removeHole : {auto u : Ref UST UState} ->
+             Int -> Core ()
+removeHole n
+    = do ust <- get UST
+         put UST (record { holes $= filter (\ (fc, x, i) => i /= n) } ust)
+
+export
+removeGuess : {auto u : Ref UST UState} ->
+              Int -> Core ()
+removeGuess n
+    = do ust <- get UST
+         put UST (record { guesses $= filter (\ (fc, x, i) => i /= n) } ust)
+
+export
+getHoles : {auto u : Ref UST UState} ->
+           Core (List (FC, Name, Int))
+getHoles
+    = do ust <- get UST
+         pure (holes ust)
+
+export
+setConstraint : {auto u : Ref UST UState} ->
+                Int -> Constraint -> Core ()
+setConstraint cid c
+    = do ust <- get UST
+         put UST (record { constraints $= insert cid c } ust)
+
+export
+addConstraint : {auto u : Ref UST UState} ->
+                {auto c : Ref Ctxt Defs} ->
+                Constraint -> Core Int
+addConstraint constr
+    = do ust <- get UST
+         let cid = nextConstraint ust
+         put UST (record { constraints $= insert cid constr,
+                           nextConstraint = cid+1 } ust)
+         pure cid
 
 mkConstantAppArgs : Bool -> FC -> Env Term vars -> 
                     (wkns : List Name) ->

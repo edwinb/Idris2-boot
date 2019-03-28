@@ -21,7 +21,7 @@ data NameType : Type where
 
 public export
 data Constant 
-	  = I Int
+    = I Int
     | BI Integer
     | Str String
     | Ch Char
@@ -29,7 +29,7 @@ data Constant
     | WorldVal
 
     | IntType
-		| IntegerType
+    | IntegerType
     | StringType
     | CharType
     | DoubleType

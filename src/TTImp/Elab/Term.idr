@@ -48,7 +48,7 @@ checkTerm rig elabinfo env (IImplicitApp fc fn nm arg) exp
 checkTerm rig elabinfo env (IPrimVal fc c) exp 
     = ?checkTerm_rhs_6
 checkTerm rig elabinfo env (IType fc) exp 
-    = checkExp rig env fc (TType fc) (gType fc) exp
+    = checkExp rig elabinfo env fc (TType fc) (gType fc) exp
 checkTerm rig elabinfo env (Implicit fc) (Just gexpty)
     = do nm <- genName "imp"
          expty <- getTerm gexpty

@@ -111,7 +111,7 @@ mutual
            defs <- get Ctxt
            case expty of
                 NBind tfc' x' (Pi rigb' Implicit aty') sc'
-                   => checkExp rig env fc tm (glueBack defs env ty) (Just expty_in)
+                   => checkExp rig elabinfo env fc tm (glueBack defs env ty) (Just expty_in)
                 _ => makeImplicit rig elabinfo env fc tm x aty sc [] [] (Just expty_in)
   checkAppWith rig elabinfo env fc tm ty@(NBind tfc x (Pi rigb AutoImplicit aty) sc)
                [] [] (Just expty_in)
@@ -119,7 +119,7 @@ mutual
            defs <- get Ctxt
            case expty of
                 NBind tfc' x' (Pi rigb' AutoImplicit aty') sc'
-                   => checkExp rig env fc tm (glueBack defs env ty) (Just expty_in)
+                   => checkExp rig elabinfo env fc tm (glueBack defs env ty) (Just expty_in)
                 _ => makeAutoImplicit rig elabinfo env fc tm x aty sc [] [] (Just expty_in)
 
   -- Check next auto implicit argument
@@ -164,7 +164,7 @@ mutual
 
   checkAppWith rig elabinfo env fc tm ty [] [] expty 
       = do defs <- get Ctxt
-           checkExp rig env fc tm (glueBack defs env ty) expty
+           checkExp rig elabinfo env fc tm (glueBack defs env ty) expty
   checkAppWith rig elabinfo env fc tm ty [] impargs expty 
       = throw (InvalidImplicits fc env (map fst impargs) tm)
   checkAppWith {vars} rig elabinfo env fc tm ty (arg :: expargs) impargs expty 

@@ -31,7 +31,7 @@ checkPi rig elabinfo env fc rigf info n argTy retTy expTy
          (scopev, scopet) <- 
             inScope (\e' => 
               check {e=e'} Rig0 (nextLevel elabinfo) env' retTy (Just (gType fc)))
-         checkExp rig env fc (Bind fc n (Pi rigf info tyv) scopev) (gType fc) expTy
+         checkExp rig elabinfo env fc (Bind fc n (Pi rigf info tyv) scopev) (gType fc) expTy
 
 findLamRig : {auto c : Ref Ctxt Defs} ->
              Maybe (Glued vars) -> Core RigCount
@@ -84,7 +84,7 @@ checkLambda rig_in elabinfo env fc rigl info n argTy scope (Just expty_in)
                        inScope (\e' =>
                           check {e=e'} rig (nextLevel elabinfo) env' scope 
                                 (Just (gnf defs env' (renameTop n psc))))
-                    checkExp rig env fc 
+                    checkExp rig elabinfo env fc 
                              (Bind fc n (Lam rigb info tyv) scopev)
                              (gnf defs env 
                                   (Bind fc n (Pi rigb info tyv) !(getTerm scopet)))
