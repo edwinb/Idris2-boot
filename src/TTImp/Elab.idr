@@ -7,6 +7,7 @@ import Core.Normalise
 import Core.UnifyState
 
 import TTImp.Elab.Check
+import TTImp.Elab.Term
 import TTImp.TTImp
 
 getRigNeeded : ElabMode -> RigCount

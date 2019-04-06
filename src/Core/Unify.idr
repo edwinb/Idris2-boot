@@ -517,6 +517,27 @@ mutual
                UnifyMode -> FC -> Env Term vars ->
                NF vars -> NF vars ->
                Core (List Int)
+  unifyNoEta mode loc env (NDCon xfc x tagx ax xs) (NDCon yfc y tagy ay ys)
+      = do gam <- get Ctxt
+           if tagx == tagy
+             then unifyArgs mode loc env (map snd xs) (map snd ys)
+             else convertError loc env 
+                       (NDCon xfc x tagx ax xs)
+                       (NDCon yfc y tagy ay ys)
+  unifyNoEta mode loc env (NTCon xfc x tagx ax xs) (NTCon yfc y tagy ay ys)
+      = do gam <- get Ctxt
+           if x == y
+             then unifyArgs mode loc env (map snd xs) (map snd ys)
+             -- TODO: Type constructors are not necessarily injective.
+             -- If we don't know it's injective, need to postpone the
+             -- constraint. But before then, we need some way to decide
+             -- what's injective...
+--                then postpone loc env (quote empty env (NTCon x tagx ax xs))
+--                                      (quote empty env (NTCon y tagy ay ys))
+             else convertError loc env 
+                       (NTCon xfc x tagx ax xs)
+                       (NTCon yfc y tagy ay ys)
+
   unifyNoEta mode loc env (NApp xfc fx axs) (NApp yfc fy ays)
       = unifyBothApps mode loc env xfc fx axs yfc fy ays
   unifyNoEta mode loc env (NApp xfc hd args) y 

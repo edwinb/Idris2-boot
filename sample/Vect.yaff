@@ -19,9 +19,78 @@ data Vect : Nat -> Type -> Type where
      Nil : {0 a : Type} -> Vect Z a
      Cons : {0 a : Type} -> {0 k : Nat} -> a -> Vect k a -> Vect (S k) a
 
-stuff : Vect (S (S (S (S (S Z))))) Bool
-stuff = Cons False 
-        (Cons True 
-        (Cons False 
-        (Cons True
-        (Cons False Nil))))
+stuff : Vect _ Bool
+stuff = Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
+        Nil)))))))))))))))))))))))))))))))))))))))))))))))))))))
+        ))))))))))))))))))))))))))))))))))))))))))))))))
+        ))))))))))))))))))))))))))))))))))))))))))))))))
+        ))))))))))))))))))))))))))))))))))))))))))))))))
+        ))))))))))))))))))))))))))))))))))))))))))))))))
+        ))))))))))))))))))))))))))))))))))))))))))))))))
+        ))))))))))))))))))))))))))))))))))))))))))))))))
+        ))))))))))))))))))))))))))))))))))))))))))))))))
+

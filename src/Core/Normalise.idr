@@ -428,3 +428,13 @@ mutual
   Convert Closure where
     convGen q defs env x y
         = convGen q defs env !(evalClosure defs x) !(evalClosure defs y)
+
+export
+getValArity : Defs -> Env Term vars -> NF vars -> Core Nat
+getValArity defs env (NBind fc x (Pi _ _ _) sc) 
+    = pure (S !(getValArity defs env !(sc (toClosure defaultOpts env (Erased fc)))))
+getValArity defs env val = pure 0
+
+export
+getArity : Defs -> Env Term vars -> Term vars -> Core Nat
+getArity defs env tm = getValArity defs env !(nf defs env tm)

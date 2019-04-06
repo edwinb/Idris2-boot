@@ -99,14 +99,14 @@ checkTerm rig elabinfo env (IType fc) exp
 checkTerm rig elabinfo env (Implicit fc) (Just gexpty)
     = do nm <- genName "imp"
          expty <- getTerm gexpty
-         metaval <- newMeta fc rig env nm expty
+         metaval <- metaVar fc rig env nm expty
          -- TODO: Add to 'bindIfUnsolved'
          pure (metaval, gexpty)
 checkTerm rig elabinfo env (Implicit fc) Nothing
     = do nmty <- genName "impTy"
-         ty <- newMeta fc Rig0 env nmty (TType fc)
+         ty <- metaVar fc Rig0 env nmty (TType fc)
          nm <- genName "imp"
-         metaval <- newMeta fc rig env nm ty
+         metaval <- metaVar fc rig env nm ty
          defs <- get Ctxt
          pure (metaval, gnf defs env ty)
 

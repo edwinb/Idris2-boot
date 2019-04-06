@@ -27,7 +27,7 @@ getNameType rigc env fc x expected
                  pure (Local fc (Just rigb) _ lv, gnf defs env bty)
            Nothing => 
               do defs <- get Ctxt
-                 [(fullname, def)] <- lookupCtxtName x (gamma defs)
+                 [(fullname, i, def)] <- lookupCtxtName x (gamma defs)
                       | [] => throw (UndefinedName fc x)
                       | ns => throw (AmbiguousName fc (map fst ns))
                  let nt = case definition def of
@@ -35,7 +35,7 @@ getNameType rigc env fc x expected
                                DCon t a => DataCon t a
                                TCon t a _ _ _ => TyCon t a
                                _ => Func
-                 pure (Ref fc nt x, gnf defs env (embed (type def)))
+                 pure (Ref fc nt (Resolved i), gnf defs env (embed (type def)))
   where
     rigSafe : RigCount -> RigCount -> Core ()
     rigSafe Rig1 RigW = throw (LinearMisuse fc x Rig1 RigW)
@@ -60,7 +60,7 @@ mutual
            nm <- genMVName x
            empty <- clearDefs defs
            metaty <- quote empty env aty
-           metaval <- newMeta fc rig env nm metaty
+           metaval <- metaVar fc rig env nm metaty
            let fntm = App fc tm (appInf (Just x) Implicit) metaval
            fnty <- sc (toClosure defaultOpts env metaval)
            checkAppWith rig elabinfo env fc
@@ -173,11 +173,14 @@ mutual
         -- later when we unify with expty
         do argn <- genName "argTy"
            retn <- genName "retTy"
-           argTy <- newMeta fc Rig0 env argn (TType fc)
+           argTy <- metaVar fc Rig0 env argn (TType fc)
            defs <- get Ctxt
            let argTyG = gnf defs env argTy
+           -- Can't use 'metaVar' to record it for binding because it's
+           -- in a different scope... so it'll stay global
            retTy <- newMeta {vars = argn :: vars}
-                            fc Rig0 (Pi RigW Explicit argTy :: env) retn (TType fc)
+                            fc Rig0 (Pi RigW Explicit argTy :: env) 
+                            retn (TType fc)
            (argv, argt) <- check rig (nextLevel elabinfo)
                                  env arg (Just argTyG)
            let fntm = App fc tm (appInf Nothing Explicit) argv

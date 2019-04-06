@@ -8,7 +8,7 @@ import Data.IOArray
 import Data.NameMap
 import Data.StringMap
 
-%default total
+%default covering
 
 -- Label for array references
 data Arr : Type where
@@ -60,7 +60,9 @@ getPosition : Name -> Context a -> Core (Int, Context a)
 getPosition (Resolved idx) ctxt = pure (idx, ctxt)
 getPosition n ctxt
     = case lookup n (resolvedAs ctxt) of
-           Just idx => pure (idx, ctxt)
+           Just idx => 
+              do log 10 $ "Found " ++ show n ++ " " ++ show idx
+                 pure (idx, ctxt)
            Nothing => 
               do let idx = nextEntry ctxt + 1
                  let a = content ctxt
@@ -68,6 +70,7 @@ getPosition n ctxt
                  when (idx >= max arr) $
                          do arr' <- coreLift $ newArrayCopy (max arr + Grow) arr
                             put Arr arr'
+                 log 10 $ "Added " ++ show n ++ " " ++ show idx
                  pure (idx, record { nextEntry = idx,
                                      resolvedAs $= insert n idx,
                                      possibles $= addPossible n idx
@@ -85,41 +88,56 @@ addCtxt n val ctxt_in
          pure (idx, ctxt)
 
 export
+lookupCtxtExactI : Name -> Context a -> Core (Maybe (Int, a))
+lookupCtxtExactI (Resolved idx) ctxt
+    = do let a = content ctxt
+         arr <- get Arr
+         Just def <- coreLift (readArray arr idx)
+              | Nothing => pure Nothing
+         pure (Just (idx, def))
+lookupCtxtExactI n ctxt
+    = do let Just idx = lookup n (resolvedAs ctxt)
+                  | Nothing => pure Nothing
+         let a = content ctxt
+         arr <- get Arr
+         Just def <- coreLift (readArray arr idx)
+              | Nothing => pure Nothing
+         pure (Just (idx, def))
+
+export
 lookupCtxtExact : Name -> Context a -> Core (Maybe a)
 lookupCtxtExact (Resolved idx) ctxt
     = do let a = content ctxt
          arr <- get Arr
          coreLift (readArray arr idx)
 lookupCtxtExact n ctxt
-    = do let Just idx = lookup n (resolvedAs ctxt)
-                  | Nothing => pure Nothing
-         let a = content ctxt
-         arr <- get Arr
-         coreLift (readArray arr idx)
+    = do Just (i, def) <- lookupCtxtExactI n ctxt
+              | Nothing => pure Nothing
+         pure (Just def)
 
 export
-lookupCtxtName : Name -> Context a -> Core (List (Name, a))
+lookupCtxtName : Name -> Context a -> Core (List (Name, Int, a))
 lookupCtxtName n ctxt
     = case userNameRoot n of
-           Nothing => do Just res <- lookupCtxtExact n ctxt
+           Nothing => do Just (i, res) <- lookupCtxtExactI n ctxt
                               | Nothing => pure []
-                         pure [(n, res)]
+                         pure [(n, i, res)]
            Just r =>
               do let Just ps = lookup r (possibles ctxt)
                       | Nothing => pure []
-                 ps' <- the (Core (List (Maybe (Name, a)))) $
+                 ps' <- the (Core (List (Maybe (Name, Int, a)))) $
                            traverse (\ (n, i) => 
                                     do Just res <- lookupCtxtExact (Resolved i) ctxt
                                             | pure Nothing
-                                       pure (Just (n, res))) ps
+                                       pure (Just (n, i, res))) ps
                  getMatches ps'
   where
-    matches : Name -> (Name, a) -> Bool
-    matches (NS ns _) (NS cns _, _) = ns `isPrefixOf` cns
+    matches : Name -> (Name, Int, a) -> Bool
+    matches (NS ns _) (NS cns _, _, _) = ns `isPrefixOf` cns
     matches (NS _ _) _ = True -- no in library name, so root doesn't match
     matches _ _ = True -- no prefix, so root must match, so good
     
-    getMatches : List (Maybe (Name, a)) -> Core (List (Name, a))
+    getMatches : List (Maybe (Name, Int, a)) -> Core (List (Name, Int, a))
     getMatches [] = pure []
     getMatches (Nothing :: rs) = getMatches rs
     getMatches (Just r :: rs)
@@ -143,6 +161,29 @@ data Def : Type where
     -- constraints in the UnifyState (see Core.UnifyState)
     Guess : (guess : ClosedTerm) -> (constraints : List Int) -> Def
 
+export
+Show Def where
+  show None = "undefined"
+  show (Fn tm) = show tm
+  show (DCon t a) = "DataCon " ++ show t ++ " " ++ show a
+  show (TCon t a ps ds cons) 
+      = "TyCon " ++ show t ++ " " ++ show a ++ " " ++ show cons
+  show (Hole inv) = "Hole"
+  show (Guess tm cs) = "Guess " ++ show tm ++ " when " ++ show cs
+
+public export
+record Constructor where
+  constructor MkCon
+  loc : FC
+  name : Name
+  arity : Nat
+  type : ClosedTerm
+
+public export
+data DataDef : Type where
+     MkData : (tycon : Constructor) -> (datacons : List Constructor) ->
+              DataDef
+
 public export
 record GlobalDef where
   constructor MkGlobalDef
@@ -161,6 +202,7 @@ record Defs where
   constructor MkDefs
   gamma : Context GlobalDef
   currentNS : List String -- namespace for current definitions
+  nextTag : Int
 
 export
 clearDefs : Defs -> Core Defs
@@ -172,7 +214,7 @@ export
 initDefs : Core Defs
 initDefs 
     = do gam <- initCtxt
-         pure (MkDefs gam ["Main"])
+         pure (MkDefs gam ["Main"] 100)
       
 -- Label for context references
 export
@@ -186,6 +228,48 @@ addDef n def
          (idx, gam') <- addCtxt n def (gamma defs)
          put Ctxt (record { gamma = gam' } defs)
          pure idx
+
+getNextTypeTag : {auto c : Ref Ctxt Defs} ->
+                 Core Int
+getNextTypeTag
+    = do defs <- get Ctxt
+         put Ctxt (record { nextTag $= (+1) } defs)
+         pure (nextTag defs)
+
+paramPos : Name -> (dcons : List ClosedTerm) -> List Nat
+paramPos _ _ = [] -- TODO
+
+export
+addData : {auto c : Ref Ctxt Defs} ->
+					Visibility -> DataDef -> Core Int
+addData vis (MkData (MkCon dfc tyn arity tycon) datacons)
+    = do defs <- get Ctxt 
+         tag <- getNextTypeTag 
+         let tydef = newDef dfc RigW tycon vis 
+                            (TCon tag arity 
+                                  (paramPos tyn (map type datacons))
+                                  (allDet arity)
+                                  (map name datacons))
+         (idx, gam') <- addCtxt tyn tydef (gamma defs)
+         gam'' <- addDataConstructors 0 datacons gam'
+         put Ctxt (record { gamma = gam'' } defs)
+         pure idx
+  where
+    allDet : Nat -> List Nat
+    allDet Z = []
+    allDet (S k) = [0..k]
+
+    conVisibility : Visibility -> Visibility
+    conVisibility Export = Private
+    conVisibility x = x
+
+    addDataConstructors : (tag : Int) -> List Constructor -> 
+                          Context GlobalDef -> Core (Context GlobalDef)
+    addDataConstructors tag [] gam = pure gam
+    addDataConstructors tag (MkCon fc n a ty :: cs) gam
+        = do let condef = newDef fc RigW ty (conVisibility vis) (DCon tag a)
+             (idx, gam') <- addCtxt n condef gam
+             addDataConstructors (tag + 1) cs gam'
 
 -- Get the name as it would be defined in the current namespace
 -- i.e. if it doesn't have an explicit namespace already, add it,
