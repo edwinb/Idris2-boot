@@ -23,7 +23,7 @@ processDef env fc n_in tm_raw
          let expty = gnf defs [] (type gdef)
          -- TODO: abstract env in tm_raw
          (tm, _) <- elabTerm n InExpr [] tm_raw (Just expty)
-         logC 0 $ (do -- tm' <- normalise defs [] tm
+         logC 5 $ (do -- tm' <- normalise defs [] tm
                       pure (show n ++ " = " ++ show tm))
          addDef n (record { definition = Fn tm } gdef)
          pure ()

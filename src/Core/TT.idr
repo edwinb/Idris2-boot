@@ -797,8 +797,57 @@ data Bounds : List Name -> Type where
      None : Bounds []
      Add : (x : Name) -> Name -> Bounds xs -> Bounds (x :: xs)
 
--- export
--- refsToLocals : Bounds bound -> Term vars -> Term (bound ++ vars)
+addVars : {later, bound : _} ->
+          Bounds bound -> IsVar name idx (later ++ vars) ->
+          (idx' ** IsVar name idx' (later ++ (bound ++ vars)))
+addVars {later = []} {bound} bs p = weakenVar bound p
+addVars {later = (x :: xs)} bs First = (_ ** First)
+addVars {later = (x :: xs)} bs (Later p) 
+  = let (_ ** p') = addVars {later = xs} bs p in
+        (_ ** Later p')
+
+resolveRef : (done : List Name) -> Bounds bound -> FC -> Name -> 
+             Term (later ++ (done ++ bound ++ vars))
+resolveRef done None fc n = Ref fc Bound n
+resolveRef {later} {vars} done (Add {xs} new old bs) fc n 
+    = if n == old
+         then rewrite appendAssociative later done (new :: xs ++ vars) in
+              let (_ ** p) = weakenVar {inner = new :: xs ++ vars}
+                                       (later ++ done) First in
+                    Local fc Nothing _ p
+         else rewrite appendAssociative done [new] (xs ++ vars)
+                in resolveRef (done ++ [new]) bs fc n
+
+mkLocals : {later, bound : _} ->
+           Bounds bound -> 
+           Term (later ++ vars) -> Term (later ++ (bound ++ vars))
+mkLocals bs (Local fc r idx p) 
+    = let (_ ** p') = addVars bs p in Local fc r _ p'
+mkLocals bs (Ref fc Bound name) 
+    = resolveRef [] bs fc name
+mkLocals bs (Ref fc nt name) 
+    = Ref fc nt name
+mkLocals bs (Meta fc x y xs) 
+    = Meta fc x y (map (mkLocals bs) xs)
+mkLocals {later} bs (Bind fc x b scope) 
+    = Bind fc x (map (mkLocals bs) b) 
+           (mkLocals {later = x :: later} bs scope)
+mkLocals bs (App fc fn p arg) 
+    = App fc (mkLocals bs fn) p (mkLocals bs arg)
+mkLocals bs (Case fc cs ty x alts) = ?mkLocals_case
+mkLocals bs (TDelayed fc x y) 
+    = TDelayed fc x (mkLocals bs y)
+mkLocals bs (TDelay fc x y)
+    = TDelay fc x (mkLocals bs y)
+mkLocals bs (TForce fc x)
+    = TForce fc (mkLocals bs x)
+mkLocals bs (PrimVal fc c) = PrimVal fc c
+mkLocals bs (Erased fc) = Erased fc
+mkLocals bs (TType fc) = TType fc
+
+export
+refsToLocals : Bounds bound -> Term vars -> Term (bound ++ vars)
+refsToLocals bs y = mkLocals {later = []} bs y
 
 export Show (Term vars) where
   show tm = let (fn, args) = getFnArgs tm in showApp fn args

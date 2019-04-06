@@ -455,6 +455,62 @@ mutual
               then pure []
               else doUnifyBothApps mode loc env xfc hx ax yfc hy ay
 
+  -- Comparing multiplicities when converting pi binders
+  subRig : RigCount -> RigCount -> Bool
+  subRig Rig1 RigW = True -- we can pass a linear function if a general one is expected
+  subRig x y = x == y -- otherwise, the multiplicities need to match up
+
+  unifyBothBinders: {auto c : Ref Ctxt Defs} ->
+                    {auto u : Ref UST UState} ->
+                    {vars : _} ->
+                    UnifyMode -> FC -> Env Term vars ->
+                    FC -> Name -> Binder (NF vars) -> (Closure vars -> Core (NF vars)) ->
+                    FC -> Name -> Binder (NF vars) -> (Closure vars -> Core (NF vars)) ->
+                    Core (List Int)
+  unifyBothBinders mode loc env xfc x (Pi cx ix tx) scx yfc y (Pi cy iy ty) scy
+      = do defs <- get Ctxt
+           if ix /= iy || not (subRig cx cy)
+             then convertError loc env 
+                    (NBind xfc x (Pi cx ix tx) scx)
+                    (NBind yfc y (Pi cy iy ty) scy)
+             else
+               do empty <- clearDefs defs
+                  tx' <- quote empty env tx
+                  logC 10 $ (do ty' <- quote empty env ty
+                                pure ("Unifying arg types " ++ show tx' ++ " and " ++ show ty'))
+                  ct <- unify mode loc env tx ty
+                  xn <- genName "x"
+                  let env' : Env Term (x :: _)
+                           = Pi cx ix tx' :: env
+                  case ct of
+                      [] => -- No constraints, check the scope
+                         do tscx <- scx (toClosure defaultOpts env (Ref loc Bound xn))
+                            tscy <- scy (toClosure defaultOpts env (Ref loc Bound xn))
+                            tmx <- quote empty env tscx
+                            tmy <- quote empty env tscy
+                            unify mode loc env' (refsToLocals (Add x xn None) tmx)
+                                                (refsToLocals (Add x xn None) tmy)
+                      cs => -- Constraints, make new guarded constant
+                         do txtm <- quote empty env tx
+                            tytm <- quote empty env ty
+                            c <- newConstant loc Rig0 env
+                                   (Bind xfc x (Lam cx Explicit txtm) (Local xfc Nothing _ First))
+                                   (Bind xfc x (Pi cx Explicit txtm)
+                                       (weaken tytm)) cs
+                            tscx <- scx (toClosure defaultOpts env (Ref loc Bound xn))
+                            tscy <- scy (toClosure defaultOpts env (App loc c (explApp Nothing) (Ref loc Bound xn)))
+                            tmx <- quote empty env tscx
+                            tmy <- quote empty env tscy
+                            cs' <- unify mode loc env' (refsToLocals (Add x xn None) tmx)
+                                                       (refsToLocals (Add x xn None) tmy)
+                            pure (union cs cs')
+
+  unifyBothBinders mode loc env xfc x bx scx yfc y by scy
+      = convertError loc env 
+                  (NBind xfc x bx scx)
+                  (NBind yfc y by scy)
+
+
   unifyNoEta : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
                {vars : _} ->
@@ -475,6 +531,8 @@ mutual
   export
   Unify NF where
     -- TODO: Eta!
+    unifyD _ _ mode loc env (NBind xfc x bx scx) (NBind yfc y by scy) 
+        = unifyBothBinders mode loc env xfc x bx scx yfc y by scy
     unifyD _ _ mode loc env tmx tmy = unifyNoEta mode loc env tmx tmy
 
   export

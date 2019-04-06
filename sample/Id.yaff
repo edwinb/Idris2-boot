@@ -1,0 +1,19 @@
+id : {a : Type} -> a -> a
+id = \ x : _ => x
+
+idid : {a : Type} -> a -> a
+idid = id id id id id id id id id id
+       id id id id id id id id id id
+       id id id id id id id id id id
+       id id id id id id id id id id
+       id id id id id id id id id id
+       id id id id id id id id id id
+       id id id id id id id id id id
+       id id id id id id id id id id
+       id id id id id id id id id id
+       id id id id id id id id id id
+       id id id id id id id id id id
+       id id id id id id id id id id
+       id id id id id id id id id id
+       id id id id id id id id id id
+       id id id id id id id id id id
