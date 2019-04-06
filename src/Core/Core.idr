@@ -434,6 +434,16 @@ log lvl msg
          if logLevel opts >= lvl
             then coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg
             else pure ()
+
+export
+logC : Nat -> Core String -> Core ()
+logC lvl cmsg
+    = do opts <- getOpts
+         if logLevel opts >= lvl
+            then do msg <- cmsg
+                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg
+            else pure ()
+
 export
 setLogLevel : Nat -> Core ()
 setLogLevel n

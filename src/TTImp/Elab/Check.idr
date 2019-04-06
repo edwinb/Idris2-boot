@@ -20,23 +20,27 @@ data ElabMode = InType | InLHS RigCount | InExpr
 public export
 record EState (vars : List Name) where
   constructor MkEState
-  nextVar : Int
+  defining : Name
 
 export
 data EST : Type where
+
+export
+initEState : Name -> EState vars
+initEState def = MkEState def
 
 weakenedEState : {auto e : Ref EST (EState vars)} ->
                  Core (Ref EST (EState (n :: vars)))
 weakenedEState {e}
     = do est <- get EST
-         eref <- newRef EST (MkEState (nextVar est))
+         eref <- newRef EST (MkEState (defining est))
          pure eref
 
 strengthenedEState : Ref EST (EState (n :: vars)) ->
                      Core (EState vars)
 strengthenedEState e
     = do est <- get EST
-         pure (MkEState (nextVar est))
+         pure (MkEState (defining est))
 
 export
 inScope : {auto e : Ref EST (EState vars)} ->
@@ -56,20 +60,12 @@ record ElabInfo where
   level : Nat
 
 export
-nextLevel : ElabInfo -> ElabInfo
-nextLevel = record { level $= (+1) }
+initElabInfo : ElabMode -> ElabInfo
+initElabInfo m = MkElabInfo m 0
 
 export
-getMVName : {auto e : Ref EST (EState vars)} ->
-            Name -> Core Name
-getMVName (UN n)
-    = do est <- get EST
-         put EST (record { nextVar $= (+1) } est)
-         pure (MN n (nextVar est))
-getMVName _
-    = do est <- get EST
-         put EST (record { nextVar $= (+1) } est)
-         pure (MN "mv" (nextVar est))
+nextLevel : ElabInfo -> ElabInfo
+nextLevel = record { level $= (+1) }
 
 -- Implemented in TTImp.Elab.Term; delaring just the type allows us to split
 -- the elaborator over multiple files more easily

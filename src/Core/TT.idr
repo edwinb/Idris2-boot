@@ -246,19 +246,20 @@ sameVar {i} {j} _ _ = i == j
 public export
 record AppInfo where
   constructor MkAppInfo
+  argname : Maybe Name
   plicit : PiInfo
 
 export
-appInf : PiInfo -> AppInfo
-appInf p = MkAppInfo p
+appInf : Maybe Name -> PiInfo -> AppInfo
+appInf n p = MkAppInfo n p
 
 export
-implApp : AppInfo
-implApp = appInf Implicit
+implApp : Maybe Name -> AppInfo
+implApp n = appInf n Implicit
 
 export
-explApp : AppInfo
-explApp = appInf Explicit
+explApp : Maybe Name -> AppInfo
+explApp n = appInf n Explicit
 
 namespace CList
   -- A list correspoding to another list
@@ -276,7 +277,8 @@ mutual
 
   public export
   data Term : List Name -> Type where
-       Local : FC -> Maybe RigCount -> 
+       Local : {name : _} ->
+               FC -> Maybe RigCount -> 
                (idx : Nat) -> IsVar name idx vars -> Term vars
        Ref : FC -> NameType -> (name : Name) -> Term vars
        Meta : FC -> Name -> Int -> List (Term vars) -> Term vars
@@ -344,9 +346,6 @@ export
 embed : Term vars -> Term (vars ++ more)
 embed tm = believe_me tm
 
-export Show (Term vars) where
-  show tm = "[not done yet]"
-
 public export
 ClosedTerm : Type
 ClosedTerm = Term []
@@ -360,6 +359,24 @@ export
 applyInfo : FC -> Term vars -> List (AppInfo, Term vars) -> Term vars
 applyInfo loc fn [] = fn
 applyInfo loc fn ((p, a) :: args) = applyInfo loc (App loc fn p a) args
+
+export
+getFnArgs : Term vars -> (Term vars, List (AppInfo, Term vars))
+getFnArgs tm = getFA [] tm
+  where
+    getFA : List (AppInfo, Term vars) -> Term vars -> 
+            (Term vars, List (AppInfo, Term vars))
+    getFA args (App _ f i a) = getFA ((i, a) :: args) f
+    getFA args tm = (tm, args)
+
+export
+getFn : Term vars -> Term vars
+getFn (App _ f _ a) = getFn f
+getFn tm = tm
+
+export
+getArgs : Term vars -> (List (AppInfo, Term vars))
+getArgs = snd . getFnArgs
 
 public export
 data Visibility = Private | Export | Public
@@ -658,10 +675,169 @@ renameTop : (m : Name) -> Term (n :: vars) -> Term (m :: vars)
 renameTop m tm = renameVars (CompatExt CompatPre) tm
 
 public export
+data SubVars : List Name -> List Name -> Type where
+     SubRefl  : SubVars xs xs
+     DropCons : SubVars xs ys -> SubVars xs (y :: ys)
+     KeepCons : SubVars xs ys -> SubVars (x :: xs) (x :: ys)
+
+export
+subElem : IsVar name x xs -> SubVars ys xs -> Maybe (x' ** IsVar name x' ys)
+subElem prf SubRefl = Just (_ ** prf)
+subElem First (DropCons p) = Nothing
+subElem (Later x) (DropCons p) 
+    = do (_ ** prf') <- subElem x p
+         Just (_ ** prf')
+subElem First (KeepCons p) = Just (_ ** First)
+subElem (Later x) (KeepCons p) 
+    = do (_ ** prf') <- subElem x p
+         Just (_ ** Later prf')
+
+mutual
+  shrinkBinder : Binder (Term vars) -> SubVars newvars vars -> 
+                 Maybe (Binder (Term newvars))
+  shrinkBinder (Lam c p ty) prf 
+      = Just (Lam c p !(shrinkTerm ty prf))
+  shrinkBinder (Let c val ty) prf
+      = Just (Let c !(shrinkTerm val prf) !(shrinkTerm ty prf))
+  shrinkBinder (Pi c p ty) prf
+      = Just (Pi c p !(shrinkTerm ty prf))
+  shrinkBinder (PVar c ty) prf
+      = Just (PVar c !(shrinkTerm ty prf))
+  shrinkBinder (PVTy c ty) prf
+      = Just (PVTy c !(shrinkTerm ty prf))
+
+  export
+  shrinkVar : Var vars -> SubVars newvars vars -> Maybe (Var newvars)
+  shrinkVar (MkVar x) prf 
+      = case subElem x prf of
+             Nothing => Nothing
+             Just (_ ** x') => Just (MkVar x')
+
+  export
+  shrinkTree : CaseTree vars -> SubVars newvars vars -> Maybe (CaseTree newvars)
+  shrinkTree (Switch idx x scTy xs) prf 
+     = case subElem x prf of
+            Nothing => Nothing
+            Just (_ ** x') => 
+                Just (Switch _ x' !(shrinkTerm scTy prf) 
+                           !(traverse (\x => shrinkCaseAlt x prf) xs))
+  shrinkTree (STerm x) prf = Just (STerm !(shrinkTerm x prf))
+  shrinkTree (Unmatched msg) prf = Just (Unmatched msg)
+  shrinkTree Impossible prf = Just Impossible
+
+  export
+  shrinkCaseAlt : CaseAlt vars -> SubVars newvars vars -> Maybe (CaseAlt newvars)
+  shrinkCaseAlt (ConCase x tag args tree) prf 
+      = Just (ConCase x tag args !(shrinkTree tree (keepArgs args prf)))
+    where
+      keepArgs : (args : List Name) ->
+                 SubVars newvars vars -> SubVars (args ++ newvars) (args ++ vars)
+      keepArgs [] prf = prf
+      keepArgs (x :: xs) prf = KeepCons (keepArgs xs prf)
+  shrinkCaseAlt (ConstCase x tree) prf 
+      = Just (ConstCase x !(shrinkTree tree prf))
+  shrinkCaseAlt (DefaultCase tree) prf 
+      = Just (DefaultCase !(shrinkTree tree prf))
+
+  export
+  shrinkPatAlt : PatAlt vars -> SubVars newvars vars -> Maybe (PatAlt newvars)
+  shrinkPatAlt (CBind r x ty alt) prf 
+      = Just (CBind r x !(shrinkTerm ty prf) !(shrinkPatAlt alt (KeepCons prf)))
+  shrinkPatAlt (CPats xs tm) prf 
+      = Just (CPats !(traverse (\x => shrinkPat x prf) xs)
+                    !(shrinkTerm tm prf))
+
+  shrinkPat : Pat vars -> SubVars newvars vars -> Maybe (Pat newvars)
+  shrinkPat (PAs fc idx x pat) prf 
+      = case subElem x prf of
+             Nothing => Nothing
+             Just (_ ** x') =>
+                 Just (PAs fc _ x' !(shrinkPat pat prf))
+  shrinkPat (PCon fc x tag arity xs) prf 
+      = Just (PCon fc x tag arity !(traverse (\x => shrinkPat x prf) xs))
+  shrinkPat (PLoc fc idx x) prf
+      = case subElem x prf of
+             Nothing => Nothing
+             Just (_ ** x') =>
+                 Just (PLoc fc _ x')
+  shrinkPat (PUnmatchable fc x) prf 
+      = Just (PUnmatchable fc !(shrinkTerm x prf))
+
+  export
+  shrinkTerm : Term vars -> SubVars newvars vars -> Maybe (Term newvars)
+  shrinkTerm (Local fc r idx loc) prf 
+     = case subElem loc prf of
+            Nothing => Nothing
+            Just (_ ** loc') => Just (Local fc r _ loc')
+  shrinkTerm (Ref fc x name) prf = Just (Ref fc x name)
+  shrinkTerm (Meta fc x y xs) prf 
+     = do xs' <- traverse (\x => shrinkTerm x prf) xs
+          Just (Meta fc x y xs')
+  shrinkTerm (Bind fc x b scope) prf 
+     = Just (Bind fc x !(shrinkBinder b prf) !(shrinkTerm scope (KeepCons prf)))
+  shrinkTerm (App fc fn p arg) prf 
+     = Just (App fc !(shrinkTerm fn prf) p !(shrinkTerm arg prf))
+  shrinkTerm (Case fc cs ty tree alts) prf 
+     = Just (Case fc !(traverse (\x => shrinkVar x prf) cs)
+                     !(shrinkTerm ty prf)
+                     !(traverse (\x => shrinkTree x prf) tree)
+                     !(traverse (\x => shrinkPatAlt x prf) alts))
+  shrinkTerm (TDelayed fc x y) prf 
+     = Just (TDelayed fc x !(shrinkTerm y prf))
+  shrinkTerm (TDelay fc x y) prf
+     = Just (TDelay fc x !(shrinkTerm y prf))
+  shrinkTerm (TForce fc x) prf
+     = Just (TForce fc !(shrinkTerm x prf))
+  shrinkTerm (PrimVal fc c) prf = Just (PrimVal fc c)
+  shrinkTerm (Erased fc) prf = Just (Erased fc)
+  shrinkTerm (TType fc) prf = Just (TType fc)
+
+public export
 data Bounds : List Name -> Type where
      None : Bounds []
      Add : (x : Name) -> Name -> Bounds xs -> Bounds (x :: xs)
 
 -- export
 -- refsToLocals : Bounds bound -> Term vars -> Term (bound ++ vars)
+
+export Show (Term vars) where
+  show tm = let (fn, args) = getFnArgs tm in showApp fn args
+    where
+      showApp : Term vars -> List (AppInfo, Term vars) -> String
+      showApp (Local {name} _ _ idx _) [] = show name ++ "[" ++ show idx ++ "]"
+      showApp (Ref _ _ n) [] = show n
+      showApp (Meta _ n _ args) [] = "?" ++ show n ++ "_" ++ show (length args)
+      showApp (Bind _ x (Lam c p ty) sc) [] 
+          = "\\" ++ showCount c ++ show x ++ " : " ++ show ty ++ 
+            " => " ++ show sc
+      showApp (Bind _ x (Let c val ty) sc) [] 
+          = "let " ++ showCount c ++ show x ++ " : " ++ show ty ++ 
+            " = " ++ show val ++ " in " ++ show sc
+      showApp (Bind _ x (Pi c Explicit ty) sc) [] 
+          = "(" ++ showCount c ++ show x ++ " : " ++ show ty ++ 
+            ") -> " ++ show sc
+      showApp (Bind _ x (Pi c Implicit ty) sc) [] 
+          = "{" ++ showCount c ++ show x ++ " : " ++ show ty ++ 
+            "} -> " ++ show sc
+      showApp (Bind _ x (Pi c AutoImplicit ty) sc) [] 
+          = "{auto" ++ showCount c ++ show x ++ " : " ++ show ty ++ 
+            "} -> " ++ show sc
+      showApp (Bind _ x (PVar c ty) sc) [] 
+          = "pat " ++ showCount c ++ show x ++ " : " ++ show ty ++ 
+            " => " ++ show sc
+      showApp (Bind _ x (PVTy c ty) sc) [] 
+          = "pty " ++ showCount c ++ show x ++ " : " ++ show ty ++ 
+            " => " ++ show sc
+      showApp (App _ _ _ _) [] = "[can't happen]"
+      showApp (Case _ _ _ _ _) [] = "[case tree]"
+      showApp (TDelayed _ _ tm) [] = "Delayed " ++ show tm
+      showApp (TDelay _ _ tm) [] = "Delay " ++ show tm
+      showApp (TForce _ tm) [] = "Force " ++ show tm
+      showApp (PrimVal _ c) [] = show c
+      showApp (Erased _) [] = "[__]"
+      showApp (TType _) [] = "Type"
+      showApp _ [] = "???"
+      showApp f args = "(" ++ assert_total (show f) ++ " " ++
+                        assert_total (showSep " " (map (show . snd) args))
+                     ++ ")"
 

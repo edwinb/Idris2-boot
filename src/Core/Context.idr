@@ -200,3 +200,11 @@ inCurrentNS n@(MN _ _)
     = do defs <- get Ctxt
          pure (NS (currentNS defs) n)
 inCurrentNS n = pure n
+
+export
+lookupTypeExact : Name -> Context GlobalDef -> Core (Maybe ClosedTerm)
+lookupTypeExact n ctxt
+    = do Just gdef <- lookupCtxtExact n ctxt
+              | Nothing => pure Nothing
+         pure (Just (type gdef))
+

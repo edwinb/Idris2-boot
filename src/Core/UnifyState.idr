@@ -54,6 +54,15 @@ genName str
          put UST (record { nextName $= (+1) } ust)
          pure (MN str (nextName ust))
 
+export
+genMVName : {auto u : Ref UST UState} ->
+            Name -> Core Name
+genMVName (UN str) = genName str
+genMVName n
+    = do ust <- get UST
+         put UST (record { nextName $= (+1) } ust)
+         pure (MN (show n) (nextName ust))
+
 addHoleName : {auto u : Ref UST UState} ->
               FC -> Name -> Int -> Core ()
 addHoleName fc n i
@@ -129,7 +138,7 @@ export
 applyTo : FC -> Term vars -> Env Term vars -> Term vars
 applyTo {vars} fc tm env
   = let args = reverse (mkConstantAppArgs {done = []} False fc env []) in
-        apply fc explApp tm (rewrite sym (appendNilRightNeutral vars) in args)
+        apply fc (explApp Nothing) tm (rewrite sym (appendNilRightNeutral vars) in args)
 
 -- Create a new metavariable with the given name and return type,
 -- and return a term which is the metavariable applied to the environment

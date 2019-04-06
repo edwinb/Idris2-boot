@@ -48,7 +48,7 @@ parameters (defs : Defs, opts : EvalOpts)
     eval env locs (Ref fc nt fn) stk 
         = evalRef env locs fc nt fn stk (NApp fc (NRef nt fn) stk)
     eval env locs (Meta fc name idx args) stk
-        = do let args' = map (\a => (explApp, MkClosure opts locs env a)) args
+        = do let args' = map (\a => (explApp Nothing, MkClosure opts locs env a)) args
              evalMeta env locs fc name idx args' stk
     eval env locs (Bind fc x (Lam r _ ty) scope) ((p, thunk) :: stk)
         = eval env (thunk :: locs) scope stk
@@ -378,14 +378,14 @@ mutual
              etay <- nf defs env 
                         (Bind fc x (Lam c ix !(quote empty env tx))
                            (App fc (weaken !(quote empty env tmy))
-                                (appInf ix) (Local fc Nothing _ First)))
+                                (appInf (Just x) ix) (Local fc Nothing _ First)))
              convGen q defs env tmx etay
     convGen q defs env tmx tmy@(NBind fc y (Lam c iy ty) scy)
         = do empty <- clearDefs defs
              etax <- nf defs env 
                         (Bind fc y (Lam c iy !(quote empty env ty))
                            (App fc (weaken !(quote empty env tmx))
-                                (appInf iy) (Local fc Nothing _ First)))
+                                (appInf (Just y) iy) (Local fc Nothing _ First)))
              convGen q defs env etax tmy
 
     convGen q defs env (NApp _ val args) (NApp _ val' args')

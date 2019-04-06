@@ -27,8 +27,9 @@ getNameType rigc env fc x expected
                  pure (Local fc (Just rigb) _ lv, gnf defs env bty)
            Nothing => 
               do defs <- get Ctxt
-                 Just def <- lookupCtxtExact x (gamma defs)
-                      | Nothing => throw (UndefinedName fc x)
+                 [(fullname, def)] <- lookupCtxtName x (gamma defs)
+                      | [] => throw (UndefinedName fc x)
+                      | ns => throw (AmbiguousName fc (map fst ns))
                  let nt = case definition def of
                                Fn _ => Func
                                DCon t a => DataCon t a
@@ -56,11 +57,11 @@ mutual
                  Core (Term vars, Glued vars)
   makeImplicit rig elabinfo env fc tm x aty sc expargs impargs expty
       = do defs <- get Ctxt
-           nm <- getMVName x
+           nm <- genMVName x
            empty <- clearDefs defs
            metaty <- quote empty env aty
            metaval <- newMeta fc rig env nm metaty
-           let fntm = App fc tm (appInf Implicit) metaval
+           let fntm = App fc tm (appInf (Just x) Implicit) metaval
            fnty <- sc (toClosure defaultOpts env metaval)
            checkAppWith rig elabinfo env fc
                         fntm fnty expargs impargs expty
@@ -99,7 +100,7 @@ mutual
            defs <- get Ctxt
            (argv, argt) <- check argRig (nextLevel elabinfo)
                                  env arg (Just (glueBack defs env aty))
-           let fntm = App fc tm explApp argv
+           let fntm = App fc tm (explApp (Just x)) argv
            fnty <- sc (toClosure defaultOpts env argv)
            checkAppWith rig elabinfo env fc 
                         fntm fnty expargs impargs expty  
@@ -129,7 +130,7 @@ mutual
            defs <- get Ctxt
            (argv, argt) <- check argRig (nextLevel elabinfo)
                                  env arg (Just (glueBack defs env aty))
-           let fntm = App fc tm (appInf AutoImplicit) argv
+           let fntm = App fc tm (appInf (Just x) AutoImplicit) argv
            fnty <- sc (toClosure defaultOpts env argv)
            checkAppWith rig elabinfo env fc 
                         fntm fnty expargs impargs expty  
@@ -147,7 +148,7 @@ mutual
                    defs <- get Ctxt
                    (argv, argt) <- check argRig (nextLevel elabinfo)
                                          env arg (Just (glueBack defs env aty))
-                   let fntm = App fc tm (appInf Implicit) argv
+                   let fntm = App fc tm (appInf (Just x) Implicit) argv
                    fnty <- sc (toClosure defaultOpts env argv)
                    checkAppWith rig elabinfo env fc 
                                 fntm fnty expargs impargs expty  
@@ -179,7 +180,7 @@ mutual
                             fc Rig0 (Pi RigW Explicit argTy :: env) retn (TType fc)
            (argv, argt) <- check rig (nextLevel elabinfo)
                                  env arg (Just argTyG)
-           let fntm = App fc tm (appInf Explicit) argv
+           let fntm = App fc tm (appInf Nothing Explicit) argv
            fnty <- nf defs env (Bind fc argn (Let RigW argv argTy) retTy)
            checkAppWith rig elabinfo env fc fntm fnty expargs impargs expty
 

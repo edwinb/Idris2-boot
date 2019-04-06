@@ -5,19 +5,25 @@ import Core.Core
 import Core.Env
 import Core.UnifyState
 
-import TTImp.Elab.Term
+import TTImp.ProcessData
+import TTImp.ProcessDef
+import TTImp.ProcessType
 import TTImp.TTImp
 
-processDecl : {auto c : Ref Ctxt Defs} ->
+processDecl : {vars : _} ->
+              {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               Env Term vars -> ImpDecl -> Core ()
 processDecl env (IClaim fc rig vis opts ty) 
-    = ?processDecl_rhs_1
-processDecl env (IData fc vis ddef) = ?processDecl_rhs_2
-processDecl env (IDef fc fname def) = ?processDecl_rhs_3
+    = processType env fc rig vis opts ty
+processDecl env (IData fc vis ddef) 
+    = processData env fc vis ddef
+processDecl env (IDef fc fname def) 
+    = processDef env fc fname def
 
 export
-processDecls : {auto c : Ref Ctxt Defs} ->
+processDecls : {vars : _} ->
+               {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
                Env Term vars -> List ImpDecl -> Core ()
 processDecls env decls
