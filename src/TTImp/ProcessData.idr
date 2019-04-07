@@ -60,15 +60,44 @@ processData : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               Env Term vars -> FC -> Visibility ->
               ImpData -> Core ()
-processData env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
+processData env fc vis (MkImpLater dfc n_in ty_raw) 
     = do n <- inCurrentNS n_in
          defs <- get Ctxt
          -- Check 'n' is undefined
          Nothing <- lookupCtxtExact n (gamma defs)
              | Just gdef => throw (AlreadyDefined fc n)
-
+         
          (ty, _) <- elabTerm n InType env ty_raw (Just (gType dfc))
          let fullty = abstractEnvType dfc env ty
+         log 0 $ "data " ++ show n ++ " : " ++ show fullty
+
+         checkIsType fc n env !(nf defs env ty)
+         arity <- getArity defs [] fullty
+
+         -- Add the type constructor as a placeholder while checking
+         -- data constructors
+         tidx <- addDef n (newDef fc Rig1 fullty vis
+                          (TCon 0 arity [] [] []))
+         pure ()
+processData env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
+    = do n <- inCurrentNS n_in
+         defs <- get Ctxt
+         (ty, _) <- elabTerm n InType env ty_raw (Just (gType dfc))
+         let fullty = abstractEnvType dfc env ty
+
+         -- If n exists, check it's the same type as we have here, and is
+         -- a data constructor.
+         ndefm <- lookupCtxtExact n (gamma defs)
+         case ndefm of
+              Nothing => pure ()
+              Just ndef =>
+                case definition ndef of
+                     TCon _ _ _ _ _ =>
+                        do ok <- convert defs [] fullty (type ndef)
+                           if ok then pure ()
+                                 else throw (AlreadyDefined fc n)
+                     _ => throw (AlreadyDefined fc n)
+
          log 0 $ "data " ++ show n ++ " : " ++ show fullty
 
          checkIsType fc n env !(nf defs env ty)
@@ -89,7 +118,4 @@ processData env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
 
          -- TODO: Interface hash, process options
          pure ()
-
-processData env fc vis (MkImpLater dfc n tycon) 
-    = ?bar
 
