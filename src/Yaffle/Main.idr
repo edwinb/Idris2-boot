@@ -27,6 +27,7 @@ coreMain fname
          c <- newRef Ctxt defs
          u <- newRef UST initUState
          processDecls [] tti
+         coreLift $ putStrLn "Done"
 
 main : IO ()
 main

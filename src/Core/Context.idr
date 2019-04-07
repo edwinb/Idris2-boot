@@ -211,7 +211,7 @@ record Defs where
 export
 clearDefs : Defs -> Core Defs
 clearDefs defs
-    = do gam <- initCtxtS 0
+    = do gam <- initCtxtS 1
          pure (record { gamma = gam } defs)
 
 export

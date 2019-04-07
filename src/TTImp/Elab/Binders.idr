@@ -53,8 +53,27 @@ inferLambda : {vars : _} ->
               (expTy : Maybe (Glued vars)) ->
               Core (Term vars, Glued vars)
 inferLambda rig elabinfo env fc rigl info n argTy scope expTy
-    = do rigb <- findLamRig expTy
-         ?doInferLambda
+    = do rigb_in <- findLamRig expTy
+         let rigb = min rigb_in rigl
+         (tyv, tyt) <- check Rig0 (nextLevel elabinfo) env argTy (Just (gType fc))
+         let env' : Env Term (n :: _) = Lam rigb info tyv :: env
+         (scopev, scopet) <- inScope (\e' =>
+                                check {e=e'} rig (nextLevel elabinfo) env' scope Nothing)
+         defs <- get Ctxt
+         checkExp rig elabinfo env fc
+                  (Bind fc n (Lam rigb info tyv) scopev)
+                  (gnf defs env 
+                       (Bind fc n (Pi rigb info tyv) !(getTerm scopet)))
+                       Nothing
+
+getTyNF : {auto c : Ref Ctxt Defs} ->
+          Env Term vars -> Term vars -> Core (Term vars)
+getTyNF env x@(Bind _ _ _ _) = pure x
+getTyNF env x
+    = do defs <- get Ctxt
+         xnf <- nf defs env x
+         empty <- clearDefs defs
+         quote empty env xnf
 
 export
 checkLambda : {vars : _} ->
@@ -71,12 +90,12 @@ checkLambda rig_in elabinfo env fc rigl info n argTy scope Nothing
     = let rig = if rig_in == Rig0 then Rig0 else Rig1 in
           inferLambda rig elabinfo env fc rigl info n argTy scope Nothing
 checkLambda rig_in elabinfo env fc rigl info n argTy scope (Just expty_in)
-                  -- (Just (NBind bfc bn (Pi c _ pty) sc))
     = do let rig = if rig_in == Rig0 then Rig0 else Rig1
          (tyv, tyt) <- check Rig0 (nextLevel elabinfo) env argTy (Just (gType fc))
          expty <- getTerm expty_in
+         exptynf <- getTyNF env expty
          defs <- get Ctxt
-         case expty of
+         case exptynf of
               Bind bfc bn (Pi c _ pty) psc =>
                  do let rigb = min rigl c
                     let env' : Env Term (n :: _) = Lam rigb info tyv :: env

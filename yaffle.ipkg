@@ -15,6 +15,7 @@ modules =
     Core.Value,
 
     Data.Bool.Extra,
+    Data.IntMap,
     Data.IOArray,
     Data.NameMap,
     Data.StringMap,
@@ -33,7 +34,6 @@ modules =
     TTImp.Elab.App,
     TTImp.Elab.Binders,
     TTImp.Elab.Check,
-    TTImp.Elab.Prim,
     TTImp.Elab.Term,
     TTImp.Parser,
     TTImp.ProcessData,
