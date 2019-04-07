@@ -13,6 +13,8 @@ import Core.Value
 
 import TTImp.TTImp
 
+import Data.IntMap
+
 public export
 data ElabMode = InType | InLHS RigCount | InExpr
 
@@ -66,7 +68,7 @@ inScope : {auto c : Ref Ctxt Defs} ->
 inScope {e} elab
     = do e' <- weakenedEState
          res <- elab e'
-         logC 0 $ dumpMetas {e=e'}
+         logC 10 $ dumpMetas {e=e'}
          st' <- strengthenedEState e'
          put {ref=e} EST st'
          pure res
@@ -133,12 +135,10 @@ convert fc elabinfo env x y
                 = case elabMode elabinfo of
                        InLHS _ => InLHS
                        _ => InTerm in
-          catch (do hs <- getHoles
-                    vs <- unify umode fc env !(getNF x) !(getNF y)
-                    hs' <- getHoles
-                    when (isNil vs && length hs' < length hs) $
+          catch (do vs <- unify umode fc env !(getNF x) !(getNF y)
+                    when (holesSolved vs) $
                       solveConstraints umode Normal
-                    pure vs)
+                    pure (constraints vs))
                 (\err => do xtm <- getTerm x
                             ytm <- getTerm y
                             -- See if we can improve the error message by

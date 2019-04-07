@@ -32,16 +32,16 @@ data Constraint : Type where
 public export
 record UState where
   constructor MkUState
-  holes : List (FC, Name, Int) -- Metavariables with no definition yet.
-                               -- 'Int' is the 'Resolved' name
-  guesses : List (FC, Name, Int) -- Names which will be defined when constraints solved
+  holes : IntMap (FC, Name) -- Metavariables with no definition yet.
+                            -- 'Int' is the 'Resolved' name
+  guesses : IntMap (FC, Name) -- Names which will be defined when constraints solved
   constraints : IntMap Constraint -- map for finding constraints by ID
   nextName : Int
   nextConstraint : Int
 
 export
 initUState : UState
-initUState = MkUState [] [] empty 0 0
+initUState = MkUState empty empty empty 0 0
 
 export
 data UST : Type where
@@ -67,31 +67,31 @@ addHoleName : {auto u : Ref UST UState} ->
               FC -> Name -> Int -> Core ()
 addHoleName fc n i
     = do ust <- get UST
-         put UST (record { holes $= ((fc, n, i) ::)  } ust)
+         put UST (record { holes $= insert i (fc, n)  } ust)
 
 addGuessName : {auto u : Ref UST UState} ->
                FC -> Name -> Int -> Core ()
 addGuessName fc n i
     = do ust <- get UST
-         put UST (record { guesses $= ((fc, n, i) ::)  } ust)
+         put UST (record { guesses $= insert i (fc, n)  } ust)
 
 export
 removeHole : {auto u : Ref UST UState} ->
              Int -> Core ()
 removeHole n
     = do ust <- get UST
-         put UST (record { holes $= filter (\ (fc, x, i) => i /= n) } ust)
+         put UST (record { holes $= delete n } ust)
 
 export
 removeGuess : {auto u : Ref UST UState} ->
               Int -> Core ()
 removeGuess n
     = do ust <- get UST
-         put UST (record { guesses $= filter (\ (fc, x, i) => i /= n) } ust)
+         put UST (record { guesses $= delete n } ust)
 
 export
 getHoles : {auto u : Ref UST UState} ->
-           Core (List (FC, Name, Int))
+           Core (IntMap (FC, Name))
 getHoles
     = do ust <- get UST
          pure (holes ust)

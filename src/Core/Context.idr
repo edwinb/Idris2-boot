@@ -37,11 +37,15 @@ Grow : Int
 Grow = initSize
 
 export
-initCtxt : Core (Context a)
-initCtxt
-    = do arr <- coreLift $ newArray initSize
+initCtxtS : Int -> Core (Context a)
+initCtxtS s
+    = do arr <- coreLift $ newArray s
          aref <- newRef Arr arr
          pure (MkContext 0 empty empty aref [])
+
+export
+initCtxt : Core (Context a)
+initCtxt = initCtxtS initSize
 
 addPossible : Name -> Int -> 
               StringMap (List (Name, Int)) -> StringMap (List (Name, Int))
@@ -207,7 +211,7 @@ record Defs where
 export
 clearDefs : Defs -> Core Defs
 clearDefs defs
-    = do gam <- initCtxt
+    = do gam <- initCtxtS 0
          pure (record { gamma = gam } defs)
 
 export
