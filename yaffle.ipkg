@@ -33,6 +33,7 @@ modules =
     TTImp.Elab.App,
     TTImp.Elab.Binders,
     TTImp.Elab.Check,
+    TTImp.Elab.Prim,
     TTImp.Elab.Term,
     TTImp.Parser,
     TTImp.ProcessData,

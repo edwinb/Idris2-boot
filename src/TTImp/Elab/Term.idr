@@ -11,6 +11,7 @@ import Core.Value
 import TTImp.Elab.App
 import TTImp.Elab.Binders
 import TTImp.Elab.Check
+import TTImp.Elab.Prim
 import TTImp.TTImp
 
 %default covering
@@ -92,8 +93,10 @@ checkTerm rig elabinfo env (IApp fc fn arg) exp
     = checkApp rig elabinfo env fc fn [arg] [] exp
 checkTerm rig elabinfo env (IImplicitApp fc fn nm arg) exp
     = checkApp rig elabinfo env fc fn [] [(nm, arg)] exp
-checkTerm rig elabinfo env (IPrimVal fc c) exp 
-    = ?checkTerm_rhs_6
+checkTerm {vars} rig elabinfo env (IPrimVal fc c) exp 
+    = do let (cval, cty) = checkPrim {vars} fc c
+         defs <- get Ctxt
+         checkExp rig elabinfo env fc cval (gnf defs env cty) exp
 checkTerm rig elabinfo env (IType fc) exp 
     = checkExp rig elabinfo env fc (TType fc) (gType fc) exp
 checkTerm rig elabinfo env (Implicit fc) (Just gexpty)

@@ -818,32 +818,85 @@ resolveRef {later} {vars} done (Add {xs} new old bs) fc n
          else rewrite appendAssociative done [new] (xs ++ vars)
                 in resolveRef (done ++ [new]) bs fc n
 
-mkLocals : {later, bound : _} ->
-           Bounds bound -> 
-           Term (later ++ vars) -> Term (later ++ (bound ++ vars))
-mkLocals bs (Local fc r idx p) 
-    = let (_ ** p') = addVars bs p in Local fc r _ p'
-mkLocals bs (Ref fc Bound name) 
-    = resolveRef [] bs fc name
-mkLocals bs (Ref fc nt name) 
-    = Ref fc nt name
-mkLocals bs (Meta fc x y xs) 
-    = Meta fc x y (map (mkLocals bs) xs)
-mkLocals {later} bs (Bind fc x b scope) 
-    = Bind fc x (map (mkLocals bs) b) 
-           (mkLocals {later = x :: later} bs scope)
-mkLocals bs (App fc fn p arg) 
-    = App fc (mkLocals bs fn) p (mkLocals bs arg)
-mkLocals bs (Case fc cs ty x alts) = ?mkLocals_case
-mkLocals bs (TDelayed fc x y) 
-    = TDelayed fc x (mkLocals bs y)
-mkLocals bs (TDelay fc x y)
-    = TDelay fc x (mkLocals bs y)
-mkLocals bs (TForce fc x)
-    = TForce fc (mkLocals bs x)
-mkLocals bs (PrimVal fc c) = PrimVal fc c
-mkLocals bs (Erased fc) = Erased fc
-mkLocals bs (TType fc) = TType fc
+mutual
+  mkLocalVar : {later, bound : _} ->
+               Bounds bound -> 
+               Var (later ++ vars) -> Var (later ++ (bound ++ vars))
+  mkLocalVar bs (MkVar p) 
+      = let (_ ** p') = addVars bs p in MkVar p'
+
+  mkLocalTree : {later, bound : _} ->
+                Bounds bound -> 
+                CaseTree (later ++ vars) -> CaseTree (later ++ (bound ++ vars))
+  mkLocalTree bs (Switch idx p scTy alts) 
+      = let (_ ** p') = addVars bs p in
+            Switch _ p' (mkLocals bs scTy) (map (mkLocalCaseAlt bs) alts)
+  mkLocalTree bs (STerm tm) = STerm (mkLocals bs tm)
+  mkLocalTree bs (Unmatched msg) = Unmatched msg
+  mkLocalTree bs Impossible = Impossible
+
+  mkLocalCaseAlt : {later, bound : _} ->
+                   Bounds bound -> 
+                   CaseAlt (later ++ vars) -> CaseAlt (later ++ (bound ++ vars))
+  mkLocalCaseAlt {later} {vars} {bound} bs (ConCase x tag args t)
+      = ConCase x tag args 
+            (let t' = mkLocalTree {later = args ++ later} {vars} bs 
+                         (rewrite sym (appendAssociative args later vars) in t)
+                    in rewrite appendAssociative args later (bound ++ vars)
+                               in t')
+  mkLocalCaseAlt bs (ConstCase c t) = ConstCase c (mkLocalTree bs t)
+  mkLocalCaseAlt bs (DefaultCase t) = DefaultCase (mkLocalTree bs t)
+
+  mkLocalPat : {later, bound : _} ->
+               Bounds bound -> 
+               Pat (later ++ vars) -> Pat (later ++ (bound ++ vars))
+  mkLocalPat bs (PAs fc idx p pat) 
+      = let (_ ** p') = addVars bs p in
+            PAs fc _ p' (mkLocalPat bs pat)
+  mkLocalPat bs (PCon fc x tag arity args)
+      = PCon fc x tag arity (map (mkLocalPat bs) args)
+  mkLocalPat bs (PLoc fc idx p)
+      = let (_ ** p') = addVars bs p in
+            PLoc fc _ p'
+  mkLocalPat bs (PUnmatchable fc x) = PUnmatchable fc (mkLocals bs x)
+
+  mkLocalPatAlt : {later, bound : _} ->
+                  Bounds bound -> 
+                  PatAlt (later ++ vars) -> PatAlt (later ++ (bound ++ vars))
+  mkLocalPatAlt {later} bs (CBind c n ty sc) 
+      = CBind c n (mkLocals bs ty) 
+            (mkLocalPatAlt {later = n :: later} bs sc)
+  mkLocalPatAlt bs (CPats xs rhs) 
+      = CPats (map (mkLocalPat bs) xs) (mkLocals bs rhs)
+
+  mkLocals : {later, bound : _} ->
+             Bounds bound -> 
+             Term (later ++ vars) -> Term (later ++ (bound ++ vars))
+  mkLocals bs (Local fc r idx p) 
+      = let (_ ** p') = addVars bs p in Local fc r _ p'
+  mkLocals bs (Ref fc Bound name) 
+      = resolveRef [] bs fc name
+  mkLocals bs (Ref fc nt name) 
+      = Ref fc nt name
+  mkLocals bs (Meta fc x y xs) 
+      = Meta fc x y (map (mkLocals bs) xs)
+  mkLocals {later} bs (Bind fc x b scope) 
+      = Bind fc x (map (mkLocals bs) b) 
+             (mkLocals {later = x :: later} bs scope)
+  mkLocals bs (App fc fn p arg) 
+      = App fc (mkLocals bs fn) p (mkLocals bs arg)
+  mkLocals bs (Case fc cs ty tree alts) 
+      = Case fc (map (mkLocalVar bs) cs) (mkLocals bs ty) 
+                (map (mkLocalTree bs) tree) (map (mkLocalPatAlt bs) alts)
+  mkLocals bs (TDelayed fc x y) 
+      = TDelayed fc x (mkLocals bs y)
+  mkLocals bs (TDelay fc x y)
+      = TDelay fc x (mkLocals bs y)
+  mkLocals bs (TForce fc x)
+      = TForce fc (mkLocals bs x)
+  mkLocals bs (PrimVal fc c) = PrimVal fc c
+  mkLocals bs (Erased fc) = Erased fc
+  mkLocals bs (TType fc) = TType fc
 
 export
 refsToLocals : Bounds bound -> Term vars -> Term (bound ++ vars)
