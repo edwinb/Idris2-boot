@@ -3,13 +3,17 @@ package yaffle
 modules = 
     Control.Delayed,
 
+    Core.Binary,
     Core.Context,
     Core.Core,
     Core.Env,
-    Core.Normalise,
     Core.FC,
+    Core.Hash,
     Core.Name,
+    Core.Normalise,
+    Core.Options,
     Core.TT,
+    Core.TTC,
     Core.Unify,
     Core.UnifyState,
     Core.Value,
@@ -40,7 +44,9 @@ modules =
     TTImp.ProcessDecls,
     TTImp.ProcessDef,
     TTImp.ProcessType,
-    TTImp.TTImp
+    TTImp.TTImp,
+
+    Utils.Binary
 
 sourcedir = src
 executable = yaffle

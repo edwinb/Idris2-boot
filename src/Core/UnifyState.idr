@@ -5,6 +5,8 @@ import Core.Core
 import Core.Env
 import Core.FC
 import Core.TT
+import Core.TTC
+import Utils.Binary
 
 import Data.IntMap
 
@@ -28,6 +30,11 @@ data Constraint : Type where
                        Constraint
      -- A resolved constraint
      Resolved : Constraint
+
+export
+TTC Constraint where
+  toBuf = ?toconstraint
+  fromBuf = ?fromconstraint
 
 public export
 record UState where

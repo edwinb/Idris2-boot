@@ -2,7 +2,9 @@ module Core.Context
 
 import public Core.Core
 import public Core.Name
+import Core.Options
 import public Core.TT
+import Utils.Binary
 
 import Data.IOArray
 import Data.NameMap
@@ -29,6 +31,11 @@ record Context a where
     -- access in a program - in all other cases, we'll assume everything is
     -- visible
     visibleNS : List (List String)
+
+export
+TTC a => TTC (Context a) where
+  toBuf = ?tocontext
+  fromBuf = ?fromcontext
 
 initSize : Int
 initSize = 10000
@@ -206,7 +213,10 @@ record Defs where
   constructor MkDefs
   gamma : Context GlobalDef
   currentNS : List String -- namespace for current definitions
+  options : Options
+--   toSave : SortedSet
   nextTag : Int
+  ifaceHash : Int
 
 export
 clearDefs : Defs -> Core Defs
@@ -218,8 +228,13 @@ export
 initDefs : Core Defs
 initDefs 
     = do gam <- initCtxt
-         pure (MkDefs gam ["Main"] 100)
+         pure (MkDefs gam ["Main"] defaults 100 5381)
       
+export
+TTC Defs where
+  toBuf = ?todefs
+  fromBuf = ?fromdefs
+
 -- Label for context references
 export
 data Ctxt : Type where
