@@ -240,9 +240,8 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
                      (rewrite appendNilRightNeutral newvars in tm) ty of
                Nothing => ufail loc $ "Can't make solution for " ++ show mname
                Just rhs =>
-                  do log 5 $ "Instantiated: " ++ show mname ++
-                                  " : " ++ show ty ++ 
-                                  " = " ++ show rhs
+                  do logTerm 6 ("Instantiated: " ++ show mname) ty
+                     logTerm 6 "Definition" rhs
                      addDef (Resolved mref) 
                             (record { definition = Fn rhs } mdef)
                      removeHole mref

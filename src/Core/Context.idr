@@ -1,10 +1,13 @@
 module Core.Context
 
 import public Core.Core
+import Core.Env
 import public Core.Name
 import Core.Options
 import public Core.TT
 import Core.TTC
+import Core.Value
+
 import Utils.Binary
 
 import Data.IOArray
@@ -469,4 +472,79 @@ lookupTypeExact n ctxt
     = do Just gdef <- lookupCtxtExact n ctxt
               | Nothing => pure Nothing
          pure (Just (type gdef))
+
+export
+toFullNames : {auto c : Ref Ctxt Defs} ->
+              Term vars -> Core (Term vars)
+toFullNames tm
+    = do defs <- get Ctxt
+         full (gamma defs) tm
+  where
+    mutual
+      full : Context GlobalDef -> Term vars -> Core (Term vars)
+      full gam (Ref fc x (Resolved i)) 
+          = do let a = content gam
+               arr <- get Arr
+               Just gdef <- coreLift (readArray arr i)
+                    | Nothing => pure (Ref fc x (Resolved i))
+               pure (Ref fc x (fullname gdef))
+      full gam (Meta fc x y xs) 
+          = pure (Meta fc x y !(traverse (full gam) xs))
+      full gam (Bind fc x b scope) 
+          = pure (Bind fc x !(traverse (full gam) b) !(full gam scope))
+      full gam (App fc fn p arg) 
+          = pure (App fc !(full gam fn) p !(full gam arg))
+      full gam (Case fc cs ty Nothing alts) 
+          = pure (Case fc cs !(full gam ty) Nothing
+                       !(traverse (fullPatAlt gam) alts))
+      full gam (Case fc cs ty (Just t) alts) 
+          = pure (Case fc cs !(full gam ty) (Just !(fullTree gam t))
+                       !(traverse (fullPatAlt gam) alts))
+      full gam (TDelayed fc x y) 
+          = pure (TDelayed fc x !(full gam y))
+      full gam (TDelay fc x y)
+          = pure (TDelay fc x !(full gam y))
+      full gam (TForce fc x)
+          = pure (TForce fc !(full gam x))
+      full gam tm = pure tm
+
+      fullPat : Context GlobalDef -> Pat vars -> Core (Pat vars)
+      fullPat gam (PAs fc idx x y)
+          = pure (PAs fc idx x !(fullPat gam y))
+      fullPat gam (PCon fc x tag arity xs) 
+          = pure (PCon fc x tag arity !(traverse (fullPat gam) xs))
+      fullPat gam (PLoc fc idx x) 
+          = pure (PLoc fc idx x)
+      fullPat gam (PUnmatchable fc x) 
+          = pure (PUnmatchable fc !(full gam x))
+
+      fullPatAlt : Context GlobalDef -> PatAlt vars -> Core (PatAlt vars)
+      fullPatAlt gam (CBind c x ty alt) 
+          = pure (CBind c x !(full gam ty) !(fullPatAlt gam alt))
+      fullPatAlt gam (CPats xs x) 
+          = pure (CPats !(traverse (fullPat gam) xs) !(full gam x))
+
+      fullTree : Context GlobalDef -> CaseTree vars -> Core (CaseTree vars)
+      fullTree gam (Switch idx x scTy xs)
+          = pure (Switch idx x !(full gam scTy) !(traverse (fullAlt gam) xs))
+      fullTree gam (STerm x) = pure (STerm !(full gam x))
+      fullTree gam t = pure t
+
+      fullAlt : Context GlobalDef -> CaseAlt vars -> Core (CaseAlt vars)
+      fullAlt gam (ConCase x tag args t)
+          = pure (ConCase x tag args !(fullTree gam t))
+      fullAlt gam (ConstCase x t) = pure (ConstCase x !(fullTree gam t))
+      fullAlt gam (DefaultCase t) = pure (DefaultCase !(fullTree gam t))
+
+-- Log message with a term, translating back to human readable names first
+export
+logTerm : {auto c : Ref Ctxt Defs} ->
+          Nat -> Lazy String -> Term vars -> Core ()
+logTerm lvl msg tm
+    = do opts <- getOpts
+         if logLevel opts >= lvl
+            then do tm' <- toFullNames tm
+                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg 
+                                          ++ ": " ++ show tm'
+            else pure ()
 

@@ -55,7 +55,7 @@ parameters (defs : Defs, opts : EvalOpts)
     eval env locs (Bind fc x (Let r val ty) scope) stk
         = eval env (MkClosure opts locs env val :: locs) scope stk
     eval env locs (Bind fc x b scope) stk 
-        = do b' <- mapBinder (\tm => eval env locs tm stk) b
+        = do b' <- traverse (\tm => eval env locs tm stk) b
              pure $ NBind fc x b'
                       (\arg => eval env (arg :: locs) scope stk)
     eval env locs (App fc fn p arg) stk 
@@ -438,3 +438,18 @@ getValArity defs env val = pure 0
 export
 getArity : Defs -> Env Term vars -> Term vars -> Core Nat
 getArity defs env tm = getValArity defs env !(nf defs env tm)
+
+-- Log message with a value, translating back to human readable names first
+export
+logNF : {auto c : Ref Ctxt Defs} ->
+        Nat -> Lazy String -> Env Term vars -> NF vars -> Core ()
+logNF lvl msg env tmnf
+    = do opts <- getOpts
+         if logLevel opts >= lvl
+            then do defs <- get Ctxt
+                    tm <- quote defs env tmnf
+                    tm' <- toFullNames tm
+                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg 
+                                          ++ ": " ++ show tm'
+            else pure ()
+

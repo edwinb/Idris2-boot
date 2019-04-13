@@ -2,6 +2,7 @@ module Main
 
 import Parser.Support
 
+import Core.Binary
 import Core.Context
 import Core.Env
 import Core.TT

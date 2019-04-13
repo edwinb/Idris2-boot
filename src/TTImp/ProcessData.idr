@@ -69,7 +69,7 @@ processData env fc vis (MkImpLater dfc n_in ty_raw)
          
          (ty, _) <- elabTerm n InType env ty_raw (Just (gType dfc))
          let fullty = abstractEnvType dfc env ty
-         log 0 $ "data " ++ show n ++ " : " ++ show fullty
+         logTerm 0 ("data " ++ show n) fullty
 
          checkIsType fc n env !(nf defs env ty)
          arity <- getArity defs [] fullty

@@ -388,13 +388,14 @@ export
 traverse : (a -> Core b) -> List a -> Core (List b)
 traverse f xs = traverse' f xs []
 
-export
-mapBinder : (a -> Core b) -> Binder a -> Core (Binder b)
-mapBinder f (Lam r p ty) = pure $ Lam r p !(f ty)
-mapBinder f (Let r val ty) = pure $ Let r !(f val) !(f ty)
-mapBinder f (Pi r p ty) = pure $ Pi r p !(f ty)
-mapBinder f (PVar r ty) = pure $ PVar r !(f ty)
-mapBinder f (PVTy r ty) = pure $ PVTy r !(f ty)
+namespace Binder
+  export
+  traverse : (a -> Core b) -> Binder a -> Core (Binder b)
+  traverse f (Lam c p ty) = pure $ Lam c p !(f ty)
+  traverse f (Let c val ty) = pure $ Let c !(f val) !(f ty)
+  traverse f (Pi c p ty) = pure $ Pi c p !(f ty)
+  traverse f (PVar c ty) = pure $ PVar c !(f ty)
+  traverse f (PVTy c ty) = pure $ PVTy c !(f ty)
 
 export
 data Ref : label -> Type -> Type where

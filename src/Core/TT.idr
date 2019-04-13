@@ -312,7 +312,7 @@ mutual
   data PatAlt : List Name -> Type where
        CBind : RigCount -> (x : Name) -> (ty : Term vars) ->
                PatAlt (x :: vars) -> PatAlt vars
-       CPats : List (Pat vars) -> Term vars -> PatAlt vars
+       CPats : List (Pat vars) -> (rhs : Term vars) -> PatAlt vars
 
   public export
   data CaseTree : List Name -> Type where
