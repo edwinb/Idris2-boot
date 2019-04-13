@@ -41,7 +41,7 @@ TTC CG where
   toBuf b Chicken = tag 1
   toBuf b Racket = tag 2
 
-  fromBuf b
+  fromBuf r b
       = case !getTag of
              0 => pure Chez
              1 => pure Chicken

@@ -76,7 +76,7 @@ processData env fc vis (MkImpLater dfc n_in ty_raw)
 
          -- Add the type constructor as a placeholder while checking
          -- data constructors
-         tidx <- addDef n (newDef fc Rig1 fullty vis
+         tidx <- addDef n (newDef fc n Rig1 fullty vis
                           (TCon 0 arity [] [] []))
          pure ()
 processData env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
@@ -105,7 +105,7 @@ processData env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
 
          -- Add the type constructor as a placeholder while checking
          -- data constructors
-         tidx <- addDef n (newDef fc Rig1 fullty vis
+         tidx <- addDef n (newDef fc n Rig1 fullty vis
                           (TCon 0 arity [] [] []))
 
          -- Constructors are private if the data type as a whole is

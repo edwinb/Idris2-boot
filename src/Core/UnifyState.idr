@@ -16,14 +16,16 @@ public export
 data Constraint : Type where
      -- An unsolved constraint, noting two terms which need to be convertible
      -- in a particular environment
-     MkConstraint : FC -> 
+     MkConstraint : {vars : _} ->
+                    FC -> 
                     (env : Env Term vars) ->
                     (x : Term vars) -> (y : Term vars) -> 
                     Constraint
      -- An unsolved sequence of constraints, arising from arguments in an
      -- application where solving later constraints relies on solving earlier
      -- ones
-     MkSeqConstraint : FC ->
+     MkSeqConstraint : {vars : _} ->
+                       FC ->
                        (env : Env Term vars) ->
                        (xs : List (Term vars)) ->
                        (ys : List (Term vars)) ->
@@ -33,8 +35,24 @@ data Constraint : Type where
 
 export
 TTC Constraint where
-  toBuf = ?toconstraint
-  fromBuf = ?fromconstraint
+  toBuf b (MkConstraint {vars} fc env x y) 
+     = do tag 0; toBuf b vars; toBuf b fc; toBuf b env; toBuf b x; toBuf b y
+  toBuf b (MkSeqConstraint {vars} fc env xs ys)
+     = do tag 1; toBuf b vars; toBuf b fc; toBuf b env; toBuf b xs; toBuf b ys
+  toBuf b Resolved = tag 2
+
+  fromBuf r b 
+      = case !getTag of
+             0 => do vars <- fromBuf r b
+                     fc <- fromBuf r b; env <- fromBuf r b
+                     x <- fromBuf r b; y <- fromBuf r b
+                     pure (MkConstraint {vars} fc env x y)
+             1 => do vars <- fromBuf r b
+                     fc <- fromBuf r b; env <- fromBuf r b
+                     xs <- fromBuf r b; ys <- fromBuf r b
+                     pure (MkSeqConstraint {vars} fc env xs ys)
+             2 => pure Resolved
+             _ => corrupt "Constraint"
 
 public export
 record UState where
@@ -157,7 +175,7 @@ newMeta : {auto c : Ref Ctxt Defs} ->
           Env Term vars -> Name -> Term vars -> Core (Term vars)
 newMeta {vars} fc rig env n ty
     = do let hty = abstractEnvType fc env ty
-         let hole = newDef fc rig hty Public (Hole False)
+         let hole = newDef fc n rig hty Public (Hole False)
          idx <- addDef n hole 
          addHoleName fc n idx
          pure (Meta fc n idx envArgs)
@@ -187,8 +205,8 @@ newConstant : {auto u : Ref UST UState} ->
 newConstant fc rig env tm ty constrs
     = do let def = mkConstant fc env tm
          let defty = abstractEnvType fc env ty
-         let guess = newDef fc rig defty Public (Guess def constrs)
          cn <- genName "p"
+         let guess = newDef fc cn rig defty Public (Guess def constrs)
          idx <- addDef cn guess
          addGuessName fc cn idx
          pure (applyTo fc (Ref fc Func (Resolved idx)) env)

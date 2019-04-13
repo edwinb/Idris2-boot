@@ -237,7 +237,7 @@ data IsVar : Name -> Nat -> List Name -> Type where
 
 public export
 data Var : List Name -> Type where
-     MkVar : {i : Nat} -> IsVar n i vars -> Var vars
+     MkVar : {i : Nat} -> {n : _} -> IsVar n i vars -> Var vars
 
 export
 sameVar : {i, j : _} -> IsVar n i xs -> IsVar m j xs -> Bool
@@ -300,10 +300,12 @@ mutual
 
   public export
   data Pat : List Name -> Type where
-       PAs : FC -> (idx : Nat) -> IsVar name idx vars -> Pat vars -> Pat vars
+       PAs : {name : _} ->
+             FC -> (idx : Nat) -> IsVar name idx vars -> Pat vars -> Pat vars
        PCon : FC -> Name -> (tag : Int) -> (arity : Nat) ->
               List (Pat vars) -> Pat vars
-       PLoc : FC -> (idx : Nat) -> IsVar name idx vars -> Pat vars
+       PLoc : {name : _} ->
+              FC -> (idx : Nat) -> IsVar name idx vars -> Pat vars
        PUnmatchable : FC -> Term vars -> Pat vars
 
   public export
@@ -314,7 +316,8 @@ mutual
 
   public export
   data CaseTree : List Name -> Type where
-       Switch : (idx : Nat) -> IsVar name idx vars ->
+       Switch : {name : _} ->
+                (idx : Nat) -> IsVar name idx vars ->
                 (scTy : Term vars) -> List (CaseAlt vars) ->
                 CaseTree vars
        STerm : Term vars -> CaseTree vars

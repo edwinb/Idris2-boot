@@ -26,7 +26,7 @@ processType env fc rig vis opts (MkImpTy tfc n_in ty_raw)
          -- TODO: Check name visibility
          let def = None -- TODO: External definitions
 
-         addDef n (newDef fc rig (abstractEnvType tfc env ty) vis def)
+         addDef n (newDef fc n rig (abstractEnvType tfc env ty) vis def)
 
          -- TODO: Interface hash and saving
          pure ()

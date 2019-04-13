@@ -3,7 +3,7 @@ module Core.Hash
 import Core.TT
 import Data.List
 
-%default total
+%default covering
 
 -- This is so that we can store a hash of the interface in ttc files, to avoid
 -- the need for reloading modules when no interfaces have changed in imports.
@@ -18,9 +18,19 @@ interface Hashable a where
   hash = hashWithSalt 5381
   hashWithSalt h i = h * 33 + hash i
 
+infixl 5 `hashWithSalt`
+
 export
 Hashable Int where
   hash = id
+
+export
+Hashable Integer where
+  hash = fromInteger
+
+export
+Hashable Nat where
+  hash = cast
 
 export
 Hashable Char where
@@ -30,6 +40,11 @@ export
 Hashable a => Hashable (List a) where
   hashWithSalt h [] = abs h
   hashWithSalt h (x :: xs) = hashWithSalt (h * 33 + hash x) xs
+
+export
+Hashable a => Hashable (Maybe a) where
+  hashWithSalt h Nothing = abs h
+  hashWithSalt h (Just x) = hashWithSalt h x
 
 export
 Hashable String where
@@ -46,47 +61,104 @@ Hashable String where
 export
 Hashable Name where
   hashWithSalt h (MN s _) = hashWithSalt h s
+  hashWithSalt h (Resolved i) = i
   hashWithSalt h n = hashWithSalt h (show n)
 
-count : RigCount -> String
-count Rig0 = "0"
-count Rig1 = "1"
-count RigW = "w"
-
-plicity : PiInfo -> String
-plicity Implicit = "{}"
-plicity Explicit = "()"
-plicity AutoImplicit = "{a}"
-
--- I suppose this'll do for now... TODO: Write a proper one!
--- Converting to a string (and indeed, however we do the hash function...)
--- we need to ignore machine generated names because they'll have different
--- numbers depending on implementations of functions, and that doesn't affect
--- the exported interface.
-hshow : Term vars -> String
--- hshow (Local {x} _ _) = nameRoot x
--- hshow (Ref _ n) = nameRoot n
--- hshow (Bind x (Lam c p ty) sc) 
---    = "\\" ++ nameRoot x ++ count c ++ plicity p ++ hshow ty ++ "." ++ hshow sc
--- hshow (Bind x (Let c val ty) sc) 
---    = "let " ++ nameRoot x ++ count c ++ " " ++ hshow val ++ " " ++ hshow ty ++ "."
---             ++ hshow sc
--- hshow (Bind x (Pi c p ty) sc) 
---    = "pi." ++ nameRoot x ++ count c ++ plicity p ++ hshow ty ++ "." ++ hshow sc
--- hshow (Bind x (PVar c ty) sc)
---    = "pvar." ++ nameRoot x ++ count c ++ hshow ty ++ "." ++ hshow sc
--- hshow (Bind x (PLet c val ty) sc)
---    = "plet " ++ nameRoot x ++ count c ++ " " ++ hshow val ++ " " ++ hshow ty ++ "."
---              ++ hshow sc
--- hshow (Bind x (PVTy c ty) sc)
---    = "pty." ++ nameRoot x ++ count c ++ hshow ty ++ "." ++ hshow sc
--- hshow (App f a) = "(" ++ hshow f ++ " " ++ hshow a ++ ")"
--- hshow (PrimVal x) = show x
--- hshow TType = "#"
--- hshow Erased = "_"
+export
+Hashable RigCount where
+  hashWithSalt h Rig0 = hashWithSalt h 0
+  hashWithSalt h Rig1 = hashWithSalt h 1
+  hashWithSalt h RigW = hashWithSalt h 2
 
 export
-Hashable (Term vars) where
-  hashWithSalt h tm 
-     = hashWithSalt h (hshow tm)
+Hashable PiInfo where
+  hashWithSalt h Implicit = hashWithSalt h 0
+  hashWithSalt h Explicit = hashWithSalt h 1
+  hashWithSalt h AutoImplicit = hashWithSalt h 2
+
+export
+Hashable ty => Hashable (Binder ty) where
+  hashWithSalt h (Lam c p ty) 
+      = h `hashWithSalt` 0 `hashWithSalt` c `hashWithSalt` p `hashWithSalt` ty
+  hashWithSalt h (Let c val ty)
+      = h `hashWithSalt` 1 `hashWithSalt` c `hashWithSalt` val `hashWithSalt` ty
+  hashWithSalt h (Pi c p ty)
+      = h `hashWithSalt` 2 `hashWithSalt` c `hashWithSalt` p `hashWithSalt` ty
+  hashWithSalt h (PVar c ty)
+      = h `hashWithSalt` 3 `hashWithSalt` c `hashWithSalt` ty
+  hashWithSalt h (PVTy c ty)
+      = h `hashWithSalt` 4 `hashWithSalt` c `hashWithSalt` ty
+
+Hashable (Var vars) where
+  hashWithSalt h (MkVar {i} _) = hashWithSalt h i
+
+mutual
+  export
+  Hashable (Term vars) where
+    hashWithSalt h (Local fc x idx y) 
+        = h `hashWithSalt` 0 `hashWithSalt` idx
+    hashWithSalt h (Ref fc x name) 
+        = h `hashWithSalt` 1 `hashWithSalt` name
+    hashWithSalt h (Meta fc x y xs) 
+        = h `hashWithSalt` 2 `hashWithSalt` y `hashWithSalt` xs
+    hashWithSalt h (Bind fc x b scope) 
+        = h `hashWithSalt` 3 `hashWithSalt` b `hashWithSalt` scope
+    hashWithSalt h (App fc fn p arg) 
+        = h `hashWithSalt` 4 `hashWithSalt` fn `hashWithSalt` arg
+    hashWithSalt h (Case fc cs ty tree  alts) 
+        = h `hashWithSalt` 5 `hashWithSalt` cs `hashWithSalt` ty
+            `hashWithSalt` tree `hashWithSalt` alts
+    hashWithSalt h (TDelayed fc x y) 
+        = h `hashWithSalt` 6 `hashWithSalt` y
+    hashWithSalt h (TDelay fc x y)
+        = h `hashWithSalt` 7 `hashWithSalt` y
+    hashWithSalt h (TForce fc x)
+        = h `hashWithSalt` 8 `hashWithSalt` x
+    hashWithSalt h (PrimVal fc c) 
+        = h `hashWithSalt` 9 `hashWithSalt` (show c)
+    hashWithSalt h (Erased fc) 
+        = hashWithSalt h 10
+    hashWithSalt h (TType fc)
+        = hashWithSalt h 11
+
+  export
+  Hashable (Pat vars) where
+    hashWithSalt h (PAs fc idx x y) 
+        = h `hashWithSalt` 0 `hashWithSalt` idx `hashWithSalt` y
+    hashWithSalt h (PCon fc x tag arity xs) 
+        = h `hashWithSalt` 1 `hashWithSalt` x `hashWithSalt` xs
+    hashWithSalt h (PLoc fc idx x) 
+        = h `hashWithSalt` 2 `hashWithSalt` idx
+    hashWithSalt h (PUnmatchable fc x) 
+        = h `hashWithSalt` 3 `hashWithSalt` x
+
+  export
+  Hashable (PatAlt vars) where
+    hashWithSalt h (CBind c n ty p) 
+        = h `hashWithSalt` 0 `hashWithSalt` c `hashWithSalt` n
+            `hashWithSalt` p
+    hashWithSalt h (CPats xs x) 
+        = h `hashWithSalt` 1 `hashWithSalt` xs `hashWithSalt` x
+
+  export
+  Hashable (CaseTree vars) where
+    hashWithSalt h (Switch idx x scTy xs) 
+        = h `hashWithSalt` 0 `hashWithSalt` idx `hashWithSalt` xs
+    hashWithSalt h (STerm x) 
+        = h `hashWithSalt` 1 `hashWithSalt` x
+    hashWithSalt h (Unmatched msg) 
+        = h `hashWithSalt` 2
+    hashWithSalt h Impossible
+        = h `hashWithSalt` 3
+
+  export
+  Hashable (CaseAlt vars) where
+    hashWithSalt h (ConCase x tag args y) 
+        = h `hashWithSalt` 0 `hashWithSalt` x `hashWithSalt` args
+            `hashWithSalt` y
+    hashWithSalt h (ConstCase x y) 
+        = h `hashWithSalt` 1 `hashWithSalt` (show x) `hashWithSalt` y
+    hashWithSalt h (DefaultCase x) 
+        = h `hashWithSalt` 2 `hashWithSalt` x
+
 
