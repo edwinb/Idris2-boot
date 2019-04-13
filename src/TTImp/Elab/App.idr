@@ -84,6 +84,11 @@ mutual
   makeAutoImplicit rig elabinfo env fc tm x aty sc expargs impargs expty
        = throw (InternalError "Auto implicits not yet implemented")
            
+  -- Check the rest of an application given the argument type and the
+  -- raw argument. We choose elaboration order depending on whether we know
+  -- the argument's type now. If we don't know it, elaborate the rest of the
+  -- application first and come back to it. This might help with type-directed
+  -- disambiguation when elaborating the argument.
   checkRestApp : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->
                  {auto u : Ref UST UState} ->
@@ -101,7 +106,9 @@ mutual
      -- If the expected argument type is a metavariable, do the rest
      -- of the application first in the hope that it's filled in
      -- (this can help disambiguation)
-       = if isHole aty
+       = if False -- isHole aty
+            -- TODO: This is probably a bad idea. Better to postpone only
+            -- if we got a disambiguation error, perhaps?
             then do
                defs <- get Ctxt
                nm <- genMVName x
@@ -125,6 +132,13 @@ mutual
                pure (tm, gty)
             else do
                defs <- get Ctxt
+               logNF 10 ("Argument type " ++ show x) env aty
+               logNF 10 ("Full function type") env 
+                        (NBind fc x (Pi argRig Explicit aty) sc)
+               logC 10 (do ety <- maybe (pure Nothing)
+                                        (\t => pure (Just !(toFullNames!(getTerm t))))
+                                        expty
+                           pure ("Overall expected type: " ++ show ety))
                (argv, argt) <- check argRig (nextLevel elabinfo)
                                      env arg (Just (glueBack defs env aty))
                let fntm = App fc tm appinf argv

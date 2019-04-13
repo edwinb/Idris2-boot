@@ -242,6 +242,7 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
                Just rhs =>
                   do logTerm 6 ("Instantiated: " ++ show mname) ty
                      logTerm 6 "Definition" rhs
+                     noteUpdate mref
                      addDef (Resolved mref) 
                             (record { definition = Fn rhs } mdef)
                      removeHole mref
@@ -645,10 +646,12 @@ retryGuess mode smode (hid, (loc, hname))
                          -- proper definition and remove it from the
                          -- hole list
                          [] => do let gdef = record { definition = Fn tm } def
+                                  noteUpdate hid
                                   addDef (Resolved hid) gdef
                                   removeGuess hid
                                   pure (holesSolved csAll)
                          newcs => do let gdef = record { definition = Guess tm newcs } def
+                                     noteUpdate hid
                                      addDef (Resolved hid) gdef
                                      pure False
                _ => pure False

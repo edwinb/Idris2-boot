@@ -473,6 +473,22 @@ lookupTypeExact n ctxt
               | Nothing => pure Nothing
          pure (Just (type gdef))
 
+-- Get the next entry id in the context (this is for recording where to go
+-- back to when backtracking in the elaborator)
+export
+getNextEntry : {auto c : Ref Ctxt Defs} ->
+               Core Int
+getNextEntry
+    = do defs <- get Ctxt
+         pure (nextEntry (gamma defs))
+
+export
+setNextEntry : {auto c : Ref Ctxt Defs} ->
+               Int -> Core ()
+setNextEntry i
+    = do defs <- get Ctxt
+         put Ctxt (record { gamma->nextEntry = i } defs)
+
 export
 toFullNames : {auto c : Ref Ctxt Defs} ->
               Term vars -> Core (Term vars)

@@ -99,6 +99,44 @@ export
 nextLevel : ElabInfo -> ElabInfo
 nextLevel = record { level $= (+1) }
 
+export
+tryError : {vars : _} ->
+           {auto c : Ref Ctxt Defs} ->
+           {auto u : Ref UST UState} ->
+           {auto e : Ref EST (EState vars)} ->
+           Core a -> Core (Either Error a)
+tryError elab
+    = do ust <- get UST
+         est <- get EST
+         next <- getNextEntry
+         let btlog = updateLog ust
+         put UST (record { updateLog = Just [] } ust)
+         catch (do res <- elab
+                   pure (Right res))
+               (\err => do ust' <- get UST
+                           maybe (pure ()) undoLog (updateLog ust')
+                           put UST ust
+                           put EST est
+                           setNextEntry next
+                           pure (Left err))
+  where
+    undoLog : List (Int, GlobalDef) -> Core ()
+    undoLog [] = pure ()
+    undoLog ((i, d) :: rest)
+        = do addDef (Resolved i) d
+             undoLog rest
+
+export
+try : {vars : _} ->
+      {auto c : Ref Ctxt Defs} ->
+      {auto u : Ref UST UState} ->
+      {auto e : Ref EST (EState vars)} ->
+      Core a -> Core a -> Core a
+try elab1 elab2
+    = do Right ok <- tryError elab1
+               | Left err => elab2
+         pure ok
+
 -- Implemented in TTImp.Elab.Term; delaring just the type allows us to split
 -- the elaborator over multiple files more easily
 export
