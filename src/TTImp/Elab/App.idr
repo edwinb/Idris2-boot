@@ -47,6 +47,18 @@ isHole : NF vars -> Bool
 isHole (NApp _ (NMeta _ _ _) _) = True
 isHole _ = False
 
+-- Return whether we already know the return type of the given function
+-- type. If we know this, we can possibly infer some argument types before
+-- elaborating them, which might help us disambiguate things more easily.
+concrete : Env Term vars -> NF vars -> Core Bool
+concrete env (NBind fc _ (Pi _ _ _) sc)
+    = do sc' <- sc (toClosure defaultOpts env (Erased fc))
+         concrete env sc'
+concrete env (NDCon _ _ _ _ _) = pure True
+concrete env (NTCon _ _ _ _ _) = pure True
+concrete env (NPrimVal _ _) = pure True
+concrete env _ = pure False
+
 mutual
   makeImplicit : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->
@@ -57,9 +69,10 @@ mutual
                  Name -> NF vars -> (Closure vars -> Core (NF vars)) ->
                  (expargs : List RawImp) ->
                  (impargs : List (Maybe Name, RawImp)) ->
+                 (knownret : Bool) ->
                  (expected : Maybe (Glued vars)) ->
                  Core (Term vars, Glued vars)
-  makeImplicit rig elabinfo env fc tm x aty sc expargs impargs expty
+  makeImplicit rig elabinfo env fc tm x aty sc expargs impargs kr expty
       = do defs <- get Ctxt
            nm <- genMVName x
            empty <- clearDefs defs
@@ -68,7 +81,7 @@ mutual
            let fntm = App fc tm (appInf (Just x) Implicit) metaval
            fnty <- sc (toClosure defaultOpts env metaval)
            checkAppWith rig elabinfo env fc
-                        fntm fnty expargs impargs expty
+                        fntm fnty expargs impargs kr expty
 
   makeAutoImplicit : {vars : _} ->
                      {auto c : Ref Ctxt Defs} ->
@@ -79,14 +92,15 @@ mutual
                      Name -> NF vars -> (Closure vars -> Core (NF vars)) ->
                      (expargs : List RawImp) ->
                      (impargs : List (Maybe Name, RawImp)) ->
+                     (knownret : Bool) ->
                      (expected : Maybe (Glued vars)) ->
                      Core (Term vars, Glued vars)
-  makeAutoImplicit rig elabinfo env fc tm x aty sc expargs impargs expty
+  makeAutoImplicit rig elabinfo env fc tm x aty sc expargs impargs kr expty
        = throw (InternalError "Auto implicits not yet implemented")
            
   -- Check the rest of an application given the argument type and the
   -- raw argument. We choose elaboration order depending on whether we know
-  -- the argument's type now. If we don't know it, elaborate the rest of the
+  -- the return type now. If we don't know it, elaborate the rest of the
   -- application first and come back to it. This might help with type-directed
   -- disambiguation when elaborating the argument.
   checkRestApp : {vars : _} ->
@@ -99,52 +113,51 @@ mutual
                  (arg : RawImp) ->
                  (expargs : List RawImp) ->
                  (impargs : List (Maybe Name, RawImp)) ->
+                 (knownret : Bool) ->
                  (expected : Maybe (Glued vars)) ->
                  Core (Term vars, Glued vars)
-  checkRestApp rig argRig elabinfo env fc appinf tm x aty sc arg 
-               expargs impargs expty
-     -- If the expected argument type is a metavariable, do the rest
-     -- of the application first in the hope that it's filled in
-     -- (this can help disambiguation)
-       = if False -- isHole aty
-            -- TODO: This is probably a bad idea. Better to postpone only
-            -- if we got a disambiguation error, perhaps?
-            then do
-               defs <- get Ctxt
-               nm <- genMVName x
-               empty <- clearDefs defs
-               metaty <- quote empty env aty
-               metaval <- metaVar fc argRig env nm metaty
-               let fntm = App fc tm appinf metaval
-               logNF 10 ("Delaying " ++ show nm ++ " " ++ show arg) env aty
-               fnty <- sc (toClosure defaultOpts env metaval)
-               (tm, gty) <- checkAppWith rig elabinfo env fc
-                                         fntm fnty expargs impargs expty
-               defs <- get Ctxt
-               aty' <- nf defs env metaty
-               logNF 10 ("Now trying " ++ show nm ++ " " ++ show arg) env aty'
-               (argv, argt) <- check argRig (nextLevel elabinfo)
-                                     env arg (Just (glueBack defs env aty'))
-               defs <- get Ctxt
-               [] <- convert fc elabinfo env (gnf defs env metaval)
-                                             (gnf defs env argv)
-                  | cs => throw (CantConvert fc env metaval argv)
-               pure (tm, gty)
-            else do
-               defs <- get Ctxt
-               logNF 10 ("Argument type " ++ show x) env aty
-               logNF 10 ("Full function type") env 
-                        (NBind fc x (Pi argRig Explicit aty) sc)
-               logC 10 (do ety <- maybe (pure Nothing)
-                                        (\t => pure (Just !(toFullNames!(getTerm t))))
-                                        expty
-                           pure ("Overall expected type: " ++ show ety))
-               (argv, argt) <- check argRig (nextLevel elabinfo)
-                                     env arg (Just (glueBack defs env aty))
-               let fntm = App fc tm appinf argv
-               fnty <- sc (toClosure defaultOpts env argv)
-               checkAppWith rig elabinfo env fc 
-                            fntm fnty expargs impargs expty  
+  checkRestApp rig argRig elabinfo env fc appinf tm x aty sc
+               arg expargs impargs knownret expty
+     = do kr <- if knownret
+                   then pure True
+                   else do sc' <- sc (toClosure defaultOpts env (Erased fc))
+                           concrete env sc'
+          if kr then do
+             defs <- get Ctxt
+             nm <- genMVName x
+             empty <- clearDefs defs
+             metaty <- quote empty env aty
+             metaval <- metaVar fc argRig env nm metaty
+             let fntm = App fc tm appinf metaval
+             logNF 10 ("Delaying " ++ show nm ++ " " ++ show arg) env aty
+             fnty <- sc (toClosure defaultOpts env metaval)
+             (tm, gty) <- checkAppWith rig elabinfo env fc
+                                       fntm fnty expargs impargs kr expty
+             defs <- get Ctxt
+             aty' <- nf defs env metaty
+             logNF 10 ("Now trying " ++ show nm ++ " " ++ show arg) env aty'
+             (argv, argt) <- check argRig (nextLevel elabinfo)
+                                   env arg (Just (glueBack defs env aty'))
+             defs <- get Ctxt
+             [] <- convert fc elabinfo env (gnf defs env metaval)
+                                           (gnf defs env argv)
+                | cs => throw (CantConvert fc env metaval argv)
+             pure (tm, gty)
+           else do
+             defs <- get Ctxt
+             logNF 10 ("Argument type " ++ show x) env aty
+             logNF 10 ("Full function type") env
+                      (NBind fc x (Pi argRig Explicit aty) sc)
+             logC 10 (do ety <- maybe (pure Nothing)
+                                      (\t => pure (Just !(toFullNames!(getTerm t))))
+                                      expty
+                         pure ("Overall expected type: " ++ show ety))
+             (argv, argt) <- check argRig (nextLevel elabinfo)
+                                   env arg (Just (glueBack defs env aty))
+             let fntm = App fc tm appinf argv
+             fnty <- sc (toClosure defaultOpts env argv)
+             checkAppWith rig elabinfo env fc
+                          fntm fnty expargs impargs kr expty
 
   -- Check an application of 'fntm', with type 'fnty' to the given list
   -- of explicit and implicit arguments.
@@ -157,56 +170,58 @@ mutual
                  FC -> (fntm : Term vars) -> (fnty : NF vars) ->
                  (expargs : List RawImp) ->
                  (impargs : List (Maybe Name, RawImp)) ->
+                 (knownret : Bool) -> -- Do we know what the return type is yet?
+                              -- if we do, we might be able to use it to work 
+                              -- out the types of arguments before elaborating them
                  (expected : Maybe (Glued vars)) ->
                  Core (Term vars, Glued vars)
   -- Ordinary explicit argument
   checkAppWith rig elabinfo env fc tm (NBind tfc x (Pi rigb Explicit aty) sc)
-               (arg :: expargs) impargs expty 
+               (arg :: expargs) impargs kr expty 
       = do let argRig = rigMult rig rigb
            checkRestApp rig argRig elabinfo env fc (explApp (Just x))
-                        tm x aty sc arg expargs impargs expty
-
+                        tm x aty sc arg expargs impargs kr expty
   -- If there's no more arguments given, and the plicities of the type and
   -- the expected type line up, stop
   checkAppWith rig elabinfo env fc tm ty@(NBind tfc x (Pi rigb Implicit aty) sc)
-               [] [] (Just expty_in)
+               [] [] kr (Just expty_in)
       = do let argRig = rigMult rig rigb
            expty <- getNF expty_in
            defs <- get Ctxt
            case expty of
                 NBind tfc' x' (Pi rigb' Implicit aty') sc'
                    => checkExp rig elabinfo env fc tm (glueBack defs env ty) (Just expty_in)
-                _ => makeImplicit argRig elabinfo env fc tm x aty sc [] [] (Just expty_in)
+                _ => makeImplicit argRig elabinfo env fc tm x aty sc [] [] kr (Just expty_in)
   checkAppWith rig elabinfo env fc tm ty@(NBind tfc x (Pi rigb AutoImplicit aty) sc)
-               [] [] (Just expty_in)
+               [] [] kr (Just expty_in)
       = do let argRig = rigMult rig rigb
            expty <- getNF expty_in
            defs <- get Ctxt
            case expty of
                 NBind tfc' x' (Pi rigb' AutoImplicit aty') sc'
                    => checkExp rig elabinfo env fc tm (glueBack defs env ty) (Just expty_in)
-                _ => makeAutoImplicit argRig elabinfo env fc tm x aty sc [] [] (Just expty_in)
+                _ => makeAutoImplicit argRig elabinfo env fc tm x aty sc [] [] kr (Just expty_in)
 
   -- Check next auto implicit argument
   checkAppWith rig elabinfo env fc tm (NBind tfc x (Pi rigb AutoImplicit aty) sc)
-               expargs ((Nothing, arg) :: impargs) expty
+               expargs ((Nothing, arg) :: impargs) kr expty
       = do let argRig = rigMult rig rigb
            checkRestApp rig argRig elabinfo env fc (appInf (Just x) AutoImplicit)
-                        tm x aty sc arg expargs impargs expty
+                        tm x aty sc arg expargs impargs kr expty
   checkAppWith rig elabinfo env fc tm (NBind tfc x (Pi rigb AutoImplicit aty) sc)
-               expargs impargs expty
-      = makeAutoImplicit rig elabinfo env fc tm x aty sc expargs impargs expty
+               expargs impargs kr expty
+      = makeAutoImplicit rig elabinfo env fc tm x aty sc expargs impargs kr expty
   -- Check next implicit argument
   checkAppWith rig elabinfo env fc tm (NBind tfc x (Pi rigb Implicit aty) sc)
-               expargs impargs expty
+               expargs impargs kr expty
       = case useImp x [] impargs of
              Nothing => makeImplicit rig elabinfo env fc tm 
-                                     x aty sc expargs impargs expty
+                                     x aty sc expargs impargs kr expty
              Just (arg, impargs') =>
                 do let argRig = rigMult rig rigb
                    checkRestApp rig argRig elabinfo env fc 
                                 (appInf (Just x) Implicit)
-                                tm x aty sc arg expargs impargs' expty
+                                tm x aty sc arg expargs impargs' kr expty
     where
       useImp : Name -> List (Maybe Name, RawImp) -> List (Maybe Name, RawImp) ->
                Maybe (RawImp, List (Maybe Name, RawImp))
@@ -218,12 +233,12 @@ mutual
       useImp x acc (ximp :: rest)
           = useImp x (ximp :: acc) rest
 
-  checkAppWith rig elabinfo env fc tm ty [] [] expty 
+  checkAppWith rig elabinfo env fc tm ty [] [] kr expty 
       = do defs <- get Ctxt
            checkExp rig elabinfo env fc tm (glueBack defs env ty) expty
-  checkAppWith rig elabinfo env fc tm ty [] impargs expty 
+  checkAppWith rig elabinfo env fc tm ty [] impargs kr expty 
       = throw (InvalidImplicits fc env (map fst impargs) tm)
-  checkAppWith {vars} rig elabinfo env fc tm ty (arg :: expargs) impargs expty 
+  checkAppWith {vars} rig elabinfo env fc tm ty (arg :: expargs) impargs kr expty 
       = -- Invent a function type,  and hope that we'll know enough to solve it
         -- later when we unify with expty
         do argn <- genName "argTy"
@@ -240,7 +255,7 @@ mutual
                                  env arg (Just argTyG)
            let fntm = App fc tm (appInf Nothing Explicit) argv
            fnty <- nf defs env (Bind fc argn (Let RigW argv argTy) retTy)
-           checkAppWith rig elabinfo env fc fntm fnty expargs impargs expty
+           checkAppWith rig elabinfo env fc fntm fnty expargs impargs kr expty
 
 export
 checkApp : {vars : _} ->
@@ -270,9 +285,9 @@ checkApp rig elabinfo env fc (IVar fc' n) expargs impargs exp
                           " to " ++ show expargs ++ "\n\tFunction type " ++
                           (show !(toFullNames fnty)) ++ "\n\tExpected app type "
                                 ++ show exptyt))
-        checkAppWith rig elabinfo env fc ntm nty expargs impargs exp
+        checkAppWith rig elabinfo env fc ntm nty expargs impargs False exp
 checkApp rig elabinfo env fc fn expargs impargs exp
    = do (fntm, fnty_in) <- checkImp rig elabinfo env fn Nothing
         fnty <- getNF fnty_in
-        checkAppWith rig elabinfo env fc fntm fnty expargs impargs exp
+        checkAppWith rig elabinfo env fc fntm fnty expargs impargs False exp
 
