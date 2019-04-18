@@ -18,6 +18,21 @@ userNameRoot (UN n) = Just n
 userNameRoot _ = Nothing
 
 export
+nameRoot : Name -> String
+nameRoot (NS _ n) = nameRoot n
+nameRoot (UN n) = n
+nameRoot (MN n _) = n
+nameRoot (PV n _) = nameRoot n
+nameRoot (Nested n inner) = nameRoot inner
+nameRoot (Resolved i) = "$" ++ show i
+
+--- Drop a namespace from a name
+export
+dropNS : Name -> Name
+dropNS (NS _ n) = n
+dropNS n = n
+
+export
 showSep : String -> List String -> String
 showSep sep [] = ""
 showSep sep [x] = x

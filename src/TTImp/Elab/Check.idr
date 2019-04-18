@@ -1,6 +1,7 @@
 module TTImp.Elab.Check
 -- Interface (or, rather, type declaration) for the main checker function,
--- used by the checkers for each construct. Also some utility functions
+-- used by the checkers for each construct. Also some utility functions for
+-- reading and writing elaboration state
 
 import Core.Context
 import Core.Core
@@ -22,82 +23,193 @@ data ElabMode = InType | InLHS RigCount | InExpr
 public export
 record EState (vars : List Name) where
   constructor MkEState
+  -- The function/constructor name we're currently working on
   defining : Name
-  localMetas : List (Name, Term vars) -- metavariables introduced in this scope
+  -- The outer environment in which we're running the elaborator. Things here should
+  -- be considered parametric as far as case expression elaboration goes, and are
+  -- the only things that unbound implicits can depend on
+  outerEnv : Env Term outer
+  subEnv : SubVars outer vars
+  boundNames : List (Name, (Term vars, Term vars))
+                  -- implicit pattern/type variable bindings and the 
+                  -- term/type they elaborated to
+  toBind : List (Name, (Term vars, Term vars))
+                  -- implicit pattern/type variables which haven't been
+                  -- bound yet.
+  bindIfUnsolved : List (Name, RigCount,
+                          (vars' ** (Env Term vars', Term vars', Term vars', 
+                                          SubVars outer vars'))) 
+                  -- names to add as unbound implicits if they are still holes
+                  -- when unbound implicits are added
+  lhsPatVars : List String
+                  -- names which we've bound in elab mode InLHS (i.e. not
+                  -- in a dot pattern). We keep track of this because every
+                  -- occurrence other than the first needs to be dotted
+  allPatVars : List Name
+                  -- Holes standing for pattern variables, which we'll delete
+                  -- once we're done elaborating
 
 export
 data EST : Type where
 
 export
-initEState : Name -> EState vars
-initEState def = MkEState def []
+initEStateSub : Name -> Env Term outer -> SubVars outer vars -> EState vars
+initEStateSub n env sub = MkEState n env sub [] [] [] [] []
+
+export
+initEState : Name -> Env Term vars -> EState vars
+initEState n env = initEStateSub n env SubRefl
 
 weakenedEState : {auto e : Ref EST (EState vars)} ->
                  Core (Ref EST (EState (n :: vars)))
 weakenedEState {e}
     = do est <- get EST
-         eref <- newRef EST (MkEState (defining est) [])
+         eref <- newRef EST 
+                    (MkEState (defining est) 
+                              (outerEnv est)
+                              (DropCons (subEnv est))
+                              (map wknTms (boundNames est))
+                              (map wknTms (toBind est))
+                              (bindIfUnsolved est) 
+                              (lhsPatVars est)
+                              (allPatVars est))
          pure eref
-
-strengthenedEState : Ref EST (EState (n :: vars)) ->
-                     Core (EState vars)
-strengthenedEState e
-    = do est <- get EST
-         pure (MkEState (defining est) [])
-
-dumpMetas : {auto c : Ref Ctxt Defs} ->
-            {auto e : Ref EST (EState vars)} ->
-            Core String
-dumpMetas
-    = do est <- get EST
-         let mtys = localMetas est
-         mdefs <- traverse showDef mtys
-         pure (showSep ", " (mapMaybe id mdefs))
   where
-    showDef : (Name, Term vars) -> Core (Maybe String)
-    showDef (n, ty)
-        = do defs <- get Ctxt
-             Just gdef <- lookupCtxtExact n (gamma defs)
-                  | Nothing => pure Nothing
-             pure (Just (show n ++ " = " ++ show (definition gdef)))
+    wknTms : (Name, (Term vs, Term vs)) -> 
+             (Name, (Term (n :: vs), Term (n :: vs)))
+    wknTms (f, (x, y)) = (f, (weaken x, weaken y))
+
+strengthenedEState : Ref Ctxt Defs ->
+                     Ref EST (EState (n :: vars)) ->
+                     FC -> Env Term (n :: vars) ->
+                     Core (EState vars)
+strengthenedEState {n} {vars} c e fc env
+    = do est <- get EST
+         defs <- get Ctxt
+         svs <- dropSub (subEnv est)
+         bns <- traverse (strTms defs) (boundNames est)
+         todo <- traverse (strTms defs) (toBind est)
+         
+         pure (MkEState (defining est) 
+                        (outerEnv est)
+                        svs
+                        bns 
+                        todo
+                        (bindIfUnsolved est) 
+                        (lhsPatVars est)
+                        (allPatVars est))
+  where
+    dropSub : SubVars xs (y :: ys) -> Core (SubVars xs ys)
+    dropSub (DropCons sub) = pure sub
+    dropSub _ = throw (InternalError "Badly formed weakened environment")
+
+    strTms : Defs -> (Name, (Term (n :: vars), Term (n :: vars))) -> 
+             Core (Name, (Term vars, Term vars))
+    strTms defs (f, (x, y))
+        = do xnf <- normaliseHoles defs env x
+             ynf <- normaliseHoles defs env y
+             case (shrinkTerm xnf (DropCons SubRefl), 
+                   shrinkTerm ynf (DropCons SubRefl)) of
+               (Just x', Just y') => pure (f, (x', y'))
+               _ => throw (GenericMsg fc ("Invalid unbound implicit " ++ 
+                               show f ++ " " ++ show xnf ++ " : " ++ show ynf))
 
 export
 inScope : {auto c : Ref Ctxt Defs} ->
           {auto e : Ref EST (EState vars)} ->
-          (Ref EST (EState (n :: vars)) -> Core a) -> Core a
-inScope {e} elab
+          FC -> Env Term (n :: vars) -> 
+          (Ref EST (EState (n :: vars)) -> Core a) -> 
+          Core a
+inScope {c} {e} fc env elab
     = do e' <- weakenedEState
          res <- elab e'
-         logC 10 $ dumpMetas {e=e'}
-         st' <- strengthenedEState e'
+         st' <- strengthenedEState c e' fc env
          put {ref=e} EST st'
          pure res
 
 export
+updateEnv : Env Term new -> SubVars new vars -> 
+            List (Name, RigCount, (vars' ** (Env Term vars', Term vars', Term vars', SubVars new vars'))) ->
+            EState vars -> EState vars
+updateEnv env sub bif st
+    = MkEState (defining st) env sub
+               (boundNames st) (toBind st) bif
+               (lhsPatVars st)
+               (allPatVars st)
+
+export
+addBindIfUnsolved : Name -> RigCount -> Env Term vars -> Term vars -> Term vars ->
+                    EState vars -> EState vars
+addBindIfUnsolved hn r env tm ty st
+    = MkEState (defining st)
+               (outerEnv st) (subEnv st)
+               (boundNames st) (toBind st) 
+               ((hn, r, (_ ** (env, tm, ty, subEnv st))) :: bindIfUnsolved st)
+               (lhsPatVars st)
+               (allPatVars st)
+
+clearBindIfUnsolved : EState vars -> EState vars
+clearBindIfUnsolved st
+    = MkEState (defining st)
+               (outerEnv st) (subEnv st)
+               (boundNames st) (toBind st) []
+               (lhsPatVars st)
+               (allPatVars st)
+
+-- Clear the 'toBind' list, except for the names given
+export
+clearToBind : {auto e : Ref EST (EState vars)} ->
+              (excepts : List Name) -> Core ()
+clearToBind excepts
+    = do est <- get EST
+         put EST (record { toBind $= filter (\x => fst x `elem` excepts) } 
+                         (clearBindIfUnsolved est))
+
+export
+noteLHSPatVar : {auto e : Ref EST (EState vars)} ->
+                ElabMode -> String -> Core ()
+noteLHSPatVar (InLHS _) n
+    = do est <- get EST
+         put EST (record { lhsPatVars $= (n ::) } est)
+noteLHSPatVar _ _ = pure ()
+
+export
+notePatVar : {auto e : Ref EST (EState vars)} ->
+             Name -> Core ()
+notePatVar n
+    = do est <- get EST
+         put EST (record { allPatVars $= (n ::) } est)
+
+export
 metaVar : {auto c : Ref Ctxt Defs} ->
           {auto u : Ref UST UState} ->
-          {auto e : Ref EST (EState vars)} ->
           FC -> RigCount ->
           Env Term vars -> Name -> Term vars -> Core (Term vars)
 metaVar fc rig env n ty
-    = do est <- get EST
-         put EST (record { localMetas $= ((n, ty) ::) } est)
-         newMeta fc rig env n ty
+    = newMeta fc rig env n ty
 
 -- Elaboration info (passed to recursive calls)
 public export
 record ElabInfo where
   constructor MkElabInfo
   elabMode : ElabMode
+  implicitMode : BindMode
   level : Nat
 
 export
 initElabInfo : ElabMode -> ElabInfo
-initElabInfo m = MkElabInfo m 0
+initElabInfo m = MkElabInfo m NONE 0
 
 export
 nextLevel : ElabInfo -> ElabInfo
 nextLevel = record { level $= (+1) }
+
+export
+bindingVars : ElabInfo -> Bool
+bindingVars e
+    = case elabMode e of
+           InExpr => False
+           _ => True
 
 export
 tryError : {vars : _} ->

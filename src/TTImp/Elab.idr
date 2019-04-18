@@ -22,6 +22,6 @@ elabTerm : {vars : _} ->
            Name -> ElabMode -> Env Term vars -> RawImp -> Maybe (Glued vars) ->
            Core (Term vars, Glued vars)
 elabTerm defining mode env tm ty
-    = do e <- newRef EST (initEState defining)
+    = do e <- newRef EST (initEState defining env)
          let rigc = getRigNeeded mode
          check {e} rigc (initElabInfo mode) env tm ty

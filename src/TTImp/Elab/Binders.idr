@@ -29,7 +29,7 @@ checkPi rig elabinfo env fc rigf info n argTy retTy expTy
                              (Just (gType fc))
          let env' : Env Term (n :: _) = Pi rigf info tyv :: env
          (scopev, scopet) <- 
-            inScope (\e' => 
+            inScope fc env' (\e' => 
               check {e=e'} Rig0 (nextLevel elabinfo) env' retTy (Just (gType fc)))
          checkExp rig elabinfo env fc (Bind fc n (Pi rigf info tyv) scopev) (gType fc) expTy
 
@@ -57,7 +57,7 @@ inferLambda rig elabinfo env fc rigl info n argTy scope expTy
          let rigb = min rigb_in rigl
          (tyv, tyt) <- check Rig0 (nextLevel elabinfo) env argTy (Just (gType fc))
          let env' : Env Term (n :: _) = Lam rigb info tyv :: env
-         (scopev, scopet) <- inScope (\e' =>
+         (scopev, scopet) <- inScope fc env' (\e' =>
                                 check {e=e'} rig (nextLevel elabinfo) env' scope Nothing)
          defs <- get Ctxt
          checkExp rig elabinfo env fc
@@ -100,7 +100,7 @@ checkLambda rig_in elabinfo env fc rigl info n argTy scope (Just expty_in)
                  do let rigb = min rigl c
                     let env' : Env Term (n :: _) = Lam rigb info tyv :: env
                     (scopev, scopet) <-
-                       inScope (\e' =>
+                       inScope fc env' (\e' =>
                           check {e=e'} rig (nextLevel elabinfo) env' scope 
                                 (Just (gnf defs env' (renameTop n psc))))
                     checkExp rig elabinfo env fc 

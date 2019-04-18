@@ -19,11 +19,20 @@ atom fname
   <|> do start <- location
          symbol "_"
          end <- location
-         pure (Implicit (MkFC fname start end))
+         pure (Implicit (MkFC fname start end) True)
+  <|> do start <- location
+         symbol "?"
+         end <- location
+         pure (Implicit (MkFC fname start end) False)
   <|> do start <- location
          x <- name
          end <- location
          pure (IVar (MkFC fname start end) x)
+  <|> do start <- location
+         symbol "$"
+         x <- unqualifiedName
+         end <- location
+         pure (IBindVar (MkFC fname start end) x)
 
 visibility : EmptyRule Visibility
 visibility
@@ -124,7 +133,7 @@ mutual
                (do rigc <- multiplicity
                    n <- unqualifiedName
                    ty <- option 
-                            (Implicit (MkFC fname start start))
+                            (Implicit (MkFC fname start start) False)
                             (do symbol ":"
                                 appExpr fname indents)
                    rig <- getMult rigc
@@ -171,7 +180,7 @@ mutual
            ns <- sepBy1 (symbol ",") unqualifiedName
            nend <- location
            let nfc = MkFC fname nstart nend
-           let binders = map (\n => (Rig0, Just (UN n), Implicit nfc)) ns
+           let binders = map (\n => (Rig0, Just (UN n), Implicit nfc False)) ns
            symbol "."
            scope <- typeExpr fname indents
            end <- location
@@ -255,15 +264,35 @@ tyDecl fname indents
          atEnd indents
          pure (MkImpTy (MkFC fname start end) n ty)
 
-fnDef : FileName -> IndentInfo -> Rule ImpDecl
-fnDef fname indents
-    = do start <- location
-         n <- name
-         symbol "="
-         ty <- expr fname indents
-         end <- location
+parseRHS : FileName -> IndentInfo -> (Int, Int) -> RawImp -> Rule ImpDecl
+parseRHS fname indents start lhs
+    = do symbol "="
+         commit
+         rhs <- expr fname indents
          atEnd indents
-         pure (IDef (MkFC fname start end) n ty)
+         fn <- getFn lhs
+         end <- location
+         let fc = MkFC fname start end
+         pure (IDef fc fn [PatClause fc lhs rhs])
+  <|> do keyword "impossible"
+         atEnd indents
+         fn <- getFn lhs
+         end <- location
+         let fc = MkFC fname start end
+         pure (IDef fc fn [ImpossibleClause fc lhs])
+  where
+    getFn : RawImp -> EmptyRule Name
+    getFn (IVar _ n) = pure n
+    getFn (IApp _ f a) = getFn f
+    getFn (IImplicitApp _ f _ a) = getFn f
+    getFn _ = fail "Not a function application" 
+
+
+clause : FileName -> IndentInfo -> Rule ImpDecl
+clause fname indents
+    = do start <- location
+         lhs <- expr fname indents
+         parseRHS fname indents start lhs
 
 dataDecl : FileName -> IndentInfo -> Rule ImpData
 dataDecl fname indents
@@ -277,6 +306,13 @@ dataDecl fname indents
          end <- location
          pure (MkImpData (MkFC fname start end) n ty [] cs)
 
+namespaceDecl : Rule (List String)
+namespaceDecl
+    = do keyword "namespace"
+         commit
+         ns <- namespace_
+         pure ns
+
 -- Declared at the top
 -- topDecl : FileName -> IndentInfo -> Rule ImpDecl
 topDecl fname indents
@@ -286,13 +322,44 @@ topDecl fname indents
          end <- location
          pure (IData (MkFC fname start end) vis dat)
   <|> do start <- location
+         ns <- namespaceDecl
+         ds <- assert_total (nonEmptyBlock (topDecl fname))
+         end <- location
+         pure (INamespace (MkFC fname start end) ns ds)
+  <|> do start <- location
          vis <- visibility
          claim <- tyDecl fname indents
          end <- location
          pure (IClaim (MkFC fname start end) RigW vis [] claim)
-  <|> fnDef fname indents
+  <|> clause fname indents
+
+-- All the clauses get parsed as one-clause definitions. Collect any
+-- neighbouring clauses with the same function name into one definition.
+export
+collectDefs : List ImpDecl -> List ImpDecl
+collectDefs [] = []
+collectDefs (IDef loc fn cs :: ds)
+    = let (cs', rest) = spanMap (isClause fn) ds in
+          IDef loc fn (cs ++ cs') :: assert_total (collectDefs rest)
+  where
+    spanMap : (a -> Maybe (List b)) -> List a -> (List b, List a)
+    spanMap f [] = ([], [])
+    spanMap f (x :: xs) = case f x of
+                               Nothing => ([], x :: xs)
+                               Just y => case spanMap f xs of
+                                              (ys, zs) => (y ++ ys, zs)
+
+    isClause : Name -> ImpDecl -> Maybe (List ImpClause)
+    isClause n (IDef _ n' cs) 
+        = if n == n' then Just cs else Nothing
+    isClause n _ = Nothing
+collectDefs (INamespace loc ns nds :: ds)
+    = INamespace loc ns (collectDefs nds) :: collectDefs ds
+collectDefs (d :: ds)
+    = d :: collectDefs ds
 
 export
 prog : FileName -> Rule (List ImpDecl)
 prog fname
-    = nonEmptyBlock (topDecl fname)
+    = do ds <- nonEmptyBlock (topDecl fname)
+         pure (collectDefs ds)

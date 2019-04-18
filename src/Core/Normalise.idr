@@ -46,7 +46,7 @@ parameters (defs : Defs, opts : EvalOpts)
     eval env locs (Local fc mrig idx prf) stk 
         = evalLocal env locs fc mrig idx prf stk
     eval env locs (Ref fc nt fn) stk 
-        = evalRef env locs fc nt fn stk (NApp fc (NRef nt fn) stk)
+        = evalRef env locs False fc nt fn stk (NApp fc (NRef nt fn) stk)
     eval env locs (Meta fc name idx args) stk
         = do let args' = map (\a => (explApp Nothing, MkClosure opts locs env a)) args
              evalMeta env locs fc name idx args' stk
@@ -62,6 +62,7 @@ parameters (defs : Defs, opts : EvalOpts)
         = eval env locs fn ((p, MkClosure opts locs env arg) :: stk)
     eval env locs (Case fc cs ty x alts) stk 
         = throw (InternalError "Case evaluator not implemented")
+    eval env locs (As fc idx p tm) stk = eval env locs tm stk 
     eval env locs (TDelayed fc r ty) stk 
         = pure (NDelayed fc r (MkClosure opts locs env ty))
     eval env locs (TDelay fc r tm) stk 
@@ -96,7 +97,7 @@ parameters (defs : Defs, opts : EvalOpts)
             = do arg' <- sc arg
                  applyToStack arg' stk
         applyToStack (NApp fc (NRef nt fn) args) stk
-            = evalRef {vars = xs} env locs fc nt fn (args ++ stk)
+            = evalRef {vars = xs} env locs False fc nt fn (args ++ stk)
                       (NApp fc (NRef nt fn) args)
         applyToStack (NApp fc (NLocal mrig idx p) args) stk
           = let (idx' ** p') = insertVarNames {outer=[]} {ns = xs} idx p in
@@ -116,36 +117,40 @@ parameters (defs : Defs, opts : EvalOpts)
                FC -> Name -> Int -> List (AppInfo, Closure free) ->
                Stack free -> Core (NF free)
     evalMeta {vars} env locs fc nm i args stk
-        = evalRef env locs fc Func (Resolved i) (args ++ stk)
+        = evalRef env locs True fc Func (Resolved i) (args ++ stk)
                   (NApp fc (NMeta nm i args) stk)
 
     evalRef : {vars : _} ->
-              Env Term free -> LocalEnv free vars -> 
+              Env Term free -> LocalEnv free vars -> (isMeta : Bool) ->
               FC -> NameType -> Name -> Stack free -> (def : Lazy (NF free)) ->
               Core (NF free)
-    evalRef env locs fc (DataCon tag arity) fn stk def
+    evalRef env locs meta fc (DataCon tag arity) fn stk def
         = pure $ NDCon fc fn tag arity stk
-    evalRef env locs fc (TyCon tag arity) fn stk def
+    evalRef env locs meta fc (TyCon tag arity) fn stk def
         = pure $ NTCon fc fn tag arity stk
-    evalRef env locs fc Bound fn stk def
+    evalRef env locs meta fc Bound fn stk def
         = pure def
-    evalRef env locs fc nt n stk def 
+    evalRef env locs meta fc nt n stk def 
         = do Just res <- lookupCtxtExact n (gamma defs)
                   | Nothing => pure def 
-             evalDef env locs (definition res) stk def
+             evalDef env locs meta (definition res) (flags res) stk def
 
     evalDef : {vars : _} ->
               Env Term free -> LocalEnv free vars ->
-              Def -> Stack free -> (def : Lazy (NF free)) ->
+              (isMeta : Bool) ->
+              Def -> List DefFlag -> Stack free -> (def : Lazy (NF free)) ->
               Core (NF free)
-    evalDef {vars} env locs (Fn tm) stk def
+    evalDef {vars} env locs meta (Fn tm) flags stk def
        -- If evaluating the definition fails (e.g. due to a case being
        -- stuck) return the default
-        = catch (eval env locs (embed tm) stk)
-                (\err => pure def)
+        = if meta || not (holesOnly opts) ||
+                (tcInline opts && elem TCInline flags)
+             then catch (eval env locs (embed tm) stk)
+                        (\err => pure def)
+             else pure def
     -- All other cases, use the default value, which is already applied to
     -- the stack
-    evalDef env locs _ stk def = pure def
+    evalDef env locs _ _ _ stk def = pure def
 
 -- Make sure implicit argument order is right... 'vars' is used so we'll
 -- write it explicitly, but it does appear after the parameters in 'eval'!
@@ -158,6 +163,10 @@ evalClosure defs (MkNFClosure nf) = pure nf
 export
 nf : Defs -> Env Term vars -> Term vars -> Core (NF vars)
 nf defs env tm = eval defs defaultOpts env [] tm []
+
+export
+nfOpts : EvalOpts -> Defs -> Env Term vars -> Term vars -> Core (NF vars)
+nfOpts opts defs env tm = eval defs opts env [] tm []
 
 export
 gnf : Defs -> Env Term vars -> Term vars -> Glued vars
@@ -244,6 +253,10 @@ mutual
   quoteBinder q defs bounds env (PVar r ty)
       = do ty' <- quoteGenNF q defs bounds env ty
            pure (PVar r ty')
+  quoteBinder q defs bounds env (PLet r val ty)
+      = do val' <- quoteGenNF q defs bounds env val
+           ty' <- quoteGenNF q defs bounds env ty
+           pure (PLet r val' ty')
   quoteBinder q defs bounds env (PVTy r ty)
       = do ty' <- quoteGenNF q defs bounds env ty
            pure (PVTy r ty')
@@ -309,6 +322,11 @@ glueBack defs env nf
 export
 normalise : Defs -> Env Term free -> Term free -> Core (Term free)
 normalise defs env tm = quote defs env !(nf defs env tm)
+
+export
+normaliseHoles : Defs -> Env Term free -> Term free -> Core (Term free)
+normaliseHoles defs env tm 
+    = quote defs env !(nfOpts withHoles defs env tm)
 
 public export
 interface Convert (tm : List Name -> Type) where
@@ -452,4 +470,33 @@ logNF lvl msg env tmnf
                     coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg 
                                           ++ ": " ++ show tm'
             else pure ()
+
+-- Log message with a term, reducing holes and translating back to human
+-- readable names first
+export
+logTermNF : {auto c : Ref Ctxt Defs} ->
+            Nat -> Lazy String -> Env Term vars -> Term vars -> Core ()
+logTermNF lvl msg env tm
+    = do opts <- getOpts
+         if logLevel opts >= lvl
+            then do defs <- get Ctxt
+                    tmnf <- normaliseHoles defs env tm
+                    tm' <- toFullNames tmnf
+                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg 
+                                          ++ ": " ++ show tm'
+            else pure ()
+
+export
+logGlue : {auto c : Ref Ctxt Defs} ->
+          Nat -> Lazy String -> Env Term vars -> Glued vars -> Core ()
+logGlue lvl msg env gtm
+    = do opts <- getOpts
+         if logLevel opts >= lvl
+            then do defs <- get Ctxt
+                    tm <- getTerm gtm
+                    tm' <- toFullNames tm
+                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg 
+                                          ++ ": " ++ show tm'
+            else pure ()
+
 

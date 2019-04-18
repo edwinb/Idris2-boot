@@ -86,8 +86,10 @@ Hashable ty => Hashable (Binder ty) where
       = h `hashWithSalt` 2 `hashWithSalt` c `hashWithSalt` p `hashWithSalt` ty
   hashWithSalt h (PVar c ty)
       = h `hashWithSalt` 3 `hashWithSalt` c `hashWithSalt` ty
+  hashWithSalt h (PLet c val ty)
+      = h `hashWithSalt` 4 `hashWithSalt` c `hashWithSalt` val `hashWithSalt` ty
   hashWithSalt h (PVTy c ty)
-      = h `hashWithSalt` 4 `hashWithSalt` c `hashWithSalt` ty
+      = h `hashWithSalt` 5 `hashWithSalt` c `hashWithSalt` ty
 
 Hashable (Var vars) where
   hashWithSalt h (MkVar {i} _) = hashWithSalt h i
@@ -108,18 +110,20 @@ mutual
     hashWithSalt h (Case fc cs ty tree  alts) 
         = h `hashWithSalt` 5 `hashWithSalt` cs `hashWithSalt` ty
             `hashWithSalt` tree `hashWithSalt` alts
+    hashWithSalt h (As fc idx y tm)
+        = h `hashWithSalt` 6 `hashWithSalt` idx `hashWithSalt` tm
     hashWithSalt h (TDelayed fc x y) 
-        = h `hashWithSalt` 6 `hashWithSalt` y
+        = h `hashWithSalt` 8 `hashWithSalt` y
     hashWithSalt h (TDelay fc x y)
-        = h `hashWithSalt` 7 `hashWithSalt` y
+        = h `hashWithSalt` 8 `hashWithSalt` y
     hashWithSalt h (TForce fc x)
-        = h `hashWithSalt` 8 `hashWithSalt` x
+        = h `hashWithSalt` 9 `hashWithSalt` x
     hashWithSalt h (PrimVal fc c) 
-        = h `hashWithSalt` 9 `hashWithSalt` (show c)
+        = h `hashWithSalt` 10 `hashWithSalt` (show c)
     hashWithSalt h (Erased fc) 
-        = hashWithSalt h 10
-    hashWithSalt h (TType fc)
         = hashWithSalt h 11
+    hashWithSalt h (TType fc)
+        = hashWithSalt h 12
 
   export
   Hashable (Pat vars) where

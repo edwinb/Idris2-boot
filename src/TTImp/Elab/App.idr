@@ -80,6 +80,9 @@ mutual
            metaval <- metaVar fc rig env nm metaty
            let fntm = App fc tm (appInf (Just x) Implicit) metaval
            fnty <- sc (toClosure defaultOpts env metaval)
+           when (bindingVars elabinfo) $
+                do est <- get EST
+                   put EST (addBindIfUnsolved nm rig env metaval metaty est)
            checkAppWith rig elabinfo env fc
                         fntm fnty expargs impargs kr expty
 
@@ -204,13 +207,23 @@ mutual
 
   -- Check next auto implicit argument
   checkAppWith rig elabinfo env fc tm (NBind tfc x (Pi rigb AutoImplicit aty) sc)
-               expargs ((Nothing, arg) :: impargs) kr expty
-      = do let argRig = rigMult rig rigb
-           checkRestApp rig argRig elabinfo env fc (appInf (Just x) AutoImplicit)
-                        tm x aty sc arg expargs impargs kr expty
-  checkAppWith rig elabinfo env fc tm (NBind tfc x (Pi rigb AutoImplicit aty) sc)
                expargs impargs kr expty
-      = makeAutoImplicit rig elabinfo env fc tm x aty sc expargs impargs kr expty
+      = case useAutoImp [] impargs of
+             Nothing => makeAutoImplicit rig elabinfo env fc tm 
+                                         x aty sc expargs impargs kr expty
+             Just (arg, impargs') =>
+                do let argRig = rigMult rig rigb
+                   checkRestApp rig argRig elabinfo env fc 
+                                (appInf (Just x) AutoImplicit)
+                                tm x aty sc arg expargs impargs' kr expty
+    where
+      useAutoImp : List (Maybe Name, RawImp) -> List (Maybe Name, RawImp) ->
+                   Maybe (RawImp, List (Maybe Name, RawImp))
+      useAutoImp acc [] = Nothing
+      useAutoImp acc ((Nothing, xtm) :: rest)
+          = Just (xtm, reverse acc ++ rest)
+      useAutoImp acc (ximp :: rest)
+          = useAutoImp (ximp :: acc) rest
   -- Check next implicit argument
   checkAppWith rig elabinfo env fc tm (NBind tfc x (Pi rigb Implicit aty) sc)
                expargs impargs kr expty
@@ -228,7 +241,7 @@ mutual
       useImp x acc [] = Nothing
       useImp x acc ((Just x', xtm) :: rest)
           = if x == x'
-               then Just (xtm, acc ++ rest)
+               then Just (xtm, reverse acc ++ rest)
                else useImp x ((Just x', xtm) :: acc) rest
       useImp x acc (ximp :: rest)
           = useImp x (ximp :: acc) rest

@@ -81,7 +81,8 @@ TTC ty => TTC (Binder ty) where
   toBuf b (Let c val ty) = do tag 1; toBuf b c; toBuf b val; toBuf b ty
   toBuf b (Pi c x ty) = do tag 2; toBuf b c; toBuf b x; toBuf b ty
   toBuf b (PVar c ty) = do tag 3; toBuf b c; toBuf b ty
-  toBuf b (PVTy c ty) = do tag 4; toBuf b c; toBuf b ty
+  toBuf b (PLet c val ty) = do tag 4; toBuf b c; toBuf b val; toBuf b ty
+  toBuf b (PVTy c ty) = do tag 5; toBuf b c; toBuf b ty
 
   fromBuf r b
       = case !getTag of
@@ -89,7 +90,8 @@ TTC ty => TTC (Binder ty) where
              1 => do c <- fromBuf r b; x <- fromBuf r b; y <- fromBuf r b; pure (Let c x y)
              2 => do c <- fromBuf r b; x <- fromBuf r b; y <- fromBuf r b; pure (Pi c x y)
              3 => do c <- fromBuf r b; x <- fromBuf r b; pure (PVar c x)
-             4 => do c <- fromBuf r b; x <- fromBuf r b; pure (PVTy c x)
+             4 => do c <- fromBuf r b; x <- fromBuf r b; y <- fromBuf r b; pure (PLet c x y)
+             5 => do c <- fromBuf r b; x <- fromBuf r b; pure (PVTy c x)
              _ => corrupt "Binder"
 
 export
@@ -211,23 +213,27 @@ mutual
     toBuf b (Case fc cs ty tree alts) 
         = do tag 5;
              toBuf b fc; toBuf b cs; toBuf b ty; toBuf b tree; toBuf b alts
-    toBuf b (TDelayed fc r tm) 
+    toBuf b (As {name} fc idx p tm)
         = do tag 6;
-             toBuf b fc; toBuf b r; toBuf b tm
-    toBuf b (TDelay fc r tm)
+             toBuf b fc; toBuf b name; 
+             toBuf b idx; toBuf b tm
+    toBuf b (TDelayed fc r tm) 
         = do tag 7;
              toBuf b fc; toBuf b r; toBuf b tm
-    toBuf b (TForce fc tm)
+    toBuf b (TDelay fc r tm)
         = do tag 8;
+             toBuf b fc; toBuf b r; toBuf b tm
+    toBuf b (TForce fc tm)
+        = do tag 9;
              toBuf b fc; toBuf b tm
     toBuf b (PrimVal fc c) 
-        = do tag 9;
+        = do tag 10;
              toBuf b fc; toBuf b c
     toBuf b (Erased fc) 
-        = do tag 10;
+        = do tag 11;
              toBuf b fc
     toBuf b (TType fc)
-        = do tag 11;
+        = do tag 12;
              toBuf b fc
 
     fromBuf r b 
@@ -250,16 +256,19 @@ mutual
                        ty <- fromBuf r b; tree <- fromBuf r b
                        alts <- fromBuf r b
                        pure (Case fc cs ty tree alts)
-               6 => do fc <- fromBuf r b; lr <- fromBuf r b; tm <- fromBuf r b
-                       pure (TDelayed fc lr tm)
+               6 => do fc <- fromBuf r b; name <- fromBuf r b
+                       idx <- fromBuf r b; tm <- fromBuf r b
+                       pure (As {name} fc idx (mkPrf idx) tm)
                7 => do fc <- fromBuf r b; lr <- fromBuf r b; tm <- fromBuf r b
+                       pure (TDelayed fc lr tm)
+               8 => do fc <- fromBuf r b; lr <- fromBuf r b; tm <- fromBuf r b
                        pure (TDelay fc lr tm)
-               8 => do fc <- fromBuf r b; tm <- fromBuf r b
+               9 => do fc <- fromBuf r b; tm <- fromBuf r b
                        pure (TForce fc tm)
-               9 => do fc <- fromBuf r b; c <- fromBuf r b
-                       pure (PrimVal fc c)
-               10 => do fc <- fromBuf r b; pure (Erased fc)
-               11 => do fc <- fromBuf r b; pure (TType fc)
+               10 => do fc <- fromBuf r b; c <- fromBuf r b
+                        pure (PrimVal fc c)
+               11 => do fc <- fromBuf r b; pure (Erased fc)
+               12 => do fc <- fromBuf r b; pure (TType fc)
                _ => corrupt "Term"
 
   export

@@ -3,6 +3,7 @@ module Core.TT
 import public Core.FC
 import public Core.Name
 
+import Data.NameMap
 import Data.Vect
 
 %default covering
@@ -175,6 +176,9 @@ data Binder : Type -> Type where
      Pi : RigCount -> PiInfo -> (ty : type) -> Binder type
 		 -- pattern bound variables
      PVar : RigCount -> (ty : type) -> Binder type 
+		 -- variable bound for an as pattern
+     -- TODO: Possibly remove, 'Let', 'As' and 'PAs' might be enough
+     PLet : RigCount -> (val : type) -> (ty : type) -> Binder type 
 		 -- the type of pattern bound variables
      PVTy : RigCount -> (ty : type) -> Binder type
 
@@ -184,6 +188,7 @@ binderType (Lam _ x ty) = ty
 binderType (Let _ val ty) = ty
 binderType (Pi _ x ty) = ty
 binderType (PVar _ ty) = ty
+binderType (PLet _ val ty) = ty
 binderType (PVTy _ ty) = ty
 
 export
@@ -192,6 +197,7 @@ multiplicity (Lam c x ty) = c
 multiplicity (Let c val ty) = c
 multiplicity (Pi c x ty) = c
 multiplicity (PVar c ty) = c
+multiplicity (PLet c val ty) = c
 multiplicity (PVTy c ty) = c
   
 export
@@ -200,6 +206,7 @@ setMultiplicity (Lam c x ty) c' = Lam c' x ty
 setMultiplicity (Let c val ty) c' = Let c' val ty
 setMultiplicity (Pi c x ty) c' = Pi c' x ty
 setMultiplicity (PVar c ty) c' = PVar c' ty
+setMultiplicity (PLet c val ty) c' = PLet c' val ty
 setMultiplicity (PVTy c ty) c' = PVTy c' ty
 
 showCount : RigCount -> String
@@ -212,6 +219,7 @@ Show ty => Show (Binder ty) where
 	show (Pi c _ t) = "Pi " ++ showCount c ++ show t
 	show (Let c v t) = "let " ++ showCount c ++ show v ++ " : " ++ show t
 	show (PVar c t) = "pat " ++ showCount c ++ show t
+	show (PLet c v t) = "plet " ++ showCount c ++ show v ++ " : " ++ show t
 	show (PVTy c t) = "pty " ++ showCount c ++ show t
 
 export
@@ -220,6 +228,7 @@ setType (Lam c x _) ty = Lam c x ty
 setType (Let c val _) ty = Let c val ty
 setType (Pi c x _) ty = Pi c x ty
 setType (PVar c _) ty = PVar c ty
+setType (PLet c val _) ty = PLet c val ty
 setType (PVTy c _) ty = PVTy c ty
 
 export
@@ -228,6 +237,7 @@ Functor Binder where
   map func (Let c val ty) = Let c (func val) (func ty)
   map func (Pi c x ty) = Pi c x (func ty)
   map func (PVar c ty) = PVar c (func ty)
+  map func (PLet c val ty) = PLet c (func val) (func ty)
   map func (PVTy c ty) = PVTy c (func ty)
 
 public export
@@ -281,6 +291,7 @@ mutual
                FC -> Maybe RigCount -> 
                (idx : Nat) -> IsVar name idx vars -> Term vars
        Ref : FC -> NameType -> (name : Name) -> Term vars
+       -- Metavariables and the scope they are applied to
        Meta : FC -> Name -> Int -> List (Term vars) -> Term vars
        Bind : FC -> (x : Name) -> 
               (b : Binder (Term vars)) -> 
@@ -291,6 +302,12 @@ mutual
               Maybe (CaseTree vars) ->
               (alts : List (PatAlt vars)) -> 
               Term vars
+       -- as patterns; since we check LHS patterns as terms before turning
+       -- them into patterns, this helps us get it right. When normalising,
+       -- we just reduce the inner term and ignore the name
+       As : {name : _} ->
+            FC -> (idx : Nat) -> IsVar name idx vars -> Term vars -> Term vars
+       -- Typed laziness annotations
        TDelayed : FC -> LazyReason -> Term vars -> Term vars
        TDelay : FC -> LazyReason -> Term vars -> Term vars
        TForce : FC -> Term vars -> Term vars
@@ -467,6 +484,9 @@ mutual
                      (thin {outer} {inner} n ty) 
                      (map (thinTree n) tree)
                      (map (thinPatAlt n) alts)
+  thin n (As fc idx prf tm)
+      = let (_ ** prf') = insertVar {n} _ prf in
+            As fc _ prf' (thin n tm)
   thin n (TDelayed fc r ty) = TDelayed fc r (thin n ty)
   thin n (TDelay fc r tm) = TDelay fc r (thin n tm)
   thin n (TForce fc tm) = TForce fc (thin n tm)
@@ -494,6 +514,9 @@ mutual
                 (insertNames ns ty)
                 (map (insertCaseNames ns) tree)
                 (map (insertPatAltNames ns) alts)
+  insertNames ns (As fc idx prf tm) 
+      = let (_ ** prf') = insertVarNames {ns} idx prf in
+            As fc _ prf' (insertNames ns tm)
   insertNames ns (TDelayed fc r ty) = TDelayed fc r (insertNames ns ty)
   insertNames ns (TDelay fc r tm) = TDelay fc r (insertNames ns tm)
   insertNames ns (TForce fc tm) = TForce fc (insertNames ns tm)
@@ -633,6 +656,8 @@ mutual
       = Case fc (map (renameVarList prf) cs) (renameVars prf ty) 
                 (map (renameTree prf) tree) 
                 (map (renamePatAlt prf) alts)
+  renameVars prf (As fc idx vprf tm)
+      = As fc idx (snd (renameLocalRef prf vprf)) (renameVars prf tm)
   renameVars prf (TDelayed fc r ty) = TDelayed fc r (renameVars prf ty)
   renameVars prf (TDelay fc r tm) = TDelay fc r (renameVars prf tm)
   renameVars prf (TForce fc x) = TForce fc (renameVars prf x)
@@ -695,6 +720,11 @@ subElem (Later x) (KeepCons p)
     = do (_ ** prf') <- subElem x p
          Just (_ ** Later prf')
 
+export
+subExtend : (ns : List Name) -> SubVars xs ys -> SubVars (ns ++ xs) (ns ++ ys)
+subExtend [] sub = sub
+subExtend (x :: xs) sub = KeepCons (subExtend xs sub)
+
 mutual
   shrinkBinder : Binder (Term vars) -> SubVars newvars vars -> 
                  Maybe (Binder (Term newvars))
@@ -706,6 +736,8 @@ mutual
       = Just (Pi c p !(shrinkTerm ty prf))
   shrinkBinder (PVar c ty) prf
       = Just (PVar c !(shrinkTerm ty prf))
+  shrinkBinder (PLet c val ty) prf
+      = Just (PLet c !(shrinkTerm val prf) !(shrinkTerm ty prf))
   shrinkBinder (PVTy c ty) prf
       = Just (PVTy c !(shrinkTerm ty prf))
 
@@ -785,6 +817,10 @@ mutual
                      !(shrinkTerm ty prf)
                      !(traverse (\x => shrinkTree x prf) tree)
                      !(traverse (\x => shrinkPatAlt x prf) alts))
+  shrinkTerm (As fc idx loc tm) prf 
+     = case subElem loc prf of
+            Nothing => Nothing
+            Just (_ ** loc') => Just (As fc _ loc' !(shrinkTerm tm prf))
   shrinkTerm (TDelayed fc x y) prf 
      = Just (TDelayed fc x !(shrinkTerm y prf))
   shrinkTerm (TDelay fc x y) prf
@@ -809,15 +845,27 @@ addVars {later = (x :: xs)} bs (Later p)
   = let (_ ** p') = addVars {later = xs} bs p in
         (_ ** Later p')
 
+-- resolveRef : (done : List Name) -> Bounds bound -> FC -> Name -> 
+--              Term (later ++ (done ++ bound ++ vars))
+-- resolveRef done None fc n = Ref fc Bound n
+-- resolveRef {later} {vars} done (Add {xs} new old bs) fc n 
+--     = if n == old
+--          then rewrite appendAssociative later done (new :: xs ++ vars) in
+--               let (_ ** p) = weakenVar {inner = new :: xs ++ vars}
+--                                        (later ++ done) First in
+--                     Local fc Nothing _ p
+--          else rewrite appendAssociative done [new] (xs ++ vars)
+--                 in resolveRef (done ++ [new]) bs fc n
+
 resolveRef : (done : List Name) -> Bounds bound -> FC -> Name -> 
-             Term (later ++ (done ++ bound ++ vars))
-resolveRef done None fc n = Ref fc Bound n
+             Maybe (Term (later ++ (done ++ bound ++ vars)))
+resolveRef done None fc n = Nothing
 resolveRef {later} {vars} done (Add {xs} new old bs) fc n 
     = if n == old
          then rewrite appendAssociative later done (new :: xs ++ vars) in
               let (_ ** p) = weakenVar {inner = new :: xs ++ vars}
                                        (later ++ done) First in
-                    Local fc Nothing _ p
+                    Just (Local fc Nothing _ p)
          else rewrite appendAssociative done [new] (xs ++ vars)
                 in resolveRef (done ++ [new]) bs fc n
 
@@ -878,11 +926,12 @@ mutual
   mkLocals bs (Local fc r idx p) 
       = let (_ ** p') = addVars bs p in Local fc r _ p'
   mkLocals bs (Ref fc Bound name) 
-      = resolveRef [] bs fc name
+      = maybe (Ref fc Bound name) id (resolveRef [] bs fc name)
   mkLocals bs (Ref fc nt name) 
       = Ref fc nt name
-  mkLocals bs (Meta fc x y xs) 
-      = Meta fc x y (map (mkLocals bs) xs)
+  mkLocals bs (Meta fc name y xs) 
+      = maybe (Meta fc name y (map (mkLocals bs) xs))
+              id (resolveRef [] bs fc name)
   mkLocals {later} bs (Bind fc x b scope) 
       = Bind fc x (map (mkLocals bs) b) 
              (mkLocals {later = x :: later} bs scope)
@@ -891,6 +940,8 @@ mutual
   mkLocals bs (Case fc cs ty tree alts) 
       = Case fc (map (mkLocalVar bs) cs) (mkLocals bs ty) 
                 (map (mkLocalTree bs) tree) (map (mkLocalPatAlt bs) alts)
+  mkLocals bs (As fc idx p tm) 
+      = let (_ ** p') = addVars bs p in As fc _ p' (mkLocals bs tm)
   mkLocals bs (TDelayed fc x y) 
       = TDelayed fc x (mkLocals bs y)
   mkLocals bs (TDelay fc x y)
@@ -904,6 +955,121 @@ mutual
 export
 refsToLocals : Bounds bound -> Term vars -> Term (bound ++ vars)
 refsToLocals bs y = mkLocals {later = []} bs y
+
+-- Get the metavariable names in a term
+-- TODO: There's a lot of boilerplate and repetition in what follows, so
+-- tidying it up would be nice
+export
+getMetas : Term vars -> NameMap ()
+getMetas tm = getMap empty tm
+  where
+    mutual
+      getMap : NameMap () -> Term vars -> NameMap ()
+      getMap ns (Local fc x idx y) = ns
+      getMap ns (Ref fc x name) = ns
+      getMap ns (Meta fc n i xs) = insert n () ns
+      getMap ns (Bind fc x (Let c val ty) scope) 
+          = getMap (getMap (getMap ns val) ty) scope
+      getMap ns (Bind fc x b scope) 
+          = getMap (getMap ns (binderType b)) scope
+      getMap ns (App fc fn p arg) 
+          = getMap (getMap ns fn) arg
+      getMap ns (Case fc cs ty tree alts) 
+          = let nst = maybe ns (getTreeMap ns) tree in
+                getAll getAltMap (getMap nst ty) alts
+      getMap ns (As fc idx x y) = getMap ns y
+      getMap ns (TDelayed fc x y) = getMap ns y
+      getMap ns (TDelay fc x y) = getMap ns y
+      getMap ns (TForce fc x) = getMap ns x
+      getMap ns (PrimVal fc c) = ns
+      getMap ns (Erased fc) = ns
+      getMap ns (TType fc) = ns
+
+      getAll : (NameMap () -> a -> NameMap ()) -> 
+               NameMap () -> List a -> NameMap ()
+      getAll f ns [] = ns
+      getAll f ns (x :: xs) 
+          = getAll f (f ns x) xs
+
+      getTreeMap : NameMap () -> CaseTree vars -> NameMap ()
+      getTreeMap ns (Switch idx x scTy alts) 
+          = getAll getCaseAltMap (getMap ns scTy) alts
+      getTreeMap ns (STerm x) = getMap ns x
+      getTreeMap ns (Unmatched msg) = ns
+      getTreeMap ns Impossible = ns
+
+      getCaseAltMap : NameMap () -> CaseAlt vars -> NameMap ()
+      getCaseAltMap ns (ConCase x tag args t) = getTreeMap ns t
+      getCaseAltMap ns (ConstCase x t) = getTreeMap ns t
+      getCaseAltMap ns (DefaultCase t) = getTreeMap ns t
+
+      getPatMap : NameMap () -> Pat vars -> NameMap ()
+      getPatMap ns (PAs fc idx x y) = getPatMap ns y
+      getPatMap ns (PCon fc x tag arity xs) = getAll getPatMap ns xs
+      getPatMap ns (PLoc fc idx x) = ns
+      getPatMap ns (PUnmatchable fc x) = getMap ns x
+
+      getAltMap : NameMap () -> PatAlt vars -> NameMap ()
+      getAltMap ns (CBind x y ty alt) = getAltMap (getMap ns ty) alt
+      getAltMap ns (CPats xs rhs) = getMap ns rhs
+
+-- As above, but for references (and see also the TODO about boilerplate!
+-- The only difference is between the 'Ref' and 'Meta' cases)
+export
+getRefs : Term vars -> NameMap ()
+getRefs tm = getMap empty tm
+  where
+    mutual
+      getMap : NameMap () -> Term vars -> NameMap ()
+      getMap ns (Local fc x idx y) = ns
+      getMap ns (Ref fc x name) = insert name () ns
+      getMap ns (Meta fc n i xs) = ns
+      getMap ns (Bind fc x (Let c val ty) scope) 
+          = getMap (getMap (getMap ns val) ty) scope
+      getMap ns (Bind fc x b scope) 
+          = getMap (getMap ns (binderType b)) scope
+      getMap ns (App fc fn p arg) 
+          = getMap (getMap ns fn) arg
+      getMap ns (Case fc cs ty tree alts) 
+          = let nst = maybe ns (getTreeMap ns) tree in
+                getAll getAltMap (getMap nst ty) alts
+      getMap ns (As fc idx x y) = getMap ns y
+      getMap ns (TDelayed fc x y) = getMap ns y
+      getMap ns (TDelay fc x y) = getMap ns y
+      getMap ns (TForce fc x) = getMap ns x
+      getMap ns (PrimVal fc c) = ns
+      getMap ns (Erased fc) = ns
+      getMap ns (TType fc) = ns
+
+      getAll : (NameMap () -> a -> NameMap ()) -> 
+               NameMap () -> List a -> NameMap ()
+      getAll f ns [] = ns
+      getAll f ns (x :: xs) 
+          = getAll f (f ns x) xs
+
+      getTreeMap : NameMap () -> CaseTree vars -> NameMap ()
+      getTreeMap ns (Switch idx x scTy alts) 
+          = getAll getCaseAltMap (getMap ns scTy) alts
+      getTreeMap ns (STerm x) = getMap ns x
+      getTreeMap ns (Unmatched msg) = ns
+      getTreeMap ns Impossible = ns
+
+      getCaseAltMap : NameMap () -> CaseAlt vars -> NameMap ()
+      getCaseAltMap ns (ConCase x tag args t) = getTreeMap ns t
+      getCaseAltMap ns (ConstCase x t) = getTreeMap ns t
+      getCaseAltMap ns (DefaultCase t) = getTreeMap ns t
+
+      getPatMap : NameMap () -> Pat vars -> NameMap ()
+      getPatMap ns (PAs fc idx x y) = getPatMap ns y
+      getPatMap ns (PCon fc x tag arity xs) = getAll getPatMap ns xs
+      getPatMap ns (PLoc fc idx x) = ns
+      getPatMap ns (PUnmatchable fc x) = getMap ns x
+
+      getAltMap : NameMap () -> PatAlt vars -> NameMap ()
+      getAltMap ns (CBind x y ty alt) = getAltMap (getMap ns ty) alt
+      getAltMap ns (CPats xs rhs) = getMap ns rhs
+
+
 
 export Show (Term vars) where
   show tm = let (fn, args) = getFnArgs tm in showApp fn args
@@ -930,6 +1096,9 @@ export Show (Term vars) where
       showApp (Bind _ x (PVar c ty) sc) [] 
           = "pat " ++ showCount c ++ show x ++ " : " ++ show ty ++ 
             " => " ++ show sc
+      showApp (Bind _ x (PLet c val ty) sc) [] 
+          = "plet " ++ showCount c ++ show x ++ " : " ++ show ty ++ 
+            " = " ++ show val ++ " in " ++ show sc
       showApp (Bind _ x (PVTy c ty) sc) [] 
           = "pty " ++ showCount c ++ show x ++ " : " ++ show ty ++ 
             " => " ++ show sc

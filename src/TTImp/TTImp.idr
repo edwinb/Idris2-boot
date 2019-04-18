@@ -1,8 +1,12 @@
 module TTImp.TTImp
 
+import Core.Context
 import Core.TT
 
 mutual
+  public export
+  data BindMode = PI RigCount | PATTERN | NONE
+
   public export
   data RawImp : Type where
        IVar : FC -> Name -> RawImp
@@ -13,9 +17,24 @@ mutual
        IApp : FC -> RawImp -> RawImp -> RawImp
        IImplicitApp : FC -> RawImp -> Maybe Name -> RawImp -> RawImp
 
+       -- Any implicit bindings in the scope should be bound here, using
+       -- the given binder
+       IBindHere : FC -> BindMode -> RawImp -> RawImp
+       -- A name which should be implicitly bound
+       IBindVar : FC -> String -> RawImp
+       -- An 'as' pattern, valid on the LHS of a clause only
+       IAs : FC -> Name -> RawImp -> RawImp
+       -- A 'dot' pattern, i.e. one which must also have the given value
+       -- by unification
+       IMustUnify : FC -> (reason : String) -> RawImp -> RawImp
+
        IPrimVal : FC -> (c : Constant) -> RawImp
        IType : FC -> RawImp
-       Implicit : FC -> RawImp
+
+       -- An implicit value, solved by unification, but which will also be
+       -- bound (either as a pattern variable or a type variable) if unsolved
+       -- at the end of elaborator                                                                     
+       Implicit : FC -> (bindIfUnsolved : Bool) -> RawImp
 
   export
     Show RawImp where
@@ -30,9 +49,15 @@ mutual
          = "(" ++ show f ++ " " ++ show a ++ ")"
       show (IImplicitApp fc f n a)
          = "(" ++ show f ++ " [" ++ show n ++ " = " ++ show a ++ "])"
+      show (IBindHere fc b sc)
+         = "(%bindhere " ++ show sc ++ ")"
+      show (IBindVar fc n) = "$" ++ n
+      show (IAs fc n tm) = show n ++ "@(" ++ show tm ++ ")"
+      show (IMustUnify fc r tm) = ".(" ++ show tm ++ ")"
       show (IPrimVal fc c) = show c
       show (IType fc) = "%type"
-      show (Implicit fc) = "_"
+      show (Implicit fc True) = "_"
+      show (Implicit fc False) = "?"
 
   public export
   data FnOpt : Type where
@@ -78,14 +103,51 @@ mutual
         = "(%datadecl " ++ show n ++ " " ++ show tycon ++ ")"
 
   public export
+  data ImpClause : Type where
+       PatClause : FC -> (lhs : RawImp) -> (rhs : RawImp) -> ImpClause 
+--        WithClause : FC -> (lhs : RawImp) -> (wval : RawImp) ->
+--                     List ImpClause -> ImpClause
+       ImpossibleClause : FC -> (lhs : RawImp) -> ImpClause
+  
+  Show ImpClause where
+    show (PatClause fc lhs rhs)
+       = show lhs ++ " = " ++ show rhs
+    show (ImpossibleClause fc lhs)
+       = show lhs ++ " impossible"
+
+  public export
   data ImpDecl : Type where
        IClaim : FC -> RigCount -> Visibility -> List FnOpt ->
                 ImpTy -> ImpDecl
        IData : FC -> Visibility -> ImpData -> ImpDecl
-       IDef : FC -> Name -> RawImp -> ImpDecl
+       IDef : FC -> Name -> List ImpClause -> ImpDecl
+       INamespace : FC -> List String -> List ImpDecl -> ImpDecl 
 
   export
   Show ImpDecl where
     show (IClaim _ _ _ _ ty) = show ty
     show (IData _ _ d) = show d
-    show (IDef _ n d) = "(%def " ++ show n ++ " " ++ show d ++ ")"
+    show (IDef _ n cs) = "(%def " ++ show n ++ " " ++ show cs ++ ")"
+
+export
+lhsInCurrentNS : {auto c : Ref Ctxt Defs} ->
+                 RawImp -> Core RawImp
+lhsInCurrentNS (IApp loc f a)
+    = do f' <- lhsInCurrentNS f
+         pure (IApp loc f' a)
+lhsInCurrentNS (IImplicitApp loc f n a)
+    = do f' <- lhsInCurrentNS f
+         pure (IImplicitApp loc f' n a)
+lhsInCurrentNS tm@(IVar loc (NS _ _)) = pure tm -- leave explicit NS alone
+lhsInCurrentNS (IVar loc n)
+       = do n' <- inCurrentNS n
+            pure (IVar loc n')
+--     = case lookup n (names nest) of
+--            Nothing =>
+--               do n' <- inCurrentNS n
+--                  pure (IVar loc n')
+--            -- If it's one of the names in the current nested block, we'll
+--            -- be rewriting it during elaboration to be in the scope of the
+--            -- parent name.
+--            Just _ => pure (IVar loc n)
+lhsInCurrentNS tm = pure tm

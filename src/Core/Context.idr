@@ -187,6 +187,7 @@ data Def : Type where
     -- Constraints are integer references into the current map of
     -- constraints in the UnifyState (see Core.UnifyState)
     Guess : (guess : ClosedTerm) -> (constraints : List Int) -> Def
+    ImpBind : Def -- global name temporarily standing for an implicitly bound name
 
 export
 Show Def where
@@ -197,6 +198,7 @@ Show Def where
       = "TyCon " ++ show t ++ " " ++ show a ++ " " ++ show cons
   show (Hole inv) = "Hole"
   show (Guess tm cs) = "Guess " ++ show tm ++ " when " ++ show cs
+  show ImpBind = "Implicitly bound"
 
 export
 TTC Def where
@@ -208,6 +210,7 @@ TTC Def where
            toBuf b detpos; toBuf b datacons
   toBuf b (Hole invertible) = do tag 4; toBuf b invertible
   toBuf b (Guess guess constraints) = do tag 5; toBuf b guess; toBuf b constraints
+  toBuf b ImpBind = tag 6
 
   fromBuf r b 
       = case !getTag of
@@ -223,6 +226,7 @@ TTC Def where
                      pure (Hole i)
              5 => do g <- fromBuf r b; cs <- fromBuf r b
                      pure (Guess g cs)
+             6 => pure ImpBind
              _ => corrupt "Def"
 
 public export
@@ -389,10 +393,30 @@ addDef n def
          pure idx
 
 export
+updateDef : {auto c : Ref Ctxt Defs} -> 
+            Name -> (Def -> Maybe Def) -> Core ()
+updateDef n fdef
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact n (gamma defs)
+             | Nothing => pure ()
+         case fdef (definition gdef) of
+              Nothing => pure ()
+              Just def' => do addDef n (record { definition = def' } gdef)
+                              pure ()
+
+export
 setCtxt : {auto c : Ref Ctxt Defs} -> Context GlobalDef -> Core ()
 setCtxt gam
     = do defs <- get Ctxt
          put Ctxt (record { gamma = gam } defs)
+
+-- Specific functions
+export
+lookupDefExact : Name -> Context GlobalDef -> Core (Maybe Def)
+lookupDefExact n gam
+    = do Just gdef <- lookupCtxtExact n gam
+              | Nothing => pure Nothing
+         pure (Just (definition gdef))
 
 -- Set the default namespace for new definitions
 export

@@ -7,13 +7,18 @@ import Core.TT
 public export
 record EvalOpts where
   constructor MkEvalOpts
+  holesOnly : Bool -- only evaluate hole solutions
   evalAll : Bool -- evaluate everything, including private names
   tcInline : Bool -- inline for totality checking
   fuel : Maybe Nat -- Limit for recursion depth
 
 export
 defaultOpts : EvalOpts
-defaultOpts = MkEvalOpts True False Nothing
+defaultOpts = MkEvalOpts False True False Nothing
+
+export
+withHoles : EvalOpts
+withHoles = MkEvalOpts True True False Nothing
 
 mutual
   public export
