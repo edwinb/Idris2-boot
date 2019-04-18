@@ -10,7 +10,15 @@ data Vect : Nat -> Type -> Type where
      Nil : {0 a : Type} -> Vect Z a
      Cons : {0 a : Type} -> {0 k : Nat} -> a -> Vect k a -> Vect (S k) a
 
-zipWith : {0 a : _} -> {0 b : _} ->{0 c : _} -> {0 n : _} ->
-          (a -> b -> c) -> Vect n a -> Vect n b -> Vect n c
+data Env : Vect $n Type -> Type where
+     ENil : Env Nil
+     ECons : (x : $a) -> Env $xs -> Env (Cons $a $xs)
+
+id : $a -> $a
+apply : ($a -> $b) -> $a -> $b
+compose : ($b -> $c) -> ($a -> $b) -> $a -> $c
+
+zipWith : -- {0 a : _} -> {0 b : _} ->{0 c : _} -> {0 n : _} ->
+          ($a -> $b -> $c) -> Vect $n $a -> Vect $n $b -> Vect $n $c
 zipWith $f (Cons $x $xs) (Cons $y $ys) = Cons (f x y) (zipWith f xs ys)
 zipWith $f Nil Nil = Nil

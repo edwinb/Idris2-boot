@@ -321,9 +321,17 @@ bindImplVars : FC -> BindMode ->
                Term vars -> Term vars -> (Term vars, Term vars)
 bindImplVars fc NONE gam env imps_in scope scty = (scope, scty)
 bindImplVars {vars} fc mode gam env imps_in scope scty 
-    = let imps = map (\ (x, ty) => (dropNS x, x, ty)) imps_in in
+    = let imps = map (\ (x, ty) => (tidyName x, x, ty)) imps_in in
           getBinds imps None scope scty
   where
+    -- Turn the pattern variable name into the user's original choice,
+    -- now that there's no longer a risk of clash
+    tidyName : Name -> Name
+    tidyName (NS _ n) = tidyName n
+    tidyName (PV n _) = tidyName n
+    tidyName (Nested n inner) = tidyName inner
+    tidyName n = n
+
     getBinds : (imps : List (Name, Name, Term vs)) -> 
                Bounds new -> (tm : Term vs) -> (ty : Term vs) ->
                (Term (new ++ vs), Term (new ++ vs))
@@ -506,7 +514,9 @@ checkBindHere rig elabinfo env fc bindmode tm exp
          -- Set the binding environment in the elab state - unbound
          -- implicits should have access to whatever is in scope here
          put EST (updateEnv env SubRefl [] est)
-         (tmv, tmt) <- check rig elabinfo env tm exp
+         (tmv, tmt) <- check rig (record { implicitMode = bindmode }
+                                         elabinfo)
+                             env tm exp
          solveConstraints (case elabMode elabinfo of
                                 InLHS c => InLHS
                                 _ => InTerm) Normal

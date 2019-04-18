@@ -45,12 +45,13 @@ checkCon env vis tn (MkImpTy fc cn_in ty_raw)
          -- Check 'cn' is undefined
          Nothing <- lookupCtxtExact cn (gamma defs)
              | Just gdef => throw (AlreadyDefined fc cn)
-         (ty, _) <- elabTerm cn InType env ty_raw (Just (gType fc))
+         (ty, _) <- elabTerm cn InType env (IBindHere fc (PI Rig0) ty_raw)
+                         (Just (gType fc))
 
          -- Check 'ty' returns something in the right family
          checkFamily fc cn tn env !(nf defs env ty)
          let fullty = abstractEnvType fc env ty
-         log 3 $ show cn ++ " : " ++ show fullty
+         logTermNF 0 (show cn) [] fullty
          -- TODO: Interface hash
 
          pure (MkCon fc cn !(getArity defs [] fullty) fullty)
@@ -67,9 +68,10 @@ processData env fc vis (MkImpLater dfc n_in ty_raw)
          Nothing <- lookupCtxtExact n (gamma defs)
              | Just gdef => throw (AlreadyDefined fc n)
          
-         (ty, _) <- elabTerm n InType env ty_raw (Just (gType dfc))
+         (ty, _) <- elabTerm n InType env (IBindHere fc (PI Rig0) ty_raw)
+                                 (Just (gType dfc))
          let fullty = abstractEnvType dfc env ty
-         logTerm 0 ("data " ++ show n) fullty
+         logTermNF 0 ("data " ++ show n) [] fullty
 
          checkIsType fc n env !(nf defs env ty)
          arity <- getArity defs [] fullty
@@ -82,7 +84,8 @@ processData env fc vis (MkImpLater dfc n_in ty_raw)
 processData env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
     = do n <- inCurrentNS n_in
          defs <- get Ctxt
-         (ty, _) <- elabTerm n InType env ty_raw (Just (gType dfc))
+         (ty, _) <- elabTerm n InType env (IBindHere fc (PI Rig0) ty_raw)
+                                 (Just (gType dfc))
          let fullty = abstractEnvType dfc env ty
 
          -- If n exists, check it's the same type as we have here, and is
@@ -98,7 +101,7 @@ processData env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
                                  else throw (AlreadyDefined fc n)
                      _ => throw (AlreadyDefined fc n)
 
-         log 0 $ "data " ++ show n ++ " : " ++ show fullty
+         logTermNF 0 ("data " ++ show n) [] fullty
 
          checkIsType fc n env !(nf defs env ty)
          arity <- getArity defs [] fullty

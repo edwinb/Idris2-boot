@@ -21,7 +21,8 @@ processType env fc rig vis opts (MkImpTy tfc n_in ty_raw)
     = do n <- inCurrentNS n_in
          log 5 $ "Checking type decl " ++ show n ++ " : " ++ show ty_raw
          (ty, _) <- elabTerm n InType env 
-                             ty_raw (Just (gType fc))
+                             (IBindHere fc (PI Rig0) ty_raw) 
+                             (Just (gType fc))
          logTermNF 0 (show n) [] (abstractEnvType tfc env ty)
          -- TODO: Check name visibility
          let def = None -- TODO: External definitions
