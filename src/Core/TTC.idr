@@ -276,11 +276,17 @@ mutual
     toBuf b (PAs {name} fc idx x y) 
         = do tag 0; toBuf b fc; toBuf b name; toBuf b idx; toBuf b y
     toBuf b (PCon fc x t arity xs) 
-        = do tag 1; toBuf b fc; toBuf b t; toBuf b arity; toBuf b xs
+        = do tag 1; toBuf b fc; toBuf b x; toBuf b t; toBuf b arity; toBuf b xs
+    toBuf b (PTyCon fc x arity xs) 
+        = do tag 2; toBuf b fc; toBuf b x; toBuf b arity; toBuf b xs
+    toBuf b (PConst fc c)
+        = do tag 3; toBuf b fc; toBuf b c
+    toBuf b (PArrow fc x s t)
+        = do tag 4; toBuf b fc; toBuf b x; toBuf b s; toBuf b t
     toBuf b (PLoc {name} fc idx x) 
-        = do tag 2; toBuf b fc; toBuf b name; toBuf b idx
+        = do tag 5; toBuf b fc; toBuf b name; toBuf b idx
     toBuf b (PUnmatchable fc x) 
-        = do tag 3; toBuf b fc; toBuf b x
+        = do tag 6; toBuf b fc; toBuf b x
 
     fromBuf r b 
         = case !getTag of
@@ -291,10 +297,19 @@ mutual
                        t <- fromBuf r b; arity <- fromBuf r b
                        xs <- fromBuf r b
                        pure (PCon fc x t arity xs)
-               2 => do fc <- fromBuf r b; name <- fromBuf r b
+               2 => do fc <- fromBuf r b; x <- fromBuf r b
+                       arity <- fromBuf r b
+                       xs <- fromBuf r b
+                       pure (PTyCon fc x arity xs)
+               3 => do fc <- fromBuf r b; c <- fromBuf r b
+                       pure (PConst fc c)
+               4 => do fc <- fromBuf r b; x <- fromBuf r b
+                       s <- fromBuf r b; t <- fromBuf r b
+                       pure (PArrow fc x s t)
+               5 => do fc <- fromBuf r b; name <- fromBuf r b
                        idx <- fromBuf r b
                        pure (PLoc {name} fc idx (mkPrf idx))
-               3 => do fc <- fromBuf r b; x <- fromBuf r b
+               6 => do fc <- fromBuf r b; x <- fromBuf r b
                        pure (PUnmatchable fc x)
                _ => corrupt "Pat"
 

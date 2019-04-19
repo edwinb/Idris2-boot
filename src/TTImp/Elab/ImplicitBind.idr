@@ -75,6 +75,12 @@ mutual
             PAs fc _ x' (embedPat sub y)
   embedPat sub (PCon fc x tag arity xs) 
       = PCon fc x tag arity (map (embedPat sub) xs)
+  embedPat sub (PTyCon fc x arity xs) 
+      = PTyCon fc x arity (map (embedPat sub) xs)
+  embedPat sub (PConst fc c)
+      = PConst fc c
+  embedPat sub (PArrow fc x s t)
+      = PArrow fc x (embedPat sub s) (embedPat (KeepCons sub) t)
   embedPat sub (PLoc fc idx x) 
       = let (_ ** x') = varEmbedSub sub x in
             PLoc fc _ x'
@@ -282,6 +288,11 @@ mutual
       = let (_ ** p') = swapIsVar _ p in PAs fc _ p' (swapPat pat)
   swapPat (PCon fc x tag arity xs) 
       = PCon fc x tag arity (map swapPat xs)
+  swapPat (PTyCon fc x arity xs) 
+      = PTyCon fc x arity (map swapPat xs)
+  swapPat (PConst fc c) = PConst fc c
+  swapPat {vs} (PArrow fc x s t) 
+      = PArrow fc x (swapPat s) (swapPat {vs = x :: vs} t)
   swapPat (PLoc fc idx p) 
       = let (_ ** p') = swapIsVar _ p in PLoc fc _ p'
   swapPat (PUnmatchable fc x) = PUnmatchable fc (swapVars x)
@@ -527,9 +538,10 @@ checkBindHere rig elabinfo env fc bindmode tm exp
          est <- get EST
          put EST (updateEnv oldenv oldsub oldbif 
                      (record { boundNames = [] } est))
+         ty <- getTerm tmt
          (bv, bt) <- bindImplicits fc bindmode
                                    defs env argImps
                                    !(normaliseHoles defs env tmv)
-                                   (TType fc)
+                                   !(normaliseHoles defs env ty)
          traverse implicitBind (map fst argImps)
          checkExp rig elabinfo env fc bv (gnf defs env bt) exp

@@ -25,3 +25,13 @@ elabTerm defining mode env tm ty
     = do e <- newRef EST (initEState defining env)
          let rigc = getRigNeeded mode
          check {e} rigc (initElabInfo mode) env tm ty
+
+export
+checkTerm : {vars : _} ->
+            {auto c : Ref Ctxt Defs} ->
+            {auto u : Ref UST UState} ->
+            Name -> ElabMode -> Env Term vars -> RawImp -> Glued vars ->
+            Core (Term vars)
+checkTerm defining mode env tm ty
+    = do (tm_elab, _) <- elabTerm defining mode env tm (Just ty)
+         pure tm_elab

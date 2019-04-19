@@ -321,6 +321,10 @@ mutual
              FC -> (idx : Nat) -> IsVar name idx vars -> Pat vars -> Pat vars
        PCon : FC -> Name -> (tag : Int) -> (arity : Nat) ->
               List (Pat vars) -> Pat vars
+       PTyCon : FC -> Name -> (arity : Nat) ->
+                List (Pat vars) -> Pat vars
+       PConst : FC -> (c : Constant) -> Pat vars
+       PArrow : FC -> (x : Name) -> Pat vars -> Pat (x :: vars) -> Pat vars
        PLoc : {name : _} ->
               FC -> (idx : Nat) -> IsVar name idx vars -> Pat vars
        PUnmatchable : FC -> Term vars -> Pat vars
@@ -347,6 +351,22 @@ mutual
                  CaseTree (args ++ vars) -> CaseAlt vars
        ConstCase : Constant -> CaseTree vars -> CaseAlt vars
        DefaultCase : CaseTree vars -> CaseAlt vars
+
+export
+getLoc : Term vars -> FC
+getLoc (Local fc x idx y) = fc
+getLoc (Ref fc x name) = fc
+getLoc (Meta fc x y xs) = fc
+getLoc (Bind fc x b scope) = fc
+getLoc (App fc fn p arg) = fc
+getLoc (Case fc cs ty x alts) = fc
+getLoc (As fc idx x y) = fc
+getLoc (TDelayed fc x y) = fc
+getLoc (TDelay fc x y) = fc
+getLoc (TForce fc x) = fc
+getLoc (PrimVal fc c) = fc
+getLoc (Erased fc) = fc
+getLoc (TType fc) = fc
 
 export
 Eq LazyReason where
@@ -572,6 +592,11 @@ mutual
             PAs fc _ prf' (thinPat n p)
   thinPat n (PCon fc x tag arity args) 
       = PCon fc x tag arity (map (thinPat n) args)
+  thinPat n (PTyCon fc x arity args) 
+      = PTyCon fc x arity (map (thinPat n) args)
+  thinPat n (PConst fc c) = PConst fc c
+  thinPat {outer} n (PArrow fc x s t)
+      = PArrow fc x (thinPat n s) (thinPat {outer = x :: outer} n t)
   thinPat n (PLoc fc idx prf) 
       = let (_ ** prf') = insertVar {n} _ prf in
             PLoc fc _ prf'
@@ -584,6 +609,12 @@ mutual
             PAs fc _ prf' (insertPatNames ns p)
   insertPatNames ns (PCon fc x tag arity args) 
       = PCon fc x tag arity (map (insertPatNames ns) args)
+  insertPatNames ns (PTyCon fc x arity args) 
+      = PTyCon fc x arity (map (insertPatNames ns) args)
+  insertPatNames ns (PConst fc c) = PConst fc c
+  insertPatNames {outer} ns (PArrow fc x s t)
+      = PArrow fc x (insertPatNames ns s) 
+                    (insertPatNames {outer = x :: outer} ns t)
   insertPatNames ns (PLoc fc idx prf) 
       = let (_ ** prf') = insertVarNames {ns} _ prf in
             PLoc fc _ prf'
@@ -686,6 +717,11 @@ mutual
       = PAs fc idx (snd (renameLocalRef prf p)) (renamePat prf pat)
   renamePat prf (PCon fc x tag arity xs) 
       = PCon fc x tag arity (map (renamePat prf) xs)
+  renamePat prf (PTyCon fc x arity xs) 
+      = PTyCon fc x arity (map (renamePat prf) xs)
+  renamePat prf (PConst fc c) = PConst fc c
+  renamePat prf (PArrow fc x s t)
+      = PArrow fc x (renamePat prf s) (renamePat (CompatExt prf) t)
   renamePat prf (PLoc fc idx p) 
       = PLoc fc idx (snd (renameLocalRef prf p))
   renamePat prf (PUnmatchable fc tm) 
@@ -790,6 +826,11 @@ mutual
                  Just (PAs fc _ x' !(shrinkPat pat prf))
   shrinkPat (PCon fc x tag arity xs) prf 
       = Just (PCon fc x tag arity !(traverse (\x => shrinkPat x prf) xs))
+  shrinkPat (PTyCon fc tag arity xs) prf 
+      = Just (PTyCon fc tag arity !(traverse (\x => shrinkPat x prf) xs))
+  shrinkPat (PConst fc c) prf = Just (PConst fc c)
+  shrinkPat (PArrow fc x s t) prf
+      = Just (PArrow fc x !(shrinkPat s prf) !(shrinkPat t (KeepCons prf)))
   shrinkPat (PLoc fc idx x) prf
       = case subElem x prf of
              Nothing => Nothing
@@ -906,6 +947,11 @@ mutual
             PAs fc _ p' (mkLocalPat bs pat)
   mkLocalPat bs (PCon fc x tag arity args)
       = PCon fc x tag arity (map (mkLocalPat bs) args)
+  mkLocalPat bs (PTyCon fc x arity args)
+      = PTyCon fc x arity (map (mkLocalPat bs) args)
+  mkLocalPat bs (PConst fc c) = PConst fc c
+  mkLocalPat {later} bs (PArrow fc x s t)
+      = PArrow fc x (mkLocalPat bs s) (mkLocalPat {later = x :: later} bs t)
   mkLocalPat bs (PLoc fc idx p)
       = let (_ ** p') = addVars bs p in
             PLoc fc _ p'
@@ -1006,6 +1052,9 @@ getMetas tm = getMap empty tm
       getPatMap : NameMap () -> Pat vars -> NameMap ()
       getPatMap ns (PAs fc idx x y) = getPatMap ns y
       getPatMap ns (PCon fc x tag arity xs) = getAll getPatMap ns xs
+      getPatMap ns (PTyCon fc x arity xs) = getAll getPatMap ns xs
+      getPatMap ns (PConst fc c) = ns
+      getPatMap ns (PArrow fc x s t) = getPatMap (getPatMap ns s) t
       getPatMap ns (PLoc fc idx x) = ns
       getPatMap ns (PUnmatchable fc x) = getMap ns x
 
@@ -1062,6 +1111,9 @@ getRefs tm = getMap empty tm
       getPatMap : NameMap () -> Pat vars -> NameMap ()
       getPatMap ns (PAs fc idx x y) = getPatMap ns y
       getPatMap ns (PCon fc x tag arity xs) = getAll getPatMap ns xs
+      getPatMap ns (PTyCon fc x arity xs) = getAll getPatMap ns xs
+      getPatMap ns (PConst fc c) = ns
+      getPatMap ns (PArrow fc x s t) = getPatMap (getPatMap ns s) t
       getPatMap ns (PLoc fc idx x) = ns
       getPatMap ns (PUnmatchable fc x) = getMap ns x
 

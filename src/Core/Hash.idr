@@ -131,10 +131,16 @@ mutual
         = h `hashWithSalt` 0 `hashWithSalt` idx `hashWithSalt` y
     hashWithSalt h (PCon fc x tag arity xs) 
         = h `hashWithSalt` 1 `hashWithSalt` x `hashWithSalt` xs
+    hashWithSalt h (PTyCon fc x arity xs) 
+        = h `hashWithSalt` 2 `hashWithSalt` x `hashWithSalt` xs
+    hashWithSalt h (PConst fc c) 
+        = h `hashWithSalt` 3 `hashWithSalt` (show c)
+    hashWithSalt h (PArrow fc x s t) 
+        = h `hashWithSalt` 4 `hashWithSalt` s `hashWithSalt` t
     hashWithSalt h (PLoc fc idx x) 
-        = h `hashWithSalt` 2 `hashWithSalt` idx
+        = h `hashWithSalt` 5 `hashWithSalt` idx
     hashWithSalt h (PUnmatchable fc x) 
-        = h `hashWithSalt` 3 `hashWithSalt` x
+        = h `hashWithSalt` 6 `hashWithSalt` x
 
   export
   Hashable (PatAlt vars) where
