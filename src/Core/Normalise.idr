@@ -1,5 +1,6 @@
 module Core.Normalise
 
+import Core.CaseTree
 import Core.Context
 import Core.Core
 import Core.Env
@@ -131,24 +132,140 @@ parameters (defs : Defs, opts : EvalOpts)
     evalRef env locs meta fc nt n stk def 
         = do Just res <- lookupCtxtExact n (gamma defs)
                   | Nothing => pure def 
-             evalDef env locs meta (definition res) (flags res) stk def
+             evalDef env locs meta fc (definition res) (flags res) stk def
+
+    getCaseBound : List (AppInfo, Closure free) ->
+                   (args : List Name) ->
+                   LocalEnv free vars ->
+                   Maybe (LocalEnv free (args ++ vars))
+    getCaseBound [] [] loc = Just loc
+    getCaseBound [] (x :: xs) loc = Nothing -- mismatched arg length
+    getCaseBound (arg :: args) [] loc = Nothing -- mismatched arg length
+    getCaseBound (arg :: args) (n :: ns) loc 
+         = do loc' <- getCaseBound args ns loc
+              pure (snd arg :: loc')
+
+    evalConAlt : Env Term free -> 
+                 LocalEnv free (more ++ vars) -> FC ->
+                 Stack free -> 
+                 (args : List Name) -> 
+                 List (AppInfo, Closure free) -> 
+                 CaseTree (args ++ more) ->
+                 (default : Core (NF free)) -> 
+                 Core (NF free)
+    evalConAlt {more} {vars} env loc fc stk args args' sc def
+         = maybe def (\bound => 
+                            let loc' : LocalEnv _ ((args ++ more) ++ vars) 
+                                = rewrite sym (appendAssociative args more vars) in
+                                          bound in
+                                evalTree env loc' fc stk sc def)
+                     (getCaseBound args' args loc)
+
+    tryAlt : Env Term free ->
+             LocalEnv free (more ++ vars) -> FC -> 
+             Stack free -> NF free -> CaseAlt more ->
+             (default : Core (NF free)) -> Core (NF free)
+    -- Ordinary constructor matching
+    tryAlt {more} {vars} env loc fc stk (NDCon _ nm tag' arity args') (ConCase x tag args sc) def
+         = if tag == tag'
+              then evalConAlt env loc fc stk args args' sc def
+              else def
+    -- Type constructor matching, in typecase
+    tryAlt {more} {vars} env loc fc stk (NTCon _ nm tag' arity args') (ConCase nm' tag args sc) def
+         = if nm == nm'
+              then evalConAlt env loc fc stk args args' sc def
+              else def
+    -- Primitive type matching, in typecase
+    tryAlt env loc fc stk (NPrimVal _ c) (ConCase (UN x) tag [] sc) def
+         = if show c == x
+              then evalTree env loc fc stk sc def
+              else def
+    -- Type of type matching, in typecase
+    tryAlt env loc fc stk (NType _) (ConCase (UN "Type") tag [] sc) def
+         = evalTree env loc fc stk sc def
+    -- Arrow matching, in typecase
+    tryAlt {more} {vars}  
+           env loc fc stk (NBind pfc x (Pi r e aty) scty) (ConCase (UN "->") tag [s,t] sc) def
+       = evalConAlt {more} {vars} env loc fc stk [s,t]
+                  [(explApp Nothing, MkNFClosure aty), 
+                   (explApp Nothing, MkNFClosure (NBind pfc x (Lam r e aty) scty))]
+                  sc def
+    -- Constant matching
+    tryAlt env loc fc stk (NPrimVal _ c') (ConstCase c sc) def
+         = if c == c' then evalTree env loc fc stk sc def
+                      else def
+    -- Default case matches against any *concrete* value
+    tryAlt env loc fc stk val (DefaultCase sc) def
+         = if concrete val 
+              then evalTree env loc fc stk sc def
+              else def
+      where
+        concrete : NF free -> Bool
+        concrete (NDCon _ _ _ _ _) = True
+        concrete (NTCon _ _ _ _ _) = True
+        concrete (NPrimVal _ _) = True
+        concrete (NBind _ _ _ _) = True
+        concrete (NType _) = True
+        concrete _ = False
+    tryAlt _ _ _ _ _ _ def = def
+
+    findAlt : Env Term free ->
+              LocalEnv free (args ++ vars) -> FC ->
+              Stack free -> NF free -> List (CaseAlt args) ->
+              (default : Core (NF free)) -> Core (NF free)
+    findAlt env loc fc stk val [] def = def
+    findAlt env loc fc stk val (x :: xs) def
+         = tryAlt env loc fc stk val x (findAlt env loc fc stk val xs def)
+
+    evalTree : {vars : _} ->
+               Env Term free -> LocalEnv free (args ++ vars) -> FC ->
+               Stack free -> CaseTree args ->
+               (default : Core (NF free)) -> Core (NF free)
+    evalTree {args} {vars} {free} env loc fc stk (Case idx x _ alts) def
+      = do let x' : IsVar _ _ ((args ++ vars) ++ free) 
+               = rewrite sym (appendAssociative args vars free) in
+                         varExtend x
+           xval <- evalLocal env loc fc Nothing idx x' []
+           findAlt env loc fc stk xval alts def
+    evalTree {args} {vars} {free} env loc fc stk (STerm tm) def
+          = do let tm' : Term ((args ++ vars) ++ free) 
+                    = rewrite sym (appendAssociative args vars free) in
+                              embed tm 
+               case fuel opts of
+                    Nothing => eval env loc tm' stk
+                    Just Z => def
+                    Just (S k) => 
+                         do let opts' = record { fuel = Just k } opts
+                            evalWithOpts defs opts' env loc tm' stk
+    evalTree env loc fc stk _ def = def
+
+    extendFromStack : (args : List Name) -> 
+                      LocalEnv free vars -> Stack free ->
+                      Maybe (LocalEnv free (args ++ vars), Stack free)
+    extendFromStack [] loc stk = Just (loc, stk)
+    extendFromStack (n :: ns) loc [] = Nothing
+    extendFromStack (n :: ns) loc (arg :: args) 
+         = do (loc', stk') <- extendFromStack ns loc args
+              pure (snd arg :: loc', stk')
 
     evalDef : {vars : _} ->
               Env Term free -> LocalEnv free vars ->
-              (isMeta : Bool) ->
+              (isMeta : Bool) -> FC ->
               Def -> List DefFlag -> Stack free -> (def : Lazy (NF free)) ->
               Core (NF free)
-    evalDef {vars} env locs meta (Fn tm) flags stk def
+    evalDef {vars} env locs meta fc (PMDef args tree _ _) flags stk def
        -- If evaluating the definition fails (e.g. due to a case being
        -- stuck) return the default
         = if meta || not (holesOnly opts) ||
                 (tcInline opts && elem TCInline flags)
-             then catch (eval env locs (embed tm) stk)
-                        (\err => pure def)
+             then case extendFromStack args locs stk of
+                       Nothing => pure def
+                       Just (locs', stk') => 
+                            evalTree env locs' fc stk' tree (pure def)
              else pure def
     -- All other cases, use the default value, which is already applied to
     -- the stack
-    evalDef env locs _ _ _ stk def = pure def
+    evalDef env locs _ _ _ _ stk def = pure def
 
 -- Make sure implicit argument order is right... 'vars' is used so we'll
 -- write it explicitly, but it does appear after the parameters in 'eval'!

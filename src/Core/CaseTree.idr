@@ -5,10 +5,10 @@ import Core.TT
 mutual
   public export
   data CaseTree : List Name -> Type where
-       Switch : {name : _} ->
-                (idx : Nat) -> IsVar name idx vars ->
-                (scTy : Term vars) -> List (CaseAlt vars) ->
-                CaseTree vars
+       Case : {name : _} ->
+              (idx : Nat) -> IsVar name idx vars ->
+              (scTy : Term vars) -> List (CaseAlt vars) ->
+              CaseTree vars
        STerm : Term vars -> CaseTree vars
        Unmatched : (msg : String) -> CaseTree vars
        Impossible : CaseTree vars
@@ -34,6 +34,26 @@ data Pat : List Name -> Type where
             FC -> (idx : Nat) -> IsVar name idx vars -> Pat vars
      PUnmatchable : FC -> Term vars -> Pat vars
 
+mutual
+  export
+  Show (CaseTree vars) where
+    show (Case {name} idx prf ty alts)
+        = "case " ++ show name ++ " : " ++ show ty ++ " of { " ++
+                showSep " | " (assert_total (map show alts)) ++ " }"
+    show (STerm tm) = show tm
+    show (Unmatched msg) = "Error: " ++ show msg
+    show Impossible = "Impossible"
+
+  export
+  Show (CaseAlt vars) where
+    show (ConCase n tag args sc)
+        = show n ++ " " ++ showSep " " (map show args) ++ " => " ++
+          show sc
+    show (ConstCase c sc)
+        = show c ++ " => " ++ show sc
+    show (DefaultCase sc)
+        = "_ => " ++ show sc
+
 mkPat' : List (Pat vars) -> Term vars -> Term vars -> Pat vars
 mkPat' [] orig (Local fc c idx p) = PLoc fc idx p
 mkPat' args orig (Ref fc (DataCon t a) n) = PCon fc n t a args
@@ -56,9 +76,9 @@ mkPat tm = mkPat' [] tm tm
 mutual
   insertCaseNames : (ns : List Name) -> CaseTree (outer ++ inner) ->
                     CaseTree (outer ++ (ns ++ inner))
-  insertCaseNames {inner} {outer} ns (Switch idx prf scTy alts) 
+  insertCaseNames {inner} {outer} ns (Case idx prf scTy alts) 
       = let (_ ** prf') = insertVarNames {outer} {inner} {ns} _ prf in
-            Switch _ prf' (insertNames {outer} ns scTy)
+            Case _ prf' (insertNames {outer} ns scTy)
                 (map (insertCaseAltNames {outer} {inner} ns) alts)
   insertCaseNames {outer} ns (STerm x) = STerm (insertNames {outer} ns x)
   insertCaseNames ns (Unmatched msg) = Unmatched msg
@@ -80,9 +100,9 @@ mutual
   
 export
 thinTree : (n : Name) -> CaseTree (outer ++ inner) -> CaseTree (outer ++ n :: inner)
-thinTree n (Switch idx prf scTy alts) 
+thinTree n (Case idx prf scTy alts) 
     = let (_ ** prf') = insertVar {n} _ prf in
-          Switch _ prf' (thin n scTy) (map (insertCaseAltNames [n]) alts)
+          Case _ prf' (thin n scTy) (map (insertCaseAltNames [n]) alts)
 thinTree n (STerm tm) = STerm (thin n tm)
 thinTree n (Unmatched msg) = Unmatched msg
 thinTree n Impossible = Impossible

@@ -1,5 +1,6 @@
 module TTImp.Elab.App
 
+import Core.CaseTree
 import Core.Context
 import Core.Core
 import Core.Env
@@ -31,7 +32,7 @@ getNameType rigc env fc x expected
                       | [] => throw (UndefinedName fc x)
                       | ns => throw (AmbiguousName fc (map fst ns))
                  let nt = case definition def of
-                               Fn _ => Func
+                               PMDef _ _ _ _ => Func
                                DCon t a => DataCon t a
                                TCon t a _ _ _ => TyCon t a
                                _ => Func

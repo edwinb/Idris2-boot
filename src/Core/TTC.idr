@@ -309,7 +309,7 @@ TTC (Pat vars) where
 mutual
   export
   TTC (CaseTree vars) where
-    toBuf b (Switch {name} idx x scTy xs) 
+    toBuf b (Case {name} idx x scTy xs) 
         = do tag 0; toBuf b name; toBuf b idx; toBuf b scTy; toBuf b xs
     toBuf b (STerm x) 
         = do tag 1; toBuf b x
@@ -321,7 +321,7 @@ mutual
         = case !getTag of
                0 => do name <- fromBuf r b; idx <- fromBuf r b
                        scTy <- fromBuf r b; xs <- fromBuf r b
-                       pure (Switch {name} idx (mkPrf idx) scTy xs)
+                       pure (Case {name} idx (mkPrf idx) scTy xs)
                1 => do x <- fromBuf r b
                        pure (STerm x)
                2 => do msg <- fromBuf r b

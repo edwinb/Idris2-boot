@@ -142,7 +142,7 @@ mutual
 
   export
   Hashable (CaseTree vars) where
-    hashWithSalt h (Switch idx x scTy xs) 
+    hashWithSalt h (Case idx x scTy xs) 
         = h `hashWithSalt` 0 `hashWithSalt` idx `hashWithSalt` xs
     hashWithSalt h (STerm x) 
         = h `hashWithSalt` 1 `hashWithSalt` x

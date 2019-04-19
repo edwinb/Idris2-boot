@@ -1,5 +1,6 @@
 module Core.Context
 
+import Core.CaseTree
 import public Core.Core
 import Core.Env
 import public Core.Name
@@ -176,7 +177,14 @@ lookupCtxtName n ctxt
 public export
 data Def : Type where
     None : Def -- Not yet defined
-    Fn : ClosedTerm -> Def -- Ordinary function definition
+    PMDef : (args : List Name) ->
+            (treeCT : CaseTree args) ->
+            (treeRT : CaseTree args) ->
+            (pats : List (vs ** (Env Term vs, Term vs, Term vs))) ->
+                -- original checked patterns (LHS/RHS) with the names in
+                -- the environment. Used for display purposes, and for helping
+                -- find size changes in termination checking
+            Def -- Ordinary function definition
     DCon : (tag : Int) -> (arity : Nat) -> Def -- data constructor
     TCon : (tag : Int) -> (arity : Nat) ->
            (parampos : List Nat) -> -- parameters
@@ -192,7 +200,8 @@ data Def : Type where
 export
 Show Def where
   show None = "undefined"
-  show (Fn tm) = show tm
+  show (PMDef args ct rt pats) 
+      = show args ++ "; " ++ show ct
   show (DCon t a) = "DataCon " ++ show t ++ " " ++ show a
   show (TCon t a ps ds cons) 
       = "TyCon " ++ show t ++ " " ++ show a ++ " " ++ show cons
@@ -203,7 +212,8 @@ Show Def where
 export
 TTC Def where
   toBuf b None = tag 0
-  toBuf b (Fn x) = do tag 1; toBuf b x
+  toBuf b (PMDef args ct rt pats) 
+      = do tag 1; toBuf b args; toBuf b ct; toBuf b rt; toBuf b pats
   toBuf b (DCon t arity) = do tag 2; toBuf b t; toBuf b arity
   toBuf b (TCon t arity parampos detpos datacons) 
       = do tag 3; toBuf b t; toBuf b arity; toBuf b parampos
@@ -215,8 +225,11 @@ TTC Def where
   fromBuf r b 
       = case !getTag of
              0 => pure None
-             1 => do x <- fromBuf r b 
-                     pure (Fn x)
+             1 => do args <- fromBuf r b 
+                     ct <- fromBuf r b
+                     rt <- fromBuf r b
+                     pats <- fromBuf r b
+                     pure (PMDef args ct rt pats)
              2 => do t <- fromBuf r b; a <- fromBuf r b
                      pure (DCon t a)
              3 => do t <- fromBuf r b; a <- fromBuf r b

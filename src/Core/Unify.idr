@@ -1,5 +1,6 @@
 module Core.Unify
 
+import Core.CaseTree
 import Core.Context
 import Core.Core
 import Core.Env
@@ -244,7 +245,7 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
                      logTerm 6 "Definition" rhs
                      noteUpdate mref
                      addDef (Resolved mref) 
-                            (record { definition = Fn rhs } mdef)
+                            (record { definition = PMDef [] (STerm rhs) (STerm rhs) [] } mdef)
                      removeHole mref
   where
     updateLoc : List (Var vs) -> IsVar name v vs' -> 
@@ -646,7 +647,7 @@ retryGuess mode smode (hid, (loc, hname))
                          -- All constraints resolved, so turn into a
                          -- proper definition and remove it from the
                          -- hole list
-                         [] => do let gdef = record { definition = Fn tm } def
+                         [] => do let gdef = record { definition = PMDef [] (STerm tm) (STerm tm) [] } def
                                   noteUpdate hid
                                   addDef (Resolved hid) gdef
                                   removeGuess hid
