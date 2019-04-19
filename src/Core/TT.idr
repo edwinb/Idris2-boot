@@ -297,9 +297,8 @@ data Term : List Name -> Type where
      App : FC -> (fn : Term vars) -> (p : AppInfo) -> (arg : Term vars) -> Term vars
      -- as patterns; since we check LHS patterns as terms before turning
      -- them into patterns, this helps us get it right. When normalising,
-     -- we just reduce the inner term and ignore the name
-     As : {name : _} ->
-          FC -> (idx : Nat) -> IsVar name idx vars -> Term vars -> Term vars
+     -- we just reduce the inner term and ignore the 'as' part
+     As : FC -> (as : Term vars) -> (pat : Term vars) -> Term vars
      -- Typed laziness annotations
      TDelayed : FC -> LazyReason -> Term vars -> Term vars
      TDelay : FC -> LazyReason -> Term vars -> Term vars
@@ -315,7 +314,7 @@ getLoc (Ref fc x name) = fc
 getLoc (Meta fc x y xs) = fc
 getLoc (Bind fc x b scope) = fc
 getLoc (App fc fn p arg) = fc
-getLoc (As fc idx x y) = fc
+getLoc (As fc x y) = fc
 getLoc (TDelayed fc x y) = fc
 getLoc (TDelay fc x y) = fc
 getLoc (TForce fc x) = fc
@@ -454,9 +453,7 @@ thin {outer} {inner} n (Bind fc x b scope)
     = let sc' = thin {outer = x :: outer} {inner} n scope in
           Bind fc x (assert_total (map (thin n) b)) sc'
 thin n (App fc fn p arg) = App fc (thin n fn) p (thin n arg)
-thin n (As fc idx prf tm)
-    = let (_ ** prf') = insertVar {n} _ prf in
-          As fc _ prf' (thin n tm)
+thin n (As fc nm tm) = As fc (thin n nm) (thin n tm)
 thin n (TDelayed fc r ty) = TDelayed fc r (thin n ty)
 thin n (TDelay fc r tm) = TDelay fc r (thin n tm)
 thin n (TForce fc tm) = TForce fc (thin n tm)
@@ -479,9 +476,8 @@ insertNames {outer} {inner} ns (Bind fc x b scope)
            (insertNames {outer = x :: outer} {inner} ns scope)
 insertNames ns (App fc fn p arg) 
     = App fc (insertNames ns fn) p (insertNames ns arg)
-insertNames ns (As fc idx prf tm) 
-    = let (_ ** prf') = insertVarNames {ns} idx prf in
-          As fc _ prf' (insertNames ns tm)
+insertNames ns (As fc as tm) 
+    = As fc (insertNames ns as) (insertNames ns tm)
 insertNames ns (TDelayed fc r ty) = TDelayed fc r (insertNames ns ty)
 insertNames ns (TDelay fc r tm) = TDelay fc r (insertNames ns tm)
 insertNames ns (TForce fc tm) = TForce fc (insertNames ns tm)
@@ -547,8 +543,8 @@ renameVars prf (Bind fc x b scope)
     = Bind fc x (map (renameVars prf) b) (renameVars (CompatExt prf) scope)
 renameVars prf (App fc fn p arg) 
     = App fc (renameVars prf fn) p (renameVars prf arg)
-renameVars prf (As fc idx vprf tm)
-    = As fc idx (snd (renameLocalRef prf vprf)) (renameVars prf tm)
+renameVars prf (As fc as tm)
+    = As fc  (renameVars prf as) (renameVars prf tm)
 renameVars prf (TDelayed fc r ty) = TDelayed fc r (renameVars prf ty)
 renameVars prf (TDelay fc r tm) = TDelay fc r (renameVars prf tm)
 renameVars prf (TForce fc x) = TForce fc (renameVars prf x)
@@ -620,10 +616,8 @@ mutual
      = Just (Bind fc x !(shrinkBinder b prf) !(shrinkTerm scope (KeepCons prf)))
   shrinkTerm (App fc fn p arg) prf 
      = Just (App fc !(shrinkTerm fn prf) p !(shrinkTerm arg prf))
-  shrinkTerm (As fc idx loc tm) prf 
-     = case subElem loc prf of
-            Nothing => Nothing
-            Just (_ ** loc') => Just (As fc _ loc' !(shrinkTerm tm prf))
+  shrinkTerm (As fc as tm) prf 
+     = Just (As fc !(shrinkTerm as prf) !(shrinkTerm tm prf))
   shrinkTerm (TDelayed fc x y) prf 
      = Just (TDelayed fc x !(shrinkTerm y prf))
   shrinkTerm (TDelay fc x y) prf
@@ -695,8 +689,8 @@ mkLocals {later} bs (Bind fc x b scope)
            (mkLocals {later = x :: later} bs scope)
 mkLocals bs (App fc fn p arg) 
     = App fc (mkLocals bs fn) p (mkLocals bs arg)
-mkLocals bs (As fc idx p tm) 
-    = let (_ ** p') = addVars bs p in As fc _ p' (mkLocals bs tm)
+mkLocals bs (As fc as tm) 
+    = As fc (mkLocals bs as) (mkLocals bs tm)
 mkLocals bs (TDelayed fc x y) 
     = TDelayed fc x (mkLocals bs y)
 mkLocals bs (TDelay fc x y)
@@ -710,6 +704,56 @@ mkLocals bs (TType fc) = TType fc
 export
 refsToLocals : Bounds bound -> Term vars -> Term (bound ++ vars)
 refsToLocals bs y = mkLocals {later = []} bs y
+
+-- Substitute some explicit terms for names in a term, and remove those
+-- names from the scope
+namespace SubstEnv
+  data SubstEnv : List Name -> List Name -> Type where
+       Nil : SubstEnv [] vars
+       (::) : Term vars -> 
+              SubstEnv ds vars -> SubstEnv (d :: ds) vars
+
+  findDrop : {drop, idx : _} ->
+             FC -> Maybe RigCount -> IsVar name idx (drop ++ vars) -> 
+             SubstEnv drop vars -> Term vars
+  findDrop {drop = []} fc r var env = Local fc r _ var
+  findDrop {drop = x :: xs} fc r First (tm :: env) = tm
+  findDrop {drop = x :: xs} fc r (Later p) (tm :: env) 
+      = findDrop fc r p env
+
+  find : {outer, idx : _} ->
+         FC -> Maybe RigCount -> IsVar name idx (outer ++ (drop ++ vars)) ->
+         SubstEnv drop vars ->
+         Term (outer ++ vars)
+  find {outer = []} fc r var env = findDrop fc r var env
+  find {outer = x :: xs} fc r First env = Local fc r _ First
+  find {outer = x :: xs} fc r (Later p) env = weaken (find fc r p env)
+
+  substEnv : {outer : _} ->
+             SubstEnv drop vars -> Term (outer ++ (drop ++ vars)) -> 
+             Term (outer ++ vars)
+  substEnv env (Local fc r _ prf) 
+      = find fc r prf env
+  substEnv env (Ref fc x name) = Ref fc x name
+  substEnv env (Meta fc n i xs) 
+      = Meta fc n i (map (substEnv env) xs)
+  substEnv {outer} env (Bind fc x b scope) 
+      = Bind fc x (map (substEnv env) b) 
+                  (substEnv {outer = x :: outer} env scope)
+  substEnv env (App fc fn p arg) 
+      = App fc (substEnv env fn) p (substEnv env arg)
+  substEnv env (As fc as pat) 
+      = As fc (substEnv env as) (substEnv env pat)
+  substEnv env (TDelayed fc x y) = TDelayed fc x (substEnv env y)
+  substEnv env (TDelay fc x y) = TDelay fc x (substEnv env y)
+  substEnv env (TForce fc x) = TForce fc (substEnv env x)
+  substEnv env (PrimVal fc c) = PrimVal fc c
+  substEnv env (Erased fc) = Erased fc
+  substEnv env (TType fc) = TType fc
+
+export
+subst : Term vars -> Term (x :: vars) -> Term vars
+subst val tm = substEnv {outer = []} {drop = [_]} [val] tm
 
 -- Get the metavariable names in a term
 export
@@ -726,7 +770,7 @@ getMetas tm = getMap empty tm
         = getMap (getMap ns (binderType b)) scope
     getMap ns (App fc fn p arg) 
         = getMap (getMap ns fn) arg
-    getMap ns (As fc idx x y) = getMap ns y
+    getMap ns (As fc as tm) = getMap ns tm
     getMap ns (TDelayed fc x y) = getMap ns y
     getMap ns (TDelay fc x y) = getMap ns y
     getMap ns (TForce fc x) = getMap ns x
@@ -750,7 +794,7 @@ getRefs tm = getMap empty tm
         = getMap (getMap ns (binderType b)) scope
     getMap ns (App fc fn p arg) 
         = getMap (getMap ns fn) arg
-    getMap ns (As fc idx x y) = getMap ns y
+    getMap ns (As fc as tm) = getMap ns tm
     getMap ns (TDelayed fc x y) = getMap ns y
     getMap ns (TDelay fc x y) = getMap ns y
     getMap ns (TForce fc x) = getMap ns x

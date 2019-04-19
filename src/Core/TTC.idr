@@ -210,10 +210,9 @@ TTC (Term vars) where
   toBuf b (App fc fn p arg) 
       = do tag 4;
            toBuf b fc; toBuf b fn; toBuf b p; toBuf b arg
-  toBuf b (As {name} fc idx p tm)
+  toBuf b (As fc as tm)
       = do tag 5;
-           toBuf b fc; toBuf b name; 
-           toBuf b idx; toBuf b tm
+           toBuf b fc; toBuf b as; toBuf b tm
   toBuf b (TDelayed fc r tm) 
       = do tag 6;
            toBuf b fc; toBuf b r; toBuf b tm
@@ -249,9 +248,9 @@ TTC (Term vars) where
              4 => do fc <- fromBuf r b; fn <- fromBuf r b
                      p <- fromBuf r b; arg <- fromBuf r b
                      pure (App fc fn p arg)
-             5 => do fc <- fromBuf r b; name <- fromBuf r b
-                     idx <- fromBuf r b; tm <- fromBuf r b
-                     pure (As {name} fc idx (mkPrf idx) tm)
+             5 => do fc <- fromBuf r b
+                     as <- fromBuf r b; tm <- fromBuf r b
+                     pure (As fc as tm)
              6 => do fc <- fromBuf r b; lr <- fromBuf r b; tm <- fromBuf r b
                      pure (TDelayed fc lr tm)
              7 => do fc <- fromBuf r b; lr <- fromBuf r b; tm <- fromBuf r b
@@ -265,9 +264,9 @@ TTC (Term vars) where
              _ => corrupt "Term"
 
 export
-TTC (Pat vars) where
-  toBuf b (PAs {name} fc idx x y) 
-      = do tag 0; toBuf b fc; toBuf b name; toBuf b idx; toBuf b y
+TTC Pat where
+  toBuf b (PAs fc x y) 
+      = do tag 0; toBuf b fc; toBuf b x; toBuf b y
   toBuf b (PCon fc x t arity xs) 
       = do tag 1; toBuf b fc; toBuf b x; toBuf b t; toBuf b arity; toBuf b xs
   toBuf b (PTyCon fc x arity xs) 
@@ -276,16 +275,16 @@ TTC (Pat vars) where
       = do tag 3; toBuf b fc; toBuf b c
   toBuf b (PArrow fc x s t)
       = do tag 4; toBuf b fc; toBuf b x; toBuf b s; toBuf b t
-  toBuf b (PLoc {name} fc idx x) 
-      = do tag 5; toBuf b fc; toBuf b name; toBuf b idx
+  toBuf b (PLoc fc x) 
+      = do tag 5; toBuf b fc; toBuf b x
   toBuf b (PUnmatchable fc x) 
       = do tag 6; toBuf b fc; toBuf b x
 
   fromBuf r b 
       = case !getTag of
-             0 => do fc <- fromBuf r b; name <- fromBuf r b;
-                     idx <- fromBuf r b; y <- fromBuf r b
-                     pure (PAs {name} fc idx (mkPrf idx) y)
+             0 => do fc <- fromBuf r b; x <- fromBuf r b;
+                     y <- fromBuf r b
+                     pure (PAs fc x y)
              1 => do fc <- fromBuf r b; x <- fromBuf r b
                      t <- fromBuf r b; arity <- fromBuf r b
                      xs <- fromBuf r b
@@ -299,9 +298,8 @@ TTC (Pat vars) where
              4 => do fc <- fromBuf r b; x <- fromBuf r b
                      s <- fromBuf r b; t <- fromBuf r b
                      pure (PArrow fc x s t)
-             5 => do fc <- fromBuf r b; name <- fromBuf r b
-                     idx <- fromBuf r b
-                     pure (PLoc {name} fc idx (mkPrf idx))
+             5 => do fc <- fromBuf r b; x <- fromBuf r b
+                     pure (PLoc fc x)
              6 => do fc <- fromBuf r b; x <- fromBuf r b
                      pure (PUnmatchable fc x)
              _ => corrupt "Pat"

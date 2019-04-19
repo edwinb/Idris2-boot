@@ -21,18 +21,15 @@ mutual
        DefaultCase : CaseTree vars -> CaseAlt vars
 
 public export
-data Pat : List Name -> Type where
-     PAs : {name : _} ->
-           FC -> (idx : Nat) -> IsVar name idx vars -> Pat vars -> Pat vars
+data Pat : Type where
+     PAs : FC -> Name -> Pat -> Pat
      PCon : FC -> Name -> (tag : Int) -> (arity : Nat) ->
-            List (Pat vars) -> Pat vars
-     PTyCon : FC -> Name -> (arity : Nat) ->
-              List (Pat vars) -> Pat vars
-     PConst : FC -> (c : Constant) -> Pat vars
-     PArrow : FC -> (x : Name) -> Pat vars -> Pat (x :: vars) -> Pat vars
-     PLoc : {name : _} ->
-            FC -> (idx : Nat) -> IsVar name idx vars -> Pat vars
-     PUnmatchable : FC -> Term vars -> Pat vars
+            List Pat -> Pat
+     PTyCon : FC -> Name -> (arity : Nat) -> List Pat -> Pat
+     PConst : FC -> (c : Constant) -> Pat
+     PArrow : FC -> (x : Name) -> Pat -> Pat -> Pat
+     PLoc : FC -> Name -> Pat
+     PUnmatchable : FC -> Term [] -> Pat
 
 mutual
   export
@@ -54,23 +51,23 @@ mutual
     show (DefaultCase sc)
         = "_ => " ++ show sc
 
-mkPat' : List (Pat vars) -> Term vars -> Term vars -> Pat vars
-mkPat' [] orig (Local fc c idx p) = PLoc fc idx p
+mkPat' : List Pat -> Term [] -> Term [] -> Pat
+mkPat' [] orig (Ref fc Bound n) = PLoc fc n
 mkPat' args orig (Ref fc (DataCon t a) n) = PCon fc n t a args
 mkPat' args orig (Ref fc (TyCon t a) n) = PTyCon fc n a args
 mkPat' [] orig (Bind fc x (Pi _ _ s) t)
-    = PArrow fc x (mkPat' [] s s) (mkPat' [] t t)
+    = let t' = subst (Erased fc) t in
+          PArrow fc x (mkPat' [] s s) (mkPat' [] t' t')
 mkPat' args orig (App fc fn p arg) 
     = let parg = mkPat' [] arg arg in
           mkPat' (parg :: args) orig fn
-mkPat' args orig (As fc idx p ptm) 
-    = let pat = mkPat' args orig ptm in
-          PAs fc idx p pat
+mkPat' [] orig (As fc (Ref _ Bound n) ptm) 
+    = PAs fc n (mkPat' [] ptm ptm)
 mkPat' [] orig (PrimVal fc c) = PConst fc c
 mkPat' args orig tm = PUnmatchable (getLoc orig) orig
 
 export
-mkPat : Term vars -> Pat vars
+mkPat : Term [] -> Pat
 mkPat tm = mkPat' [] tm tm
 
 mutual

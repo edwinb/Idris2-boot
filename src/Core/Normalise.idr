@@ -61,7 +61,7 @@ parameters (defs : Defs, opts : EvalOpts)
                       (\arg => eval env (arg :: locs) scope stk)
     eval env locs (App fc fn p arg) stk 
         = eval env locs fn ((p, MkClosure opts locs env arg) :: stk)
-    eval env locs (As fc idx p tm) stk = eval env locs tm stk 
+    eval env locs (As fc _ tm) stk = eval env locs tm stk 
     eval env locs (TDelayed fc r ty) stk 
         = pure (NDelayed fc r (MkClosure opts locs env ty))
     eval env locs (TDelay fc r tm) stk 
