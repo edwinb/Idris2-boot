@@ -4,6 +4,8 @@ modules =
     Control.Delayed,
 
     Core.Binary,
+    Core.CaseBuilder,
+    Core.CaseTree,
     Core.Context,
     Core.Core,
     Core.Env,

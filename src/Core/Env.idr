@@ -103,3 +103,13 @@ abstractEnvType fc (b :: env) tm
     = abstractEnvType fc env (Bind fc _ 
 						(Pi (multiplicity b) Explicit (binderType b)) tm)
 
+-- As above, for the corresponding term
+export
+abstractEnv : FC -> Env Term vars -> (tm : Term vars) -> ClosedTerm
+abstractEnv fc [] tm = tm
+abstractEnv fc (Let c val ty :: env) tm
+    = abstractEnv fc env (Bind fc _ (Let c val ty) tm)
+abstractEnv fc (b :: env) tm 
+    = abstractEnv fc env (Bind fc _ 
+						(Lam (multiplicity b) Explicit (binderType b)) tm)
+

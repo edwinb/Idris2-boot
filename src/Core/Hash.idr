@@ -1,5 +1,6 @@
 module Core.Hash
 
+import Core.CaseTree
 import Core.TT
 import Data.List
 
@@ -107,23 +108,20 @@ mutual
         = h `hashWithSalt` 3 `hashWithSalt` b `hashWithSalt` scope
     hashWithSalt h (App fc fn p arg) 
         = h `hashWithSalt` 4 `hashWithSalt` fn `hashWithSalt` arg
-    hashWithSalt h (Case fc cs ty tree  alts) 
-        = h `hashWithSalt` 5 `hashWithSalt` cs `hashWithSalt` ty
-            `hashWithSalt` tree `hashWithSalt` alts
     hashWithSalt h (As fc idx y tm)
-        = h `hashWithSalt` 6 `hashWithSalt` idx `hashWithSalt` tm
+        = h `hashWithSalt` 5 `hashWithSalt` idx `hashWithSalt` tm
     hashWithSalt h (TDelayed fc x y) 
-        = h `hashWithSalt` 8 `hashWithSalt` y
+        = h `hashWithSalt` 6 `hashWithSalt` y
     hashWithSalt h (TDelay fc x y)
-        = h `hashWithSalt` 8 `hashWithSalt` y
+        = h `hashWithSalt` 7 `hashWithSalt` y
     hashWithSalt h (TForce fc x)
-        = h `hashWithSalt` 9 `hashWithSalt` x
+        = h `hashWithSalt` 8 `hashWithSalt` x
     hashWithSalt h (PrimVal fc c) 
-        = h `hashWithSalt` 10 `hashWithSalt` (show c)
+        = h `hashWithSalt` 9 `hashWithSalt` (show c)
     hashWithSalt h (Erased fc) 
-        = hashWithSalt h 11
+        = hashWithSalt h 10
     hashWithSalt h (TType fc)
-        = hashWithSalt h 12
+        = hashWithSalt h 11
 
   export
   Hashable (Pat vars) where
@@ -141,14 +139,6 @@ mutual
         = h `hashWithSalt` 5 `hashWithSalt` idx
     hashWithSalt h (PUnmatchable fc x) 
         = h `hashWithSalt` 6 `hashWithSalt` x
-
-  export
-  Hashable (PatAlt vars) where
-    hashWithSalt h (CBind c n ty p) 
-        = h `hashWithSalt` 0 `hashWithSalt` c `hashWithSalt` n
-            `hashWithSalt` p
-    hashWithSalt h (CPats xs x) 
-        = h `hashWithSalt` 1 `hashWithSalt` xs `hashWithSalt` x
 
   export
   Hashable (CaseTree vars) where

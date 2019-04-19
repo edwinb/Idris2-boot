@@ -42,9 +42,6 @@ mutual
       = Bind fc x (map (embedSub sub) b) (embedSub (KeepCons sub) scope)
   embedSub sub (App fc fn p arg) 
       = App fc (embedSub sub fn) p (embedSub sub arg)
-  embedSub sub (Case fc cs ty tree alts) 
-      = Case fc (map (embedVar sub) cs) (embedSub sub ty)
-                (map (embedTree sub) tree) (map (embedPatAlt sub) alts)
   embedSub sub (As fc idx x y) 
       = let (_ ** x') = varEmbedSub sub x in
             As fc _ x' (embedSub sub y)
@@ -54,44 +51,6 @@ mutual
   embedSub sub (PrimVal fc c) = PrimVal fc c
   embedSub sub (Erased fc) = Erased fc
   embedSub sub (TType fc) = TType fc
-
-  embedTree : SubVars small vars -> CaseTree small -> CaseTree vars
-  embedTree sub (Switch idx x scTy xs) 
-      = let (_ ** x') = varEmbedSub sub x in
-            Switch _ x' (embedSub sub scTy) (map (embedCaseAlt sub) xs)
-  embedTree sub (STerm x) = STerm (embedSub sub x)
-  embedTree sub (Unmatched msg) = Unmatched msg
-  embedTree sub Impossible = Impossible
-
-  embedCaseAlt : SubVars small vars -> CaseAlt small -> CaseAlt vars
-  embedCaseAlt sub (ConCase x tag args t) 
-      = ConCase x tag args (embedTree (subExtend args sub) t)
-  embedCaseAlt sub (ConstCase x t) = ConstCase x (embedTree sub t)
-  embedCaseAlt sub (DefaultCase t) = DefaultCase (embedTree sub t)
-
-  embedPat : SubVars small vars -> Pat small -> Pat vars
-  embedPat sub (PAs fc idx x y) 
-      = let (_ ** x') = varEmbedSub sub x in
-            PAs fc _ x' (embedPat sub y)
-  embedPat sub (PCon fc x tag arity xs) 
-      = PCon fc x tag arity (map (embedPat sub) xs)
-  embedPat sub (PTyCon fc x arity xs) 
-      = PTyCon fc x arity (map (embedPat sub) xs)
-  embedPat sub (PConst fc c)
-      = PConst fc c
-  embedPat sub (PArrow fc x s t)
-      = PArrow fc x (embedPat sub s) (embedPat (KeepCons sub) t)
-  embedPat sub (PLoc fc idx x) 
-      = let (_ ** x') = varEmbedSub sub x in
-            PLoc fc _ x'
-  embedPat sub (PUnmatchable fc x) = PUnmatchable fc (embedSub sub x)
-
-  embedPatAlt : SubVars small vars -> PatAlt small -> PatAlt vars
-  embedPatAlt sub (CBind c n ty alt) 
-      = CBind c n (embedSub sub ty) (embedPatAlt (KeepCons sub) alt)
-  embedPatAlt sub (CPats xs rhs) 
-      = CPats (map (embedPat sub) xs) (embedSub sub rhs)
-
 
 -- Make a hole for an unbound implicit in the outer environment
 export
@@ -231,71 +190,23 @@ swapIsVar (x :: xs) First = (_ ** First)
 swapIsVar (x :: xs) (Later p) 
     = let (_ ** p') = swapIsVar xs p in (_ ** Later p')
 
-mutual
-  swapVars : {vs : List Name} ->
-             Term (vs ++ x :: y :: ys) -> Term (vs ++ y :: x :: ys)
-  swapVars (Local fc x idx p) 
-      = let (_ ** p') = swapIsVar _ p in Local fc x _ p'
-  swapVars (Ref fc x name) = Ref fc x name
-  swapVars (Meta fc n i xs) = Meta fc n i (map swapVars xs)
-  swapVars {vs} (Bind fc x b scope) 
-      = Bind fc x (map swapVars b) (swapVars {vs = x :: vs} scope)
-  swapVars (App fc fn p arg) = App fc (swapVars fn) p (swapVars arg)
-  swapVars (Case fc cs ty tree alts) 
-      = Case fc (map swapInVar cs) (swapVars ty) 
-                (map swapTree tree) (map swapPatAlt alts)
-    where
-      swapInVar : Var (vs ++ x :: y :: ys) -> Var (vs ++ y :: x :: ys)
-      swapInVar (MkVar p) = let (_ ** p') = swapIsVar _ p in MkVar p'
-  swapVars (As fc idx p tm) 
-      = let (_ ** p') = swapIsVar _ p in As fc _ p' (swapVars tm)
-  swapVars (TDelayed fc x tm) = TDelayed fc x (swapVars tm)
-  swapVars (TDelay fc x tm) = TDelay fc x (swapVars tm)
-  swapVars (TForce fc tm) = TForce fc (swapVars tm)
-  swapVars (PrimVal fc c) = PrimVal fc c
-  swapVars (Erased fc) = Erased fc
-  swapVars (TType fc) = TType fc
-
-  swapTree : {vs : List Name} ->
-             CaseTree (vs ++ x :: y :: ys) -> CaseTree (vs ++ y :: x :: ys)
-  swapTree (Switch idx p scTy xs) 
-      = let (_ ** p') = swapIsVar _ p in
-            Switch _ p' (swapVars scTy) (map swapCaseAlt xs)
-  swapTree (STerm x) = STerm (swapVars x)
-  swapTree (Unmatched msg) = Unmatched msg
-  swapTree Impossible = Impossible
-
-  swapCaseAlt : {vs : List Name} ->
-                CaseAlt (vs ++ x :: y :: ys) -> CaseAlt (vs ++ y :: x :: ys)
-  swapCaseAlt {vs} {x} {y} {ys} (ConCase n tag args t) 
-      = let t' = swapTree {vs = args ++ vs} {x} {y} {ys} 
-                  (rewrite sym (appendAssociative args vs (x :: y :: ys)) in t)
-                     in
-            ConCase x tag args 
-                (rewrite appendAssociative args vs (y :: x :: ys) in t')
-  swapCaseAlt (ConstCase c t) = ConstCase c (swapTree t)
-  swapCaseAlt (DefaultCase t) = DefaultCase (swapTree t)
-
-  swapPatAlt : {vs : List Name} ->
-               PatAlt (vs ++ x :: y :: ys) -> PatAlt (vs ++ y :: x :: ys)
-  swapPatAlt {vs} (CBind c x ty alt) 
-      = CBind c x (swapVars ty) (swapPatAlt {vs = x :: vs} alt)
-  swapPatAlt (CPats xs rhs) = CPats (map swapPat xs) (swapVars rhs)
-
-  swapPat : {vs : List Name} ->
-            Pat (vs ++ x :: y :: ys) -> Pat (vs ++ y :: x :: ys)
-  swapPat (PAs fc idx p pat) 
-      = let (_ ** p') = swapIsVar _ p in PAs fc _ p' (swapPat pat)
-  swapPat (PCon fc x tag arity xs) 
-      = PCon fc x tag arity (map swapPat xs)
-  swapPat (PTyCon fc x arity xs) 
-      = PTyCon fc x arity (map swapPat xs)
-  swapPat (PConst fc c) = PConst fc c
-  swapPat {vs} (PArrow fc x s t) 
-      = PArrow fc x (swapPat s) (swapPat {vs = x :: vs} t)
-  swapPat (PLoc fc idx p) 
-      = let (_ ** p') = swapIsVar _ p in PLoc fc _ p'
-  swapPat (PUnmatchable fc x) = PUnmatchable fc (swapVars x)
+swapVars : {vs : List Name} ->
+           Term (vs ++ x :: y :: ys) -> Term (vs ++ y :: x :: ys)
+swapVars (Local fc x idx p) 
+    = let (_ ** p') = swapIsVar _ p in Local fc x _ p'
+swapVars (Ref fc x name) = Ref fc x name
+swapVars (Meta fc n i xs) = Meta fc n i (map swapVars xs)
+swapVars {vs} (Bind fc x b scope) 
+    = Bind fc x (map swapVars b) (swapVars {vs = x :: vs} scope)
+swapVars (App fc fn p arg) = App fc (swapVars fn) p (swapVars arg)
+swapVars (As fc idx p tm) 
+    = let (_ ** p') = swapIsVar _ p in As fc _ p' (swapVars tm)
+swapVars (TDelayed fc x tm) = TDelayed fc x (swapVars tm)
+swapVars (TDelay fc x tm) = TDelay fc x (swapVars tm)
+swapVars (TForce fc tm) = TForce fc (swapVars tm)
+swapVars (PrimVal fc c) = PrimVal fc c
+swapVars (Erased fc) = Erased fc
+swapVars (TType fc) = TType fc
 
 -- Push an explicit pi binder as far into a term as it'll go. That is,
 -- move it under implicit binders that don't depend on it, and stop
