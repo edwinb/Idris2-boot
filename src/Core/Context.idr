@@ -410,13 +410,20 @@ setCtxt gam
     = do defs <- get Ctxt
          put Ctxt (record { gamma = gam } defs)
 
--- Specific functions
+-- Specific lookup functions
 export
 lookupDefExact : Name -> Context GlobalDef -> Core (Maybe Def)
 lookupDefExact n gam
     = do Just gdef <- lookupCtxtExact n gam
               | Nothing => pure Nothing
          pure (Just (definition gdef))
+
+export
+lookupTyExact : Name -> Context GlobalDef -> Core (Maybe ClosedTerm)
+lookupTyExact n gam
+    = do Just gdef <- lookupCtxtExact n gam
+              | Nothing => pure Nothing
+         pure (Just (type gdef))
 
 -- Set the default namespace for new definitions
 export
