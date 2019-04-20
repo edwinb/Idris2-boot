@@ -5,6 +5,8 @@ import Parser.Support
 import Core.Binary
 import Core.Context
 import Core.Env
+import Core.FC
+import Core.Normalise
 import Core.TT
 import Core.UnifyState
 
@@ -29,6 +31,10 @@ coreMain fname
          u <- newRef UST initUState
          processDecls [] tti
          coreLift $ putStrLn "Done"
+
+         defs <- get Ctxt
+         res <- normalise defs [] (Ref emptyFC Func (NS ["Main"] (UN "main")))
+         coreLift $ printLn !(toFullNames res)
 
 main : IO ()
 main

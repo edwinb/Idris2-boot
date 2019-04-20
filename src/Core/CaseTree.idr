@@ -119,15 +119,6 @@ argToPat : ClosedTerm -> Pat
 argToPat tm = mkPat' [] tm tm
 
 export
-isVar : (n : Name) -> (ns : List Name) -> Maybe (idx ** IsVar n idx ns)
-isVar n [] = Nothing
-isVar n (m :: ms) 
-    = case nameEq n m of
-           Nothing => do (_ ** p) <- isVar n ms
-                         pure (_ ** Later p)
-           Just Refl => pure (_ ** First)
-
-export
 mkTerm : (vars : List Name) -> Pat -> Term vars
 mkTerm vars (PAs fc x y) = mkTerm vars y
 mkTerm vars (PCon fc x tag arity xs) 

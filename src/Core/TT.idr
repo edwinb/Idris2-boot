@@ -647,18 +647,6 @@ addVars {later = (x :: xs)} bs (Later p)
   = let (_ ** p') = addVars {later = xs} bs p in
         (_ ** Later p')
 
--- resolveRef : (done : List Name) -> Bounds bound -> FC -> Name -> 
---              Term (later ++ (done ++ bound ++ vars))
--- resolveRef done None fc n = Ref fc Bound n
--- resolveRef {later} {vars} done (Add {xs} new old bs) fc n 
---     = if n == old
---          then rewrite appendAssociative later done (new :: xs ++ vars) in
---               let (_ ** p) = weakenVar {inner = new :: xs ++ vars}
---                                        (later ++ done) First in
---                     Local fc Nothing _ p
---          else rewrite appendAssociative done [new] (xs ++ vars)
---                 in resolveRef (done ++ [new]) bs fc n
-
 resolveRef : (done : List Name) -> Bounds bound -> FC -> Name -> 
              Maybe (Term (later ++ (done ++ bound ++ vars)))
 resolveRef done None fc n = Nothing
@@ -710,9 +698,40 @@ export
 refsToLocals : Bounds bound -> Term vars -> Term (bound ++ vars)
 refsToLocals bs y = mkLocals {later = []} bs y
 
+export
+isVar : (n : Name) -> (ns : List Name) -> Maybe (idx ** IsVar n idx ns)
+isVar n [] = Nothing
+isVar n (m :: ms) 
+    = case nameEq n m of
+           Nothing => do (_ ** p) <- isVar n ms
+                         pure (_ ** Later p)
+           Just Refl => pure (_ ** First)
+
 -- Replace any Ref Bound in a type with appropriate local
 export
-resolveRefs : (vars : List Name) -> Term vars -> Term vars
+resolveNames : (vars : List Name) -> Term vars -> Term vars
+resolveNames vars (Ref fc Bound name)
+    = case isVar name vars of
+           Just (_ ** prf) => Local fc Nothing _ prf
+           _ => Ref fc Bound name
+resolveNames vars (Meta fc n i xs) 
+    = Meta fc n i (map (resolveNames vars) xs)
+resolveNames vars (Bind fc x b scope) 
+    = Bind fc x (map (resolveNames vars) b) (resolveNames (x :: vars) scope)
+resolveNames vars (App fc fn p arg) 
+    = App fc (resolveNames vars fn) p (resolveNames vars arg)
+resolveNames vars (As fc as pat) 
+    = As fc (resolveNames vars as) (resolveNames vars pat)
+resolveNames vars (TDelayed fc x y) 
+    = TDelayed fc x (resolveNames vars y)
+resolveNames vars (TDelay fc x y) 
+    = TDelay fc x (resolveNames vars y)
+resolveNames vars (TForce fc x) 
+    = TForce fc (resolveNames vars x)
+resolveNames vars tm = tm
+
+
+-- resolveRefs vars (Ref Bound n)
 
 -- Substitute some explicit terms for names in a term, and remove those
 -- names from the scope

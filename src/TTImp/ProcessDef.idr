@@ -1,6 +1,7 @@
 module TTImp.ProcessDef
 
--- import Core.CaseBuilder
+import Core.CaseBuilder
+import Core.CaseTree
 import Core.Context
 import Core.Core
 import Core.Env
@@ -145,21 +146,25 @@ checkClause mult hashit n env (PatClause fc lhs_in rhs)
          let lhstm_lin = setLinear linvars lhstm
          let lhsty_lin = setLinear linvars lhsty
 
-         logTermNF 0 "LHS term" env lhstm_lin
-         logTermNF 0 "LHS type" env lhsty_lin
+         logTermNF 5 "LHS term" env lhstm_lin
+         logTermNF 5 "LHS type" env lhsty_lin
 
          (vars'  ** (env', lhstm', lhsty')) <- 
              extendEnv env lhstm_lin lhsty_lin
          defs <- get Ctxt
          rhstm <- checkTerm n InExpr env' rhs (gnf defs env' lhsty')
 
-         logTermNF 0 "RHS term" env' rhstm
+         logTermNF 5 "RHS term" env' rhstm
          pure (Just (MkClause env' lhstm' rhstm))
   where
     noLet : Env Term vs -> Env Term vs
     noLet [] = []
     noLet (Let c v t :: env) = Lam c Explicit t :: noLet env
     noLet (b :: env) = b :: noLet env
+
+toPats : Clause -> (vs ** (Env Term vs, Term vs, Term vs))
+toPats (MkClause {vars} env lhs rhs) 
+    = (_ ** (env, lhs, rhs))
 
 export
 processDef : {auto c : Ref Ctxt Defs} ->
@@ -179,8 +184,10 @@ processDef {vars} env fc n_in cs_in
                        then Rig0
                        else Rig1
          cs <- traverse (checkClause mult hashit n env) cs_in
-         ?foo
---          t <- getCaseTree env ty (mapMaybe id cs)
---          let def = abstractEnv fc env t
---          addDef n (record { definition = Fn def } gdef)
---          pure ()
+         let pats = map toPats (mapMaybe id cs)
+
+         (cargs ** tree_ct) <- getPMDef fc CompileTime n ty (mapMaybe id cs)
+         log 0 $ "Case tree for " ++ show n ++ ": " ++ show tree_ct
+         addDef n (record { definition = PMDef cargs tree_ct tree_ct pats } gdef)
+         pure ()
+         

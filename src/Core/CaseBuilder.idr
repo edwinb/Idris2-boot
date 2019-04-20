@@ -310,8 +310,42 @@ checkGroupMatch (CConst c) [] (ConstGroup c' (MkPatClause pvs pats rhs :: rest))
            Just Refl => ConstMatch
 checkGroupMatch _ _ _ = NoMatch
 
-nextNames : String -> List Pat -> Maybe (NF vars) ->
+data PName : Type where
+
+nextName : {auto i : Ref PName Int} ->
+           String -> Core Name
+nextName root
+    = do x <- get PName
+         put PName (x + 1)
+         pure (MN root x)
+
+nextNames : {auto i : Ref PName Int} ->
+            {auto c : Ref Ctxt Defs} ->
+            FC -> String -> List Pat -> Maybe (NF vars) ->
             Core (args ** NamedPats (args ++ vars) args)
+nextNames fc root [] fty = pure ([] ** [])
+nextNames {vars} fc root (p :: pats) fty
+     = do defs <- get Ctxt
+          empty <- clearDefs defs
+          n <- nextName root
+          let env = mkEnv fc vars
+          fa_tys <- the (Core (Maybe (NF vars), ArgType vars)) $
+              case fty of
+                   Nothing => pure (Nothing, Unknown)
+                   Just (NBind pfc _ (Pi c _ (NErased _)) fsc) =>
+                      pure (Just !(fsc (toClosure defaultOpts env (Ref pfc Bound n))),
+                        Unknown)
+                   Just (NBind pfc _ (Pi c _ farg) fsc) =>
+                      pure (Just !(fsc (toClosure defaultOpts env (Ref pfc Bound n))),
+                        Known c !(quote empty env farg))
+                   Just t =>
+                      pure (Nothing, Stuck !(quote empty env t))
+          (args ** ps) <- nextNames {vars} fc root pats (fst fa_tys)
+          let argTy = case snd fa_tys of
+                           Unknown => Unknown
+                           Known rig t => Known rig (weakenNs (n :: args) t)
+                           Stuck t => Stuck (weakenNs (n :: args) t)
+          pure (n :: args ** MkInfo p First argTy :: weaken ps)
 
 -- replace the prefix of patterns with 'pargs'
 newPats : (pargs : List Pat) -> LengthMatch pargs ns ->
@@ -347,7 +381,8 @@ updatePatNames ns (pi :: ps)
                Just n' => PLoc fc n'
     update p = p
 
-groupCons : {auto c : Ref Ctxt Defs} ->
+groupCons : {auto i : Ref PName Int} ->
+            {auto c : Ref Ctxt Defs} ->
             FC -> Name ->
             List Name ->
             List (PatClause vars (a :: todo)) -> 
@@ -373,7 +408,7 @@ groupCons fc fn pvars cs
                               Just t <- lookupTyExact n (gamma defs)
                                    | Nothing => pure (NErased fc)
                               nf defs (mkEnv fc vars) (embed t)
-             (patnames ** newargs) <- nextNames {vars} "e" pargs (Just cty)
+             (patnames ** newargs) <- nextNames {vars} fc "e" pargs (Just cty)
              -- Update non-linear names in remaining patterns (to keep
              -- explicit dependencies in types accurate)
              let pats' = updatePatNames (updateNames (zip patnames pargs))
@@ -455,7 +490,8 @@ getFirstArgType (p :: _) = argType p
 -- Check whether all the initial patterns have the same concrete, known
 -- and matchable type, which is multiplicity > 0. 
 -- If so, it's okay to match on it
-sameType : {auto c : Ref Ctxt Defs} -> 
+sameType : {auto i : Ref PName Int} ->
+           {auto c : Ref Ctxt Defs} -> 
            FC -> Name ->
            Env Term ns -> List (NamedPats ns (p :: ps)) -> 
            Core ()
@@ -545,61 +581,36 @@ countDiff xs = length (distinct [] (map getFirstCon xs))
             then distinct acc ps
             else distinct (p :: acc) ps
 
-getScore : {auto c : Ref Ctxt Defs} -> 
+getScore : {auto i : Ref PName Int} ->
+           {auto c : Ref Ctxt Defs} -> 
            FC -> Name -> IsVar name idx (p :: ps) -> 
            List (NamedPats ns (p :: ps)) -> 
-           Core (IsVar name idx (p :: ps), Nat)
+           Core (Either CaseError (IsVar name idx (p :: ps), Nat))
 getScore fc name prf npss 
-    = do sameType fc name (mkEnv fc ns) npss
-         pure (prf, countDiff npss)
+    = do catch (do sameType fc name (mkEnv fc ns) npss
+                   pure (Right (prf, countDiff npss)))
+               (\err => case err of
+                             CaseCompile _ _ err => pure (Left err)
+                             _ => throw err)
 
--- bestOf : Either CaseError (Elem p ps, Nat) -> 
---          Either CaseError (Elem q ps, Nat) ->
---          Either CaseError (x ** (Elem x ps, Nat))
--- bestOf (Left err) (Left _) = Left err
--- bestOf (Left _) (Right p) = Right (_ ** p)
--- bestOf (Right p) (Left _) = Right (_ ** p)
--- bestOf (Right (p, psc)) (Right (q, qsc))
---     = Right (_ ** (p, psc))
---          -- at compile time, left to right helps coverage check
---          -- (by refining types, so we know the type of the thing we're
---          -- discriminating on)
---          -- TODO: At run time pick most distinct, as below?
--- --     if psc >= qsc
--- --          then Just (_ ** (p, psc))
--- --          else Just (_ ** (q, qsc))
-
-pickBest : {auto c : Ref Ctxt Defs} ->
-           FC -> Name -> List (NamedPats ns (p :: ps)) -> 
-           Core (Var (p :: ps), Nat)
--- pickBest {ps = []} defs npss 
---     = if samePat npss
---          then pure (_ ** (Here, 0))
---          else do el <- getScore defs Here npss
---                  pure (_ ** el)
--- pickBest {ps = q :: qs} defs npss 
---     = -- Pick the leftmost thing with all constructors in the same family,
---       -- or all variables, or all the same type constructor
---       if samePat npss
---          then pure (_ ** (Here, 0))
---          else
---             case pickBest defs (map tail npss) of
---                  Left err => 
---                     do el <- getScore defs Here npss
---                        pure (_ ** el)
---                  Right (_ ** (var, score)) =>
---                     bestOf (getScore defs Here npss) (Right (There var, score))
--- 
--- -- Pick the next variable to inspect from the list of LHSs.
--- -- Choice *must* be the same type family, so pick the leftmost argument
--- -- where this applies.
-pickNext : {auto c : Ref Ctxt Defs} -> 
+-- Pick the leftmost thing with all constructors in the same family,
+-- or all variables, or all the same type constructor
+pickNext : {auto i : Ref PName Int} ->
+           {auto c : Ref Ctxt Defs} ->
            FC -> Name -> List (NamedPats ns (p :: ps)) -> 
            Core (Var (p :: ps))
--- pickNext defs npss 
---    = case pickBest defs npss of
---           Left err => Left err
---           Right (_ ** (best, _)) => Right (_ ** best)
+pickNext {ps = []} fc fn npss 
+    = if samePat npss
+         then pure (MkVar First)
+         else do Right (p, sc) <- getScore fc fn First npss
+                       | Left err => throw (CaseCompile fc fn err)
+                 pure (MkVar p)
+pickNext {ps = q :: qs} fc fn npss
+    = if samePat npss
+         then pure (MkVar First)
+         else
+            do (MkVar var) <- pickNext fc fn (map tail npss)
+               pure (MkVar (Later var))
 
 moveFirst : (el : IsVar name idx ps) -> NamedPats ns ps ->
             NamedPats ns (name :: dropVar ps el)
@@ -616,7 +627,8 @@ mutual
      the unprocessed patterns. "err" is the tree for when the patterns don't
      cover the input (i.e. the "fallthrough" pattern, which at the top
      level will be an error). -}
-  match : {auto c : Ref Ctxt Defs} ->
+  match : {auto i : Ref PName Int} ->
+          {auto c : Ref Ctxt Defs} ->
           FC -> Name -> Phase ->
           List (PatClause vars todo) -> (err : Maybe (CaseTree vars)) -> 
           Core (CaseTree vars)
@@ -636,14 +648,15 @@ mutual
   match {todo = []} fc fn phase ((MkPatClause pvars [] rhs) :: _) err 
        = pure $ STerm rhs
 
-  caseGroups : {auto c : Ref Ctxt Defs} -> 
+  caseGroups : {auto i : Ref PName Int} ->
+               {auto c : Ref Ctxt Defs} -> 
                FC -> Name -> Phase ->
                IsVar pvar idx vars -> Term vars ->
                List (Group vars todo) -> Maybe (CaseTree vars) ->
                Core (CaseTree vars)
   caseGroups {vars} fc fn phase el ty gs errorCase
       = do g <- altGroups gs
-           pure (Case _ el (resolveRefs vars ty) g)
+           pure (Case _ el (resolveNames vars ty) g)
     where
       altGroups : List (Group vars todo) -> Core (List (CaseAlt vars))
       altGroups [] = maybe (pure []) 
@@ -658,7 +671,8 @@ mutual
                cs' <- altGroups cs
                pure (ConstCase c crest :: cs')
 
-  conRule : {auto c : Ref Ctxt Defs} -> 
+  conRule : {auto i : Ref PName Int} ->
+            {auto c : Ref Ctxt Defs} -> 
             FC -> Name -> Phase ->
             List (PatClause vars (a :: todo)) ->
             Maybe (CaseTree vars) -> 
@@ -676,7 +690,8 @@ mutual
                       _ => throw (CaseCompile fc fn UnknownType)
            caseGroups fc fn phase pprf ty groups err
 
-  varRule : {auto c : Ref Ctxt Defs} -> 
+  varRule : {auto i : Ref PName Int} ->
+            {auto c : Ref Ctxt Defs} -> 
             FC -> Name -> Phase ->
             List (PatClause vars (a :: todo)) ->
             Maybe (CaseTree vars) -> 
@@ -697,7 +712,8 @@ mutual
           = pure $ MkPatClause pvars 
                         !(substInPats fc a (mkTerm vars pat) pats) rhs
 
-  mixture : {auto c : Ref Ctxt Defs} ->
+  mixture : {auto i : Ref PName Int} ->
+            {auto c : Ref Ctxt Defs} ->
             {ps : List (PatClause vars (a :: todo))} ->
             FC -> Name -> Phase ->
             Partitions ps -> 
@@ -761,6 +777,7 @@ patCompile fc fn phase ty [] def
 patCompile fc fn phase ty (p :: ps) def 
     = do let ns = getNames 0 (fst p)
          pats <- traverse (mkPatClause fc fn ns ty) (p :: ps)
+         i <- newRef PName (the Int 0)
          cases <- match fc fn phase pats 
                         (rewrite sym (appendNilRightNeutral ns) in
                                  map (weakenNs ns) def)
@@ -776,9 +793,12 @@ toPatClause : {auto c : Ref Ctxt Defs} ->
 toPatClause fc n (lhs, rhs)
     = case getFnArgs lhs of
            (Ref ffc Func fn, args)
-              => case nameEq n fn of
-                      Nothing => throw (GenericMsg ffc ("Wrong function name in pattern LHS " ++ show (n, fn)))
-                      Just Refl => pure (map argToPat (map snd args), rhs)
+              => do defs <- get Ctxt
+                    (np, _) <- getPosition n (gamma defs)
+                    (fnp, _) <- getPosition fn (gamma defs)
+                    if np == fnp
+                       then pure (map argToPat (map snd args), rhs)
+                       else throw (GenericMsg ffc ("Wrong function name in pattern LHS " ++ show (n, fn)))
            (f, args) => throw (GenericMsg fc "Not a function name in pattern LHS")
 
 -- Assumption (given 'ClosedTerm') is that the pattern variables are

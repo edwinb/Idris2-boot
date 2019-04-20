@@ -19,7 +19,7 @@ data Vect : Nat -> Type -> Type where
      Nil : {0 a : Type} -> Vect Z a
      Cons : {0 a : Type} -> {0 k : Nat} -> a -> Vect k a -> Vect (S k) a
 
-stuff : Vect _ Bool
+stuff : Vect ? Bool
 stuff = Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
         (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
         (Cons False (Cons True (Cons False (Cons True (Cons False (Cons True
