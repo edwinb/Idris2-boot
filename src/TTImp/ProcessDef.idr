@@ -146,11 +146,12 @@ checkClause mult hashit n env (PatClause fc lhs_in rhs)
          let lhstm_lin = setLinear linvars lhstm
          let lhsty_lin = setLinear linvars lhsty
 
-         logTermNF 5 "LHS term" env lhstm_lin
-         logTermNF 5 "LHS type" env lhsty_lin
+         logTerm 5 "LHS term" lhstm_lin
+         logTerm 5 "LHS type" lhsty_lin
 
          (vars'  ** (env', lhstm', lhsty')) <- 
              extendEnv env lhstm_lin lhsty_lin
+         
          defs <- get Ctxt
          rhstm <- checkTerm n InExpr env' rhs (gnf defs env' lhsty')
 
@@ -187,7 +188,7 @@ processDef {vars} env fc n_in cs_in
          let pats = map toPats (mapMaybe id cs)
 
          (cargs ** tree_ct) <- getPMDef fc CompileTime n ty (mapMaybe id cs)
-         log 0 $ "Case tree for " ++ show n ++ ": " ++ show tree_ct
+         log 5 $ "Case tree for " ++ show n ++ ": " ++ show tree_ct
          addDef n (record { definition = PMDef cargs tree_ct tree_ct pats } gdef)
          pure ()
          

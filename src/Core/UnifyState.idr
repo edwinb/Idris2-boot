@@ -9,6 +9,7 @@ import Core.TTC
 import Utils.Binary
 
 import Data.IntMap
+import Data.NameMap
 
 %default covering
 
@@ -57,9 +58,10 @@ TTC Constraint where
 public export
 record UState where
   constructor MkUState
-  holes : IntMap (FC, Name) -- Metavariables with no definition yet.
+  holes : IntMap (FC, Name) -- All metavariables with no definition yet.
                             -- 'Int' is the 'Resolved' name
   guesses : IntMap (FC, Name) -- Names which will be defined when constraints solved
+  currentHoles : IntMap (FC, Name) -- Holes introduced this elaboration session
   constraints : IntMap Constraint -- map for finding constraints by ID
   nextName : Int
   nextConstraint : Int
@@ -71,7 +73,7 @@ record UState where
 
 export
 initUState : UState
-initUState = MkUState empty empty empty 0 0 Nothing
+initUState = MkUState empty empty empty empty 0 0 Nothing
 
 export
 data UST : Type where
@@ -97,7 +99,8 @@ addHoleName : {auto u : Ref UST UState} ->
               FC -> Name -> Int -> Core ()
 addHoleName fc n i
     = do ust <- get UST
-         put UST (record { holes $= insert i (fc, n)  } ust)
+         put UST (record { holes $= insert i (fc, n),
+                           currentHoles $= insert i (fc, n) } ust)
 
 addGuessName : {auto u : Ref UST UState} ->
                FC -> Name -> Int -> Core ()
@@ -110,7 +113,23 @@ removeHole : {auto u : Ref UST UState} ->
              Int -> Core ()
 removeHole n
     = do ust <- get UST
-         put UST (record { holes $= delete n } ust)
+         put UST (record { holes $= delete n,
+                           currentHoles $= delete n } ust)
+
+export
+saveHoles : {auto u : Ref UST UState} ->
+            Core (IntMap (FC, Name))
+saveHoles
+    = do ust <- get UST
+         put UST (record { currentHoles = empty } ust)
+         pure (currentHoles ust)
+
+export
+restoreHoles : {auto u : Ref UST UState} ->
+               IntMap (FC, Name) -> Core ()
+restoreHoles hs
+    = do ust <- get UST
+         put UST (record { currentHoles = hs } ust)
 
 export
 removeGuess : {auto u : Ref UST UState} ->
@@ -134,12 +153,30 @@ noteUpdate i
                     put UST (record { updateLog = Just ((i, gdef) :: ups) } 
                                     ust)
 
+-- Get all of the hole data
 export
 getHoles : {auto u : Ref UST UState} ->
            Core (IntMap (FC, Name))
 getHoles
     = do ust <- get UST
          pure (holes ust)
+
+-- Get all of the guess data
+export
+getGuesses : {auto u : Ref UST UState} ->
+           Core (IntMap (FC, Name))
+getGuesses
+    = do ust <- get UST
+         pure (guesses ust)
+
+-- Get the hole data for holes in the current elaboration session
+-- (i.e. since the last 'saveHoles')
+export
+getCurrentHoles : {auto u : Ref UST UState} ->
+                  Core (IntMap (FC, Name))
+getCurrentHoles
+    = do ust <- get UST
+         pure (currentHoles ust)
 
 export
 setConstraint : {auto u : Ref UST UState} ->
@@ -222,14 +259,18 @@ newConstant : {auto u : Ref UST UState} ->
               (tm : Term vars) -> (ty : Term vars) ->
               (constrs : List Int) ->
               Core (Term vars)
-newConstant fc rig env tm ty constrs
+newConstant {vars} fc rig env tm ty constrs
     = do let def = mkConstant fc env tm
          let defty = abstractEnvType fc env ty
-         cn <- genName "p"
+         cn <- genName "postpone"
          let guess = newDef fc cn rig defty Public (Guess def constrs)
          idx <- addDef cn guess
          addGuessName fc cn idx
-         pure (applyTo fc (Ref fc Func (Resolved idx)) env)
+         pure (Meta fc cn idx envArgs)
+  where
+    envArgs : List (Term vars)
+    envArgs = let args = reverse (mkConstantAppArgs {done = []} False fc env []) in
+                  rewrite sym (appendNilRightNeutral vars) in args
 
 export
 tryErrorUnify : {auto c : Ref Ctxt Defs} ->
@@ -263,4 +304,68 @@ tryUnify elab1 elab2
                | Left err => elab2
          pure ok
 
+-- A hole is 'valid' - i.e. okay to leave unsolved for later - as long as it's
+-- not guarded by a unification problem (in which case, report that the unification
+-- problem is unsolved) and it doesn't depend on an implicit pattern variable
+-- (in which case, perhaps suggest binding it explicitly)
+export
+checkValidHole : {auto c : Ref Ctxt Defs} ->
+                 {auto u : Ref UST UState} ->
+                 (Int, (FC, Name)) -> Core ()
+checkValidHole (idx, (fc, n))
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact (Resolved idx) (gamma defs)
+              | Nothing => pure ()
+         case definition gdef of
+              Guess tm (con :: _) => 
+                  do ust <- get UST
+                     let Just c = lookup con (constraints ust)
+                          | Nothing => pure ()
+                     case c of
+                          MkConstraint fc env x y =>
+                             throw (CantSolveEq fc env x y)
+                          MkSeqConstraint fc env (x :: _) (y :: _) =>
+                             throw (CantSolveEq fc env x y)
+                          _ => pure ()
+              _ => do traverse checkRef (map fst (toList (getRefs (type gdef))))
+                      pure ()
+  where
+    checkRef : Name -> Core ()
+    checkRef (PV n f)
+        = throw (GenericMsg fc 
+                   ("Hole cannot depend on an unbound implicit " ++ show n))
+    checkRef _ = pure ()
+
+-- Bool flag says whether it's an error for there to have been holes left
+-- in the last session. Usually we can leave them to the end, but it's not
+-- valid for there to be holes remaining when checking a LHS.
+-- Also throw an error if there are unresolved guarded constants
+export
+checkUserHoles : {auto u : Ref UST UState} ->
+                 {auto c : Ref Ctxt Defs} ->
+                 Bool -> Core ()
+checkUserHoles now
+    = do hs_map <- getCurrentHoles
+         gs_map <- getGuesses
+         let hs = toList hs_map
+         let gs = toList gs_map
+         log 10 $ "Unsolved guesses " ++ show gs
+         traverse checkValidHole gs
+         let hs' = if not now || any isUserName (map (snd . snd) hs) 
+                      then [] else hs
+         when (not (isNil hs')) $ 
+            throw (UnsolvedHoles (map snd (nubBy nameEq hs)))
+         -- Note the hole names, to ensure they are resolved
+         -- by the end of elaborating the current source file
+--          traverse (\x => addDelayedHoleName (fst x) (snd x)) hs'
+         pure ()
+  where
+    nameEq : (a, b, Name) -> (a, b, Name) -> Bool
+    nameEq (_, _, x) (_, _, y) = x == y
+
+export
+checkNoGuards : {auto u : Ref UST UState} ->
+                {auto c : Ref Ctxt Defs} ->
+                Core ()
+checkNoGuards = checkUserHoles False
 

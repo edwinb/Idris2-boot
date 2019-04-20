@@ -18,6 +18,12 @@ userNameRoot (UN n) = Just n
 userNameRoot _ = Nothing
 
 export
+isUserName : Name -> Bool
+isUserName (UN _) = True
+isUserName (NS _ n) = isUserName n
+isUserName _ = False
+
+export
 nameRoot : Name -> String
 nameRoot (NS _ n) = nameRoot n
 nameRoot (UN n) = n

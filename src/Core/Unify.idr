@@ -98,9 +98,10 @@ postpone loc logstr env x y
     = do defs <- get Ctxt
          empty <- clearDefs defs
          logC 10 $
-              do xq <- quote empty env x
-                 yq <- quote empty env y
-                 pure (logstr ++ ": " ++ show xq ++ " =?= " ++ show yq)
+              do xq <- quote defs env x
+                 yq <- quote defs env y
+                 pure (logstr ++ ": " ++ show !(toFullNames xq) ++ 
+                                    " =?= " ++ show !(toFullNames yq))
          c <- addConstraint (MkConstraint loc env !(quote empty env x) 
                                                   !(quote empty env y))
          pure (constrain c)
@@ -241,8 +242,8 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
                      (rewrite appendNilRightNeutral newvars in tm) ty of
                Nothing => ufail loc $ "Can't make solution for " ++ show mname
                Just rhs =>
-                  do logTerm 6 ("Instantiated: " ++ show mname) ty
-                     logTerm 6 "Definition" rhs
+                  do logTerm 5 ("Instantiated: " ++ show mname) ty
+                     logTerm 5 "Definition" rhs
                      noteUpdate mref
                      addDef (Resolved mref) 
                             (record { definition = PMDef [] (STerm rhs) (STerm rhs) [] } mdef)
@@ -648,6 +649,7 @@ retryGuess mode smode (hid, (loc, hname))
                          -- proper definition and remove it from the
                          -- hole list
                          [] => do let gdef = record { definition = PMDef [] (STerm tm) (STerm tm) [] } def
+                                  logTerm 5 ("Resolved " ++ show hname) tm
                                   noteUpdate hid
                                   addDef (Resolved hid) gdef
                                   removeGuess hid
