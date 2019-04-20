@@ -108,8 +108,8 @@ mutual
         = h `hashWithSalt` 3 `hashWithSalt` b `hashWithSalt` scope
     hashWithSalt h (App fc fn p arg) 
         = h `hashWithSalt` 4 `hashWithSalt` fn `hashWithSalt` arg
-    hashWithSalt h (As fc idx y tm)
-        = h `hashWithSalt` 5 `hashWithSalt` idx `hashWithSalt` tm
+    hashWithSalt h (As fc nm pat)
+        = h `hashWithSalt` 5 `hashWithSalt` nm `hashWithSalt` pat
     hashWithSalt h (TDelayed fc x y) 
         = h `hashWithSalt` 6 `hashWithSalt` y
     hashWithSalt h (TDelay fc x y)
@@ -124,9 +124,9 @@ mutual
         = hashWithSalt h 11
 
   export
-  Hashable (Pat vars) where
-    hashWithSalt h (PAs fc idx x y) 
-        = h `hashWithSalt` 0 `hashWithSalt` idx `hashWithSalt` y
+  Hashable Pat where
+    hashWithSalt h (PAs fc nm pat) 
+        = h `hashWithSalt` 0 `hashWithSalt` nm `hashWithSalt` pat
     hashWithSalt h (PCon fc x tag arity xs) 
         = h `hashWithSalt` 1 `hashWithSalt` x `hashWithSalt` xs
     hashWithSalt h (PTyCon fc x arity xs) 
@@ -135,8 +135,8 @@ mutual
         = h `hashWithSalt` 3 `hashWithSalt` (show c)
     hashWithSalt h (PArrow fc x s t) 
         = h `hashWithSalt` 4 `hashWithSalt` s `hashWithSalt` t
-    hashWithSalt h (PLoc fc idx x) 
-        = h `hashWithSalt` 5 `hashWithSalt` idx
+    hashWithSalt h (PLoc fc x) 
+        = h `hashWithSalt` 5 `hashWithSalt` x
     hashWithSalt h (PUnmatchable fc x) 
         = h `hashWithSalt` 6 `hashWithSalt` x
 

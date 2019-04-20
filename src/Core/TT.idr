@@ -245,6 +245,11 @@ data IsVar : Name -> Nat -> List Name -> Type where
      Later : IsVar n i ns -> IsVar n (S i) (m :: ns)
 
 public export
+dropVar : (ns : List Name) -> IsVar name idx ns -> List Name
+dropVar (n :: xs) First = xs
+dropVar (n :: xs) (Later p) = n :: dropVar xs p
+
+public export
 data Var : List Name -> Type where
      MkVar : {i : Nat} -> {n : _} -> IsVar n i vars -> Var vars
 
@@ -705,6 +710,10 @@ export
 refsToLocals : Bounds bound -> Term vars -> Term (bound ++ vars)
 refsToLocals bs y = mkLocals {later = []} bs y
 
+-- Replace any Ref Bound in a type with appropriate local
+export
+resolveRefs : (vars : List Name) -> Term vars -> Term vars
+
 -- Substitute some explicit terms for names in a term, and remove those
 -- names from the scope
 namespace SubstEnv
@@ -754,6 +763,31 @@ namespace SubstEnv
 export
 subst : Term vars -> Term (x :: vars) -> Term vars
 subst val tm = substEnv {outer = []} {drop = [_]} [val] tm
+
+-- Replace an explicit name with a term
+export
+substName : Name -> Term vars -> Term vars -> Term vars
+substName x new (Ref fc nt name)
+    = case nameEq x name of
+           Nothing => Ref fc nt name
+           Just Refl => new
+substName x new (Meta fc n i xs) 
+    = Meta fc n i (map (substName x new) xs)
+-- ASSUMPTION: When we substitute under binders, the name has always been
+-- resolved to a Local, so no need to check that x isn't shadowing
+substName x new (Bind fc y b scope) 
+    = Bind fc y (map (substName x new) b) (substName x (weaken new) scope)
+substName x new (App fc fn p arg) 
+    = App fc (substName x new fn) p (substName x new arg)
+substName x new (As fc as pat) 
+    = As fc (substName x new as) (substName x new pat)
+substName x new (TDelayed fc y z) 
+    = TDelayed fc y (substName x new z)
+substName x new (TDelay fc y z)
+    = TDelay fc y (substName x new z)
+substName x new (TForce fc y) 
+    = TForce fc (substName x new y)
+substName x new tm = tm
 
 -- Get the metavariable names in a term
 export

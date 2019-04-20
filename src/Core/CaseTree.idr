@@ -51,24 +51,15 @@ mutual
     show (DefaultCase sc)
         = "_ => " ++ show sc
 
-mkPat' : List Pat -> Term [] -> Term [] -> Pat
-mkPat' [] orig (Ref fc Bound n) = PLoc fc n
-mkPat' args orig (Ref fc (DataCon t a) n) = PCon fc n t a args
-mkPat' args orig (Ref fc (TyCon t a) n) = PTyCon fc n a args
-mkPat' [] orig (Bind fc x (Pi _ _ s) t)
-    = let t' = subst (Erased fc) t in
-          PArrow fc x (mkPat' [] s s) (mkPat' [] t' t')
-mkPat' args orig (App fc fn p arg) 
-    = let parg = mkPat' [] arg arg in
-          mkPat' (parg :: args) orig fn
-mkPat' [] orig (As fc (Ref _ Bound n) ptm) 
-    = PAs fc n (mkPat' [] ptm ptm)
-mkPat' [] orig (PrimVal fc c) = PConst fc c
-mkPat' args orig tm = PUnmatchable (getLoc orig) orig
-
 export
-mkPat : Term [] -> Pat
-mkPat tm = mkPat' [] tm tm
+Show Pat where
+  show (PAs _ n p) = show n ++ "@(" ++ show p ++ ")"
+  show (PCon _ n i _ args) = show n ++ " " ++ show i ++ " " ++ assert_total (show args)
+  show (PTyCon _ n _ args) = "<TyCon>" ++ show n ++ " " ++ assert_total (show args)
+  show (PConst _ c) = show c
+  show (PArrow _ x s t) = "(" ++ show s ++ " -> " ++ show t ++ ")"
+  show (PLoc _ n) = show n
+  show (PUnmatchable _ tm) = ".(" ++ show tm ++ ")"
 
 mutual
   insertCaseNames : (ns : List Name) -> CaseTree (outer ++ inner) ->
@@ -103,5 +94,55 @@ thinTree n (Case idx prf scTy alts)
 thinTree n (STerm tm) = STerm (thin n tm)
 thinTree n (Unmatched msg) = Unmatched msg
 thinTree n Impossible = Impossible
+
+export
+Weaken CaseTree where
+  weakenNs ns t = insertCaseNames {outer = []} ns t 
+
+mkPat' : List Pat -> ClosedTerm -> ClosedTerm -> Pat
+mkPat' [] orig (Ref fc Bound n) = PLoc fc n
+mkPat' args orig (Ref fc (DataCon t a) n) = PCon fc n t a args
+mkPat' args orig (Ref fc (TyCon t a) n) = PTyCon fc n a args
+mkPat' [] orig (Bind fc x (Pi _ _ s) t)
+    = let t' = subst (Erased fc) t in
+          PArrow fc x (mkPat' [] s s) (mkPat' [] t' t')
+mkPat' args orig (App fc fn p arg) 
+    = let parg = mkPat' [] arg arg in
+          mkPat' (parg :: args) orig fn
+mkPat' [] orig (As fc (Ref _ Bound n) ptm) 
+    = PAs fc n (mkPat' [] ptm ptm)
+mkPat' [] orig (PrimVal fc c) = PConst fc c
+mkPat' args orig tm = PUnmatchable (getLoc orig) orig
+
+export
+argToPat : ClosedTerm -> Pat
+argToPat tm = mkPat' [] tm tm
+
+export
+isVar : (n : Name) -> (ns : List Name) -> Maybe (idx ** IsVar n idx ns)
+isVar n [] = Nothing
+isVar n (m :: ms) 
+    = case nameEq n m of
+           Nothing => do (_ ** p) <- isVar n ms
+                         pure (_ ** Later p)
+           Just Refl => pure (_ ** First)
+
+export
+mkTerm : (vars : List Name) -> Pat -> Term vars
+mkTerm vars (PAs fc x y) = mkTerm vars y
+mkTerm vars (PCon fc x tag arity xs) 
+    = apply fc (explApp Nothing) (Ref fc (DataCon tag arity) x)
+               (map (mkTerm vars) xs)
+mkTerm vars (PTyCon fc x arity xs) 
+    = apply fc (explApp Nothing) (Ref fc (TyCon 0 arity) x)
+               (map (mkTerm vars) xs)
+mkTerm vars (PConst fc c) = PrimVal fc c
+mkTerm vars (PArrow fc x s t) 
+    = Bind fc x (Pi RigW Explicit (mkTerm vars s)) (mkTerm (x :: vars) t)
+mkTerm vars (PLoc fc n) 
+    = case isVar n vars of
+           Just (_ ** prf) => Local fc Nothing _ prf
+           _ => Ref fc Bound n
+mkTerm vars (PUnmatchable fc tm) = embed tm
 
 
