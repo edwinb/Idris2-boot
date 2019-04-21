@@ -15,7 +15,8 @@ TTC FC where
   toBuf b (MkFC file startPos endPos) 
       = do toBuf b file; toBuf b startPos; toBuf b endPos
   fromBuf r b
-      = do f <- fromBuf r b; s <- fromBuf r b; e <- fromBuf r b
+      = do f <- fromBuf r b; 
+           s <- fromBuf r b; e <- fromBuf r b
            pure (MkFC f s e)
 
 export
@@ -206,7 +207,7 @@ TTC (Term vars) where
            toBuf b fc; toBuf b n; toBuf b i; toBuf b xs
   toBuf b (Bind fc x bnd scope) 
       = do tag 3;
-           toBuf b fc; toBuf b bnd; toBuf b scope
+           toBuf b fc; toBuf b x; toBuf b bnd; toBuf b scope
   toBuf b (App fc fn p arg) 
       = do tag 4;
            toBuf b fc; toBuf b fn; toBuf b p; toBuf b arg

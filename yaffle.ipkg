@@ -8,6 +8,7 @@ modules =
     Core.CaseTree,
     Core.Context,
     Core.Core,
+    Core.Directory,
     Core.Env,
     Core.FC,
     Core.Hash,

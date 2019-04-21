@@ -27,7 +27,7 @@ export
 processDecls : {vars : _} ->
                {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
-               Env Term vars -> List ImpDecl -> Core ()
+               Env Term vars -> List ImpDecl -> Core Bool
 processDecls env decls
     = do traverse (processDecl env) decls
-         pure ()
+         pure True -- TODO: False on error

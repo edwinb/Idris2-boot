@@ -117,13 +117,18 @@ readTTCFile modns as r b
            importHashes <- fromBuf r b
            -- Read in name map, update 'r'
            r <- readNameMap r b
+           coreLift $ putStrLn "Read name map"
            defs <- get Ctxt
            gam' <- updateEntries (gamma defs) modns as 0 (max r) r
            setCtxt gam' 
            holes <- fromBuf r b
+           coreLift $ putStrLn $ "Read " ++ show (length holes) ++ " holes"
            guesses <- fromBuf r b
-           constraints <- fromBuf r b
+           coreLift $ putStrLn $ "Read " ++ show (length guesses) ++ "guesses"
+           constraints <- the (Core (List (Int, Constraint))) $ fromBuf r b
+           coreLift $ putStrLn $ "Read " ++ show (length constraints) ++ "constraints"
            defs <- fromBuf r b
+           coreLift $ putStrLn ("Read defs of " ++ show (map fullname defs))
            imp <- fromBuf r b
            cns <- fromBuf r b
            ex <- fromBuf r b

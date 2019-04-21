@@ -354,6 +354,7 @@ TTC GlobalDef where
 
   fromBuf r b 
       = do loc <- fromBuf r b; name <- fromBuf r b
+           coreLift $ putStrLn $ "Read " ++ show name
            ty <- fromBuf r b; mul <- fromBuf r b
            vis <- fromBuf r b; fl <- fromBuf r b
            def <- fromBuf r b
@@ -396,6 +397,14 @@ initDefs
 export
 getSave : Defs -> List Name
 getSave = map Basics.fst . toList . toSave
+
+-- Note that the name should be saved when writing out a .ttc
+export
+addToSave : {auto c : Ref Ctxt Defs} ->
+            Name -> Core ()
+addToSave n
+    = do defs <- get Ctxt
+         put Ctxt (record { toSave $= insert n } defs)
 
 -- Label for context references
 export
@@ -565,6 +574,53 @@ toFullNames tm
     full gam (TForce fc x)
         = pure (TForce fc !(full gam x))
     full gam tm = pure tm
+
+-- Getting and setting various options
+
+export
+getPPrint : {auto c : Ref Ctxt Defs} ->
+            Core PPrinter
+getPPrint
+    = do defs <- get Ctxt
+         pure (printing (options defs))
+
+export
+getDirs : {auto c : Ref Ctxt Defs} -> Core Dirs
+getDirs
+    = do defs <- get Ctxt
+         pure (dirs (options defs))
+
+export
+addExtraDir : {auto c : Ref Ctxt Defs} -> String -> Core ()
+addExtraDir dir
+    = do defs <- get Ctxt
+         put Ctxt (record { options->dirs->extra_dirs $= (++ [dir]) } defs)
+
+export
+addDataDir : {auto c : Ref Ctxt Defs} -> String -> Core ()
+addDataDir dir
+    = do defs <- get Ctxt
+         put Ctxt (record { options->dirs->data_dirs $= (++ [dir]) } defs)
+
+export
+setBuildDir : {auto c : Ref Ctxt Defs} -> String -> Core ()
+setBuildDir dir
+    = do defs <- get Ctxt
+         put Ctxt (record { options->dirs->build_dir = dir } defs)
+
+export
+setWorkingDir : {auto c : Ref Ctxt Defs} -> String -> Core ()
+setWorkingDir dir
+    = do defs <- get Ctxt
+         coreLift $ changeDir dir
+         cdir <- coreLift $ currentDir
+         put Ctxt (record { options->dirs->working_dir = cdir } defs)
+
+export
+setPrefix : {auto c : Ref Ctxt Defs} -> String -> Core ()
+setPrefix dir
+    = do defs <- get Ctxt
+         put Ctxt (record { options->dirs->dir_prefix = dir } defs)
 
 -- Log message with a term, translating back to human readable names first
 export

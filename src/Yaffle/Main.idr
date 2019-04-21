@@ -4,9 +4,11 @@ import Parser.Support
 
 import Core.Binary
 import Core.Context
+import Core.Directory
 import Core.Env
 import Core.FC
 import Core.Normalise
+import Core.Options
 import Core.TT
 import Core.UnifyState
 
@@ -18,19 +20,27 @@ import System
 
 coreMain : String -> Core ()
 coreMain fname
-    = do Right tti <- coreLift $ parseFile fname
-                                (do decls <- prog fname
-                                    eoi
-                                    pure decls)
-             | Left err => do coreLift $ printLn err
-                              coreLift $ exitWith (ExitFailure 1)
-         coreLift $ putStrLn "Parsed okay"
-         
-         defs <- initDefs
+    = do defs <- initDefs 
          c <- newRef Ctxt defs
          u <- newRef UST initUState
-         processDecls [] tti
-         coreLift $ putStrLn "Done"
+         d <- getDirs
+         case span (/= '.') fname of
+              (_, ".ttc") => do coreLift $ putStrLn "Processing as TTC"
+                                readFromTTC {extra = ()} emptyFC True fname [] []
+                                coreLift $ putStrLn "Read TTC"
+              _ => do coreLift $ putStrLn "Processing as TTImp"
+                      Right tti <- coreLift $ parseFile fname
+                                             (do decls <- prog fname
+                                                 eoi
+                                                 pure decls)
+                          | Left err => do coreLift $ printLn err
+                                           coreLift $ exitWith (ExitFailure 1)
+                      coreLift $ putStrLn "Parsed okay"
+                      ok <- processDecls [] tti
+                      when ok $
+                         do makeBuildDirectory (pathToNS (working_dir d) fname)
+                            writeToTTC () !(getTTCFileName fname ".ttc")
+                            coreLift $ putStrLn "Written TTC"
 
          defs <- get Ctxt
          res <- normalise defs [] (Ref emptyFC Func (NS ["Main"] (UN "main")))
