@@ -24,6 +24,7 @@ coreMain fname
          c <- newRef Ctxt defs
          u <- newRef UST initUState
          d <- getDirs
+         setLogTimings True
          case span (/= '.') fname of
               (_, ".ttc") => do coreLift $ putStrLn "Processing as TTC"
                                 readFromTTC {extra = ()} emptyFC True fname [] []

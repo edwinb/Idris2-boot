@@ -150,7 +150,8 @@ writeToTTC : TTC extra =>
              {auto u : Ref UST UState} ->
              extra -> (fname : String) -> Core ()
 writeToTTC extradata fname
-    = do buf <- initBinary
+  = logTime "Writing TTC" $ 
+      do buf <- initBinary
          defs <- get Ctxt
          ust <- get UST
          gdefs <- getSaveDefs !getSave [] defs
@@ -193,7 +194,8 @@ readFromTTC : TTC extra =>
               (importAs : List String) -> -- namespace to import as
               Core (Maybe (extra, Int, List (List String, Bool, List String)))
 readFromTTC loc reexp fname modNS importAs
-    = do defs <- get Ctxt
+  = logTime "Reading TTC" $
+      do defs <- get Ctxt
          -- If it's already in the context, don't load it again
          let False = (fname, importAs) `elem` allImported defs
               | True => pure Nothing

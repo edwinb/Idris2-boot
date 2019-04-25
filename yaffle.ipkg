@@ -55,7 +55,7 @@ modules =
 
 sourcedir = src
 executable = yaffle
--- opts = "--cg-opt -O2 --partial-eval yaffle.dc"
+-- opts = "--cg-opt -O2 --partial-eval"
 opts = "--partial-eval"
 
 main = Yaffle.Main
