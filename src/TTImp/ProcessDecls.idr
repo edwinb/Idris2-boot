@@ -5,6 +5,9 @@ import Core.Core
 import Core.Env
 import Core.UnifyState
 
+import Parser.Support
+
+import TTImp.Parser
 import TTImp.ProcessData
 import TTImp.ProcessDef
 import TTImp.ProcessType
@@ -31,3 +34,19 @@ processDecls : {vars : _} ->
 processDecls env decls
     = do traverse (processDecl env) decls
          pure True -- TODO: False on error
+
+export
+processTTImpFile : {auto c : Ref Ctxt Defs} ->
+                   {auto u : Ref UST UState} ->
+                   String -> Core Bool
+processTTImpFile fname
+    = do Right tti <- coreLift $ parseFile fname
+                            (do decls <- prog fname
+                                eoi
+                                pure decls)
+               | Left err => do coreLift (putStrLn (show err))
+                                pure False
+         catch (do processDecls [] tti
+                   pure True)
+               (\err => do coreLift (printLn err)
+                           pure False)

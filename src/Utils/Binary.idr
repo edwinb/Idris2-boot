@@ -144,11 +144,14 @@ interface TTC a where -- TTC = TT intermediate code/interface file
   -- Throws if the data can't be parsed as an 'a'
   fromBuf : NameRefs -> Ref Bin Binary -> Core a
 
+blockSize : Int
+blockSize = 655360
+
 -- Create a new list of chunks, initialised with one 64k chunk
 export
 initBinary : Core (Ref Bin Binary)
 initBinary
-    = do Just buf <- coreLift $ newBuffer 65536
+    = do Just buf <- coreLift $ newBuffer blockSize
              | Nothing => throw (InternalError "Buffer creation failed")
          newRef Bin (MkBin [] (newChunk buf) [])
 
@@ -173,7 +176,7 @@ TTC Bits8 where
               do coreLift $ setByte (buf chunk) (loc chunk) val
                  put Bin (MkBin done (appended 1 chunk) rest)
             else 
-              do Just newbuf <- coreLift $ newBuffer 65536
+              do Just newbuf <- coreLift $ newBuffer blockSize
                     | Nothing => throw (InternalError "Buffer expansion failed")
                  coreLift $ setByte newbuf 0 val
                  put Bin (MkBin (chunk :: done)
@@ -215,7 +218,7 @@ TTC Int where
               do coreLift $ setInt (buf chunk) (loc chunk) val
                  put Bin (MkBin done (appended 4 chunk) rest)
             else 
-              do Just newbuf <- coreLift $ newBuffer 65536
+              do Just newbuf <- coreLift $ newBuffer blockSize
                     | Nothing => throw (InternalError "Buffer expansion failed")
                  coreLift $ setInt newbuf 0 val
                  put Bin (MkBin (chunk :: done)
@@ -247,7 +250,7 @@ TTC String where
                 do coreLift $ setString (buf chunk) (loc chunk) val
                    put Bin (MkBin done (appended req chunk) rest)
               else 
-                do Just newbuf <- coreLift $ newBuffer 65536
+                do Just newbuf <- coreLift $ newBuffer blockSize
                       | Nothing => throw (InternalError "Buffer expansion failed")
                    coreLift $ setString newbuf 0 val
                    put Bin (MkBin (chunk :: done)
@@ -297,7 +300,7 @@ TTC Double where
               do coreLift $ setDouble (buf chunk) (loc chunk) val
                  put Bin (MkBin done (appended 8 chunk) rest)
             else 
-              do Just newbuf <- coreLift $ newBuffer 65536
+              do Just newbuf <- coreLift $ newBuffer blockSize
                     | Nothing => throw (InternalError "Buffer expansion failed")
                  coreLift $ setDouble newbuf 0 val
                  put Bin (MkBin (chunk :: done)
@@ -419,12 +422,12 @@ toLimbs x
     = if x == 0 
          then []
          else if x == -1 then [-1]
-              else fromInteger (prim__andBigInt x 0xff) ::
-                    toLimbs (prim__ashrBigInt x 8)
+              else fromInteger (prim__andBigInt x 0xffffffff) ::
+                    toLimbs (prim__ashrBigInt x 32)
 
 fromLimbs : List Int -> Integer
 fromLimbs [] = 0
-fromLimbs (x :: xs) = cast x + prim__shlBigInt (fromLimbs xs) 8
+fromLimbs (x :: xs) = cast x + prim__shlBigInt (fromLimbs xs) 32
 
 export
 TTC Integer where

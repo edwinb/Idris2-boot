@@ -71,4 +71,3 @@ testAdd = Lam (Lam (Op plus (Var Stop) (Var (Pop Stop))))
 
 main : Nat
 main = interp ENil testAdd (S (S Z)) (S (S Z))
-

@@ -23,6 +23,7 @@ data Arr : Type where
 export
 record Context a where
     constructor MkContext
+    firstEntry : Int -- First entry in the current source file
     nextEntry : Int
     -- Map from full name to its position in the context
     resolvedAs : NameMap Int
@@ -64,7 +65,7 @@ initCtxtS : Int -> Core (Context a)
 initCtxtS s
     = do arr <- coreLift $ newArray s
          aref <- newRef Arr arr
-         pure (MkContext 0 empty empty aref [])
+         pure (MkContext 0 0 empty empty aref [])
 
 export
 initCtxt : Core (Context a)
@@ -92,17 +93,21 @@ getPosition n ctxt
               do log 10 $ "Found " ++ show n ++ " " ++ show idx
                  pure (idx, ctxt)
            Nothing => 
-              do let idx = nextEntry ctxt + 1
+              do let idx = nextEntry ctxt
                  let a = content ctxt
                  arr <- get Arr
                  when (idx >= max arr) $
                          do arr' <- coreLift $ newArrayCopy (max arr + Grow) arr
                             put Arr arr'
                  log 10 $ "Added " ++ show n ++ " " ++ show idx
-                 pure (idx, record { nextEntry = idx,
+                 pure (idx, record { nextEntry = idx + 1,
                                      resolvedAs $= insert n idx,
                                      possibles $= addPossible n idx
                                    } ctxt)
+
+export
+getNameID : Name -> Context a -> Maybe Int
+getNameID n ctxt = lookup n (resolvedAs ctxt)
 
 -- Add the name to the context, or update the existing entry if it's already
 -- there.
@@ -344,21 +349,28 @@ record GlobalDef where
 export
 TTC GlobalDef where
   toBuf b gdef 
-      = do toBuf b (location gdef)
-           toBuf b (fullname gdef)
-           toBuf b (type gdef)
-           toBuf b (multiplicity gdef)
-           toBuf b (visibility gdef)
-           toBuf b (flags gdef)
+      -- Only write full details for user specified names. The others will
+      -- be holes where all we will ever need after loading is the definition
+      = do toBuf b (fullname gdef)
            toBuf b (definition gdef)
+           when (isUserName (fullname gdef)) $
+              do toBuf b (location gdef)
+                 toBuf b (type gdef)
+                 toBuf b (multiplicity gdef)
+                 toBuf b (visibility gdef)
+                 toBuf b (flags gdef)
 
   fromBuf r b 
-      = do loc <- fromBuf r b; name <- fromBuf r b
-           coreLift $ putStrLn $ "Read " ++ show name
-           ty <- fromBuf r b; mul <- fromBuf r b
-           vis <- fromBuf r b; fl <- fromBuf r b
+      = do name <- fromBuf r b
            def <- fromBuf r b
-           pure (MkGlobalDef loc name ty mul vis fl def)
+           if isUserName name
+              then do loc <- fromBuf r b; 
+                      ty <- fromBuf r b; mul <- fromBuf r b
+                      vis <- fromBuf r b; fl <- fromBuf r b
+                      pure (MkGlobalDef loc name ty mul vis fl def)
+              else do let fc = emptyFC
+                      pure (MkGlobalDef fc name (Erased fc)
+                                        RigW Public [] def)
 
 export
 newDef : FC -> Name -> RigCount -> ClosedTerm -> Visibility -> Def -> GlobalDef
@@ -394,18 +406,6 @@ initDefs
     = do gam <- initCtxt
          pure (MkDefs gam ["Main"] defaults empty 100 5381 [] [] [])
       
-export
-getSave : Defs -> List Name
-getSave = map Basics.fst . toList . toSave
-
--- Note that the name should be saved when writing out a .ttc
-export
-addToSave : {auto c : Ref Ctxt Defs} ->
-            Name -> Core ()
-addToSave n
-    = do defs <- get Ctxt
-         put Ctxt (record { toSave $= insert n } defs)
-
 -- Label for context references
 export
 data Ctxt : Type where
@@ -436,6 +436,39 @@ setCtxt : {auto c : Ref Ctxt Defs} -> Context GlobalDef -> Core ()
 setCtxt gam
     = do defs <- get Ctxt
          put Ctxt (record { gamma = gam } defs)
+
+-- Get the names to save. These are the ones explicitly noted, and the
+-- ones between firstEntry and nextEntry (which are the names introduced in
+-- the current source file)
+export
+getSave : {auto c : Ref Ctxt Defs} -> Core (List Name)
+getSave 
+    = do defs <- get Ctxt
+         let gam = gamma defs
+         let ns = toSave defs
+         let a = content gam
+         arr <- get Arr
+         ns' <- coreLift $ addAll (firstEntry gam) (nextEntry gam) ns arr
+         pure (map fst (toList ns'))
+  where
+    addAll : Int -> Int -> NameMap () -> IOArray GlobalDef -> IO (NameMap ())
+    addAll first last ns arr
+        = if first == last 
+             then pure ns
+             else do Just d <- readArray arr first
+                         | Nothing => addAll (first + 1) last ns arr
+                     case fullname d of
+                          PV _ _ => addAll (first + 1) last ns arr
+                          _ => addAll (first + 1) last 
+                                      (insert (Resolved first) () ns) arr
+
+-- Explicitly note that the name should be saved when writing out a .ttc
+export
+addToSave : {auto c : Ref Ctxt Defs} ->
+            Name -> Core ()
+addToSave n
+    = do defs <- get Ctxt
+         put Ctxt (record { toSave $= insert n () } defs)
 
 -- Specific lookup functions
 export
@@ -546,6 +579,15 @@ setNextEntry : {auto c : Ref Ctxt Defs} ->
 setNextEntry i
     = do defs <- get Ctxt
          put Ctxt (record { gamma->nextEntry = i } defs)
+
+-- Set the 'first entry' index (i.e. the first entry in the current file)
+-- to the place we currently are in the context
+export
+resetFirstEntry : {auto c : Ref Ctxt Defs} ->
+                  Core ()
+resetFirstEntry
+    = do defs <- get Ctxt
+         put Ctxt (record { gamma->firstEntry = nextEntry (gamma defs) } defs)
 
 export
 toFullNames : {auto c : Ref Ctxt Defs} ->

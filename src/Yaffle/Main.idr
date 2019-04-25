@@ -29,14 +29,7 @@ coreMain fname
                                 readFromTTC {extra = ()} emptyFC True fname [] []
                                 coreLift $ putStrLn "Read TTC"
               _ => do coreLift $ putStrLn "Processing as TTImp"
-                      Right tti <- coreLift $ parseFile fname
-                                             (do decls <- prog fname
-                                                 eoi
-                                                 pure decls)
-                          | Left err => do coreLift $ printLn err
-                                           coreLift $ exitWith (ExitFailure 1)
-                      coreLift $ putStrLn "Parsed okay"
-                      ok <- processDecls [] tti
+                      ok <- processTTImpFile fname
                       when ok $
                          do makeBuildDirectory (pathToNS (working_dir d) fname)
                             writeToTTC () !(getTTCFileName fname ".ttc")

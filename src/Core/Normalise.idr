@@ -78,13 +78,13 @@ parameters (defs : Defs, opts : EvalOpts)
     evalLocal : {vars : _} ->
                 Env Term free -> LocalEnv free vars -> 
                 FC -> Maybe RigCount -> 
-                (idx : Nat) -> IsVar name idx (vars ++ free) ->
+                (idx : Nat) -> .(IsVar name idx (vars ++ free)) ->
                 Stack free ->
                 Core (NF free)
     evalLocal {vars = []} env locs fc mrig idx prf stk
-        = case getLetBinder prf env of
-               Nothing => pure $ NApp fc (NLocal mrig idx prf) stk
-               Just val => eval env [] val stk
+        = case getBinder prf env of
+               Let _ val _ => eval env [] val stk
+               _ => pure $ NApp fc (NLocal mrig idx prf) stk
     evalLocal env (MkClosure opts locs' env' tm' :: locs) fc mrig Z First stk
         = evalWithOpts defs opts env' locs' tm' stk
     evalLocal {free} {vars = x :: xs} 
@@ -99,8 +99,8 @@ parameters (defs : Defs, opts : EvalOpts)
             = evalRef {vars = xs} env locs False fc nt fn (args ++ stk)
                       (NApp fc (NRef nt fn) args)
         applyToStack (NApp fc (NLocal mrig idx p) args) stk
-          = let (idx' ** p') = insertVarNames {outer=[]} {ns = xs} idx p in
-               evalLocal env locs fc mrig idx' p' (args ++ stk)
+          = let MkVar p' = insertVarNames {outer=[]} {ns = xs} idx p in
+               evalLocal env locs fc mrig _ p' (args ++ stk)
         applyToStack (NDCon fc n t a args) stk 
             = pure $ NDCon fc n t a (args ++ stk)
         applyToStack (NTCon fc n t a args) stk 
@@ -324,28 +324,28 @@ mutual
               FC -> Bounds bound -> Env Term free -> NHead free -> 
               Core (Term (bound ++ free))
   quoteHead {bound} q defs fc bounds env (NLocal mrig _ prf) 
-      = let (_ ** prf') = addLater bound prf in
+      = let MkVar prf' = addLater bound prf in
             pure $ Local fc mrig _ prf'
     where
       addLater : (ys : List Name) -> IsVar n idx xs -> 
-                 (idx' ** IsVar n idx' (ys ++ xs))
-      addLater [] isv = (_ ** isv)
+                 Var (ys ++ xs)
+      addLater [] isv = MkVar isv
       addLater (x :: xs) isv 
-          = let (_ ** isv') = addLater xs isv in
-                (_ ** Later isv')
+          = let MkVar isv' = addLater xs isv in
+                MkVar (Later isv')
   quoteHead q defs fc bounds env (NRef Bound n) 
       = case findName bounds of
-             Just (_ ** _ ** p) => pure $ Local fc Nothing _ (varExtend p)
+             Just (MkVar p) => pure $ Local fc Nothing _ (varExtend p)
              Nothing => pure $ Ref fc Bound n
     where
-      findName : Bounds bound' -> Maybe (x ** idx ** IsVar x idx bound')
+      findName : Bounds bound' -> Maybe (Var bound')
       findName None = Nothing
       findName (Add x n' ns) 
           = case nameEq n n' of
-                 Just Refl => Just (_ ** _ ** First)
+                 Just Refl => Just (MkVar First)
                  Nothing => 
-                    do (_ ** _ ** p) <- findName ns
-                       Just (_ ** _ ** Later p)
+                    do (MkVar p) <- findName ns
+                       Just (MkVar (Later p))
   quoteHead q defs fc bounds env (NRef nt n) = pure $ Ref fc nt n
   quoteHead q defs fc bounds env (NMeta n i args)
       = do args' <- quoteArgs q defs bounds env args

@@ -113,11 +113,13 @@ substInPats fc n tm (p :: ps)
     = do (p', ps') <- substInPatInfo fc n tm p ps
          pure (p' :: !(substInPats fc n tm ps'))
 
-getPat : IsVar name idx ps -> NamedPats ns ps -> PatInfo name ns
+getPat : {idx : Nat} ->
+         .(IsVar name idx ps) -> NamedPats ns ps -> PatInfo name ns
 getPat First (x :: xs) = x
 getPat (Later p) (x :: xs) = getPat p xs
 
-dropPat : (el : IsVar name idx ps) -> 
+dropPat : {idx : Nat} ->
+          .(el : IsVar name idx ps) -> 
           NamedPats ns ps -> NamedPats ns (dropVar ps el)
 dropPat First (x :: xs) = xs
 dropPat (Later p) (x :: xs) = x :: dropPat p xs
@@ -454,7 +456,7 @@ groupCons fc fn pvars cs
           = do gs' <- addConstG c pats rhs gs
                pure (g :: gs')
  
-    addGroup : Pat -> IsVar name idx vars ->
+    addGroup : {idx : Nat} -> Pat -> .(IsVar name idx vars) ->
                NamedPats vars todo -> Term vars -> 
                List (Group vars todo) -> 
                Core (List (Group vars todo))
@@ -583,12 +585,12 @@ countDiff xs = length (distinct [] (map getFirstCon xs))
 
 getScore : {auto i : Ref PName Int} ->
            {auto c : Ref Ctxt Defs} -> 
-           FC -> Name -> IsVar name idx (p :: ps) -> 
+           FC -> Name -> 
            List (NamedPats ns (p :: ps)) -> 
-           Core (Either CaseError (IsVar name idx (p :: ps), Nat))
-getScore fc name prf npss 
+           Core (Either CaseError ())
+getScore fc name npss 
     = do catch (do sameType fc name (mkEnv fc ns) npss
-                   pure (Right (prf, countDiff npss)))
+                   pure (Right ()))
                (\err => case err of
                              CaseCompile _ _ err => pure (Left err)
                              _ => throw err)
@@ -602,9 +604,9 @@ pickNext : {auto i : Ref PName Int} ->
 pickNext {ps = []} fc fn npss 
     = if samePat npss
          then pure (MkVar First)
-         else do Right (p, sc) <- getScore fc fn First npss
+         else do Right () <- getScore fc fn npss
                        | Left err => throw (CaseCompile fc fn err)
-                 pure (MkVar p)
+                 pure (MkVar First)
 pickNext {ps = q :: qs} fc fn npss
     = if samePat npss
          then pure (MkVar First)
@@ -612,11 +614,11 @@ pickNext {ps = q :: qs} fc fn npss
             do (MkVar var) <- pickNext fc fn (map tail npss)
                pure (MkVar (Later var))
 
-moveFirst : (el : IsVar name idx ps) -> NamedPats ns ps ->
+moveFirst : {idx : Nat} -> .(el : IsVar name idx ps) -> NamedPats ns ps ->
             NamedPats ns (name :: dropVar ps el)
 moveFirst el nps = getPat el nps :: dropPat el nps
 
-shuffleVars : (el : IsVar name idx todo) -> PatClause vars todo ->
+shuffleVars : {idx : Nat} -> .(el : IsVar name idx todo) -> PatClause vars todo ->
               PatClause vars (name :: dropVar todo el)
 shuffleVars el (MkPatClause pvars lhs rhs) = MkPatClause pvars (moveFirst el lhs) rhs
 
@@ -651,7 +653,7 @@ mutual
   caseGroups : {auto i : Ref PName Int} ->
                {auto c : Ref Ctxt Defs} -> 
                FC -> Name -> Phase ->
-               IsVar pvar idx vars -> Term vars ->
+               {idx : Nat} -> .(IsVar pvar idx vars) -> Term vars ->
                List (Group vars todo) -> Maybe (CaseTree vars) ->
                Core (CaseTree vars)
   caseGroups {vars} fc fn phase el ty gs errorCase
@@ -810,7 +812,8 @@ simpleCase : {auto c : Ref Ctxt Defs} ->
              (clauses : List (ClosedTerm, ClosedTerm)) ->
              Core (args ** CaseTree args)
 simpleCase fc phase fn ty def clauses 
-    = do ps <- traverse (toPatClause fc fn) clauses
+    = do log 5 $ "Compiling clauses " ++ show clauses
+         ps <- traverse (toPatClause fc fn) clauses
          defs <- get Ctxt
          patCompile fc fn phase ty ps def
 

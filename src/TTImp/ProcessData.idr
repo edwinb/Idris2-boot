@@ -83,6 +83,7 @@ processData env fc vis (MkImpLater dfc n_in ty_raw)
          pure ()
 processData env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
     = do n <- inCurrentNS n_in
+         log 1 $ "Processing " ++ show n
          defs <- get Ctxt
          (ty, _) <- elabTerm n InType env (IBindHere fc (PI Rig0) ty_raw)
                                  (Just (gType dfc))

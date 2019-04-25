@@ -21,7 +21,7 @@ getNameType : {vars : _} ->
               Core (Term vars, Glued vars)
 getNameType rigc env fc x expected
     = case defined x env of
-           Just (_ ** (rigb, lv)) => 
+           Just (MkIsDefined rigb lv) => 
               do rigSafe rigb rigc
                  defs <- get Ctxt
                  let bty = binderType (getBinder lv env)
@@ -146,6 +146,7 @@ mutual
              [] <- convert fc elabinfo env (gnf defs env metaval)
                                            (gnf defs env argv)
                 | cs => throw (CantConvert fc env metaval argv)
+             removeHoleName nm
              pure (tm, gty)
            else do
              defs <- get Ctxt

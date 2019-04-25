@@ -245,13 +245,13 @@ data IsVar : Name -> Nat -> List Name -> Type where
      Later : IsVar n i ns -> IsVar n (S i) (m :: ns)
 
 public export
-dropVar : (ns : List Name) -> IsVar name idx ns -> List Name
+dropVar : (ns : List Name) -> {idx : Nat} -> .(IsVar name idx ns) -> List Name
 dropVar (n :: xs) First = xs
 dropVar (n :: xs) (Later p) = n :: dropVar xs p
 
 public export
 data Var : List Name -> Type where
-     MkVar : {i : Nat} -> {n : _} -> IsVar n i vars -> Var vars
+     MkVar : {i : Nat} -> {n : _} -> .(IsVar n i vars) -> Var vars
 
 export
 sameVar : {i, j : _} -> IsVar n i xs -> IsVar m j xs -> Bool
@@ -262,6 +262,10 @@ record AppInfo where
   constructor MkAppInfo
   argname : Maybe Name
   plicit : PiInfo
+
+export
+Show AppInfo where
+  show ap = "AppInfo: " ++ show (argname ap, plicit ap)
 
 export
 appInf : Maybe Name -> PiInfo -> AppInfo
@@ -292,7 +296,7 @@ public export
 data Term : List Name -> Type where
      Local : {name : _} ->
              FC -> Maybe RigCount -> 
-             (idx : Nat) -> IsVar name idx vars -> Term vars
+             (idx : Nat) -> .(IsVar name idx vars) -> Term vars
      Ref : FC -> NameType -> (name : Name) -> Term vars
      -- Metavariables and the scope they are applied to
      Meta : FC -> Name -> Int -> List (Term vars) -> Term vars
@@ -419,39 +423,39 @@ interface Weaken (tm : List Name -> Type) where
 
 export
 insertVar : {outer : _} ->
-            (idx : _) -> 
-            IsVar name idx (outer ++ inner) ->
-            (idx' ** IsVar name idx' (outer ++ n :: inner))
-insertVar {outer = []} idx x = (_ ** Later x)
-insertVar {outer = (name :: xs)} Z First = (_ ** First)
+            (idx : Nat) -> 
+            .(IsVar name idx (outer ++ inner)) ->
+            Var (outer ++ n :: inner)
+insertVar {outer = []} idx x = MkVar (Later x)
+insertVar {outer = (name :: xs)} Z First = MkVar First
 insertVar {n} {outer = (x :: xs)} (S i) (Later y) 
-    = let (_ ** prf) = insertVar {n} i y in
-          (_ ** Later prf)
+    = let MkVar prf = insertVar {n} i y in
+          MkVar (Later prf)
 
-weakenVar : (ns : List Name) -> IsVar name idx inner ->
-            (idx' ** IsVar name idx' (ns ++ inner))
-weakenVar [] x = (_ ** x)
+weakenVar : (ns : List Name) -> {idx : Nat} -> .(IsVar name idx inner) ->
+            Var (ns ++ inner)
+weakenVar [] x = MkVar x
 weakenVar (y :: xs) x 
-   = let (_ ** x') = weakenVar xs x in
-         (_ ** Later x')
+   = let MkVar x' = weakenVar xs x in
+         MkVar (Later x')
 
 export
 insertVarNames : {outer, ns : _} ->
-                 (idx : _) -> 
-                 IsVar name idx (outer ++ inner) ->
-                 (idx' ** IsVar name idx' (outer ++ (ns ++ inner)))
+                 (idx : Nat) -> 
+                 .(IsVar name idx (outer ++ inner)) ->
+                 Var (outer ++ (ns ++ inner))
 insertVarNames {ns} {outer = []} idx prf = weakenVar ns prf
-insertVarNames {outer = (y :: xs)} Z First = (_ ** First)
+insertVarNames {outer = (y :: xs)} Z First = MkVar First
 insertVarNames {ns} {outer = (y :: xs)} (S i) (Later x) 
-    = let (_ ** prf) = insertVarNames {ns} i x in
-          (_ ** Later prf)
+    = let MkVar prf = insertVarNames {ns} i x in
+          MkVar (Later prf)
 
 export
 thin : {outer, inner : _} ->
        (n : Name) -> Term (outer ++ inner) -> Term (outer ++ n :: inner)
 thin n (Local fc r idx prf) 
-    = let (idx' ** var') = insertVar {n} idx prf in
-          Local fc r idx' var'
+    = let MkVar var' = insertVar {n} idx prf in
+          Local fc r _ var'
 thin n (Ref fc nt name) = Ref fc nt name
 thin n (Meta fc name idx args) = Meta fc name idx (map (thin n) args)
 thin {outer} {inner} n (Bind fc x b scope) 
@@ -471,7 +475,7 @@ insertNames : {outer, inner : _} ->
               (ns : List Name) -> Term (outer ++ inner) ->
               Term (outer ++ (ns ++ inner))
 insertNames ns (Local fc r idx prf) 
-    = let (_ ** prf') = insertVarNames {ns} idx prf in
+    = let MkVar prf' = insertVarNames {ns} idx prf in
           Local fc r _ prf'
 insertNames ns (Ref fc nt name) = Ref fc nt name
 insertNames ns (Meta fc name idx args)
@@ -489,16 +493,6 @@ insertNames ns (TForce fc tm) = TForce fc (insertNames ns tm)
 insertNames ns (PrimVal fc c) = PrimVal fc c
 insertNames ns (Erased fc) = Erased fc
 insertNames ns (TType fc) = TType fc
-
-thinVar : (n : Name) -> Var (outer ++ inner) -> Var (outer ++ n :: inner)
-thinVar n (MkVar prf) 
-    = let (_ ** prf') = insertVar {n} _ prf in
-          MkVar prf'
-
-insertNamesVar : (ns : List Name) -> Var (outer ++ inner) -> Var (outer ++ (ns ++ inner))
-insertNamesVar ns (MkVar prf) 
-    = let (_ ** prf') = insertVarNames {ns} _ prf in
-          MkVar prf'
 
 export 
 Weaken Term where
@@ -525,22 +519,26 @@ extendCompats : (args : List Name) ->
 extendCompats [] prf = prf
 extendCompats (x :: xs) prf = CompatExt (extendCompats xs prf)
 
-renameLocalRef : CompatibleVars xs ys -> IsVar name idx xs -> (name' ** IsVar name' idx ys)
-renameLocalRef CompatPre First = (_ ** First)
-renameLocalRef (CompatExt x) First = (_ ** First)
-renameLocalRef CompatPre (Later p) = (_ ** Later p)
+renameLocalRef : CompatibleVars xs ys -> 
+                 {idx : Nat} -> 
+                 .(IsVar name idx xs) -> 
+                 Var ys
+renameLocalRef CompatPre First = (MkVar First)
+renameLocalRef (CompatExt x) First = (MkVar First)
+renameLocalRef CompatPre (Later p) = (MkVar (Later p))
 renameLocalRef (CompatExt y) (Later p) 
-    = let (_ ** p') = renameLocalRef y p in (_ ** Later p')
+    = let (MkVar p') = renameLocalRef y p in MkVar (Later p')
 
 renameVarList : CompatibleVars xs ys -> Var xs -> Var ys
-renameVarList prf (MkVar p) = MkVar (snd (renameLocalRef prf p))
+renameVarList prf (MkVar p) = renameLocalRef prf p
 
 -- TODO: Surely identity at run time, can we replace with 'believe_me'?
 export
 renameVars : CompatibleVars xs ys -> Term xs -> Term ys 
 renameVars CompatPre tm = tm
 renameVars prf (Local fc r idx vprf) 
-    = Local fc r idx (snd (renameLocalRef prf vprf))
+    = let MkVar vprf' = renameLocalRef prf vprf in
+          Local fc r _ vprf'
 renameVars prf (Ref fc x name) = Ref fc x name
 renameVars prf (Meta fc n i args) 
     = Meta fc n i (map (renameVars prf) args)
@@ -568,16 +566,17 @@ data SubVars : List Name -> List Name -> Type where
      KeepCons : SubVars xs ys -> SubVars (x :: xs) (x :: ys)
 
 export
-subElem : IsVar name x xs -> SubVars ys xs -> Maybe (x' ** IsVar name x' ys)
-subElem prf SubRefl = Just (_ ** prf)
+subElem : {idx : Nat} -> .(IsVar name idx xs) -> 
+          SubVars ys xs -> Maybe (Var ys)
+subElem prf SubRefl = Just (MkVar prf)
 subElem First (DropCons p) = Nothing
 subElem (Later x) (DropCons p) 
-    = do (_ ** prf') <- subElem x p
-         Just (_ ** prf')
-subElem First (KeepCons p) = Just (_ ** First)
+    = do MkVar prf' <- subElem x p
+         Just (MkVar prf')
+subElem First (KeepCons p) = Just (MkVar First)
 subElem (Later x) (KeepCons p) 
-    = do (_ ** prf') <- subElem x p
-         Just (_ ** Later prf')
+    = do MkVar prf' <- subElem x p
+         Just (MkVar (Later prf'))
 
 export
 subExtend : (ns : List Name) -> SubVars xs ys -> SubVars (ns ++ xs) (ns ++ ys)
@@ -602,17 +601,14 @@ mutual
 
   export
   shrinkVar : Var vars -> SubVars newvars vars -> Maybe (Var newvars)
-  shrinkVar (MkVar x) prf 
-      = case subElem x prf of
-             Nothing => Nothing
-             Just (_ ** x') => Just (MkVar x')
+  shrinkVar (MkVar x) prf = subElem x prf
 
   export
   shrinkTerm : Term vars -> SubVars newvars vars -> Maybe (Term newvars)
   shrinkTerm (Local fc r idx loc) prf 
      = case subElem loc prf of
             Nothing => Nothing
-            Just (_ ** loc') => Just (Local fc r _ loc')
+            Just (MkVar loc') => Just (Local fc r _ loc')
   shrinkTerm (Ref fc x name) prf = Just (Ref fc x name)
   shrinkTerm (Meta fc x y xs) prf 
      = do xs' <- traverse (\x => shrinkTerm x prf) xs
@@ -639,13 +635,14 @@ data Bounds : List Name -> Type where
      Add : (x : Name) -> Name -> Bounds xs -> Bounds (x :: xs)
 
 addVars : {later, bound : _} ->
-          Bounds bound -> IsVar name idx (later ++ vars) ->
-          (idx' ** IsVar name idx' (later ++ (bound ++ vars)))
+          {idx : Nat} ->
+          Bounds bound -> .(IsVar name idx (later ++ vars)) ->
+          Var (later ++ (bound ++ vars))
 addVars {later = []} {bound} bs p = weakenVar bound p
-addVars {later = (x :: xs)} bs First = (_ ** First)
+addVars {later = (x :: xs)} bs First = MkVar First
 addVars {later = (x :: xs)} bs (Later p) 
-  = let (_ ** p') = addVars {later = xs} bs p in
-        (_ ** Later p')
+  = let MkVar p' = addVars {later = xs} bs p in
+        MkVar (Later p')
 
 resolveRef : (done : List Name) -> Bounds bound -> FC -> Name -> 
              Maybe (Term (later ++ (done ++ bound ++ vars)))
@@ -653,23 +650,17 @@ resolveRef done None fc n = Nothing
 resolveRef {later} {vars} done (Add {xs} new old bs) fc n 
     = if n == old
          then rewrite appendAssociative later done (new :: xs ++ vars) in
-              let (_ ** p) = weakenVar {inner = new :: xs ++ vars}
-                                       (later ++ done) First in
+              let MkVar p = weakenVar {inner = new :: xs ++ vars}
+                                      (later ++ done) First in
                     Just (Local fc Nothing _ p)
          else rewrite appendAssociative done [new] (xs ++ vars)
                 in resolveRef (done ++ [new]) bs fc n
-
-mkLocalVar : {later, bound : _} ->
-             Bounds bound -> 
-             Var (later ++ vars) -> Var (later ++ (bound ++ vars))
-mkLocalVar bs (MkVar p) 
-    = let (_ ** p') = addVars bs p in MkVar p'
 
 mkLocals : {later, bound : _} ->
            Bounds bound -> 
            Term (later ++ vars) -> Term (later ++ (bound ++ vars))
 mkLocals bs (Local fc r idx p) 
-    = let (_ ** p') = addVars bs p in Local fc r _ p'
+    = let MkVar p' = addVars bs p in Local fc r _ p'
 mkLocals bs (Ref fc Bound name) 
     = maybe (Ref fc Bound name) id (resolveRef [] bs fc name)
 mkLocals bs (Ref fc nt name) 
@@ -699,20 +690,20 @@ refsToLocals : Bounds bound -> Term vars -> Term (bound ++ vars)
 refsToLocals bs y = mkLocals {later = []} bs y
 
 export
-isVar : (n : Name) -> (ns : List Name) -> Maybe (idx ** IsVar n idx ns)
+isVar : (n : Name) -> (ns : List Name) -> Maybe (Var ns)
 isVar n [] = Nothing
 isVar n (m :: ms) 
     = case nameEq n m of
-           Nothing => do (_ ** p) <- isVar n ms
-                         pure (_ ** Later p)
-           Just Refl => pure (_ ** First)
+           Nothing => do MkVar p <- isVar n ms
+                         pure (MkVar (Later p))
+           Just Refl => pure (MkVar First)
 
 -- Replace any Ref Bound in a type with appropriate local
 export
 resolveNames : (vars : List Name) -> Term vars -> Term vars
 resolveNames vars (Ref fc Bound name)
     = case isVar name vars of
-           Just (_ ** prf) => Local fc Nothing _ prf
+           Just (MkVar prf) => Local fc Nothing _ prf
            _ => Ref fc Bound name
 resolveNames vars (Meta fc n i xs) 
     = Meta fc n i (map (resolveNames vars) xs)
@@ -741,16 +732,16 @@ namespace SubstEnv
        (::) : Term vars -> 
               SubstEnv ds vars -> SubstEnv (d :: ds) vars
 
-  findDrop : {drop, idx : _} ->
-             FC -> Maybe RigCount -> IsVar name idx (drop ++ vars) -> 
+  findDrop : {drop : _} -> {idx : Nat} ->
+             FC -> Maybe RigCount -> .(IsVar name idx (drop ++ vars)) -> 
              SubstEnv drop vars -> Term vars
   findDrop {drop = []} fc r var env = Local fc r _ var
   findDrop {drop = x :: xs} fc r First (tm :: env) = tm
   findDrop {drop = x :: xs} fc r (Later p) (tm :: env) 
       = findDrop fc r p env
 
-  find : {outer, idx : _} ->
-         FC -> Maybe RigCount -> IsVar name idx (outer ++ (drop ++ vars)) ->
+  find : {outer : _} -> {idx : Nat} ->
+         FC -> Maybe RigCount -> .(IsVar name idx (outer ++ (drop ++ vars))) ->
          SubstEnv drop vars ->
          Term (outer ++ vars)
   find {outer = []} fc r var env = findDrop fc r var env

@@ -17,24 +17,22 @@ import Data.NameMap
 
 %default covering
 
-varEmbedSub : SubVars small vars -> IsVar n idx small -> 
-              (idx' ** IsVar n idx' vars)
-varEmbedSub SubRefl y = (_ ** y)
+varEmbedSub : SubVars small vars -> 
+              {idx : Nat} -> .(IsVar n idx small) -> 
+              Var vars
+varEmbedSub SubRefl y = MkVar y
 varEmbedSub (DropCons prf) y 
-    = let (_ ** y') = varEmbedSub prf y in
-          (_ ** Later y')
-varEmbedSub (KeepCons prf) First = (_ ** First)
+    = let MkVar y' = varEmbedSub prf y in
+          MkVar (Later y')
+varEmbedSub (KeepCons prf) First = MkVar First
 varEmbedSub (KeepCons prf) (Later p)
-    = let (_ ** p') = varEmbedSub prf p in
-          (_ ** Later p')
-
-embedVar : SubVars small vars -> Var small -> Var vars
-embedVar sub (MkVar x) = let (_ ** x') = varEmbedSub sub x in MkVar x'
+    = let MkVar p' = varEmbedSub prf p in
+          MkVar (Later p')
 
 mutual
   embedSub : SubVars small vars -> Term small -> Term vars
   embedSub sub (Local fc x idx y) 
-      = let (_ ** y') = varEmbedSub sub y in Local fc x _ y'
+      = let MkVar y' = varEmbedSub sub y in Local fc x _ y'
   embedSub sub (Ref fc x name) = Ref fc x name
   embedSub sub (Meta fc x y xs) 
       = Meta fc x y (map (embedSub sub) xs)
@@ -76,6 +74,7 @@ mkOuterHole loc rig n topenv Nothing
          let env = outerEnv est
          nm <- genName "impty"
          ty <- metaVar loc Rig0 env nm (TType loc)
+         log 10 $ "Made metavariable for type of " ++ show n ++ ": " ++ show nm
          put EST (addBindIfUnsolved nm rig topenv (embedSub sub ty) (TType loc) est)
          tm <- metaVar loc rig env n ty
          pure (embedSub sub tm, embedSub sub ty)
@@ -85,7 +84,6 @@ mkOuterHole loc rig n topenv Nothing
 -- Returns the hole term, its expected type (this is the type we'll use when
 -- we see the name later) and the type the binder will need to be when we
 -- instantiate it.
-export
 mkPatternHole : {auto e : Ref EST (EState vars)} ->
                 {auto c : Ref Ctxt Defs} ->
                 {auto e : Ref UST UState} ->
@@ -139,7 +137,7 @@ bindUnsolved {vars} fc elabmode _
     = do est <- get EST
          defs <- get Ctxt
          let bifs = bindIfUnsolved est
-         log 10 $ "Bindable unsolved implicits: " ++ show (map fst bifs)
+         log 5 $ "Bindable unsolved implicits: " ++ show (map fst bifs)
          traverse (mkImplicit defs (outerEnv est) (subEnv est)) (bindIfUnsolved est)
          pure ()
   where
@@ -175,24 +173,24 @@ bindUnsolved {vars} fc elabmode _
                    fc env tm bindtm
              pure ()
 
-swapIsVarH : IsVar name idx (x :: y :: xs) -> 
-             (idx' ** IsVar name idx' (y :: x :: xs))
-swapIsVarH First = (_ ** Later First)
-swapIsVarH (Later First) = (_ ** First)
-swapIsVarH (Later (Later x)) = (_ ** Later (Later x))
+swapIsVarH : {idx : Nat} -> .(IsVar name idx (x :: y :: xs)) -> 
+             Var (y :: x :: xs)
+swapIsVarH First = MkVar (Later First)
+swapIsVarH (Later First) = MkVar First
+swapIsVarH (Later (Later x)) = MkVar (Later (Later x))
 
 swapIsVar : (vs : List Name) ->
-            IsVar name idx (vs ++ x :: y :: xs) -> 
-            (idx' ** IsVar name idx' (vs ++ y :: x :: xs))
+            {idx : Nat} -> .(IsVar name idx (vs ++ x :: y :: xs)) -> 
+            Var (vs ++ y :: x :: xs)
 swapIsVar [] prf = swapIsVarH prf
-swapIsVar (x :: xs) First = (_ ** First)
+swapIsVar (x :: xs) First = MkVar First
 swapIsVar (x :: xs) (Later p) 
-    = let (_ ** p') = swapIsVar xs p in (_ ** Later p')
+    = let MkVar p' = swapIsVar xs p in MkVar (Later p')
 
 swapVars : {vs : List Name} ->
            Term (vs ++ x :: y :: ys) -> Term (vs ++ y :: x :: ys)
 swapVars (Local fc x idx p) 
-    = let (_ ** p') = swapIsVar _ p in Local fc x _ p'
+    = let MkVar p' = swapIsVar _ p in Local fc x _ p'
 swapVars (Ref fc x name) = Ref fc x name
 swapVars (Meta fc n i xs) = Meta fc n i (map swapVars xs)
 swapVars {vs} (Bind fc x b scope) 
@@ -297,6 +295,7 @@ implicitBind n
          Just (Hole _) <- lookupDefExact n (gamma defs)
              | _ => pure ()
          updateDef n (const (Just ImpBind))
+         removeHoleName n
 
 -- 'toBind' are the names which are to be implicitly bound (pattern bindings and
 -- unbound implicits).
@@ -334,24 +333,29 @@ getToBind {vars} fc elabmode impmode env excepts toptm
                Core (List (Name, Term vars))
     normImps defs ns [] = pure []
     normImps defs ns ((PV n i, tm, ty) :: ts) 
-        = if PV n i `elem` ns
-             then normImps defs ns ts
-             else do rest <- normImps defs (PV n i :: ns) ts
-                     pure ((PV n i, !(normaliseHoles defs env ty)) :: rest)
+        = do logTermNF 10 ("Implicit pattern var " ++ show (PV n i)) env ty
+             if PV n i `elem` ns
+                then normImps defs ns ts
+                else do rest <- normImps defs (PV n i :: ns) ts
+                        pure ((PV n i, !(normaliseHoles defs env ty)) :: rest)
     normImps defs ns ((n, tm, ty) :: ts)
         = do tmnf <- normaliseHoles defs env tm
+             logTerm 10 ("Normalising implicit " ++ show n) tmnf
              case getFnArgs tmnf of
                 -- n reduces to another hole, n', so treat it as that as long
                 -- as it isn't already done
                 (Meta _ n' i margs, args) =>
-                    if not (n' `elem` ns)
-                       then do rest <- normImps defs (n' :: ns) ts
-                               tynf <- normaliseHoles defs env ty
-                               pure ((n', tynf) :: rest)
-                       else normImps defs ns ts
-                _ => do rest <- normImps defs (n :: ns) ts
-                        tynf <- normaliseHoles defs env ty
-                        pure ((n, tynf) :: rest)
+                    do hole <- isCurrentHole i
+                       if hole && not (n' `elem` ns)
+                          then do rest <- normImps defs (n' :: ns) ts
+                                  tynf <- normaliseHoles defs env ty
+                                  pure ((n', tynf) :: rest)
+                          else normImps defs ns ts
+                _ => -- Unified to something concrete, so drop it
+                     normImps defs ns ts
+--                 _ => do rest <- normImps defs (n :: ns) ts
+--                         tynf <- normaliseHoles defs env ty
+--                         pure ((n, tynf) :: rest)
 
     -- Insert the hole/binding pair into the list before the first thing
     -- which refers to it

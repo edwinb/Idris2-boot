@@ -117,18 +117,17 @@ readTTCFile modns as r b
            importHashes <- fromBuf r b
            -- Read in name map, update 'r'
            r <- readNameMap r b
-           coreLift $ putStrLn "Read name map"
            defs <- get Ctxt
            gam' <- updateEntries (gamma defs) modns as 0 (max r) r
            setCtxt gam' 
            holes <- fromBuf r b
-           coreLift $ putStrLn $ "Read " ++ show (length holes) ++ " holes"
+           coreLift $ putStrLn $ "Read " ++ show holes ++ " holes"
            guesses <- fromBuf r b
-           coreLift $ putStrLn $ "Read " ++ show (length guesses) ++ "guesses"
+           coreLift $ putStrLn $ "Read " ++ show (length guesses) ++ " guesses"
            constraints <- the (Core (List (Int, Constraint))) $ fromBuf r b
-           coreLift $ putStrLn $ "Read " ++ show (length constraints) ++ "constraints"
+           coreLift $ putStrLn $ "Read " ++ show (length constraints) ++ " constraints"
            defs <- fromBuf r b
-           coreLift $ putStrLn ("Read defs of " ++ show (map fullname defs))
+--            coreLift $ putStrLn $ "Read " ++ show (length (map fullname defs)) ++ " defs"
            imp <- fromBuf r b
            cns <- fromBuf r b
            ex <- fromBuf r b
@@ -154,7 +153,7 @@ writeToTTC extradata fname
     = do buf <- initBinary
          defs <- get Ctxt
          ust <- get UST
-         gdefs <- getSaveDefs (getSave defs) [] defs
+         gdefs <- getSaveDefs !getSave [] defs
          log 5 $ "Writing " ++ fname ++ " with hash " ++ show (ifaceHash defs)
          r <- getNameRefs (gamma defs)
          writeTTCFile buf 
@@ -211,6 +210,7 @@ readFromTTC loc reexp fname modNS importAs
          ttc <- readTTCFile modNS as r bin
          traverse (addGlobalDef modNS as) (context ttc)
          setNS (currentNS ttc)
+         resetFirstEntry
 
          -- Finally, update the unification state with the holes from the
          -- ttc

@@ -38,6 +38,7 @@ elabTerm defining mode env tm ty
                                 InLHS _ => InLHS
                                 _ => InTerm) LastChance
          checkNoGuards -- all unification problems must now be solved
+--          checkUserHoles True -- TODO on everything but types!
          pure (chktm, chkty)
 
 export

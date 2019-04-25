@@ -117,6 +117,16 @@ removeHole n
                            currentHoles $= delete n } ust)
 
 export
+removeHoleName : {auto c : Ref Ctxt Defs} ->
+                 {auto u : Ref UST UState} ->
+                 Name -> Core ()
+removeHoleName n
+    = do defs <- get Ctxt
+         let Just i = getNameID n (gamma defs)
+             | Nothing => pure ()
+         removeHole i
+
+export
 saveHoles : {auto u : Ref UST UState} ->
             Core (IntMap (FC, Name))
 saveHoles
@@ -179,11 +189,32 @@ getCurrentHoles
          pure (currentHoles ust)
 
 export
+isHole : {auto u : Ref UST UState} ->
+         Int -> Core Bool
+isHole i
+    = do ust <- get UST
+         pure (maybe False (const True) (lookup i (holes ust)))
+
+export
+isCurrentHole : {auto u : Ref UST UState} ->
+                Int -> Core Bool
+isCurrentHole i
+    = do ust <- get UST
+         pure (maybe False (const True) (lookup i (currentHoles ust)))
+
+export
 setConstraint : {auto u : Ref UST UState} ->
                 Int -> Constraint -> Core ()
 setConstraint cid c
     = do ust <- get UST
          put UST (record { constraints $= insert cid c } ust)
+
+export
+deleteConstraint : {auto u : Ref UST UState} ->
+                Int -> Core ()
+deleteConstraint cid
+    = do ust <- get UST
+         put UST (record { constraints $= delete cid } ust)
 
 export
 addConstraint : {auto u : Ref UST UState} ->
@@ -345,20 +376,21 @@ checkUserHoles : {auto u : Ref UST UState} ->
                  {auto c : Ref Ctxt Defs} ->
                  Bool -> Core ()
 checkUserHoles now
-    = do hs_map <- getCurrentHoles
-         gs_map <- getGuesses
-         let hs = toList hs_map
+    = do gs_map <- getGuesses
          let gs = toList gs_map
          log 10 $ "Unsolved guesses " ++ show gs
          traverse checkValidHole gs
-         let hs' = if not now || any isUserName (map (snd . snd) hs) 
-                      then [] else hs
-         when (not (isNil hs')) $ 
-            throw (UnsolvedHoles (map snd (nubBy nameEq hs)))
+         if now
+            then do hs_map <- getCurrentHoles
+                    let hs = toList hs_map
+                    let hs' = if any isUserName (map (snd . snd) hs) 
+                                 then [] else hs
+                    when (not (isNil hs')) $ 
+                         throw (UnsolvedHoles (map snd (nubBy nameEq hs)))
+            else pure ()
          -- Note the hole names, to ensure they are resolved
          -- by the end of elaborating the current source file
 --          traverse (\x => addDelayedHoleName (fst x) (snd x)) hs'
-         pure ()
   where
     nameEq : (a, b, Name) -> (a, b, Name) -> Bool
     nameEq (_, _, x) (_, _, y) = x == y

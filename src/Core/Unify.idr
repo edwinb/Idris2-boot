@@ -219,7 +219,7 @@ patternEnv env args
     updateVars (MkVar p :: ps) svs
         = case subElem p svs of
                Nothing => updateVars ps svs
-               Just (_ ** p') => MkVar p' :: updateVars ps svs
+               Just p' => p' :: updateVars ps svs
 
 -- Instantiate a metavariable by binding the variables in 'newvars'
 -- and returning the term
@@ -249,7 +249,7 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
                             (record { definition = PMDef [] (STerm rhs) (STerm rhs) [] } mdef)
                      removeHole mref
   where
-    updateLoc : List (Var vs) -> IsVar name v vs' -> 
+    updateLoc : {v : Nat} -> List (Var vs) -> .(IsVar name v vs') -> 
                 Maybe (Var vs)
     updateLoc [] el = Nothing
     updateLoc (p :: ps) First = Just p
@@ -293,7 +293,7 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
                        (rewrite appendAssociative vs [v] got in locs)
                        (rewrite appendAssociative vs [v] got in tm)
                        sc
-             pure (Bind bfc x (Lam c Explicit ty) sc')
+             pure (Bind bfc x (Lam c Explicit (Erased bfc)) sc')
     mkDef got (vs ++ [v]) (Snoc rec) cvs locs tm ty = Nothing
     
 
@@ -619,14 +619,14 @@ retry mode c
                   => catch (do log 5 $ "Retrying " ++ show x ++ " and " ++ show y
                                cs <- unify mode loc env x y 
                                case constraints cs of
-                                 [] => do setConstraint c Resolved
+                                 [] => do deleteConstraint c
                                           pure success
                                  _ => pure cs)
                        (\err => throw (WhenUnifying loc env x y err)) 
               Just (MkSeqConstraint loc env xs ys)
                   => do cs <- unifyArgs mode loc env xs ys
                         case constraints cs of
-                             [] => do setConstraint c Resolved
+                             [] => do deleteConstraint c 
                                       pure success
                              _ => pure cs
 
