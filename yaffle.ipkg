@@ -51,7 +51,9 @@ modules =
     TTImp.ProcessType,
     TTImp.TTImp,
 
-    Utils.Binary
+    Utils.Binary,
+
+    Yaffle.REPL
 
 sourcedir = src
 executable = yaffle

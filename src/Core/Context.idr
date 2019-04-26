@@ -472,18 +472,31 @@ addToSave n
 
 -- Specific lookup functions
 export
-lookupDefExact : Name -> Context GlobalDef -> Core (Maybe Def)
-lookupDefExact n gam
+lookupExactBy : (GlobalDef -> a) -> Name -> Context GlobalDef -> 
+                Core (Maybe a)
+lookupExactBy fn n gam
     = do Just gdef <- lookupCtxtExact n gam
               | Nothing => pure Nothing
-         pure (Just (definition gdef))
+         pure (Just (fn gdef))
+
+export
+lookupNameBy : (GlobalDef -> a) -> Name -> Context GlobalDef -> 
+               Core (List (Name, Int, a))
+lookupNameBy fn n gam
+    = do gdef <- lookupCtxtName n gam
+         pure (map (\ (n, i, gd) => (n, i, fn gd)) gdef)
+
+export
+lookupDefExact : Name -> Context GlobalDef -> Core (Maybe Def)
+lookupDefExact = lookupExactBy definition
+
+export
+lookupDefName : Name -> Context GlobalDef -> Core (List (Name, Int, Def))
+lookupDefName = lookupNameBy definition 
 
 export
 lookupTyExact : Name -> Context GlobalDef -> Core (Maybe ClosedTerm)
-lookupTyExact n gam
-    = do Just gdef <- lookupCtxtExact n gam
-              | Nothing => pure Nothing
-         pure (Just (type gdef))
+lookupTyExact = lookupExactBy type 
 
 -- Set the default namespace for new definitions
 export
@@ -556,13 +569,6 @@ inCurrentNS n@(MN _ _)
     = do defs <- get Ctxt
          pure (NS (currentNS defs) n)
 inCurrentNS n = pure n
-
-export
-lookupTypeExact : Name -> Context GlobalDef -> Core (Maybe ClosedTerm)
-lookupTypeExact n ctxt
-    = do Just gdef <- lookupCtxtExact n ctxt
-              | Nothing => pure Nothing
-         pure (Just (type gdef))
 
 -- Get the next entry id in the context (this is for recording where to go
 -- back to when backtracking in the elaborator)

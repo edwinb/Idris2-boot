@@ -129,6 +129,15 @@ mutual
     show (IData _ _ d) = show d
     show (IDef _ n cs) = "(%def " ++ show n ++ " " ++ show cs ++ ")"
 
+-- REPL commands for TTImp interaction
+public export
+data ImpREPL : Type where
+     Eval : RawImp -> ImpREPL
+     Check : RawImp -> ImpREPL
+     ProofSearch : Name -> ImpREPL
+     DebugInfo : Name -> ImpREPL
+     Quit : ImpREPL
+
 export
 lhsInCurrentNS : {auto c : Ref Ctxt Defs} ->
                  RawImp -> Core RawImp

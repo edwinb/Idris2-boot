@@ -12,9 +12,11 @@ import Core.Options
 import Core.TT
 import Core.UnifyState
 
-import TTImp.TTImp
 import TTImp.Parser
 import TTImp.ProcessDecls
+import TTImp.TTImp
+
+import Yaffle.REPL
 
 import System
 
@@ -35,10 +37,7 @@ coreMain fname
                          do makeBuildDirectory (pathToNS (working_dir d) fname)
                             writeToTTC () !(getTTCFileName fname ".ttc")
                             coreLift $ putStrLn "Written TTC"
-
-         defs <- get Ctxt
-         res <- normalise defs [] (Ref emptyFC Func (NS ["Main"] (UN "main")))
-         coreLift $ printLn !(toFullNames res)
+         repl {c} {u}
 
 main : IO ()
 main

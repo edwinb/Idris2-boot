@@ -358,8 +358,27 @@ collectDefs (INamespace loc ns nds :: ds)
 collectDefs (d :: ds)
     = d :: collectDefs ds
 
+-- full programs
 export
 prog : FileName -> Rule (List ImpDecl)
 prog fname
     = do ds <- nonEmptyBlock (topDecl fname)
          pure (collectDefs ds)
+
+-- TTImp REPL commands
+export
+command : Rule ImpREPL
+command
+    = do symbol ":"; exactIdent "t"
+         tm <- expr "(repl)" init
+         pure (Check tm)
+  <|> do symbol ":"; exactIdent "s"
+         n <- name
+         pure (ProofSearch n)
+  <|> do symbol ":"; exactIdent "di"
+         n <- name
+         pure (DebugInfo n)
+  <|> do symbol ":"; exactIdent "q"
+         pure Quit
+  <|> do tm <- expr "(repl)" init
+         pure (Eval tm)
