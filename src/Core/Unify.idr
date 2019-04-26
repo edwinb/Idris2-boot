@@ -506,7 +506,7 @@ mutual
                   logC 10 $ (do ty' <- quote empty env ty
                                 pure ("Unifying arg types " ++ show tx' ++ " and " ++ show ty'))
                   ct <- unify mode loc env tx ty
-                  xn <- genName "x"
+                  xn <- genVarName "x"
                   let env' : Env Term (x :: _)
                            = Pi cx ix tx' :: env
                   case constraints ct of

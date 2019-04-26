@@ -32,7 +32,7 @@ insertImpLam {vars} env tm (Just ty) = bindLam tm ty
     bindLamTm tm@(ILam _ _ Implicit _ _ _) (Bind fc n (Pi _ Implicit _) sc)
         = pure (Just tm)
     bindLamTm tm (Bind fc n (Pi c Implicit ty) sc)
-        = do n' <- genName ("imp_" ++ show n)
+        = do n' <- genVarName ("imp_" ++ show n)
              Just sc' <- bindLamTm tm sc
                  | Nothing => pure Nothing
              pure $ Just (ILam fc c Implicit (Just n') (Implicit fc False) sc')
@@ -47,7 +47,7 @@ insertImpLam {vars} env tm (Just ty) = bindLam tm ty
     bindLamNF tm@(ILam _ _ Implicit _ _ _) (NBind fc n (Pi _ Implicit _) sc)
         = pure tm
     bindLamNF tm (NBind fc n (Pi c Implicit ty) sc)
-        = do n' <- genName ("imp_" ++ show n)
+        = do n' <- genVarName ("imp_" ++ show n)
              sctm <- sc (toClosure defaultOpts env (Ref fc Bound n'))
              sc' <- bindLamNF tm sctm
              pure $ ILam fc c Implicit (Just n') (Implicit fc False) sc'
@@ -80,14 +80,14 @@ checkTerm rig elabinfo env (IPi fc r p (Just n) argTy retTy) exp
     = checkPi rig elabinfo env fc r p n argTy retTy exp
 checkTerm rig elabinfo env (IPi fc r p Nothing argTy retTy) exp 
     = do n <- case p of
-                   Explicit => genName "arg"
-                   Implicit => genName "imp"
-                   AutoImplicit => genName "con"
+                   Explicit => genVarName "arg"
+                   Implicit => genVarName "imp"
+                   AutoImplicit => genVarName "con"
          checkPi rig elabinfo env fc r p n argTy retTy exp
 checkTerm rig elabinfo env (ILam fc r p (Just n) argTy scope) exp 
     = checkLambda rig elabinfo env fc r p n argTy scope exp
 checkTerm rig elabinfo env (ILam fc r p Nothing argTy scope) exp 
-    = do n <- genName "lam"
+    = do n <- genVarName "lam"
          checkLambda rig elabinfo env fc r p n argTy scope exp
 checkTerm rig elabinfo env (IApp fc fn arg) exp 
     = checkApp rig elabinfo env fc fn [arg] [] exp

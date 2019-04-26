@@ -49,6 +49,7 @@ record TTCFile extra where
   constraints : List (Int, Constraint)
   context : List GlobalDef
   imported : List (List String, Bool, List String)
+  nextVar : Int
   currentNS : List String
   extraData : extra
 
@@ -101,6 +102,7 @@ writeTTCFile b file
            toBuf b (constraints file)
            toBuf b (context file)
            toBuf b (imported file)
+           toBuf b (nextVar file)
            toBuf b (currentNS file)
            toBuf b (extraData file)
 
@@ -129,10 +131,11 @@ readTTCFile modns as r b
            defs <- fromBuf r b
 --            coreLift $ putStrLn $ "Read " ++ show (length (map fullname defs)) ++ " defs"
            imp <- fromBuf r b
+           nextv <- fromBuf r b
            cns <- fromBuf r b
            ex <- fromBuf r b
            pure (MkTTCFile ver ifaceHash importHashes r
-                           holes guesses constraints defs imp cns ex)
+                           holes guesses constraints defs imp nextv cns ex)
 
 -- Pull out the list of GlobalDefs that we want to save
 getSaveDefs : List Name -> List GlobalDef -> Defs -> Core (List GlobalDef)
@@ -165,6 +168,7 @@ writeToTTC extradata fname
                               (toList (constraints ust))
                               gdefs
                               (imported defs)
+                              (nextName ust)
                               (currentNS defs)
                               extradata)
          Right ok <- coreLift $ writeToFile fname !(get Bin)
@@ -218,7 +222,8 @@ readFromTTC loc reexp fname modNS importAs
          -- ttc
          ust <- get UST
          put UST (record { holes = fromList (holes ttc),
-                           constraints = fromList (constraints ttc) } ust)
+                           constraints = fromList (constraints ttc),
+                           nextName = nextVar ttc } ust)
          pure (Just (extraData ttc, ifaceHash ttc, imported ttc))
 
 getImportHashes : NameRefs -> Ref Bin Binary ->

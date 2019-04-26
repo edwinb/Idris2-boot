@@ -149,7 +149,7 @@ bindUnsolved {vars} fc elabmode _
                Nothing => do tmn <- toFullNames expected
                              throw (GenericMsg fc ("Can't bind implicit of type " ++ show tmn))
                Just exp' => 
-                    do impn <- genName (nameRoot n)
+                    do impn <- genVarName (nameRoot n)
                        tm <- metaVar fc rig env impn exp'
                        est <- get EST
                        put EST (record { toBind $= ((impn, (embedSub subvars tm, 

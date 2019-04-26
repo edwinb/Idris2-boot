@@ -78,22 +78,38 @@ initUState = MkUState empty empty empty empty 0 0 Nothing
 export
 data UST : Type where
 
+-- Generate a global name based on the given root, in the current namespace
 export
-genName : {auto u : Ref UST UState} ->
+genName : {auto c : Ref Ctxt Defs} ->
+          {auto u : Ref UST UState} ->
           String -> Core Name
 genName str
     = do ust <- get UST
          put UST (record { nextName $= (+1) } ust)
-         pure (MN str (nextName ust))
+         n <- inCurrentNS (MN str (nextName ust))
+         pure n
 
+-- Generate a global name based on the given name, in the current namespace
 export
-genMVName : {auto u : Ref UST UState} ->
+genMVName : {auto c : Ref Ctxt Defs} ->
+            {auto u : Ref UST UState} ->
             Name -> Core Name
 genMVName (UN str) = genName str
 genMVName n
     = do ust <- get UST
          put UST (record { nextName $= (+1) } ust)
-         pure (MN (show n) (nextName ust))
+         mn <- inCurrentNS (MN (show n) (nextName ust))
+         pure mn
+
+-- Generate a unique variable name based on the given root
+export
+genVarName : {auto c : Ref Ctxt Defs} ->
+             {auto u : Ref UST UState} ->
+             String -> Core Name
+genVarName str
+    = do ust <- get UST
+         put UST (record { nextName $= (+1) } ust)
+         pure (MN str (nextName ust))
 
 addHoleName : {auto u : Ref UST UState} ->
               FC -> Name -> Int -> Core ()
@@ -264,6 +280,7 @@ newMeta : {auto c : Ref Ctxt Defs} ->
 newMeta {vars} fc rig env n ty
     = do let hty = abstractEnvType fc env ty
          let hole = newDef fc n rig hty Public (Hole False)
+         log 10 $ "Adding new meta " ++ show n
          idx <- addDef n hole 
          addHoleName fc n idx
          pure (Meta fc n idx envArgs)
