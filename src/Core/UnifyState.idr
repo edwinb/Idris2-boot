@@ -276,14 +276,14 @@ export
 newMeta : {auto c : Ref Ctxt Defs} ->
           {auto u : Ref UST UState} ->
           FC -> RigCount ->
-          Env Term vars -> Name -> Term vars -> Core (Term vars)
+          Env Term vars -> Name -> Term vars -> Core (Int, Term vars)
 newMeta {vars} fc rig env n ty
     = do let hty = abstractEnvType fc env ty
          let hole = newDef fc n rig hty Public (Hole False)
          log 10 $ "Adding new meta " ++ show n
          idx <- addDef n hole 
          addHoleName fc n idx
-         pure (Meta fc n idx envArgs)
+         pure (idx, Meta fc n idx envArgs)
   where
     envArgs : List (Term vars)
     envArgs = let args = reverse (mkConstantAppArgs {done = []} False fc env []) in

@@ -52,7 +52,7 @@ data Error
     | IncompatibleFieldUpdate FC (List String)
     | InvalidImplicits FC (Env Term vars) (List (Maybe Name)) (Term vars)
     | TryWithImplicits FC (Env Term vars) (List (Name, Term vars))
-    | CantSolveGoal FC (Term [])
+    | CantSolveGoal FC (Env Term vars) (Term vars)
     | DeterminingArg FC Name (Env Term vars) (Term vars)
     | UnsolvedHoles (List (FC, Name))
     | CantInferArgType FC (Env Term vars) Name Name (Term vars)
@@ -171,7 +171,8 @@ Show Error where
      = show fc ++ ":Need to bind implicits " 
           ++ showSep "," (map (\x => show (fst x) ++ " : " ++ show (snd x)) imps)
           ++ "\n(The front end should probably have done this for you. Please report!)"
-  show (CantSolveGoal fc g) = show fc ++ ":Can't solve goal " ++ assert_total (show g)
+  show (CantSolveGoal fc env g) 
+      = show fc ++ ":Can't solve goal " ++ assert_total (show g)
   show (DeterminingArg fc n env g)
       = show fc ++ ":Can't solve goal " ++ assert_total (show g) ++ 
                 " since argument " ++ show n ++ " can't be inferred"
@@ -263,7 +264,7 @@ getErrorLoc (NotRecordType loc _) = Just loc
 getErrorLoc (IncompatibleFieldUpdate loc _) = Just loc
 getErrorLoc (InvalidImplicits loc _ y tm) = Just loc
 getErrorLoc (TryWithImplicits loc _ _) = Just loc
-getErrorLoc (CantSolveGoal loc tm) = Just loc
+getErrorLoc (CantSolveGoal loc _ tm) = Just loc
 getErrorLoc (DeterminingArg loc y env tm) = Just loc
 getErrorLoc (UnsolvedHoles ((loc, _) :: xs)) = Just loc
 getErrorLoc (UnsolvedHoles []) = Nothing

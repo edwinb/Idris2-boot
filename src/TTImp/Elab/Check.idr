@@ -186,7 +186,8 @@ metaVar : {auto c : Ref Ctxt Defs} ->
           FC -> RigCount ->
           Env Term vars -> Name -> Term vars -> Core (Term vars)
 metaVar fc rig env n ty
-    = newMeta fc rig env n ty
+    = do (_, tm) <- newMeta fc rig env n ty
+         pure tm
 
 -- Elaboration info (passed to recursive calls)
 public export

@@ -3,6 +3,7 @@ package yaffle
 modules = 
     Control.Delayed,
 
+    Core.AutoSearch,
     Core.Binary,
     Core.CaseBuilder,
     Core.CaseTree,

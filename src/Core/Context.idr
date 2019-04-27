@@ -498,6 +498,10 @@ export
 lookupTyExact : Name -> Context GlobalDef -> Core (Maybe ClosedTerm)
 lookupTyExact = lookupExactBy type 
 
+export
+lookupTyName : Name -> Context GlobalDef -> Core (List (Name, Int, ClosedTerm))
+lookupTyName = lookupNameBy type 
+
 -- Set the default namespace for new definitions
 export
 setNS : {auto c : Ref Ctxt Defs} ->

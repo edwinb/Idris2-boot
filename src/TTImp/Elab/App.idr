@@ -263,7 +263,7 @@ mutual
            let argTyG = gnf defs env argTy
            -- Can't use 'metaVar' to record it for binding because it's
            -- in a different scope... so it'll stay global
-           retTy <- newMeta {vars = argn :: vars}
+           (_, retTy) <- newMeta {vars = argn :: vars}
                             fc Rig0 (Pi RigW Explicit argTy :: env) 
                             retn (TType fc)
            (argv, argt) <- check rig (nextLevel elabinfo)
