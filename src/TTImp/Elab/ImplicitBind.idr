@@ -414,11 +414,11 @@ checkBindVar rig elabinfo env fc str topexp
                        (record { boundNames $= ((n, (tm, exp)) ::),
                                  toBind $= ((n, (tm, bty)) :: ) } est)
                    -- addNameType loc (UN str) env exp
-                   checkExp rig elabinfo env fc tm (gnf defs env exp) topexp
+                   checkExp rig elabinfo env fc tm (gnf env exp) topexp
               Just (tm, ty) =>
                 do -- TODO: for metadata addNameType loc (UN str) env ty
                    defs <- get Ctxt
-                   checkExp rig elabinfo env fc tm (gnf defs env ty) topexp
+                   checkExp rig elabinfo env fc tm (gnf env ty) topexp
 
 export
 checkBindHere : {vars : _} ->
@@ -457,4 +457,4 @@ checkBindHere rig elabinfo env fc bindmode tm exp
                                    !(normaliseHoles defs env tmv)
                                    !(normaliseHoles defs env ty)
          traverse implicitBind (map fst argImps)
-         checkExp rig elabinfo env fc bv (gnf defs env bt) exp
+         checkExp rig elabinfo env fc bv (gnf env bt) exp

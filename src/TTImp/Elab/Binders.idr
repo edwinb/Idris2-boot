@@ -59,10 +59,9 @@ inferLambda rig elabinfo env fc rigl info n argTy scope expTy
          let env' : Env Term (n :: _) = Lam rigb info tyv :: env
          (scopev, scopet) <- inScope fc env' (\e' =>
                                 check {e=e'} rig (nextLevel elabinfo) env' scope Nothing)
-         defs <- get Ctxt
          checkExp rig elabinfo env fc
                   (Bind fc n (Lam rigb info tyv) scopev)
-                  (gnf defs env 
+                  (gnf env 
                        (Bind fc n (Pi rigb info tyv) !(getTerm scopet)))
                        Nothing
 
@@ -102,11 +101,11 @@ checkLambda rig_in elabinfo env fc rigl info n argTy scope (Just expty_in)
                     (scopev, scopet) <-
                        inScope fc env' (\e' =>
                           check {e=e'} rig (nextLevel elabinfo) env' scope 
-                                (Just (gnf defs env' (renameTop n psc))))
+                                (Just (gnf env' (renameTop n psc))))
                     checkExp rig elabinfo env fc 
                              (Bind fc n (Lam rigb info tyv) scopev)
-                             (gnf defs env 
+                             (gnf env 
                                   (Bind fc n (Pi rigb info tyv) !(getTerm scopet)))
-                             (Just (gnf defs env
+                             (Just (gnf env
                                        (Bind fc bn (Pi rigb info pty) psc)))
               _ => inferLambda rig elabinfo env fc rigl info n argTy scope (Just expty_in)

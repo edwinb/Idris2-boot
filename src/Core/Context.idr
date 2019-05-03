@@ -7,13 +7,13 @@ import public Core.Name
 import Core.Options
 import public Core.TT
 import Core.TTC
-import Core.Value
 
 import Utils.Binary
 
 import Data.IOArray
 import Data.NameMap
 import Data.StringMap
+import Data.IntMap
 
 %default covering
 
@@ -31,6 +31,12 @@ record Context a where
     possibles : StringMap (List (Name, Int))
     -- Reference to the actual content, indexed by Int
     content : Ref Arr (IOArray a)    
+    -- Branching depth, in a backtracking elaborator. 0 is top level; at lower
+    -- levels we need to stage updates rather than add directly to the
+    -- 'content' store
+    branchDepth : Nat
+    -- Things which we're going to add, if this branch succeeds
+    staging : IntMap a
 
     -- Namespaces which are visible (i.e. have been imported)
     -- This only matters during evaluation and type checking, to control
@@ -65,7 +71,7 @@ initCtxtS : Int -> Core (Context a)
 initCtxtS s
     = do arr <- coreLift $ newArray s
          aref <- newRef Arr arr
-         pure (MkContext 0 0 empty empty aref [])
+         pure (MkContext 0 0 empty empty aref 0 empty [])
 
 export
 initCtxt : Core (Context a)
@@ -111,38 +117,44 @@ getNameID n ctxt = lookup n (resolvedAs ctxt)
 
 -- Add the name to the context, or update the existing entry if it's already
 -- there.
+-- If we're not at the top level, add it to the staging area
 export
 addCtxt : Name -> a -> Context a -> Core (Int, Context a)
 addCtxt n val ctxt_in
-    = do (idx, ctxt) <- getPosition n ctxt_in
-         let a = content ctxt
-         arr <- get Arr
-         coreLift $ writeArray arr idx val
-         pure (idx, ctxt)
+    = if branchDepth ctxt_in == 0
+         then do (idx, ctxt) <- getPosition n ctxt_in
+                 let a = content ctxt
+                 arr <- get Arr
+                 coreLift $ writeArray arr idx val
+                 pure (idx, ctxt)
+         else do (idx, ctxt) <- getPosition n ctxt_in
+                 pure (idx, record { staging $= insert idx val } ctxt)
 
 export
 lookupCtxtExactI : Name -> Context a -> Core (Maybe (Int, a))
 lookupCtxtExactI (Resolved idx) ctxt
-    = do let a = content ctxt
-         arr <- get Arr
-         Just def <- coreLift (readArray arr idx)
-              | Nothing => pure Nothing
-         pure (Just (idx, def))
+    = case lookup idx (staging ctxt) of
+           Just val => pure (Just (idx, val))
+           Nothing =>
+              do let a = content ctxt
+                 arr <- get Arr
+                 Just def <- coreLift (readArray arr idx)
+                      | Nothing => pure Nothing
+                 pure (Just (idx, def))
 lookupCtxtExactI n ctxt
     = do let Just idx = lookup n (resolvedAs ctxt)
                   | Nothing => pure Nothing
-         let a = content ctxt
-         arr <- get Arr
-         Just def <- coreLift (readArray arr idx)
-              | Nothing => pure Nothing
-         pure (Just (idx, def))
+         lookupCtxtExactI (Resolved idx) ctxt
 
 export
 lookupCtxtExact : Name -> Context a -> Core (Maybe a)
 lookupCtxtExact (Resolved idx) ctxt
-    = do let a = content ctxt
-         arr <- get Arr
-         coreLift (readArray arr idx)
+    = case lookup idx (staging ctxt) of
+           Just res => pure (Just res)
+           Nothing =>
+              do let a = content ctxt
+                 arr <- get Arr
+                 coreLift (readArray arr idx)
 lookupCtxtExact n ctxt
     = do Just (i, def) <- lookupCtxtExactI n ctxt
               | Nothing => pure Nothing
@@ -179,6 +191,29 @@ lookupCtxtName n ctxt
                      pure (r :: rs')
              else getMatches rs
 
+branchCtxt : Context a -> Core (Context a)
+branchCtxt ctxt = pure (record { branchDepth $= S } ctxt)
+
+commitCtxt : Context a -> Core (Context a) 
+commitCtxt ctxt
+    = case branchDepth ctxt of
+           Z => pure ctxt
+           S Z => -- add all the things from 'staging' to the real array
+                  do let a = content ctxt
+                     arr <- get Arr
+                     coreLift $ commitStaged (toList (staging ctxt)) arr
+                     pure (record { staging = empty,
+                                 branchDepth = Z } ctxt)
+           S k => pure (record { branchDepth = k } ctxt)
+  where
+    -- We know the array must be big enough, because it will have been resized
+    -- if necessary in the branch to fit the index we've been given here
+    commitStaged : List (Int, a) -> IOArray a -> IO ()
+    commitStaged [] arr = pure ()
+    commitStaged ((idx, val) :: rest) arr
+        = do writeArray arr idx val
+             commitStaged rest arr
+
 public export
 data Def : Type where
     None : Def -- Not yet defined
@@ -195,6 +230,7 @@ data Def : Type where
            (parampos : List Nat) -> -- parameters
            (detpos : List Nat) -> -- determining arguments
            (datacons : List Name) ->
+           (typehints : List (Name, Bool)) ->
            Def
     Hole : (invertible : Bool) -> Def
     -- Constraints are integer references into the current map of
@@ -208,7 +244,7 @@ Show Def where
   show (PMDef args ct rt pats) 
       = show args ++ "; " ++ show ct
   show (DCon t a) = "DataCon " ++ show t ++ " " ++ show a
-  show (TCon t a ps ds cons) 
+  show (TCon t a ps ds cons hints) 
       = "TyCon " ++ show t ++ " " ++ show a ++ " " ++ show cons
   show (Hole inv) = "Hole"
   show (Guess tm cs) = "Guess " ++ show tm ++ " when " ++ show cs
@@ -220,7 +256,7 @@ TTC Def where
   toBuf b (PMDef args ct rt pats) 
       = do tag 1; toBuf b args; toBuf b ct; toBuf b rt; toBuf b pats
   toBuf b (DCon t arity) = do tag 2; toBuf b t; toBuf b arity
-  toBuf b (TCon t arity parampos detpos datacons) 
+  toBuf b (TCon t arity parampos detpos datacons _) 
       = do tag 3; toBuf b t; toBuf b arity; toBuf b parampos
            toBuf b detpos; toBuf b datacons
   toBuf b (Hole invertible) = do tag 4; toBuf b invertible
@@ -239,7 +275,7 @@ TTC Def where
                      pure (DCon t a)
              3 => do t <- fromBuf r b; a <- fromBuf r b
                      ps <- fromBuf r b; dets <- fromBuf r b; cs <- fromBuf r b
-                     pure (TCon t a ps dets cs)
+                     pure (TCon t a ps dets cs [])
              4 => do i <- fromBuf r b;
                      pure (Hole i)
              5 => do g <- fromBuf r b; cs <- fromBuf r b
@@ -270,9 +306,7 @@ data TotalReq = Total | CoveringOnly | PartialOK
 
 public export
 data DefFlag 
-    = TypeHint Name Bool -- True == direct hint
-    | GlobalHint Bool -- True == always search (not a default hint)
-    | Inline
+    = Inline
     | Invertible -- assume safe to cancel arguments in unification
     | Overloadable -- allow ad-hoc overloads
     | TCInline -- always inline before totality checking
@@ -294,8 +328,6 @@ Eq TotalReq where
 
 export
 Eq DefFlag where
-    (==) (TypeHint ty x) (TypeHint ty' y) = ty == ty' && x == y
-    (==) (GlobalHint x) (GlobalHint y) = x == y
     (==) Inline Inline = True
     (==) Invertible Invertible = True
     (==) Overloadable Overloadable = True
@@ -316,8 +348,6 @@ TTC TotalReq where
              _ => corrupt "TotalReq"
 
 TTC DefFlag where
-  toBuf b (TypeHint x y) = do tag 0; toBuf b x; toBuf b y
-  toBuf b (GlobalHint t) = do tag 1; toBuf b t
   toBuf b Inline = tag 2
   toBuf b Invertible = tag 3
   toBuf b Overloadable = tag 4
@@ -326,8 +356,6 @@ TTC DefFlag where
 
   fromBuf s b
       = case !getTag of
-             0 => do x <- fromBuf s b; y <- fromBuf s b; pure (TypeHint x y)
-             1 => do t <- fromBuf s b; pure (GlobalHint t)
              2 => pure Inline
              3 => pure Invertible
              4 => pure Overloadable
@@ -384,15 +412,31 @@ record Defs where
   options : Options
   toSave : NameMap ()
   nextTag : Int
+  autoHints : NameMap Bool
+     -- ^ global search hints. A mapping from the hint name, to whether it is
+     -- a "default hint". A default hint is used only if all other attempts 
+     -- to search fail (this flag is really only intended as a mechanism 
+     -- for defaulting of literals)
+  openHints : NameMap ()
+     -- ^ currently open global hints; just for the rest of this module (not exported)
+     -- and prioritised
+  typeHints : List (Name, Name, Bool)
+     -- ^ a mapping from type names to hints (and a flag setting whether it's 
+     -- a "direct" hint). Direct hints are searched first (as part of a group)
+     -- the indirect hints. Indirect hints, in practice, are used to find
+     -- instances of parent interfaces, and we don't search these until we've
+     -- tried to find a direct result via a constructor or a top level hint.
+     -- We don't look up anything in here, it's merely for saving out to TTC.
+     -- We save the hints in the 'GlobalDef' itself for faster lookup.
   ifaceHash : Int
-  -- interface hashes of imported modules
   importHashes : List (List String, Int)
-  -- imported modules, whether to rexport, as namespace
+     -- ^ interface hashes of imported modules
   imported : List (List String, Bool, List String)
-  -- all imported filenames/namespaces, just to avoid loading something
-  -- twice unnecessarily (this is a record of all the things we've
-  -- called 'readFromTTC' with, in practice)
+     -- ^ imported modules, whether to rexport, as namespace
   allImported : List (String, List String)
+     -- ^ all imported filenames/namespaces, just to avoid loading something
+     -- twice unnecessarily (this is a record of all the things we've
+     -- called 'readFromTTC' with, in practice)
 
 export
 clearDefs : Defs -> Core Defs
@@ -404,7 +448,8 @@ export
 initDefs : Core Defs
 initDefs 
     = do gam <- initCtxt
-         pure (MkDefs gam ["Main"] defaults empty 100 5381 [] [] [])
+         pure (MkDefs gam ["Main"] defaults empty 100 
+                      empty empty [] 5381 [] [] [])
       
 -- Label for context references
 export
@@ -436,6 +481,31 @@ setCtxt : {auto c : Ref Ctxt Defs} -> Context GlobalDef -> Core ()
 setCtxt gam
     = do defs <- get Ctxt
          put Ctxt (record { gamma = gam } defs)
+
+-- Call this before trying alternative elaborations, so that updates to the
+-- context are put in the staging area rather than writing over the mutable
+-- array of definitions.
+-- Returns the old context (the one we'll go back to if the branch fails)
+export
+branch : {auto c : Ref Ctxt Defs} ->
+         Core Defs
+branch
+    = do ctxt <- get Ctxt
+         gam' <- branchCtxt (gamma ctxt)
+         setCtxt gam'
+         pure ctxt
+
+-- Call this after trying an elaboration to commit any changes to the mutable
+-- array of definitions once we know they're correct. Only actually commits
+-- when we're right back at the top level
+export
+commit : {auto c : Ref Ctxt Defs} ->
+         Core ()
+commit
+    = do ctxt <- get Ctxt
+         gam' <- commitCtxt (gamma ctxt)
+         setCtxt gam'
+
 
 -- Get the names to save. These are the ones explicitly noted, and the
 -- ones between firstEntry and nextEntry (which are the names introduced in
@@ -502,6 +572,141 @@ export
 lookupTyName : Name -> Context GlobalDef -> Core (List (Name, Int, ClosedTerm))
 lookupTyName = lookupNameBy type 
 
+export
+setFlag : {auto c : Ref Ctxt Defs} ->
+					FC -> Name -> DefFlag -> Core ()
+setFlag fc n fl
+    = do defs <- get Ctxt
+         Just def <- lookupCtxtExact n (gamma defs)
+              | Nothing => throw (UndefinedName fc n)
+         let flags' = fl :: filter (/= fl) (flags def)
+         addDef n (record { flags = flags' } def)
+         pure ()
+
+export
+setNameFlag : {auto c : Ref Ctxt Defs} ->
+			    		FC -> Name -> DefFlag -> Core ()
+setNameFlag fc n fl
+    = do defs <- get Ctxt
+         [(n', i, def)] <- lookupCtxtName n (gamma defs)
+              | [] => throw (UndefinedName fc n)
+              | res => throw (AmbiguousName fc (map fst res))
+         let flags' = fl :: filter (/= fl) (flags def)
+         addDef (Resolved i) (record { flags = flags' } def)
+         pure ()
+
+export
+unsetFlag : {auto c : Ref Ctxt Defs} ->
+            FC -> Name -> DefFlag -> Core ()
+unsetFlag fc n fl
+    = do defs <- get Ctxt
+         Just def <- lookupCtxtExact n (gamma defs)
+              | Nothing => throw (UndefinedName fc n)
+         let flags' = filter (/= fl) (flags def)
+         addDef n (record { flags = flags' } def)
+         pure ()
+
+export
+hasFlag : {auto c : Ref Ctxt Defs} ->
+          FC -> Name -> DefFlag -> Core Bool
+hasFlag fc n fl
+    = do defs <- get Ctxt
+         Just def <- lookupCtxtExact n (gamma defs)
+              | Nothing => throw (UndefinedName fc n)
+         pure (fl `elem` flags def)
+
+public export
+record SearchData where
+  constructor MkSearchData
+  detArgs : List Nat -- determining argument positions
+  hintGroups : List (List Name) -- names of functions to use as hints.
+    {- In proof search, for every group of names
+        * If exactly one succeeds, use it
+        * If more than one succeeds, report an ambiguity error
+        * If none succeed, move on to the next group
+
+       This allows us to prioritise some names (e.g. to declare 'open' hints,
+       which we might us to open an implementation working as a module, or to
+       declare a named implementation to be used globally), and to have names
+       which are only used if all else fails (e.g. as a defaulting mechanism),
+       while the proof search mechanism doesn't need to know about any of the
+       details.
+    -}
+
+-- Get the auto search data for a name.
+export
+getSearchData : {auto c : Ref Ctxt Defs} ->
+                FC -> (defaults : Bool) -> Name ->
+                Core SearchData
+getSearchData fc defaults target
+    = do defs <- get Ctxt
+         Just (TCon _ _ _ dets cons hs) <- lookupDefExact target (gamma defs)
+              | _ => throw (UndefinedName fc target)
+         if defaults
+            then let defaults = map fst (filter isDefault
+                                             (toList (autoHints defs))) in
+                     pure (MkSearchData [] [defaults])
+            else let opens = map fst (toList (openHints defs))
+                     autos = map fst (filter (not . isDefault) 
+                                             (toList (autoHints defs)))
+                     tyhs = map fst (filter direct hs) 
+                     chasers = map fst (filter (not . direct) hs) in
+                     pure (MkSearchData dets (filter isCons 
+                               [opens, autos, tyhs, chasers]))
+  where
+    isDefault : (Name, Bool) -> Bool
+    isDefault = snd
+
+    direct : (Name, Bool) -> Bool
+    direct = snd
+
+export
+setDetermining : {auto c : Ref Ctxt Defs} ->
+                 FC -> Name -> List Name -> Core ()
+setDetermining fc tyn args
+    = do defs <- get Ctxt
+         Just g <- lookupCtxtExact tyn (gamma defs) 
+              | _ => throw (UndefinedName fc tyn)
+         let TCon t a ps _ cons hs = definition g
+              | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor"))
+         apos <- getPos 0 args (type g)
+         updateDef tyn (const (Just (TCon t a ps apos cons hs)))
+  where
+    -- Type isn't normalised, but the argument names refer to those given
+    -- explicitly in the type, so there's no need.
+    getPos : Nat -> List Name -> Term vs -> Core (List Nat)
+    getPos i ns (Bind _ x (Pi _ _ _) sc)
+        = if x `elem` ns
+             then do rest <- getPos (1 + i) (filter (/=x) ns) sc
+                     pure $ i :: rest
+             else getPos (1 + i) ns sc
+    getPos _ [] _ = pure []
+    getPos _ ns ty = throw (GenericMsg fc ("Unknown determining arguments: "
+                           ++ showSep ", " (map show ns)))
+
+
+export
+addHintFor : {auto c : Ref Ctxt Defs} ->
+					   FC -> Name -> Name -> Bool -> Core ()
+addHintFor fc tyn hintn direct
+    = do defs <- get Ctxt
+         Just (TCon t a ps dets cons hs) <- lookupDefExact tyn (gamma defs)
+              | _ => throw (GenericMsg fc (show tyn ++ " is not a type constructor"))
+         updateDef tyn (const (Just (TCon t a ps dets cons ((hintn, direct) :: hs))))
+
+export
+addGlobalHint : {auto c : Ref Ctxt Defs} ->
+					      Name -> Bool -> Core ()
+addGlobalHint hint isdef
+    = do d <- get Ctxt
+         put Ctxt (record { autoHints $= insert hint isdef } d)
+
+export
+addOpenHint : {auto c : Ref Ctxt Defs} -> Name -> Core ()
+addOpenHint hint
+    = do d <- get Ctxt
+         put Ctxt (record { openHints $= insert hint () } d)
+
 -- Set the default namespace for new definitions
 export
 setNS : {auto c : Ref Ctxt Defs} ->
@@ -538,7 +743,7 @@ addData vis (MkData (MkCon dfc tyn arity tycon) datacons)
                             (TCon tag arity 
                                   (paramPos tyn (map type datacons))
                                   (allDet arity)
-                                  (map name datacons))
+                                  (map name datacons) [])
          (idx, gam') <- addCtxt tyn tydef (gamma defs)
          gam'' <- addDataConstructors 0 datacons gam'
          put Ctxt (record { gamma = gam'' } defs)
@@ -608,11 +813,14 @@ toFullNames tm
   where
     full : Context GlobalDef -> Term vars -> Core (Term vars)
     full gam (Ref fc x (Resolved i)) 
-        = do let a = content gam
-             arr <- get Arr
-             Just gdef <- coreLift (readArray arr i)
+        = do Just gdef <- lookupCtxtExact (Resolved i) gam
                   | Nothing => pure (Ref fc x (Resolved i))
              pure (Ref fc x (fullname gdef))
+--         = do let a = content gam
+--              arr <- get Arr
+--              Just gdef <- coreLift (readArray arr i)
+--                   | Nothing => pure (Ref fc x (Resolved i))
+--              pure (Ref fc x (fullname gdef))
     full gam (Meta fc x y xs) 
         = pure (Meta fc x y !(traverse (full gam) xs))
     full gam (Bind fc x b scope) 

@@ -23,9 +23,8 @@ getNameType rigc env fc x expected
     = case defined x env of
            Just (MkIsDefined rigb lv) => 
               do rigSafe rigb rigc
-                 defs <- get Ctxt
                  let bty = binderType (getBinder lv env)
-                 pure (Local fc (Just rigb) _ lv, gnf defs env bty)
+                 pure (Local fc (Just rigb) _ lv, gnf env bty)
            Nothing => 
               do defs <- get Ctxt
                  [(fullname, i, def)] <- lookupCtxtName x (gamma defs)
@@ -34,9 +33,9 @@ getNameType rigc env fc x expected
                  let nt = case definition def of
                                PMDef _ _ _ _ => Func
                                DCon t a => DataCon t a
-                               TCon t a _ _ _ => TyCon t a
+                               TCon t a _ _ _ _ => TyCon t a
                                _ => Func
-                 pure (Ref fc nt (Resolved i), gnf defs env (embed (type def)))
+                 pure (Ref fc nt (Resolved i), gnf env (embed (type def)))
   where
     rigSafe : RigCount -> RigCount -> Core ()
     rigSafe Rig1 RigW = throw (LinearMisuse fc x Rig1 RigW)
@@ -51,14 +50,14 @@ isHole _ = False
 -- Return whether we already know the return type of the given function
 -- type. If we know this, we can possibly infer some argument types before
 -- elaborating them, which might help us disambiguate things more easily.
-concrete : Env Term vars -> NF vars -> Core Bool
-concrete env (NBind fc _ (Pi _ _ _) sc)
-    = do sc' <- sc (toClosure defaultOpts env (Erased fc))
-         concrete env sc'
-concrete env (NDCon _ _ _ _ _) = pure True
-concrete env (NTCon _ _ _ _ _) = pure True
-concrete env (NPrimVal _ _) = pure True
-concrete env _ = pure False
+concrete : Defs -> Env Term vars -> NF vars -> Core Bool
+concrete defs env (NBind fc _ (Pi _ _ _) sc)
+    = do sc' <- sc defs (toClosure defaultOpts env (Erased fc))
+         concrete defs env sc'
+concrete defs env (NDCon _ _ _ _ _) = pure True
+concrete defs env (NTCon _ _ _ _ _) = pure True
+concrete defs env (NPrimVal _ _) = pure True
+concrete defs env _ = pure False
 
 mutual
   makeImplicit : {vars : _} ->
@@ -67,7 +66,7 @@ mutual
                  {auto e : Ref EST (EState vars)} ->
                  RigCount -> ElabInfo -> Env Term vars -> 
                  FC -> (fntm : Term vars) -> 
-                 Name -> NF vars -> (Closure vars -> Core (NF vars)) ->
+                 Name -> NF vars -> (Defs -> Closure vars -> Core (NF vars)) ->
                  (expargs : List RawImp) ->
                  (impargs : List (Maybe Name, RawImp)) ->
                  (knownret : Bool) ->
@@ -80,7 +79,7 @@ mutual
            metaty <- quote empty env aty
            metaval <- metaVar fc rig env nm metaty
            let fntm = App fc tm (appInf (Just x) Implicit) metaval
-           fnty <- sc (toClosure defaultOpts env metaval)
+           fnty <- sc defs (toClosure defaultOpts env metaval)
            when (bindingVars elabinfo) $
                 do est <- get EST
                    put EST (addBindIfUnsolved nm rig env metaval metaty est)
@@ -93,7 +92,7 @@ mutual
                      {auto e : Ref EST (EState vars)} ->
                      RigCount -> ElabInfo -> Env Term vars -> 
                      FC -> (fntm : Term vars) -> 
-                     Name -> NF vars -> (Closure vars -> Core (NF vars)) ->
+                     Name -> NF vars -> (Defs -> Closure vars -> Core (NF vars)) ->
                      (expargs : List RawImp) ->
                      (impargs : List (Maybe Name, RawImp)) ->
                      (knownret : Bool) ->
@@ -113,7 +112,7 @@ mutual
                  {auto e : Ref EST (EState vars)} ->
                  RigCount -> RigCount -> ElabInfo -> Env Term vars -> 
                  FC -> AppInfo -> (fntm : Term vars) -> Name ->
-                 (aty : NF vars) -> (sc : Closure vars -> Core (NF vars)) ->
+                 (aty : NF vars) -> (sc : Defs -> Closure vars -> Core (NF vars)) ->
                  (arg : RawImp) ->
                  (expargs : List RawImp) ->
                  (impargs : List (Maybe Name, RawImp)) ->
@@ -122,19 +121,19 @@ mutual
                  Core (Term vars, Glued vars)
   checkRestApp rig argRig elabinfo env fc appinf tm x aty sc
                arg expargs impargs knownret expty
-     = do kr <- if knownret
+     = do defs <- get Ctxt
+          kr <- if knownret
                    then pure True
-                   else do sc' <- sc (toClosure defaultOpts env (Erased fc))
-                           concrete env sc'
+                   else do sc' <- sc defs (toClosure defaultOpts env (Erased fc))
+                           concrete defs env sc'
           if kr then do
-             defs <- get Ctxt
              nm <- genMVName x
              empty <- clearDefs defs
              metaty <- quote empty env aty
              metaval <- metaVar fc argRig env nm metaty
              let fntm = App fc tm appinf metaval
              logNF 10 ("Delaying " ++ show nm ++ " " ++ show arg) env aty
-             fnty <- sc (toClosure defaultOpts env metaval)
+             fnty <- sc defs (toClosure defaultOpts env metaval)
              (tm, gty) <- checkAppWith rig elabinfo env fc
                                        fntm fnty expargs impargs kr expty
              defs <- get Ctxt
@@ -143,24 +142,24 @@ mutual
              (argv, argt) <- check argRig (nextLevel elabinfo)
                                    env arg (Just (glueBack defs env aty'))
              defs <- get Ctxt
-             [] <- convert fc elabinfo env (gnf defs env metaval)
-                                           (gnf defs env argv)
+             [] <- convert fc elabinfo env (gnf env metaval)
+                                           (gnf env argv)
                 | cs => throw (CantConvert fc env metaval argv)
              removeHoleName nm
              pure (tm, gty)
            else do
-             defs <- get Ctxt
              logNF 10 ("Argument type " ++ show x) env aty
              logNF 10 ("Full function type") env
                       (NBind fc x (Pi argRig Explicit aty) sc)
              logC 10 (do ety <- maybe (pure Nothing)
-                                      (\t => pure (Just !(toFullNames!(getTerm t))))
-                                      expty
+                                     (\t => pure (Just !(toFullNames!(getTerm t))))
+                                     expty
                          pure ("Overall expected type: " ++ show ety))
              (argv, argt) <- check argRig (nextLevel elabinfo)
                                    env arg (Just (glueBack defs env aty))
+             defs <- get Ctxt
              let fntm = App fc tm appinf argv
-             fnty <- sc (toClosure defaultOpts env argv)
+             fnty <- sc defs (toClosure defaultOpts env argv)
              checkAppWith rig elabinfo env fc
                           fntm fnty expargs impargs kr expty
 
@@ -256,11 +255,12 @@ mutual
   checkAppWith {vars} rig elabinfo env fc tm ty (arg :: expargs) impargs kr expty 
       = -- Invent a function type,  and hope that we'll know enough to solve it
         -- later when we unify with expty
-        do argn <- genName "argTy"
+        do logNF 10 "Function type" env ty
+           logTerm 10 "Function " tm
+           argn <- genName "argTy"
            retn <- genName "retTy"
            argTy <- metaVar fc Rig0 env argn (TType fc)
-           defs <- get Ctxt
-           let argTyG = gnf defs env argTy
+           let argTyG = gnf env argTy
            -- Can't use 'metaVar' to record it for binding because it's
            -- in a different scope... so it'll stay global
            (_, retTy) <- newMeta {vars = argn :: vars}
@@ -269,7 +269,10 @@ mutual
            (argv, argt) <- check rig (nextLevel elabinfo)
                                  env arg (Just argTyG)
            let fntm = App fc tm (appInf Nothing Explicit) argv
+           defs <- get Ctxt
            fnty <- nf defs env (Bind fc argn (Let RigW argv argTy) retTy)
+           logNF 10 "Function type" env fnty
+           maybe (pure ()) (logGlue 10 "Expected type" env) expty
            checkAppWith rig elabinfo env fc fntm fnty expargs impargs kr expty
 
 export

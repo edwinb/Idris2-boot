@@ -65,15 +65,10 @@ record UState where
   constraints : IntMap Constraint -- map for finding constraints by ID
   nextName : Int
   nextConstraint : Int
-  updateLog : Maybe (List (Int, GlobalDef))
-                 -- List of updates made to definitions in this branch of
-                 -- elaboration, which we'll need to undo if we backtrack.
-                 -- This will be a performance penalty in backtracking so
-                 -- we should avoid it as far as we can!
 
 export
 initUState : UState
-initUState = MkUState empty empty empty empty 0 0 Nothing
+initUState = MkUState empty empty empty empty 0 0
 
 export
 data UST : Type where
@@ -163,21 +158,6 @@ removeGuess : {auto u : Ref UST UState} ->
 removeGuess n
     = do ust <- get UST
          put UST (record { guesses $= delete n } ust)
-
-export
-noteUpdate : {auto c : Ref Ctxt Defs} ->
-             {auto u : Ref UST UState} ->
-             Int -> Core ()
-noteUpdate i
-    = do ust <- get UST
-         case updateLog ust of
-              Nothing => pure ()
-              Just ups =>
-                 do defs <- get Ctxt
-                    Just gdef <- lookupCtxtExact (Resolved i) (gamma defs)
-                         | Nothing => pure ()
-                    put UST (record { updateLog = Just ((i, gdef) :: ups) } 
-                                    ust)
 
 -- Get all of the hole data
 export
@@ -326,22 +306,13 @@ tryErrorUnify : {auto c : Ref Ctxt Defs} ->
                 Core a -> Core (Either Error a)
 tryErrorUnify elab
     = do ust <- get UST
-         next <- getNextEntry
-         let btlog = updateLog ust
-         put UST (record { updateLog = Just [] } ust)
+         defs <- branch
          catch (do res <- elab
+                   commit
                    pure (Right res))
-               (\err => do ust' <- get UST
-                           maybe (pure ()) undoLog (updateLog ust')
-                           put UST ust
-                           setNextEntry next
+               (\err => do put UST ust
+                           put Ctxt defs
                            pure (Left err))
-  where
-    undoLog : List (Int, GlobalDef) -> Core ()
-    undoLog [] = pure ()
-    undoLog ((i, d) :: rest)
-        = do addDef (Resolved i) d
-             undoLog rest
 
 export
 tryUnify : {auto c : Ref Ctxt Defs} ->
@@ -350,6 +321,15 @@ tryUnify : {auto c : Ref Ctxt Defs} ->
 tryUnify elab1 elab2
     = do Right ok <- tryErrorUnify elab1
                | Left err => elab2
+         pure ok
+
+export
+handleUnify : {auto c : Ref Ctxt Defs} -> 
+              {auto u : Ref UST UState} ->
+              Core a -> (Error -> Core a) -> Core a
+handleUnify elab1 elab2
+    = do Right ok <- tryErrorUnify elab1
+               | Left err => elab2 err
          pure ok
 
 -- A hole is 'valid' - i.e. okay to leave unsolved for later - as long as it's

@@ -221,23 +221,14 @@ tryError : {vars : _} ->
 tryError elab
     = do ust <- get UST
          est <- get EST
-         next <- getNextEntry
-         let btlog = updateLog ust
-         put UST (record { updateLog = Just [] } ust)
+         defs <- branch
          catch (do res <- elab
+                   commit
                    pure (Right res))
-               (\err => do ust' <- get UST
-                           maybe (pure ()) undoLog (updateLog ust')
-                           put UST ust
+               (\err => do put UST ust
                            put EST est
-                           setNextEntry next
+                           put Ctxt defs
                            pure (Left err))
-  where
-    undoLog : List (Int, GlobalDef) -> Core ()
-    undoLog [] = pure ()
-    undoLog ((i, d) :: rest)
-        = do addDef (Resolved i) d
-             undoLog rest
 
 export
 try : {vars : _} ->

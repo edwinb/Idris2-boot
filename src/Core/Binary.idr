@@ -9,6 +9,7 @@ import Core.TTC
 import Core.UnifyState
 
 import Data.IntMap
+import Data.NameMap
 
 -- Reading and writing 'Defs' from/to  a binary file
 -- In order to be saved, a name must have been flagged using 'toSave'.
@@ -48,6 +49,8 @@ record TTCFile extra where
   guesses : List (Int, (FC, Name))
   constraints : List (Int, Constraint)
   context : List GlobalDef
+  autoHints : List (Name, Bool)
+  typeHints : List (Name, Name, Bool)
   imported : List (List String, Bool, List String)
   nextVar : Int
   currentNS : List String
@@ -101,6 +104,8 @@ writeTTCFile b file
            toBuf b (guesses file)
            toBuf b (constraints file)
            toBuf b (context file)
+           toBuf b (autoHints file)
+           toBuf b (typeHints file)
            toBuf b (imported file)
            toBuf b (nextVar file)
            toBuf b (currentNS file)
@@ -129,13 +134,16 @@ readTTCFile modns as r b
            constraints <- the (Core (List (Int, Constraint))) $ fromBuf r b
            coreLift $ putStrLn $ "Read " ++ show (length constraints) ++ " constraints"
            defs <- fromBuf r b
+           autohs <- fromBuf r b
+           typehs <- fromBuf r b
 --            coreLift $ putStrLn $ "Read " ++ show (length (map fullname defs)) ++ " defs"
            imp <- fromBuf r b
            nextv <- fromBuf r b
            cns <- fromBuf r b
            ex <- fromBuf r b
            pure (MkTTCFile ver ifaceHash importHashes r
-                           holes guesses constraints defs imp nextv cns ex)
+                           holes guesses constraints defs 
+                           autohs typehs imp nextv cns ex)
 
 -- Pull out the list of GlobalDefs that we want to save
 getSaveDefs : List Name -> List GlobalDef -> Defs -> Core (List GlobalDef)
@@ -167,6 +175,8 @@ writeToTTC extradata fname
                               (toList (guesses ust)) 
                               (toList (constraints ust))
                               gdefs
+                              (toList (autoHints defs))
+                              (typeHints defs)
                               (imported defs)
                               (nextName ust)
                               (currentNS defs)
@@ -216,6 +226,7 @@ readFromTTC loc reexp fname modNS importAs
          ttc <- readTTCFile modNS as r bin
          traverse (addGlobalDef modNS as) (context ttc)
          setNS (currentNS ttc)
+         -- TODO: Set up typeHints and autoHints properly
          resetFirstEntry
 
          -- Finally, update the unification state with the holes from the

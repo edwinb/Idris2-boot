@@ -1,5 +1,6 @@
 module Core.Value
 
+import Core.Context
 import Core.Core
 import Core.Env
 import Core.TT
@@ -47,7 +48,7 @@ mutual
   public export
   data NF : List Name -> Type where
        NBind    : FC -> (x : Name) -> Binder (NF vars) ->
-                  (Closure vars -> Core (NF vars)) -> NF vars
+                  (Defs -> Closure vars -> Core (NF vars)) -> NF vars
        NApp     : FC -> NHead vars -> List (AppInfo, Closure vars) -> NF vars
        NDCon    : FC -> Name -> (tag : Int) -> (arity : Nat) -> 
                   List (AppInfo, Closure vars) -> NF vars

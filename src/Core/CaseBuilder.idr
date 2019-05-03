@@ -69,7 +69,7 @@ updatePats {todo = pvar :: ns} env (NBind fc _ (Pi c _ farg) fsc) (p :: ps)
             do defs <- get Ctxt
                empty <- clearDefs defs
                pure (record { argType = Known c !(quote empty env farg) } p
-                          :: !(updatePats env !(fsc (toClosure defaultOpts env (Ref fc Bound pvar))) ps))
+                          :: !(updatePats env !(fsc defs (toClosure defaultOpts env (Ref fc Bound pvar))) ps))
          _ => pure (p :: ps)
 updatePats env nf (p :: ps)
   = case argType p of
@@ -98,7 +98,7 @@ substInPatInfo {pvar} {vars} fc n tm p ps
                      NBind pfc _ (Pi c _ farg) fsc =>
                        pure (record { argType = Known c !(quote empty env farg) } p,
                                  !(updatePats env 
-                                       !(fsc (toClosure defaultOpts env
+                                       !(fsc defs (toClosure defaultOpts env
                                              (Ref pfc Bound pvar))) ps))
                      _ => pure (p, ps)
            Unknown => pure (p, ps)
@@ -335,10 +335,10 @@ nextNames {vars} fc root (p :: pats) fty
               case fty of
                    Nothing => pure (Nothing, Unknown)
                    Just (NBind pfc _ (Pi c _ (NErased _)) fsc) =>
-                      pure (Just !(fsc (toClosure defaultOpts env (Ref pfc Bound n))),
+                      pure (Just !(fsc defs (toClosure defaultOpts env (Ref pfc Bound n))),
                         Unknown)
                    Just (NBind pfc _ (Pi c _ farg) fsc) =>
-                      pure (Just !(fsc (toClosure defaultOpts env (Ref pfc Bound n))),
+                      pure (Just !(fsc defs (toClosure defaultOpts env (Ref pfc Bound n))),
                         Known c !(quote empty env farg))
                    Just t =>
                       pure (Nothing, Stuck !(quote empty env t))
@@ -404,8 +404,8 @@ groupCons fc fn pvars cs
     addConG {todo} n tag pargs pats rhs [] 
         = do cty <- the (Core (NF vars)) $if n == UN "->"
                       then pure $ NBind fc (MN "_" 0) (Pi RigW Explicit (NType fc)) $
-                              const $ pure $ NBind fc (MN "_" 1) (Pi RigW Explicit (NErased fc)) $
-                                const $ pure $ NType fc
+                              (\d, a => pure $ NBind fc (MN "_" 1) (Pi RigW Explicit (NErased fc))
+                                (\d, a => pure $ NType fc))
                       else do defs <- get Ctxt
                               Just t <- lookupTyExact n (gamma defs)
                                    | Nothing => pure (NErased fc)
@@ -756,7 +756,7 @@ mkPatClause fc fn args ty (ps, rhs)
                 case fty of
                      Nothing => pure (Nothing, Unknown)
                      Just (NBind pfc _ (Pi c _ farg) fsc) => 
-                        pure (Just !(fsc (toClosure defaultOpts [] (Ref pfc Bound arg))),
+                        pure (Just !(fsc defs (toClosure defaultOpts [] (Ref pfc Bound arg))),
                                 Known c (embed {more = arg :: args} 
                                           !(quote empty [] farg)))
                      Just t => 
@@ -830,7 +830,8 @@ getPMDef fc phase fn ty []
   where
     getArgs : Int -> NF [] -> Core (List Name)
     getArgs i (NBind fc x (Pi _ _ _) sc)
-        = do sc' <- sc (toClosure defaultOpts [] (Erased fc))
+        = do defs <- get Ctxt
+             sc' <- sc defs (toClosure defaultOpts [] (Erased fc))
              pure (MN "arg" i :: !(getArgs i sc'))
     getArgs i _ = pure []
 getPMDef fc phase fn ty clauses

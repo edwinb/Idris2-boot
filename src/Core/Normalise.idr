@@ -14,15 +14,15 @@ import Core.Value
 -- part will only be constructed when needed, because it's in Core.
 public export
 data Glued : List Name -> Type where
-     MkGlue : Core (Term vars) -> Core (NF vars) -> Glued vars
+     MkGlue : Core (Term vars) -> (Ref Ctxt Defs -> Core (NF vars)) -> Glued vars
 
 export
 getTerm : Glued vars -> Core (Term vars)
 getTerm (MkGlue tm _) = tm
 
 export
-getNF : Glued vars -> Core (NF vars)
-getNF (MkGlue _ nf) = nf
+getNF : {auto c : Ref Ctxt Defs} -> Glued vars -> Core (NF vars)
+getNF {c} (MkGlue _ nf) = nf c
 
 Stack : List Name -> Type
 Stack vars = List (AppInfo, Closure vars)
@@ -58,7 +58,8 @@ parameters (defs : Defs, opts : EvalOpts)
     eval env locs (Bind fc x b scope) stk 
         = do b' <- traverse (\tm => eval env locs tm stk) b
              pure $ NBind fc x b'
-                      (\arg => eval env (arg :: locs) scope stk)
+                      (\defs', arg => evalWithOpts defs' opts 
+                                              env (arg :: locs) scope stk)
     eval env locs (App fc fn p arg) stk 
         = eval env locs fn ((p, MkClosure opts locs env arg) :: stk)
     eval env locs (As fc _ tm) stk = eval env locs tm stk 
@@ -93,7 +94,7 @@ parameters (defs : Defs, opts : EvalOpts)
       where
         applyToStack : NF free -> Stack free -> Core (NF free)
         applyToStack (NBind fc _ (Lam r e ty) sc) ((p, arg) :: stk)
-            = do arg' <- sc arg
+            = do arg' <- sc defs arg
                  applyToStack arg' stk
         applyToStack (NApp fc (NRef nt fn) args) stk
             = evalRef {vars = xs} env locs False fc nt fn (args ++ stk)
@@ -284,12 +285,14 @@ nfOpts : EvalOpts -> Defs -> Env Term vars -> Term vars -> Core (NF vars)
 nfOpts opts defs env tm = eval defs opts env [] tm []
 
 export
-gnf : Defs -> Env Term vars -> Term vars -> Glued vars
-gnf defs env tm = MkGlue (pure tm) (nf defs env tm)
+gnf : Env Term vars -> Term vars -> Glued vars
+gnf env tm = MkGlue (pure tm) 
+                    (\c => do defs <- get Ctxt
+                              nf defs env tm)
 
 export
 gType : FC -> Glued vars
-gType fc = MkGlue (pure (TType fc)) (pure (NType fc))
+gType fc = MkGlue (pure (TType fc)) (const (pure (NType fc)))
 
 export
 data QVar : Type where
@@ -383,7 +386,7 @@ mutual
   quoteGenNF q defs bound env (NBind fc n b sc)
       = do var <- genName "qv"
            sc' <- quoteGenNF q defs (Add n var bound) env 
-                       !(sc (toClosure defaultOpts env (Ref fc Bound var)))
+                       !(sc defs (toClosure defaultOpts env (Ref fc Bound var)))
            b' <- quoteBinder q defs bound env b
            pure (Bind fc n b' sc')
   quoteGenNF q defs bound env (NApp fc f args)
@@ -432,7 +435,7 @@ glueBack : Defs -> Env Term vars -> NF vars -> Glued vars
 glueBack defs env nf 
     = MkGlue (do empty <- clearDefs defs
                  quote empty env nf) 
-             (pure nf)
+             (const (pure nf))
 
 export
 normalise : Defs -> Env Term free -> Term free -> Core (Term free)
@@ -501,8 +504,8 @@ mutual
              let c = MkClosure defaultOpts [] env (Ref fc Bound var)
              bok <- convBinders q defs env b b'
              if bok
-                then do bsc <- sc c
-                        bsc' <- sc' c
+                then do bsc <- sc defs c
+                        bsc' <- sc' defs c
                         convGen q defs env bsc bsc'
                 else pure False
 
@@ -565,7 +568,7 @@ mutual
 export
 getValArity : Defs -> Env Term vars -> NF vars -> Core Nat
 getValArity defs env (NBind fc x (Pi _ _ _) sc) 
-    = pure (S !(getValArity defs env !(sc (toClosure defaultOpts env (Erased fc)))))
+    = pure (S !(getValArity defs env !(sc defs (toClosure defaultOpts env (Erased fc)))))
 getValArity defs env val = pure 0
 
 export

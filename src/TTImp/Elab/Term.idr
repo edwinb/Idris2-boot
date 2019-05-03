@@ -47,8 +47,9 @@ insertImpLam {vars} env tm (Just ty) = bindLam tm ty
     bindLamNF tm@(ILam _ _ Implicit _ _ _) (NBind fc n (Pi _ Implicit _) sc)
         = pure tm
     bindLamNF tm (NBind fc n (Pi c Implicit ty) sc)
-        = do n' <- genVarName ("imp_" ++ show n)
-             sctm <- sc (toClosure defaultOpts env (Ref fc Bound n'))
+        = do defs <- get Ctxt
+             n' <- genVarName ("imp_" ++ show n)
+             sctm <- sc defs (toClosure defaultOpts env (Ref fc Bound n'))
              sc' <- bindLamNF tm sctm
              pure $ ILam fc c Implicit (Just n') (Implicit fc False) sc'
     bindLamNF tm sc = pure tm
@@ -105,8 +106,7 @@ checkTerm rig elabinfo env (IMustUnify fc n tm) exp
 
 checkTerm {vars} rig elabinfo env (IPrimVal fc c) exp 
     = do let (cval, cty) = checkPrim {vars} fc c
-         defs <- get Ctxt
-         checkExp rig elabinfo env fc cval (gnf defs env cty) exp
+         checkExp rig elabinfo env fc cval (gnf env cty) exp
 checkTerm rig elabinfo env (IType fc) exp 
     = checkExp rig elabinfo env fc (TType fc) (gType fc) exp
 
@@ -129,8 +129,7 @@ checkTerm rig elabinfo env (Implicit fc b) Nothing
          when (b && bindingVars elabinfo) $
             do est <- get EST
                put EST (addBindIfUnsolved nm rig env metaval ty est)
-         defs <- get Ctxt
-         pure (metaval, gnf defs env ty)
+         pure (metaval, gnf env ty)
 
 -- Declared in TTImp.Elab.Check
 TTImp.Elab.Check.check rigc elabinfo env tm exp 

@@ -11,20 +11,31 @@ import TTImp.Elab.Check
 import TTImp.Elab
 import TTImp.TTImp
 
-checkRetType : Env Term vars -> NF vars -> 
+processDataOpt : {auto c : Ref Ctxt Defs} ->
+                 FC -> Name -> DataOpt -> Core ()
+processDataOpt fc n NoHints 
+    = pure ()
+processDataOpt fc ndef (SearchBy dets) 
+    = setDetermining fc ndef dets
+
+checkRetType : {auto c : Ref Ctxt Defs} ->
+               Env Term vars -> NF vars -> 
                (NF vars -> Core ()) -> Core ()
 checkRetType env (NBind fc x (Pi _ _ ty) sc) chk
-    = checkRetType env !(sc (toClosure defaultOpts env (Erased fc))) chk
+    = do defs <- get Ctxt
+         checkRetType env !(sc defs (toClosure defaultOpts env (Erased fc))) chk
 checkRetType env nf chk = chk nf
 
-checkIsType : FC -> Name -> Env Term vars -> NF vars -> Core ()
+checkIsType : {auto c : Ref Ctxt Defs} ->
+              FC -> Name -> Env Term vars -> NF vars -> Core ()
 checkIsType loc n env nf
     = checkRetType env nf 
          (\nf => case nf of 
                       NType _ => pure ()
                       _ => throw (BadTypeConType loc n))
 
-checkFamily : FC -> Name -> Name -> Env Term vars -> NF vars -> Core ()
+checkFamily : {auto c : Ref Ctxt Defs} ->
+              FC -> Name -> Name -> Env Term vars -> NF vars -> Core ()
 checkFamily loc cn tn env nf
     = checkRetType env nf 
          (\nf => case nf of 
@@ -56,6 +67,9 @@ checkCon env vis tn (MkImpTy fc cn_in ty_raw)
 
          pure (MkCon fc cn !(getArity defs [] fullty) fullty)
 
+conName : Constructor -> Name
+conName (MkCon _ cn _ _) = cn
+
 export
 processData : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
@@ -79,7 +93,7 @@ processData env fc vis (MkImpLater dfc n_in ty_raw)
          -- Add the type constructor as a placeholder while checking
          -- data constructors
          tidx <- addDef n (newDef fc n Rig1 fullty vis
-                          (TCon 0 arity [] [] []))
+                          (TCon 0 arity [] [] [] []))
          pure ()
 processData env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
     = do n <- inCurrentNS n_in
@@ -96,7 +110,7 @@ processData env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
               Nothing => pure ()
               Just ndef =>
                 case definition ndef of
-                     TCon _ _ _ _ _ =>
+                     TCon _ _ _ _ _ _ =>
                         do ok <- convert defs [] fullty (type ndef)
                            if ok then pure ()
                                  else throw (AlreadyDefined fc n)
@@ -110,7 +124,7 @@ processData env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
          -- Add the type constructor as a placeholder while checking
          -- data constructors
          tidx <- addDef n (newDef fc n Rig1 fullty vis
-                          (TCon 0 arity [] [] []))
+                          (TCon 0 arity [] [] [] []))
 
          -- Constructors are private if the data type as a whole is
          -- export
@@ -120,6 +134,12 @@ processData env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
          let ddef = MkData (MkCon dfc n arity fullty) cons
          addData vis ddef
 
-         -- TODO: Interface hash, process options
+         traverse (processDataOpt fc (Resolved tidx)) opts
+         when (not (NoHints `elem` opts)) $
+              do traverse (\x => addHintFor fc n x True) (map conName cons)
+                 pure ()
+
+         -- TODO: Interface hash
+         
          pure ()
 

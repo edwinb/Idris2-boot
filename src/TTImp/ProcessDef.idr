@@ -57,15 +57,17 @@ findLinear top bound rig tm
       findLinArg : RigCount -> NF [] -> List (Term vars) -> 
                    Core (List (Name, RigCount))
       findLinArg rig (NBind _ x (Pi c _ _) sc) (Local {name=a} fc _ idx prf :: as) 
-          = if idx < bound
-               then do sc' <- sc (toClosure defaultOpts [] (Ref fc Bound x))
-                       pure $ (a, rigMult c rig) :: 
-                                  !(findLinArg rig sc' as)
-               else do sc' <- sc (toClosure defaultOpts [] (Ref fc Bound x))
-                       findLinArg rig sc' as
+          = do defs <- get Ctxt
+               if idx < bound
+                 then do sc' <- sc defs (toClosure defaultOpts [] (Ref fc Bound x))
+                         pure $ (a, rigMult c rig) :: 
+                                    !(findLinArg rig sc' as)
+                 else do sc' <- sc defs (toClosure defaultOpts [] (Ref fc Bound x))
+                         findLinArg rig sc' as
       findLinArg rig (NBind fc x (Pi c _ _) sc) (a :: as) 
-          = pure $ !(findLinear False bound (rigMult c rig) a) ++
-                   !(findLinArg rig !(sc (toClosure defaultOpts [] (Ref fc Bound x))) as)
+          = do defs <- get Ctxt
+               pure $ !(findLinear False bound (rigMult c rig) a) ++
+                      !(findLinArg rig !(sc defs (toClosure defaultOpts [] (Ref fc Bound x))) as)
       findLinArg rig ty (a :: as) 
           = pure $ !(findLinear False bound rig a) ++ !(findLinArg rig ty as)
       findLinArg _ _ [] = pure []
@@ -152,8 +154,7 @@ checkClause mult hashit n env (PatClause fc lhs_in rhs)
          (vars'  ** (env', lhstm', lhsty')) <- 
              extendEnv env lhstm_lin lhsty_lin
          
-         defs <- get Ctxt
-         rhstm <- checkTerm n InExpr env' rhs (gnf defs env' lhsty')
+         rhstm <- checkTerm n InExpr env' rhs (gnf env' lhsty')
 
          logTermNF 5 "RHS term" env' rhstm
          pure (Just (MkClause env' lhstm' rhstm))

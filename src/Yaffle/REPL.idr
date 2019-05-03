@@ -47,7 +47,7 @@ process (ProofSearch n_in)
          [(n, i, ty)] <- lookupTyName n_in (gamma defs)
               | [] => throw (UndefinedName toplevelFC n_in)
               | ns => throw (AmbiguousName toplevelFC (map fst ns))
-         def <- search toplevelFC RigW n ty []
+         def <- search toplevelFC RigW False 1000 n ty []
          defs <- get Ctxt
          defnf <- normaliseHoles defs [] def
          coreLift (printLn !(toFullNames defnf))

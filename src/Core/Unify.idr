@@ -244,9 +244,10 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
                Just rhs =>
                   do logTerm 5 ("Instantiated: " ++ show mname) ty
                      logTerm 5 "Definition" rhs
-                     noteUpdate mref
-                     addDef (Resolved mref) 
-                            (record { definition = PMDef [] (STerm rhs) (STerm rhs) [] } mdef)
+                     let newdef = record { definition = 
+                                             PMDef [] (STerm rhs) (STerm rhs) [] 
+                                         } mdef
+                     addDef (Resolved mref) newdef
                      removeHole mref
   where
     updateLoc : {v : Nat} -> List (Var vs) -> .(IsVar name v vs') -> 
@@ -491,8 +492,10 @@ mutual
                     {auto u : Ref UST UState} ->
                     {vars : _} ->
                     UnifyMode -> FC -> Env Term vars ->
-                    FC -> Name -> Binder (NF vars) -> (Closure vars -> Core (NF vars)) ->
-                    FC -> Name -> Binder (NF vars) -> (Closure vars -> Core (NF vars)) ->
+                    FC -> Name -> Binder (NF vars) -> 
+                    (Defs -> Closure vars -> Core (NF vars)) ->
+                    FC -> Name -> Binder (NF vars) -> 
+                    (Defs -> Closure vars -> Core (NF vars)) ->
                     Core UnifyResult
   unifyBothBinders mode loc env xfc x (Pi cx ix tx) scx yfc y (Pi cy iy ty) scy
       = do defs <- get Ctxt
@@ -511,8 +514,8 @@ mutual
                            = Pi cx ix tx' :: env
                   case constraints ct of
                       [] => -- No constraints, check the scope
-                         do tscx <- scx (toClosure defaultOpts env (Ref loc Bound xn))
-                            tscy <- scy (toClosure defaultOpts env (Ref loc Bound xn))
+                         do tscx <- scx defs (toClosure defaultOpts env (Ref loc Bound xn))
+                            tscy <- scy defs (toClosure defaultOpts env (Ref loc Bound xn))
                             tmx <- quote empty env tscx
                             tmy <- quote empty env tscy
                             unify mode loc env' (refsToLocals (Add x xn None) tmx)
@@ -524,8 +527,8 @@ mutual
                                    (Bind xfc x (Lam cx Explicit txtm) (Local xfc Nothing _ First))
                                    (Bind xfc x (Pi cx Explicit txtm)
                                        (weaken tytm)) cs
-                            tscx <- scx (toClosure defaultOpts env (Ref loc Bound xn))
-                            tscy <- scy (toClosure defaultOpts env (App loc c (explApp Nothing) (Ref loc Bound xn)))
+                            tscx <- scx defs (toClosure defaultOpts env (Ref loc Bound xn))
+                            tscy <- scy defs (toClosure defaultOpts env (App loc c (explApp Nothing) (Ref loc Bound xn)))
                             tmx <- quote empty env tscx
                             tmy <- quote empty env tscy
                             cs' <- unify mode loc env' (refsToLocals (Add x xn None) tmx)
@@ -552,18 +555,17 @@ mutual
                        (NDCon xfc x tagx ax xs)
                        (NDCon yfc y tagy ay ys)
   unifyNoEta mode loc env (NTCon xfc x tagx ax xs) (NTCon yfc y tagy ay ys)
-      = do gam <- get Ctxt
-           if x == y
-             then unifyArgs mode loc env (map snd xs) (map snd ys)
+      = if x == y
+           then unifyArgs mode loc env (map snd xs) (map snd ys)
              -- TODO: Type constructors are not necessarily injective.
              -- If we don't know it's injective, need to postpone the
              -- constraint. But before then, we need some way to decide
              -- what's injective...
 --                then postpone loc env (quote empty env (NTCon x tagx ax xs))
 --                                      (quote empty env (NTCon y tagy ay ys))
-             else convertError loc env 
-                       (NTCon xfc x tagx ax xs)
-                       (NTCon yfc y tagy ay ys)
+           else convertError loc env 
+                     (NTCon xfc x tagx ax xs)
+                     (NTCon yfc y tagy ay ys)
 
   unifyNoEta mode loc env (NApp xfc fx axs) (NApp yfc fy ays)
       = unifyBothApps mode loc env xfc fx axs yfc fy ays
@@ -586,12 +588,12 @@ mutual
   export
   Unify Term where
     unifyD _ _ mode loc env x y 
-          = do gam <- get Ctxt
-               if !(convert gam env x y)
+          = do defs <- get Ctxt
+               if !(convert defs env x y)
                   then do log 10 $ "Skipped unification (convert already): "
                                  ++ show x ++ " and " ++ show y
                           pure success
-                  else unify mode loc env !(nf gam env x) !(nf gam env y)
+                  else unify mode loc env !(nf defs env x) !(nf defs env y)
 
   export
   Unify Closure where
@@ -650,12 +652,10 @@ retryGuess mode smode (hid, (loc, hname))
                          -- hole list
                          [] => do let gdef = record { definition = PMDef [] (STerm tm) (STerm tm) [] } def
                                   logTerm 5 ("Resolved " ++ show hname) tm
-                                  noteUpdate hid
                                   addDef (Resolved hid) gdef
                                   removeGuess hid
                                   pure (holesSolved csAll)
                          newcs => do let gdef = record { definition = Guess tm newcs } def
-                                     noteUpdate hid
                                      addDef (Resolved hid) gdef
                                      pure False
                _ => pure False
