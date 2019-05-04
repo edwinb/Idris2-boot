@@ -57,11 +57,17 @@ mkArgs fc rigc env (NBind nfc x (Pi c p ty) sc)
          pure (MkArgInfo idx argRig (appInf Nothing p) arg argTy :: rest, restTy)
 mkArgs fc rigc env ty = pure ([], ty)
 
-closureApply : FC -> Closure vars -> List (ArgInfo vars) -> 
+closureApply : {auto c : Ref Ctxt Defs} ->
+               FC -> Env Term vars -> Closure vars -> List (ArgInfo vars) -> 
                Core (Term vars)
-closureApply fc (MkClosure _ [] _ tm) args 
+closureApply fc env (MkClosure _ [] _ tm) args 
     = pure (applyInfo fc tm (map (\i => (appInf i, metaApp i)) args))
-closureApply _ _ _ = throw (InternalError "Wrong argument form in AutoSearch")
+closureApply fc env (MkNFClosure nf) args 
+    = do defs <- get Ctxt
+         empty <- clearDefs defs
+         tm <- quote empty env nf
+         pure (applyInfo fc tm (map (\i => (appInf i, metaApp i)) args))
+closureApply _ _ _ _ = throw (InternalError "Wrong argument form in AutoSearch")
 
 searchIfHole : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
@@ -146,19 +152,74 @@ searchLocal : {auto c : Ref Ctxt Defs} ->
               (target : NF vars) -> Core (NF vars)
 searchLocal fc rigc defaults depth def top env locs [] target
     = throw (CantSolveGoal fc env top)
-searchLocal fc rigc defaults depth def top env locs ((ty, c) :: rest) target
+searchLocal {vars} fc rigc defaults depth def top env locs ((ty, c) :: rest) target
     = tryUnify 
-         (do (args, appTy) <- mkArgs fc rigc env ty
+         (do defs <- get Ctxt
+             findPos defs c id ty target)
+         
+--          do (args, appTy) <- mkArgs fc rigc env ty
+--              -- TODO: Can only use the local if it's not an unsolved hole
+--              ures <- unify InTerm fc env target appTy
+--              let [] = constraints ures
+--                  | _ => throw (CantSolveGoal fc env top)
+--              candidate <- closureApply fc c args
+--              logTermNF 10 "Candidate " env candidate
+--              traverse (searchIfHole fc defaults depth def top env locs) args
+--              defs <- get Ctxt
+--              nf defs env candidate)
+         (searchLocal fc rigc defaults depth def top env locs rest target)
+  where
+    findDirect : Defs -> Closure vars -> 
+                 (Closure vars -> Closure vars) ->
+                 NF vars ->  -- local's type
+                 (target : NF vars) -> 
+                 Core (NF vars)
+    findDirect defs prf f ty target
+        = do (args, appTy) <- mkArgs fc rigc env ty
              -- TODO: Can only use the local if it's not an unsolved hole
              ures <- unify InTerm fc env target appTy
              let [] = constraints ures
                  | _ => throw (CantSolveGoal fc env top)
-             candidate <- closureApply fc c args
+             candidate <- closureApply fc env (f prf) args
              logTermNF 10 "Candidate " env candidate
              traverse (searchIfHole fc defaults depth def top env locs) args
              defs <- get Ctxt
-             nf defs env candidate)
-         (searchLocal fc rigc defaults depth def top env locs rest target)
+             nf defs env candidate
+
+    findPos : Defs -> Closure vars -> 
+              (Closure vars -> Closure vars) ->
+              NF vars ->  -- local's type
+              (target : NF vars) -> 
+              Core (NF vars)
+    findPos defs prf f ty@(NTCon pfc pn _ _ [(xp, xty), (yp, yty)]) target
+        = tryUnify (findDirect defs prf f ty target)
+            (do log 0 (show (pn, isPairType pn defs, fstName defs))
+                fname <- maybe (throw (CantSolveGoal fc env top))
+                               pure
+                               (fstName defs)
+                sname <- maybe (throw (CantSolveGoal fc env top))
+                               pure
+                               (sndName defs)
+                if isPairType pn defs
+                   then tryUnify
+                           (do xtynf <- evalClosure defs xty
+                               logNF 0 "Trying fst" env xtynf
+                               findPos defs prf 
+                                     (\arg => MkNFClosure $ NApp fc (NRef Func fname)
+                                                 [(xp, xty),
+                                                  (yp, yty),
+                                                  (explApp Nothing, f arg)])
+                                     xtynf target)
+                           (do ytynf <- evalClosure defs yty
+                               findPos defs prf 
+                                     (\arg => MkNFClosure $ NApp fc (NRef Func sname)
+                                                 [(xp, xty),
+                                                  (yp, yty),
+                                                  (explApp Nothing, f arg)])
+                                     ytynf target)
+                   else throw (CantSolveGoal fc env top))
+    findPos defs prf f ty target
+        = findDirect defs prf f ty target
 
 searchName : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->

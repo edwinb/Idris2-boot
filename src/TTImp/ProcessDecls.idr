@@ -24,7 +24,10 @@ processDecl env (IData fc vis ddef)
 processDecl env (IDef fc fname def) 
     = processDef env fc fname def
 processDecl env (INamespace fc ns decls)
-    = ?processNamespace
+    = do oldns <- getNS
+         extendNS (reverse ns)
+         traverse (processDecl env) decls
+         setNS oldns
 processDecl {c} env (IPragma act)
     = act c env
 processDecl env (ILog n)

@@ -793,6 +793,17 @@ addData vis (MkData (MkCon dfc tyn arity tycon) datacons)
              (idx, gam') <- addCtxt n condef gam
              addDataConstructors (tag + 1) cs gam'
 
+-- Add a new nested namespace to the current namespace for new definitions
+-- e.g. extendNS ["Data"] when namespace is "Prelude.List" leads to
+-- current namespace of "Prelude.List.Data"
+-- Inner namespaces go first, for ease of name lookup
+export
+extendNS : {auto c : Ref Ctxt Defs} ->
+           List String -> Core ()
+extendNS ns
+    = do defs <- get Ctxt
+         put Ctxt (record { currentNS $= ((reverse ns) ++) } defs)
+
 -- Get the name as it would be defined in the current namespace
 -- i.e. if it doesn't have an explicit namespace already, add it,
 -- otherwise leave it alone
@@ -937,7 +948,7 @@ checkUnambig fc n
     = do defs <- get Ctxt
          case !(lookupDefName n (gamma defs)) of
               [] => throw (UndefinedName fc n)
-              [(fulln, _)] => pure fulln
+              [(fulln, i, _)] => pure (Resolved i)
               ns => throw (AmbiguousName fc (map fst ns))
 
 export
