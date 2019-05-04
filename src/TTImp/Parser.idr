@@ -1,5 +1,8 @@
 module TTImp.Parser
 
+import Core.Context
+import Core.Core
+import Core.Env
 import Core.TT
 import Parser.Support
 import TTImp.TTImp
@@ -313,6 +316,21 @@ namespaceDecl
          ns <- namespace_
          pure ns
 
+directive : FileName -> IndentInfo -> Rule ImpDecl
+directive fname indents
+    = do exactIdent "logging"
+         lvl <- intLit
+         atEnd indents
+         pure (ILog (cast lvl))
+  <|> do exactIdent "pair"
+         start <- location
+         p <- name
+         f <- name
+         s <- name
+         end <- location
+         let fc = MkFC fname start end
+         pure (IPragma (\c, env => setPair {c} fc p f s))
+
 -- Declared at the top
 -- topDecl : FileName -> IndentInfo -> Rule ImpDecl
 topDecl fname indents
@@ -331,6 +349,8 @@ topDecl fname indents
          claim <- tyDecl fname indents
          end <- location
          pure (IClaim (MkFC fname start end) RigW vis [] claim)
+  <|> do symbol "%"; commit
+         directive fname indents
   <|> clause fname indents
 
 -- All the clauses get parsed as one-clause definitions. Collect any

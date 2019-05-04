@@ -807,6 +807,31 @@ inCurrentNS n@(MN _ _)
          pure (NS (currentNS defs) n)
 inCurrentNS n = pure n
 
+export
+setVisible : {auto c : Ref Ctxt Defs} ->
+             (nspace : List String) -> Core ()
+setVisible nspace
+    = do defs <- get Ctxt
+         put Ctxt (record { gamma->visibleNS $= (nspace ::) } defs)
+
+-- Return True if the given namespace is visible in the context (meaning
+-- the namespace itself, and any namespace it's nested inside)
+export
+isVisible : {auto c : Ref Ctxt Defs} ->
+            (nspace : List String) -> Core Bool
+isVisible nspace
+    = do defs <- get Ctxt
+         pure (any visible (allParents (currentNS defs) ++ visibleNS (gamma defs)))
+  where
+    allParents : List String -> List (List String)
+    allParents [] = []
+    allParents (n :: ns) = (n :: ns) :: allParents ns
+
+    -- Visible if any visible namespace is a suffix of the namespace we're
+    -- asking about
+    visible : List String -> Bool
+    visible visns = isSuffixOf visns nspace
+
 -- Get the next entry id in the context (this is for recording where to go
 -- back to when backtracking in the elaborator)
 export
@@ -904,6 +929,167 @@ setPrefix : {auto c : Ref Ctxt Defs} -> String -> Core ()
 setPrefix dir
     = do defs <- get Ctxt
          put Ctxt (record { options->dirs->dir_prefix = dir } defs)
+
+export
+checkUnambig : {auto c : Ref Ctxt Defs} ->
+               FC -> Name -> Core Name
+checkUnambig fc n
+    = do defs <- get Ctxt
+         case !(lookupDefName n (gamma defs)) of
+              [] => throw (UndefinedName fc n)
+              [(fulln, _)] => pure fulln
+              ns => throw (AmbiguousName fc (map fst ns))
+
+export
+setLazy : {auto c : Ref Ctxt Defs} ->
+          FC -> (delayType : Name) -> (delay : Name) -> (force : Name) ->
+          (infinite : Name) ->
+          Core ()
+setLazy fc ty d f i
+    = do defs <- get Ctxt
+         ty' <- checkUnambig fc ty
+         d' <- checkUnambig fc d
+         f' <- checkUnambig fc f
+         i' <- checkUnambig fc i
+         put Ctxt (record { options $= setLazy ty' d' f' i' } defs)
+
+export
+lazyActive : {auto c : Ref Ctxt Defs} ->
+             Bool -> Core ()
+lazyActive a
+    = do defs <- get Ctxt
+         let l = laziness (options defs)
+         maybe (pure ())
+               (\lns =>
+                    do let l' = record { active = a } lns
+                       put Ctxt (record { options->laziness = Just l' }
+                                        defs)) l
+
+export
+isLazyActive : {auto c : Ref Ctxt Defs} ->
+               Core Bool
+isLazyActive
+    = do defs <- get Ctxt
+         pure (maybe False active (laziness (options defs)))
+
+export
+setPair : {auto c : Ref Ctxt Defs} ->
+          FC -> (pairType : Name) -> (fstn : Name) -> (sndn : Name) ->
+          Core ()
+setPair fc ty f s
+    = do defs <- get Ctxt
+         ty' <- checkUnambig fc ty
+         f' <- checkUnambig fc f
+         s' <- checkUnambig fc s
+         put Ctxt (record { options $= setPair ty' f' s' } defs)
+
+export
+setRewrite : {auto c : Ref Ctxt Defs} ->
+             FC -> (eq : Name) -> (rwlemma : Name) -> Core ()
+setRewrite fc eq rw
+    = do defs <- get Ctxt
+         rw' <- checkUnambig fc rw
+         eq' <- checkUnambig fc eq
+         put Ctxt (record { options $= setRewrite eq' rw' } defs)
+
+-- Don't check for ambiguity here; they're all meant to be overloadable
+export
+setFromInteger : {auto c : Ref Ctxt Defs} ->
+                 Name -> Core ()
+setFromInteger n
+    = do defs <- get Ctxt
+         put Ctxt (record { options $= setFromInteger n } defs)
+
+export
+setFromString : {auto c : Ref Ctxt Defs} ->
+                Name -> Core ()
+setFromString n
+    = do defs <- get Ctxt
+         put Ctxt (record { options $= setFromString n } defs)
+
+export
+setFromChar : {auto c : Ref Ctxt Defs} ->
+              Name -> Core ()
+setFromChar n
+    = do defs <- get Ctxt
+         put Ctxt (record { options $= setFromChar n } defs)
+
+-- Checking special names from Options
+
+export
+isDelayType : Name -> Defs -> Bool
+isDelayType n defs
+    = case laziness (options defs) of
+           Nothing => False
+           Just l => active l && n == delayType l
+
+export
+isDelay : Name -> Defs -> Bool
+isDelay n defs
+    = case laziness (options defs) of
+           Nothing => False
+           Just l => active l && n == delay l
+
+export
+isForce : Name -> Defs -> Bool
+isForce n defs
+    = case laziness (options defs) of
+           Nothing => False
+           Just l => active l && n == force l
+
+export
+isInfinite : Name -> Defs -> Bool
+isInfinite n defs
+    = case laziness (options defs) of
+           Nothing => False
+           Just l => active l && n == infinite l
+
+export
+isPairType : Name -> Defs -> Bool
+isPairType n defs
+    = case pairnames (options defs) of
+           Nothing => False
+           Just l => n == pairType l
+
+export
+fstName : Defs -> Maybe Name
+fstName defs
+    = do l <- pairnames (options defs)
+         pure (fstName l)
+
+export
+sndName : Defs -> Maybe Name
+sndName defs
+    = do l <- pairnames (options defs)
+         pure (sndName l)
+
+export
+getRewrite : Defs -> Maybe Name
+getRewrite defs
+    = do r <- rewritenames (options defs)
+         pure (rewriteName r)
+
+export
+isEqualTy : Name -> Defs -> Bool
+isEqualTy n defs
+    = case rewritenames (options defs) of
+           Nothing => False
+           Just r => n == equalType r
+
+export
+fromIntegerName : Defs -> Maybe Name
+fromIntegerName defs
+    = fromIntegerName (primnames (options defs))
+
+export
+fromStringName : Defs -> Maybe Name
+fromStringName defs
+    = fromStringName (primnames (options defs))
+
+export
+fromCharName : Defs -> Maybe Name
+fromCharName defs
+    = fromCharName (primnames (options defs))
 
 -- Log message with a term, translating back to human readable names first
 export

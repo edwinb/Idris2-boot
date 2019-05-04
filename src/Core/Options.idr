@@ -56,6 +56,84 @@ export
 getCG : String -> Maybe CG
 getCG cg = lookup (toLower cg) availableCGs
 
+-- Name options, to be saved in TTC
+public export
+record LazyNames where
+  constructor MkLazy
+  active : Bool
+  delayType : Name
+  delay : Name
+  force : Name
+  infinite : Name
+
+public export
+record PairNames where
+  constructor MkPairNs
+  pairType : Name
+  fstName : Name
+  sndName : Name
+
+public export
+record RewriteNames where
+  constructor MkRewriteNs
+  equalType : Name
+  rewriteName : Name
+
+public export
+record PrimNames where
+  constructor MkPrimNs
+  fromIntegerName : Maybe Name
+  fromStringName : Maybe Name
+  fromCharName : Maybe Name
+
+export
+TTC LazyNames where
+  toBuf b l
+      = do toBuf b (delayType l)
+           toBuf b (delay l)
+           toBuf b (force l)
+           toBuf b (infinite l)
+  fromBuf r b
+      = do ty <- fromBuf r b
+           d <- fromBuf r b
+           f <- fromBuf r b
+           i <- fromBuf r b
+           pure (MkLazy True ty d f i)
+
+export
+TTC PairNames where
+  toBuf b l
+      = do toBuf b (pairType l)
+           toBuf b (fstName l)
+           toBuf b (sndName l)
+  fromBuf r b
+      = do ty <- fromBuf r b
+           d <- fromBuf r b
+           f <- fromBuf r b
+           pure (MkPairNs ty d f)
+
+export
+TTC RewriteNames where
+  toBuf b l
+      = do toBuf b (equalType l)
+           toBuf b (rewriteName l)
+  fromBuf r b
+      = do ty <- fromBuf r b
+           l <- fromBuf r b
+           pure (MkRewriteNs ty l)
+
+export
+TTC PrimNames where
+  toBuf b l
+      = do toBuf b (fromIntegerName l)
+           toBuf b (fromStringName l)
+           toBuf b (fromCharName l)
+  fromBuf r b
+      = do i <- fromBuf r b
+           str <- fromBuf r b
+           c <- fromBuf r b
+           pure (MkPrimNs i str c)
+
 -- Other options relevant to the current session (so not to be saved in a TTC)
 public export
 record Session where
@@ -76,6 +154,11 @@ record Options where
   dirs : Dirs
   printing : PPrinter
   session : Session
+  laziness : Maybe LazyNames
+  pairnames : Maybe PairNames
+  rewritenames : Maybe RewriteNames
+  primnames : PrimNames
+  namedirectives : List (Name, List String)
 
 defaultDirs : Dirs
 defaultDirs = MkDirs "." "build" "/usr/local" ["."] []
@@ -89,4 +172,37 @@ defaultSession = MkSessionOpts False Chez
 export
 defaults : Options
 defaults = MkOptions defaultDirs defaultPPrint defaultSession
+                     Nothing Nothing Nothing
+                     (MkPrimNs Nothing Nothing Nothing)
+                     []
+
+export
+setLazy : (delayType : Name) -> (delay : Name) -> (force : Name) ->
+          (infinite : Name) -> Options -> Options
+setLazy ty d f i = record { laziness = Just (MkLazy True ty d f i) }
+
+export
+setPair : (pairType : Name) -> (fstn : Name) -> (sndn : Name) ->
+          Options -> Options
+setPair ty f s = record { pairnames = Just (MkPairNs ty f s) }
+
+export
+setRewrite : (eq : Name) -> (rwlemma : Name) -> Options -> Options
+setRewrite eq rw = record { rewritenames = Just (MkRewriteNs eq rw) }
+
+export
+setFromInteger : Name -> Options -> Options
+setFromInteger n = record { primnames->fromIntegerName = Just n }
+
+export
+setFromString : Name -> Options -> Options
+setFromString n = record { primnames->fromStringName = Just n }
+
+export
+setFromChar : Name -> Options -> Options
+setFromChar n = record { primnames->fromCharName = Just n }
+
+export
+addNameDirective : (Name, List String) -> Options -> Options
+addNameDirective nd = record { namedirectives $= (nd ::) }
 

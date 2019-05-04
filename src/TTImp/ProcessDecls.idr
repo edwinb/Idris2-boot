@@ -25,6 +25,10 @@ processDecl env (IDef fc fname def)
     = processDef env fc fname def
 processDecl env (INamespace fc ns decls)
     = ?processNamespace
+processDecl {c} env (IPragma act)
+    = act c env
+processDecl env (ILog n)
+    = setLogLevel n
 
 export
 processDecls : {vars : _} ->

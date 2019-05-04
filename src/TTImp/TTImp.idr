@@ -1,6 +1,7 @@
 module TTImp.TTImp
 
 import Core.Context
+import Core.Env
 import Core.TT
 
 mutual
@@ -122,6 +123,9 @@ mutual
        IData : FC -> Visibility -> ImpData -> ImpDecl
        IDef : FC -> Name -> List ImpClause -> ImpDecl
        INamespace : FC -> List String -> List ImpDecl -> ImpDecl 
+       IPragma : ({vars : _} -> Ref Ctxt Defs -> Env Term vars -> Core ()) -> 
+                 ImpDecl
+       ILog : Nat -> ImpDecl
 
   export
   Show ImpDecl where

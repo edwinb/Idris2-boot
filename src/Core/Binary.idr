@@ -4,6 +4,7 @@ import Core.Context
 import Core.Core
 import Core.Hash
 import Core.Normalise
+import Core.Options
 import Core.TT
 import Core.TTC
 import Core.UnifyState
@@ -54,6 +55,11 @@ record TTCFile extra where
   imported : List (List String, Bool, List String)
   nextVar : Int
   currentNS : List String
+  laziness : Maybe LazyNames
+  pairnames : Maybe PairNames
+  rewritenames : Maybe RewriteNames
+  primnames : PrimNames
+  namedirectives : List (Name, List String)
   extraData : extra
 
 asName : List String -> Maybe (List String) -> Name -> Name
@@ -109,6 +115,11 @@ writeTTCFile b file
            toBuf b (imported file)
            toBuf b (nextVar file)
            toBuf b (currentNS file)
+           toBuf b (laziness file)
+           toBuf b (pairnames file)
+           toBuf b (rewritenames file)
+           toBuf b (primnames file)
+           toBuf b (namedirectives file)
            toBuf b (extraData file)
 
 readTTCFile : TTC extra => 
@@ -140,10 +151,16 @@ readTTCFile modns as r b
            imp <- fromBuf r b
            nextv <- fromBuf r b
            cns <- fromBuf r b
+           lz <- fromBuf r b
+           pns <- fromBuf r b
+           rws <- fromBuf r b
+           prims <- fromBuf r b
+           nds <- fromBuf r b
            ex <- fromBuf r b
            pure (MkTTCFile ver ifaceHash importHashes r
                            holes guesses constraints defs 
-                           autohs typehs imp nextv cns ex)
+                           autohs typehs imp nextv cns 
+                           lz pns rws prims nds ex)
 
 -- Pull out the list of GlobalDefs that we want to save
 getSaveDefs : List Name -> List GlobalDef -> Defs -> Core (List GlobalDef)
@@ -180,6 +197,11 @@ writeToTTC extradata fname
                               (imported defs)
                               (nextName ust)
                               (currentNS defs)
+                              (laziness (options defs)) 
+                              (pairnames (options defs)) 
+                              (rewritenames (options defs)) 
+                              (primnames (options defs)) 
+                              (namedirectives (options defs)) 
                               extradata)
          Right ok <- coreLift $ writeToFile fname !(get Bin)
                | Left err => throw (InternalError (fname ++ ": " ++ show err))
