@@ -53,7 +53,7 @@ data Error
     | InvalidImplicits FC (Env Term vars) (List (Maybe Name)) (Term vars)
     | TryWithImplicits FC (Env Term vars) (List (Name, Term vars))
     | CantSolveGoal FC (Env Term vars) (Term vars)
-    | DeterminingArg FC Name (Env Term vars) (Term vars)
+    | DeterminingArg FC Name Int (Env Term vars) (Term vars)
     | UnsolvedHoles (List (FC, Name))
     | CantInferArgType FC (Env Term vars) Name Name (Term vars)
     | SolvedNamedHole FC (Env Term vars) Name (Term vars)
@@ -173,7 +173,7 @@ Show Error where
           ++ "\n(The front end should probably have done this for you. Please report!)"
   show (CantSolveGoal fc env g) 
       = show fc ++ ":Can't solve goal " ++ assert_total (show g)
-  show (DeterminingArg fc n env g)
+  show (DeterminingArg fc n i env g)
       = show fc ++ ":Can't solve goal " ++ assert_total (show g) ++ 
                 " since argument " ++ show n ++ " can't be inferred"
   show (UnsolvedHoles hs) = "Unsolved holes " ++ show hs
@@ -265,7 +265,7 @@ getErrorLoc (IncompatibleFieldUpdate loc _) = Just loc
 getErrorLoc (InvalidImplicits loc _ y tm) = Just loc
 getErrorLoc (TryWithImplicits loc _ _) = Just loc
 getErrorLoc (CantSolveGoal loc _ tm) = Just loc
-getErrorLoc (DeterminingArg loc y env tm) = Just loc
+getErrorLoc (DeterminingArg loc n y env tm) = Just loc
 getErrorLoc (UnsolvedHoles ((loc, _) :: xs)) = Just loc
 getErrorLoc (UnsolvedHoles []) = Nothing
 getErrorLoc (CantInferArgType loc _ y z tm) = Just loc
