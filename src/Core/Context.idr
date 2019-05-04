@@ -572,6 +572,16 @@ export
 lookupTyName : Name -> Context GlobalDef -> Core (List (Name, Int, ClosedTerm))
 lookupTyName = lookupNameBy type 
 
+-- private names are only visible in this namespace if their namespace
+-- is the current namespace (or an outer one)
+-- that is: given that most recent namespace is first in the list,
+-- the namespace of 'n' is a suffix of nspace
+export
+visibleIn : (nspace : List String) -> Name -> Visibility -> Bool
+visibleIn nspace (NS ns n) Private = isSuffixOf ns nspace
+-- Public and Export names are always visible
+visibleIn nspace n _ = True
+
 export
 setFlag : {auto c : Ref Ctxt Defs} ->
 					FC -> Name -> DefFlag -> Core ()
@@ -688,8 +698,14 @@ setDetermining fc tyn args
 export
 addHintFor : {auto c : Ref Ctxt Defs} ->
 					   FC -> Name -> Name -> Bool -> Core ()
-addHintFor fc tyn hintn direct
+addHintFor fc tyn hintn_in direct
     = do defs <- get Ctxt
+         let hintn : Name
+             = case hintn_in of
+                    Resolved i => hintn_in
+                    _ => case getNameID hintn_in (gamma defs) of
+                              Nothing => hintn_in
+                              Just idx => Resolved idx
          Just (TCon t a ps dets cons hs) <- lookupDefExact tyn (gamma defs)
               | _ => throw (GenericMsg fc (show tyn ++ " is not a type constructor"))
          updateDef tyn (const (Just (TCon t a ps dets cons ((hintn, direct) :: hs))))
@@ -697,15 +713,27 @@ addHintFor fc tyn hintn direct
 export
 addGlobalHint : {auto c : Ref Ctxt Defs} ->
 					      Name -> Bool -> Core ()
-addGlobalHint hint isdef
-    = do d <- get Ctxt
-         put Ctxt (record { autoHints $= insert hint isdef } d)
+addGlobalHint hintn_in isdef
+    = do defs <- get Ctxt
+         let hintn : Name
+             = case hintn_in of
+                    Resolved i => hintn_in
+                    _ => case getNameID hintn_in (gamma defs) of
+                              Nothing => hintn_in
+                              Just idx => Resolved idx
+         put Ctxt (record { autoHints $= insert hintn isdef } defs)
 
 export
 addOpenHint : {auto c : Ref Ctxt Defs} -> Name -> Core ()
-addOpenHint hint
-    = do d <- get Ctxt
-         put Ctxt (record { openHints $= insert hint () } d)
+addOpenHint hintn_in
+    = do defs <- get Ctxt
+         let hintn : Name
+             = case hintn_in of
+                    Resolved i => hintn_in
+                    _ => case getNameID hintn_in (gamma defs) of
+                              Nothing => hintn_in
+                              Just idx => Resolved idx
+         put Ctxt (record { openHints $= insert hintn () } defs)
 
 -- Set the default namespace for new definitions
 export
@@ -816,11 +844,6 @@ toFullNames tm
         = do Just gdef <- lookupCtxtExact (Resolved i) gam
                   | Nothing => pure (Ref fc x (Resolved i))
              pure (Ref fc x (fullname gdef))
---         = do let a = content gam
---              arr <- get Arr
---              Just gdef <- coreLift (readArray arr i)
---                   | Nothing => pure (Ref fc x (Resolved i))
---              pure (Ref fc x (fullname gdef))
     full gam (Meta fc x y xs) 
         = pure (Meta fc x y !(traverse (full gam) xs))
     full gam (Bind fc x b scope) 
