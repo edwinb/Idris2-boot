@@ -74,6 +74,15 @@ unify : Unify tm =>
         Core UnifyResult
 unify {c} {u} = unifyD c u
 
+-- Defined in Core.AutoSearch
+export
+search : {auto c : Ref Ctxt Defs} ->
+         {auto u : Ref UST UState} ->
+         FC -> RigCount ->
+         (defaults : Bool) -> (depth : Nat) ->
+         (defining : Name) -> (topTy : Term vars) -> Env Term vars -> 
+         Core (Term vars)
+
 ufail : FC -> String -> Core a
 ufail loc msg = throw (GenericMsg loc msg)
 
@@ -609,6 +618,12 @@ data SolveMode = Normal -- during elaboration: unifies and searches
                | Defaults -- unifies and searches for default hints only
                | LastChance -- as normal, but any failure throws rather than delays
 
+Eq SolveMode where
+  Normal == Normal = True
+  Defaults == Defaults = True
+  LastChance == LastChance = True
+  _ == _ = False
+
 retry : {auto c : Ref Ctxt Defs} ->
         {auto u : Ref UST UState} ->
         UnifyMode -> Int -> Core UnifyResult
@@ -643,6 +658,22 @@ retryGuess mode smode (hid, (loc, hname))
            Nothing => pure False
            Just def =>
              case definition def of
+               BySearch rig depth defining =>
+                 handleUnify
+                   (do tm <- search loc rig (smode == Defaults) depth defining
+                                    (type def) []
+                       let gdef = record { definition = PMDef [] (STerm tm) (STerm tm) [] } def
+                       logTerm 5 ("Solved " ++ show hname) tm
+                       addDef (Resolved hid) gdef
+                       removeGuess hid
+                       pure True)
+                   (\err => case err of
+                              DeterminingArg _ n i _ _ => ?setInvertible
+                              _ => do logTerm 5 ("Search failed for " ++ show hname) 
+                                                (type def)
+                                      case smode of
+                                           LastChance => throw err
+                                           _ => pure False) -- Postpone again
                Guess tm constrs => 
                  do cs' <- traverse (retry mode) constrs
                     let csAll = unionAll cs'

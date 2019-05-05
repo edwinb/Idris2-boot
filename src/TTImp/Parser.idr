@@ -28,6 +28,11 @@ atom fname
          end <- location
          pure (Implicit (MkFC fname start end) False)
   <|> do start <- location
+         symbol "%"
+         exactIdent "search"
+         end <- location
+         pure (ISearch (MkFC fname start end) 1000)
+  <|> do start <- location
          x <- name
          end <- location
          pure (IVar (MkFC fname start end) x)

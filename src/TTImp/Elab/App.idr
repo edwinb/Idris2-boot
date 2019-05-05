@@ -263,14 +263,14 @@ mutual
            let argTyG = gnf env argTy
            -- Can't use 'metaVar' to record it for binding because it's
            -- in a different scope... so it'll stay global
-           (_, retTy) <- newMeta {vars = argn :: vars}
-                            fc Rig0 (Pi RigW Explicit argTy :: env) 
+           (_, retTy) <- newMeta -- {vars = argn :: vars}
+                            fc Rig0 env -- (Pi RigW Explicit argTy :: env) 
                             retn (TType fc)
            (argv, argt) <- check rig (nextLevel elabinfo)
                                  env arg (Just argTyG)
            let fntm = App fc tm (appInf Nothing Explicit) argv
            defs <- get Ctxt
-           fnty <- nf defs env (Bind fc argn (Let RigW argv argTy) retTy)
+           fnty <- nf defs env retTy -- (Bind fc argn (Let RigW argv argTy) retTy)
            logNF 10 "Function type" env fnty
            maybe (pure ()) (logGlue 10 "Expected type" env) expty
            checkAppWith rig elabinfo env fc fntm fnty expargs impargs kr expty

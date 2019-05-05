@@ -17,6 +17,7 @@ mutual
               (argTy : RawImp) -> (lamTy : RawImp) -> RawImp
        IApp : FC -> RawImp -> RawImp -> RawImp
        IImplicitApp : FC -> RawImp -> Maybe Name -> RawImp -> RawImp
+       ISearch : FC -> (depth : Nat) -> RawImp
 
        -- Any implicit bindings in the scope should be bound here, using
        -- the given binder
@@ -50,6 +51,8 @@ mutual
          = "(" ++ show f ++ " " ++ show a ++ ")"
       show (IImplicitApp fc f n a)
          = "(" ++ show f ++ " [" ++ show n ++ " = " ++ show a ++ "])"
+      show (ISearch fc d)
+         = "%search"
       show (IBindHere fc b sc)
          = "(%bindhere " ++ show sc ++ ")"
       show (IBindVar fc n) = "$" ++ n

@@ -432,6 +432,7 @@ insertVar {n} {outer = (x :: xs)} (S i) (Later y)
     = let MkVar prf = insertVar {n} i y in
           MkVar (Later prf)
 
+export
 weakenVar : (ns : List Name) -> {idx : Nat} -> .(IsVar name idx inner) ->
             Var (ns ++ inner)
 weakenVar [] x = MkVar x
@@ -852,7 +853,8 @@ export Show (Term vars) where
       showApp : Term vars -> List (AppInfo, Term vars) -> String
       showApp (Local {name} _ _ idx _) [] = show name ++ "[" ++ show idx ++ "]"
       showApp (Ref _ _ n) [] = show n
-      showApp (Meta _ n _ args) [] = "?" ++ show n ++ "_" ++ show (length args)
+      showApp (Meta _ n _ args) [] 
+          = "?" ++ show n ++ "_" ++ show args
       showApp (Bind _ x (Lam c p ty) sc) [] 
           = "\\" ++ showCount c ++ show x ++ " : " ++ show ty ++ 
             " => " ++ show sc

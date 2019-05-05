@@ -94,7 +94,19 @@ checkTerm rig elabinfo env (IApp fc fn arg) exp
     = checkApp rig elabinfo env fc fn [arg] [] exp
 checkTerm rig elabinfo env (IImplicitApp fc fn nm arg) exp
     = checkApp rig elabinfo env fc fn [] [(nm, arg)] exp
-
+checkTerm rig elabinfo env (ISearch fc depth) (Just gexpty)
+    = do est <- get EST
+         nm <- genName "search"
+         expty <- getTerm gexpty
+         sval <- searchVar fc rig depth (defining est) env nm expty
+         pure (sval, gexpty)
+checkTerm rig elabinfo env (ISearch fc depth) Nothing
+    = do est <- get EST
+         nmty <- genName "searchTy"
+         ty <- metaVar fc Rig0 env nmty (TType fc)
+         nm <- genName "search"
+         sval <- searchVar fc rig depth (defining est) env nm ty
+         pure (sval, gnf env ty)
 checkTerm rig elabinfo env (IBindHere fc binder sc) exp
     = checkBindHere rig elabinfo env fc binder sc exp
 checkTerm rig elabinfo env (IBindVar fc n) exp

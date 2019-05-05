@@ -446,6 +446,15 @@ normaliseHoles : Defs -> Env Term free -> Term free -> Core (Term free)
 normaliseHoles defs env tm 
     = quote defs env !(nfOpts withHoles defs env tm)
 
+-- Normalise, but without normalising the types of binders. Dealing with
+-- binders is the slow part of normalisation so whenever we can avoid it, it's
+-- a big win
+export
+normaliseScope : Defs -> Env Term vars -> Term vars -> Core (Term vars)
+normaliseScope defs env (Bind fc n b sc) 
+    = pure $ Bind fc n b !(normaliseScope defs (b :: env) sc)
+normaliseScope defs env tm = normalise defs env tm
+
 public export
 interface Convert (tm : List Name -> Type) where
   convert : Defs -> Env Term vars -> 

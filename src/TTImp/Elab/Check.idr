@@ -189,6 +189,15 @@ metaVar fc rig env n ty
     = do (_, tm) <- newMeta fc rig env n ty
          pure tm
 
+export
+searchVar : {auto c : Ref Ctxt Defs} ->
+            {auto u : Ref UST UState} ->
+            FC -> RigCount -> Nat -> Name ->
+            Env Term vars -> Name -> Term vars -> Core (Term vars)
+searchVar fc rig depth def env n ty
+    = do (_, tm) <- newSearch fc rig depth def env n ty
+         pure tm
+
 -- Elaboration info (passed to recursive calls)
 public export
 record ElabInfo where

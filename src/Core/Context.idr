@@ -233,6 +233,7 @@ data Def : Type where
            (typehints : List (Name, Bool)) ->
            Def
     Hole : (invertible : Bool) -> Def
+    BySearch : RigCount -> (maxdepth : Nat) -> (defining : Name) -> Def
     -- Constraints are integer references into the current map of
     -- constraints in the UnifyState (see Core.UnifyState)
     Guess : (guess : ClosedTerm) -> (constraints : List Int) -> Def
@@ -247,6 +248,7 @@ Show Def where
   show (TCon t a ps ds cons hints) 
       = "TyCon " ++ show t ++ " " ++ show a ++ " " ++ show cons
   show (Hole inv) = "Hole"
+  show (BySearch c depth def) = "Search in " ++ show def
   show (Guess tm cs) = "Guess " ++ show tm ++ " when " ++ show cs
   show ImpBind = "Implicitly bound"
 
@@ -260,7 +262,9 @@ TTC Def where
       = do tag 3; toBuf b t; toBuf b arity; toBuf b parampos
            toBuf b detpos; toBuf b datacons
   toBuf b (Hole invertible) = do tag 4; toBuf b invertible
-  toBuf b (Guess guess constraints) = do tag 5; toBuf b guess; toBuf b constraints
+  toBuf b (BySearch c depth def) 
+      = do tag 5; toBuf b c; toBuf b depth; toBuf b def
+  toBuf b (Guess guess constraints) = do tag 6; toBuf b guess; toBuf b constraints
   toBuf b ImpBind = tag 6
 
   fromBuf r b 
@@ -278,9 +282,12 @@ TTC Def where
                      pure (TCon t a ps dets cs [])
              4 => do i <- fromBuf r b;
                      pure (Hole i)
-             5 => do g <- fromBuf r b; cs <- fromBuf r b
+             5 => do c <- fromBuf r b; depth <- fromBuf r b
+                     def <- fromBuf r b
+                     pure (BySearch c depth def)
+             6 => do g <- fromBuf r b; cs <- fromBuf r b
                      pure (Guess g cs)
-             6 => pure ImpBind
+             7 => pure ImpBind
              _ => corrupt "Def"
 
 public export

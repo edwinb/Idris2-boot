@@ -61,6 +61,7 @@ record UState where
   holes : IntMap (FC, Name) -- All metavariables with no definition yet.
                             -- 'Int' is the 'Resolved' name
   guesses : IntMap (FC, Name) -- Names which will be defined when constraints solved
+                              -- (also includes auto implicit searches)
   currentHoles : IntMap (FC, Name) -- Holes introduced this elaboration session
   constraints : IntMap Constraint -- map for finding constraints by ID
   nextName : Int
@@ -299,6 +300,27 @@ newConstant {vars} fc rig env tm ty constrs
     envArgs : List (Term vars)
     envArgs = let args = reverse (mkConstantAppArgs {done = []} False fc env []) in
                   rewrite sym (appendNilRightNeutral vars) in args
+
+-- Create a new search with the given name and return type,
+-- and return a term which is the name applied to the environment
+-- (and which has the given type)
+export
+newSearch : {auto c : Ref Ctxt Defs} ->
+            {auto u : Ref UST UState} ->
+            FC -> RigCount -> Nat -> Name ->
+            Env Term vars -> Name -> Term vars -> Core (Int, Term vars)
+newSearch {vars} fc rig depth def env n ty
+    = do let hty = abstractEnvType fc env ty
+         let hole = newDef fc n rig hty Public (BySearch rig depth def)
+         log 10 $ "Adding new search " ++ show n
+         idx <- addDef n hole 
+         addGuessName fc n idx
+         pure (idx, Meta fc n idx envArgs)
+  where
+    envArgs : List (Term vars)
+    envArgs = let args = reverse (mkConstantAppArgs {done = []} False fc env []) in
+                  rewrite sym (appendNilRightNeutral vars) in args
+
 
 export
 tryErrorUnify : {auto c : Ref Ctxt Defs} ->
