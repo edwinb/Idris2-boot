@@ -271,9 +271,15 @@ mutual
            let fntm = App fc tm (appInf Nothing Explicit) argv
            defs <- get Ctxt
            fnty <- nf defs env retTy -- (Bind fc argn (Let RigW argv argTy) retTy)
-           logNF 10 "Function type" env fnty
-           maybe (pure ()) (logGlue 10 "Expected type" env) expty
-           checkAppWith rig elabinfo env fc fntm fnty expargs impargs kr expty
+           let expfnty = gnf env (Bind fc argn (Pi RigW Explicit argTy) (weaken retTy))
+           logGlue 10 "Expected function type" env expfnty
+           maybe (pure ()) (logGlue 10 "Expected result type" env) expty
+           res <- checkAppWith rig elabinfo env fc fntm fnty expargs impargs kr expty
+           [] <- Check.convert fc elabinfo env (glueBack defs env ty) expfnty
+              | cs => do cty <- getTerm expfnty
+                         ctm <- newConstant fc rig env (fst res) cty cs
+                         pure (ctm, expfnty)
+           pure res
 
 export
 checkApp : {vars : _} ->
