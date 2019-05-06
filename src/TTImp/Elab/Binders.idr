@@ -109,3 +109,18 @@ checkLambda rig_in elabinfo env fc rigl info n argTy scope (Just expty_in)
                              (Just (gnf env
                                        (Bind fc bn (Pi rigb info pty) psc)))
               _ => inferLambda rig elabinfo env fc rigl info n argTy scope (Just expty_in)
+
+export
+checkLet : {vars : _} ->
+            {auto c : Ref Ctxt Defs} ->
+            {auto u : Ref UST UState} ->
+            {auto e : Ref EST (EState vars)} ->
+            RigCount -> ElabInfo -> Env Term vars -> 
+            FC -> 
+            RigCount -> (n : Name) -> 
+            (nTy : RawImp) -> (nVal : RawImp) -> (scope : RawImp) ->
+            (expTy : Maybe (Glued vars)) ->
+            Core (Term vars, Glued vars)
+checkLet rig_in elabinfo env fc rigl n nTy nVal scope expty
+    = throw (InternalError "let not implemented")
+

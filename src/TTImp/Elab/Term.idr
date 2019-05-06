@@ -90,6 +90,14 @@ checkTerm rig elabinfo env (ILam fc r p (Just n) argTy scope) exp
 checkTerm rig elabinfo env (ILam fc r p Nothing argTy scope) exp 
     = do n <- genVarName "lam"
          checkLambda rig elabinfo env fc r p n argTy scope exp
+checkTerm rig elabinfo env (ILet fc r n nTy nVal scope) exp
+    = checkLet rig elabinfo env fc r n nTy nVal scope exp
+checkTerm rig elabinfo env (ICase fc scr scrty als) exp
+    = throw (InternalError "case not implemented")
+checkTerm rig elabinfo env (ILocal fc nested scope) exp
+    = throw (InternalError "let functions not implemented")
+checkTerm rig elabinfo env (IUpdate fc upds rec) exp
+    = throw (InternalError "record update not implemented")
 checkTerm rig elabinfo env (IApp fc fn arg) exp 
     = checkApp rig elabinfo env fc fn [arg] [] exp
 checkTerm rig elabinfo env (IImplicitApp fc fn nm arg) exp
@@ -107,14 +115,20 @@ checkTerm rig elabinfo env (ISearch fc depth) Nothing
          nm <- genName "search"
          sval <- searchVar fc rig depth (defining est) env nm ty
          pure (sval, gnf env ty)
+checkTerm rig elabinfo env (IAlternative fc atype alts) exp
+    = throw (InternalError "alternatives not implemented")
+checkTerm rig elabinfo env (IRewrite fc rule tm) exp
+    = throw (InternalError "rewrite not implemented")
+checkTerm rig elabinfo env (ICoerced fc tm) exp
+    = checkTerm rig elabinfo env tm exp
 checkTerm rig elabinfo env (IBindHere fc binder sc) exp
     = checkBindHere rig elabinfo env fc binder sc exp
 checkTerm rig elabinfo env (IBindVar fc n) exp
     = checkBindVar rig elabinfo env fc n exp
 checkTerm rig elabinfo env (IAs fc n tm) exp
-    = throw (InternalError "Not implemented")
+    = throw (InternalError "As patterns not implemented")
 checkTerm rig elabinfo env (IMustUnify fc n tm) exp
-    = throw (InternalError "Not implemented")
+    = throw (InternalError "Dot patterns implemented")
 
 checkTerm {vars} rig elabinfo env (IPrimVal fc c) exp 
     = do let (cval, cty) = checkPrim {vars} fc c
@@ -122,6 +136,8 @@ checkTerm {vars} rig elabinfo env (IPrimVal fc c) exp
 checkTerm rig elabinfo env (IType fc) exp 
     = checkExp rig elabinfo env fc (TType fc) (gType fc) exp
 
+checkTerm rig elabinfo env (IHole fc str) exp
+    = throw (InternalError "holes not implemented")
 checkTerm rig elabinfo env (Implicit fc b) (Just gexpty)
     = do nm <- genName "imp"
          expty <- getTerm gexpty
@@ -144,6 +160,24 @@ checkTerm rig elabinfo env (Implicit fc b) Nothing
          pure (metaval, gnf env ty)
 
 -- Declared in TTImp.Elab.Check
+-- check : {vars : _} ->
+--         {auto c : Ref Ctxt Defs} ->
+--         {auto u : Ref UST UState} ->
+--         {auto e : Ref EST (EState vars)} ->
+--         RigCount -> ElabInfo -> Env Term vars -> RawImp -> 
+--         Maybe (Glued vars) ->
+--         Core (Term vars, Glued vars)
+-- If we've just inserted an implicit coercion (in practice, that's either
+-- a force or delay) then check the term with any further insertions
+TTImp.Elab.Check.check rigc elabinfo env (ICoerced fc tm) exp
+    = checkImp rigc elabinfo env tm exp
+-- Don't add implicits/coercions on local blocks or record updates
+TTImp.Elab.Check.check rigc elabinfo env tm@(ILet fc c n nty nval sc) exp
+    = checkImp rigc elabinfo env tm exp
+TTImp.Elab.Check.check rigc elabinfo env tm@(ILocal fc ds sc) exp
+    = checkImp rigc elabinfo env tm exp
+TTImp.Elab.Check.check rigc elabinfo env tm@(IUpdate fc fs rec) exp
+    = checkImp rigc elabinfo env tm exp
 TTImp.Elab.Check.check rigc elabinfo env tm exp 
     = do defs <- get Ctxt
          case elabMode elabinfo of
@@ -152,6 +186,13 @@ TTImp.Elab.Check.check rigc elabinfo env tm exp
               _ => do tm' <- insertImpLam env tm exp
                       checkImp rigc elabinfo env tm' exp
 
+-- As above, but doesn't add any implicit lambdas, forces, delays, etc
+-- checkImp : {vars : _} ->
+--            {auto c : Ref Ctxt Defs} ->
+--            {auto u : Ref UST UState} ->
+--            {auto e : Ref EST (EState vars)} ->
+--            RigCount -> ElabInfo -> Env Term vars -> RawImp -> Maybe (Glued vars) ->
+--            Core (Term vars, Glued vars)
 TTImp.Elab.Check.checkImp rigc elabinfo env tm exp
     = checkTerm rigc elabinfo env tm exp
 

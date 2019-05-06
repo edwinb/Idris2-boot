@@ -4,6 +4,8 @@ import Core.Context
 import Core.Env
 import Core.TT
 
+%default covering
+
 mutual
   public export
   data BindMode = PI RigCount | PATTERN | NONE
@@ -15,9 +17,20 @@ mutual
              (argTy : RawImp) -> (retTy : RawImp) -> RawImp
        ILam : FC -> RigCount -> PiInfo -> Maybe Name ->
               (argTy : RawImp) -> (lamTy : RawImp) -> RawImp
+       ILet : FC -> RigCount -> Name -> 
+              (nTy : RawImp) -> (nVal : RawImp) -> 
+              (scope : RawImp) -> RawImp 
+       ICase : FC -> RawImp -> (ty : RawImp) ->
+               List ImpClause -> RawImp
+       ILocal : FC -> List ImpDecl -> RawImp -> RawImp
+       IUpdate : FC -> List IFieldUpdate -> RawImp -> RawImp
+
        IApp : FC -> RawImp -> RawImp -> RawImp
        IImplicitApp : FC -> RawImp -> Maybe Name -> RawImp -> RawImp
        ISearch : FC -> (depth : Nat) -> RawImp
+       IAlternative : FC -> AltType -> List RawImp -> RawImp
+       IRewrite : FC -> RawImp -> RawImp -> RawImp
+       ICoerced : FC -> RawImp -> RawImp 
 
        -- Any implicit bindings in the scope should be bound here, using
        -- the given binder
@@ -31,12 +44,24 @@ mutual
        IMustUnify : FC -> (reason : String) -> RawImp -> RawImp
 
        IPrimVal : FC -> (c : Constant) -> RawImp
+       IHole : FC -> String -> RawImp
        IType : FC -> RawImp
 
        -- An implicit value, solved by unification, but which will also be
        -- bound (either as a pattern variable or a type variable) if unsolved
        -- at the end of elaborator                                                                     
        Implicit : FC -> (bindIfUnsolved : Bool) -> RawImp
+
+  public export
+  data IFieldUpdate : Type where
+       ISetField : (path : List String) -> RawImp -> IFieldUpdate
+       ISetFieldApp : (path : List String) -> RawImp -> IFieldUpdate
+
+  public export
+  data AltType : Type where
+       FirstSuccess : AltType
+       Unique : AltType
+       UniqueDefault : RawImp -> AltType
 
   export
     Show RawImp where
@@ -47,21 +72,43 @@ mutual
       show (ILam fc c p n arg sc)
          = "(%lam " ++ show c ++ " " ++ show p ++
            " " ++ show n ++ " " ++ show arg ++ " " ++ show sc ++ ")"
+      show (ILet fc c n ty val sc)
+         = "(%let " ++ show c ++ " " ++ " " ++ show n ++ " " ++ show ty ++ 
+           " " ++ show val ++ " " ++ show sc ++ ")"
+      show (ICase _ scr scrty alts)
+         = "(%case (" ++ show scr ++ ") " ++ show alts ++ ")"
+      show (ILocal _ def scope)
+         = "(%local (" ++ show def ++ ") " ++ show scope ++ ")"
+      show (IUpdate _ flds rec)
+         = "(%record " ++ showSep ", " (map show flds) ++ " " ++ show rec ++ ")"
+
       show (IApp fc f a)
          = "(" ++ show f ++ " " ++ show a ++ ")"
       show (IImplicitApp fc f n a)
          = "(" ++ show f ++ " [" ++ show n ++ " = " ++ show a ++ "])"
       show (ISearch fc d)
          = "%search"
+      show (IAlternative fc ty alts)
+         = "(|" ++ showSep "," (map show alts) ++ "|)"
+      show (IRewrite _ rule tm)
+         = "(%rewrite (" ++ show rule ++ ") (" ++ show tm ++ "))"
+      show (ICoerced _ tm) = show tm
+
       show (IBindHere fc b sc)
          = "(%bindhere " ++ show sc ++ ")"
       show (IBindVar fc n) = "$" ++ n
       show (IAs fc n tm) = show n ++ "@(" ++ show tm ++ ")"
       show (IMustUnify fc r tm) = ".(" ++ show tm ++ ")"
       show (IPrimVal fc c) = show c
+      show (IHole _ x) = "?" ++ x
       show (IType fc) = "%type"
       show (Implicit fc True) = "_"
       show (Implicit fc False) = "?"
+
+  export
+  Show IFieldUpdate where
+    show (ISetField p val) = showSep "->" p ++ " = " ++ show val
+    show (ISetFieldApp p val) = showSep "->" p ++ " $= " ++ show val
 
   public export
   data FnOpt : Type where
@@ -135,6 +182,11 @@ mutual
     show (IClaim _ _ _ _ ty) = show ty
     show (IData _ _ d) = show d
     show (IDef _ n cs) = "(%def " ++ show n ++ " " ++ show cs ++ ")"
+    show (INamespace _ ns decls) 
+        = "namespace " ++ show ns ++ 
+          showSep "\n" (assert_total $ map show decls)
+    show (IPragma _) = "[externally defined pragma]"
+    show (ILog lvl) = "%logging " ++ show lvl
 
 -- REPL commands for TTImp interaction
 public export
