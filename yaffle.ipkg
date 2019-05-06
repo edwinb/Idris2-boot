@@ -51,6 +51,7 @@ modules =
     TTImp.ProcessDef,
     TTImp.ProcessType,
     TTImp.TTImp,
+    TTImp.Unelab,
 
     Utils.Binary,
 

@@ -15,6 +15,7 @@ import TTImp.Elab.Check
 import TTImp.Parser
 import TTImp.ProcessDecls
 import TTImp.TTImp
+import TTImp.Unelab
 
 import Parser.Support
 
@@ -33,14 +34,14 @@ process (Eval ttimp)
     = do (tm, _) <- elabTerm (UN "[input]") InExpr [] ttimp Nothing
          defs <- get Ctxt
          tmnf <- normalise defs [] tm
-         coreLift (printLn !(toFullNames tmnf))
+         coreLift (printLn !(unelab [] tmnf))
          pure True
 process (Check ttimp)
     = do (tm, gty) <- elabTerm (UN "[input]") InExpr [] ttimp Nothing
          defs <- get Ctxt
          tyh <- getTerm gty
          ty <- normaliseHoles defs [] tyh
-         coreLift (printLn !(toFullNames ty))
+         coreLift (printLn !(unelab [] ty))
          pure True
 process (ProofSearch n_in)
     = do defs <- get Ctxt

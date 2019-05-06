@@ -876,6 +876,16 @@ resetFirstEntry
          put Ctxt (record { gamma->firstEntry = nextEntry (gamma defs) } defs)
 
 export
+getFullName : {auto c : Ref Ctxt Defs} ->
+              Name -> Core Name
+getFullName (Resolved i)
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact (Resolved i) (gamma defs)
+              | Nothing => pure (Resolved i)
+         pure (fullname gdef)
+getFullName n = pure n
+
+export
 toFullNames : {auto c : Ref Ctxt Defs} ->
               Term vars -> Core (Term vars)
 toFullNames tm

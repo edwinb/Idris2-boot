@@ -44,8 +44,8 @@ mutual
        IMustUnify : FC -> (reason : String) -> RawImp -> RawImp
 
        IPrimVal : FC -> (c : Constant) -> RawImp
-       IHole : FC -> String -> RawImp
        IType : FC -> RawImp
+       IHole : FC -> String -> RawImp
 
        -- An implicit value, solved by unification, but which will also be
        -- bound (either as a pattern variable or a type variable) if unsolved
