@@ -137,6 +137,44 @@ getAllEnv {vars = v :: vs} fc done (b :: env)
                                rewrite appendAssociative done [v] vs in rest
             else rewrite appendAssociative done [v] vs in rest
 
+-- A local is usable if it contains no holes in a determining argument position
+usableLocal : {auto c : Ref Ctxt Defs} ->
+              FC -> (defaults : Bool) -> 
+              Env Term vars -> (locTy : NF vars) -> Core Bool
+usableLocal loc defaults env (NApp fc (NMeta _ _ _) args)
+    = pure False
+usableLocal {vars} loc defaults env (NTCon _ n _ _ args)
+    = do sd <- getSearchData loc (not defaults) n
+         usableLocalArg 0 (detArgs sd) (map snd args)
+  -- usable if none of the determining arguments of the local's type are
+  -- holes
+  where
+    usableLocalArg : Nat -> List Nat -> List (Closure vars) -> Core Bool
+    usableLocalArg i dets [] = pure True
+    usableLocalArg i dets (c :: cs)
+        = if i `elem` dets
+             then do defs <- get Ctxt
+                     u <- usableLocal loc defaults env !(evalClosure defs c) 
+                     if u
+                        then usableLocalArg (1 + i) dets cs
+                        else pure False
+             else usableLocalArg (1 + i) dets cs
+usableLocal loc defaults env (NDCon _ n _ _ args)
+    = do defs <- get Ctxt
+         us <- traverse (usableLocal loc defaults env) 
+                        !(traverse (evalClosure defs) (map snd args))
+         pure (and (map Delay us))
+usableLocal loc defaults env (NApp _ (NLocal _ _ _) args)
+    = do defs <- get Ctxt
+         us <- traverse (usableLocal loc defaults env) 
+                        !(traverse (evalClosure defs) (map snd args))
+         pure (and (map Delay us))
+usableLocal loc defaults env (NBind fc x (Pi _ _ _) sc)
+    = do defs <- get Ctxt
+         usableLocal loc defaults env 
+                !(sc defs (toClosure defaultOpts env (Erased fc)))
+usableLocal loc _ _ _ = pure True
+
 searchLocalWith : {auto c : Ref Ctxt Defs} ->
                   {auto u : Ref UST UState} ->
                   FC -> RigCount ->
@@ -160,15 +198,18 @@ searchLocalWith {vars} fc rigc defaults depth def top env ((prf, ty) :: rest) ta
                  Core (Term vars)
     findDirect defs prf f ty target
         = do (args, appTy) <- mkArgs fc rigc env ty
-             -- TODO: Can only use the local if its type is not an unsolved hole
-             ures <- unify InTerm fc env target appTy
-             let [] = constraints ures
-                 | _ => throw (CantSolveGoal fc [] top)
-             let candidate = applyInfo fc (f prf) 
-                                 (map (\i => (appInf i, metaApp i)) args)
-             logTermNF 10 "Candidate " env candidate
-             traverse (searchIfHole fc defaults False depth def top env) args
-             pure candidate
+             -- We can only use the local if its type is not an unsolved hole
+             if !(usableLocal fc defaults env ty)
+                then do
+                   ures <- unify InTerm fc env target appTy
+                   let [] = constraints ures
+                       | _ => throw (CantSolveGoal fc [] top)
+                   let candidate = applyInfo fc (f prf) 
+                                       (map (\i => (appInf i, metaApp i)) args)
+                   logTermNF 10 "Candidate " env candidate
+                   traverse (searchIfHole fc defaults False depth def top env) args
+                   pure candidate
+                else throw (CantSolveGoal fc [] top)
 
     findPos : Defs -> Term vars -> 
               (Term vars -> Term vars) ->

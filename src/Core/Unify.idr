@@ -306,6 +306,13 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
              pure (Bind bfc x (Lam c Explicit (Erased bfc)) sc')
     mkDef got (vs ++ [v]) (Snoc rec) cvs locs tm ty = Nothing
     
+isDefInvertible : {auto c : Ref Ctxt Defs} ->
+                  Int -> Core Bool
+isDefInvertible i
+    = do defs <- get Ctxt
+         Just (Hole t) <- lookupDefExact (Resolved i) (gamma defs)
+              | _ => pure False
+         pure t
 
 mutual
   unifyIfEq : {auto c : Ref Ctxt Defs} ->
@@ -613,6 +620,15 @@ mutual
              -- names won't reduce until they have to
              unify mode loc env !(quote empty env x) !(quote empty env y)
 
+export
+setInvertible : {auto c : Ref Ctxt Defs} ->
+                FC -> Int -> Core ()
+setInvertible loc i
+    = updateDef (Resolved i)
+           (\old => case old of
+                         Hole _ => Just (Hole True)
+                         _ => Nothing)
+
 public export
 data SolveMode = Normal -- during elaboration: unifies and searches
                | Defaults -- unifies and searches for default hints only
@@ -668,7 +684,11 @@ retryGuess mode smode (hid, (loc, hname))
                        removeGuess hid
                        pure True)
                    (\err => case err of
-                              DeterminingArg _ n i _ _ => ?setInvertible
+                              DeterminingArg _ n i _ _ => 
+                                  do logTerm 5 ("Failed (det " ++ show hname ++ ")")
+                                               (type def)
+                                     setInvertible loc i
+                                     pure False -- progress made!
                               _ => do logTerm 5 ("Search failed for " ++ show hname) 
                                                 (type def)
                                       case smode of
