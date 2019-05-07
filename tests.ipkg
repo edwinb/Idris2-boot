@@ -1,0 +1,11 @@
+package runtests
+
+pkgs = contrib
+
+sourcedir = tests
+executable = runtests
+
+opts = "--warnreach --partial-eval"
+
+main = Main
+

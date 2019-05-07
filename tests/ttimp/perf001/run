@@ -1,0 +1,3 @@
+echo ':q' | $1 bigsuc.yaff
+
+rm -rf build

@@ -20,13 +20,24 @@ import Yaffle.REPL
 
 import System
 
-coreMain : String -> Core ()
-coreMain fname
+usage : String
+usage = "Usage: yaffle <input file> [--timing]"
+
+processArgs : List String -> Core Bool
+processArgs [] = pure False
+processArgs ["--timing"] = pure True
+processArgs _ 
+    = coreLift $ do putStrLn usage
+                    exitWith (ExitFailure 1)
+
+coreMain : String -> List String -> Core ()
+coreMain fname args
     = do defs <- initDefs 
          c <- newRef Ctxt defs
          u <- newRef UST initUState
          d <- getDirs
-         setLogTimings True
+         t <- processArgs args
+         setLogTimings t
          case span (/= '.') fname of
               (_, ".ttc") => do coreLift $ putStrLn "Processing as TTC"
                                 readFromTTC {extra = ()} emptyFC True fname [] []
@@ -41,9 +52,9 @@ coreMain fname
 
 main : IO ()
 main
-    = do [_, fname] <- getArgs
-             | _ => do putStrLn "Usage: yaffle [input file]"
+    = do (_ :: fname :: rest) <- getArgs
+             | _ => do putStrLn usage
                        exitWith (ExitFailure 1)
-         coreRun defaultOpts (coreMain fname)
+         coreRun defaultOpts (coreMain fname rest)
                (\err : Error => putStrLn ("Uncaught error: " ++ show err))
                (\res => pure ())
