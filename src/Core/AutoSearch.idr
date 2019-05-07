@@ -40,7 +40,7 @@ mkArgs fc rigc env (NBind nfc x (Pi c p ty) sc)
          argTy <- quote empty env ty
          let argRig = rigMult rigc c
          (idx, arg) <- newMeta fc argRig env nm argTy
-         -- setInvertible fc argName
+         setInvertible fc idx
          (rest, restTy) <- mkArgs fc rigc env 
                               !(sc defs (toClosure defaultOpts env arg))
          pure (MkArgInfo idx argRig (appInf Nothing p) arg argTy :: rest, restTy)

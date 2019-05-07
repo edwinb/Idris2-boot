@@ -6,7 +6,8 @@ import System
 
 ttimpTests : List String
 ttimpTests 
-    = ["test001", "test002", "test003",
+    = ["basic001", "basic002", "basic003",
+       "eta001", "eta002",
        "perf001", "perf002", "perf003"]
 
 chdir : String -> IO Bool

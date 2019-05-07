@@ -59,11 +59,11 @@ inferLambda rig elabinfo env fc rigl info n argTy scope expTy
          let env' : Env Term (n :: _) = Lam rigb info tyv :: env
          (scopev, scopet) <- inScope fc env' (\e' =>
                                 check {e=e'} rig (nextLevel elabinfo) env' scope Nothing)
+         let lamty = gnf env (Bind fc n (Pi rigb info tyv) !(getTerm scopet))
+         logGlue 5 "Inferred lambda type" env lamty
          checkExp rig elabinfo env fc
                   (Bind fc n (Lam rigb info tyv) scopev)
-                  (gnf env 
-                       (Bind fc n (Pi rigb info tyv) !(getTerm scopet)))
-                       Nothing
+                  lamty expTy
 
 getTyNF : {auto c : Ref Ctxt Defs} ->
           Env Term vars -> Term vars -> Core (Term vars)

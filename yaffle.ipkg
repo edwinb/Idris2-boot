@@ -12,6 +12,7 @@ modules =
     Core.Directory,
     Core.Env,
     Core.FC,
+    Core.GetType,
     Core.Hash,
     Core.Name,
     Core.Normalise,

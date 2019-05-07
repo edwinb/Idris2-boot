@@ -295,6 +295,10 @@ gType : FC -> Glued vars
 gType fc = MkGlue (pure (TType fc)) (const (pure (NType fc)))
 
 export
+gErased : FC -> Glued vars
+gErased fc = MkGlue (pure (Erased fc)) (const (pure (NErased fc)))
+
+export
 data QVar : Type where
 
 public export

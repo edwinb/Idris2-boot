@@ -907,8 +907,8 @@ toFullNames tm
         = pure (TDelayed fc x !(full gam y))
     full gam (TDelay fc x y)
         = pure (TDelay fc x !(full gam y))
-    full gam (TForce fc x)
-        = pure (TForce fc !(full gam x))
+    full gam (TForce fc y)
+        = pure (TForce fc !(full gam y))
     full gam tm = pure tm
 
 -- Getting and setting various options

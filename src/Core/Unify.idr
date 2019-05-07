@@ -4,6 +4,7 @@ import Core.CaseTree
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.GetType
 import Core.Normalise
 import Core.TT
 import public Core.UnifyState
@@ -475,14 +476,16 @@ mutual
                                (NApp yfc (NLocal yr y yp) yargs)
   -- If they're both holes, solve the one with the bigger context
   doUnifyBothApps mode loc env xfc (NMeta xn xi xargs) xargs' yfc (NMeta yn yi yargs) yargs'
-      = if xi == yi && False -- ahem. If it's invertible (TODO!)
-           then unifyArgs mode loc env (map snd (xargs ++ xargs'))
-                                       (map snd (yargs ++ yargs'))
-           else if length xargs >= length yargs
-                   then unifyApp False mode loc env xfc (NMeta xn xi xargs) xargs'
-                                       (NApp yfc (NMeta yn yi yargs) yargs')
-                   else unifyApp False mode loc env yfc (NMeta yn yi yargs) yargs'
-                                       (NApp xfc (NMeta xn xi xargs) xargs')
+      = do invx <- isDefInvertible xi
+           if xi == yi && invx -- Invertible, (from auto implicit search)
+                               -- so we can also unify the arguments.
+              then unifyArgs mode loc env (map snd (xargs ++ xargs'))
+                                          (map snd (yargs ++ yargs'))
+              else if length xargs >= length yargs
+                      then unifyApp False mode loc env xfc (NMeta xn xi xargs) xargs'
+                                          (NApp yfc (NMeta yn yi yargs) yargs')
+                      else unifyApp False mode loc env yfc (NMeta yn yi yargs) yargs'
+                                          (NApp xfc (NMeta xn xi xargs) xargs')
   doUnifyBothApps mode loc env xfc fx ax yfc fy ay
       = unifyApp False mode loc env xfc fx ax (NApp yfc fy ay)
 
@@ -550,6 +553,29 @@ mutual
                             cs' <- unify mode loc env' (refsToLocals (Add x xn None) tmx)
                                                        (refsToLocals (Add x xn None) tmy)
                             pure (union ct cs')
+  unifyBothBinders mode loc env xfc x (Lam cx ix tx) scx yfc y (Lam cy iy ty) scy
+      = do defs <- get Ctxt
+           if ix /= iy || not (subRig cx cy)
+             then convertError loc env 
+                    (NBind xfc x (Lam cx ix tx) scx)
+                    (NBind yfc y (Lam cy iy ty) scy)
+             else
+               do empty <- clearDefs defs
+                  tx' <- quote empty env tx
+                  ct <- unify mode loc env tx ty
+                  xn <- genVarName "x"
+                  let env' : Env Term (x :: _)
+                           = Lam cx ix tx' :: env
+                  txtm <- quote empty env tx
+                  tytm <- quote empty env ty
+
+                  tscx <- scx defs (toClosure defaultOpts env (Ref loc Bound xn))
+                  tscy <- scy defs (toClosure defaultOpts env (Ref loc Bound xn))
+                  tmx <- quote empty env tscx
+                  tmy <- quote empty env tscy
+                  cs' <- unify mode loc env' (refsToLocals (Add x xn None) tmx)
+                                             (refsToLocals (Add x xn None) tmy)
+                  pure (union ct cs')
 
   unifyBothBinders mode loc env xfc x bx scx yfc y by scy
       = convertError loc env 
@@ -594,11 +620,74 @@ mutual
            empty <- clearDefs defs
            unifyIfEq False loc env x y
 
+  -- Try to get the type of the application inside the given term, to use in
+  -- eta expansion. If there's no application, return Nothing
+  getEtaType : {auto c : Ref Ctxt Defs} ->
+               {auto u : Ref UST UState} ->
+               Env Term vars -> Term vars ->
+               Core (Maybe (Term vars))
+  getEtaType env (Bind fc n b sc)
+      = do Just ty <- getEtaType (b :: env) sc
+               | Nothing => pure Nothing
+           pure (shrinkTerm ty (DropCons SubRefl))
+  getEtaType env (App fc f p _)
+      = do fty <- getType env f
+           logGlue 10 "Function type" env fty
+           case !(getNF fty) of
+                NBind _ _ (Pi _ _ ty) sc =>
+                    do defs <- get Ctxt
+                       empty <- clearDefs defs
+                       pure (Just !(quote empty env ty))
+                _ => pure Nothing
+  getEtaType env _ = pure Nothing
+
+  isHoleApp : NF vars -> Bool
+  isHoleApp (NApp _ (NMeta _ _ _) _) = True
+  isHoleApp _ = False
+
   export
   Unify NF where
     -- TODO: Eta!
     unifyD _ _ mode loc env (NBind xfc x bx scx) (NBind yfc y by scy) 
         = unifyBothBinders mode loc env xfc x bx scx yfc y by scy
+    unifyD _ _ mode loc env tmx@(NBind xfc x (Lam cx ix tx) scx) tmy
+        = do defs <- get Ctxt
+             logNF 10 "EtaR" env tmx
+             logNF 10 "...with" env tmy
+             if isHoleApp tmy
+                then unifyNoEta mode loc env tmx tmy
+                else do empty <- clearDefs defs
+                        ety <- getEtaType env !(quote empty env tmx)
+                        case ety of
+                             Just argty =>
+                               do etay <- nf defs env 
+                                             (Bind xfc x (Lam cx ix argty)
+                                                     (App xfc 
+                                                          (weaken !(quote empty env tmy)) 
+                                                          (explApp Nothing)
+                                                          (Local xfc Nothing 0 First)))
+                                  logNF 10 "Expand" env etay
+                                  unify mode loc env tmx etay
+                             _ => unifyNoEta mode loc env tmx tmy
+    unifyD _ _ mode loc env tmx tmy@(NBind yfc y (Lam cy iy ty) scy)
+        = do defs <- get Ctxt
+             logNF 10 "EtaL" env tmx
+             logNF 10 "...with" env tmy
+             if isHoleApp tmx
+                then unifyNoEta mode loc env tmx tmy
+                else do empty <- clearDefs defs
+                        ety <- getEtaType env !(quote empty env tmy)
+                        case ety of
+                             Just argty =>
+                               do etax <- nf defs env 
+                                             (Bind yfc y (Lam cy iy argty)
+                                                     (App yfc 
+                                                          (weaken !(quote empty env tmx)) 
+                                                          (explApp Nothing)
+                                                          (Local yfc Nothing 0 First)))
+                                  logNF 10 "Expand" env etax
+                                  unify mode loc env etax tmy
+                             _ => unifyNoEta mode loc env tmx tmy
     unifyD _ _ mode loc env tmx tmy = unifyNoEta mode loc env tmx tmy
 
   export

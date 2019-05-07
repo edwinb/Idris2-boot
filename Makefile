@@ -1,6 +1,6 @@
-PREFIX = ${HOME}/.yaffle
-export YAFFLE_PATH = ${CURDIR}/prelude/build:${CURDIR}/base/build
-export YAFFLE_DATA = ${CURDIR}/support
+PREFIX = ${HOME}/.idris2
+export IDRIS2_PATH = ${CURDIR}/prelude/build:${CURDIR}/base/build
+export IDRIS2_DATA = ${CURDIR}/support
 
 .PHONY: ttimp yaffle prelude test base clean lib_clean
 

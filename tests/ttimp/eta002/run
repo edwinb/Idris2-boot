@@ -1,0 +1,3 @@
+echo ':q' | $1 Eta.yaff
+
+rm -rf build
