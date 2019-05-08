@@ -1,3 +1,4 @@
 $1 Interp.yaff < input
+$1 build/Interp.ttc < input
 
 rm -rf build

@@ -90,6 +90,58 @@ Eq Constant where
   WorldType == WorldType = True
   _ == _ = False
 
+-- All the internal operators, parameterised by their arity
+public export
+data PrimFn : Nat -> Type where
+     Add : (ty : Constant) -> PrimFn 2
+     Sub : (ty : Constant) -> PrimFn 2
+     Mul : (ty : Constant) -> PrimFn 2
+     Div : (ty : Constant) -> PrimFn 2
+     Mod : (ty : Constant) -> PrimFn 2
+     Neg : (ty : Constant) -> PrimFn 1
+
+     LT  : (ty : Constant) -> PrimFn 2
+     LTE : (ty : Constant) -> PrimFn 2
+     EQ  : (ty : Constant) -> PrimFn 2
+     GTE : (ty : Constant) -> PrimFn 2
+     GT  : (ty : Constant) -> PrimFn 2
+
+     StrLength : PrimFn 1
+     StrHead : PrimFn 1
+     StrTail : PrimFn 1
+     StrIndex : PrimFn 2
+     StrCons : PrimFn 2
+     StrAppend : PrimFn 2
+     StrReverse : PrimFn 1
+     StrSubstr : PrimFn 3
+
+     Cast : Constant -> Constant -> PrimFn 1
+     BelieveMe : PrimFn 3
+
+export
+Show (PrimFn arity) where
+  show (Add ty) = "+" ++ show ty
+  show (Sub ty) = "-" ++ show ty
+  show (Mul ty) = "*" ++ show ty
+  show (Div ty) = "/" ++ show ty
+  show (Mod ty) = "%" ++ show ty
+  show (Neg ty) = "neg " ++ show ty
+  show (LT ty) = "<" ++ show ty
+  show (LTE ty) = "<=" ++ show ty
+  show (EQ ty) = "==" ++ show ty
+  show (GTE ty) = ">=" ++ show ty
+  show (GT ty) = ">" ++ show ty
+  show StrLength = "op_strlen"
+  show StrHead = "op_strhead"
+  show StrTail = "op_strtail"
+  show StrIndex = "op_strindex"
+  show StrCons = "op_strcons"
+  show StrAppend = "++"
+  show StrReverse = "op_strrev"
+  show StrSubstr = "op_strsubstr"
+  show (Cast x y) = "cast-" ++ show x ++ "-" ++ show y
+  show BelieveMe = "believe_me"
+
 public export
 data PiInfo = Implicit | Explicit | AutoImplicit
 
@@ -337,49 +389,15 @@ Eq LazyReason where
   (==) LLazy LLazy = True
   (==) _ _ = False
 
-export
-varExtend : IsVar x idx xs -> IsVar x idx (xs ++ ys)
--- What Could Possibly Go Wrong?
--- This relies on the runtime representation of the term being the same
--- after embedding! It is just an identity function at run time, though, and
--- we don't need its definition at compile time, so let's do it...
-varExtend p = believe_me p
-
-export
-embed : Term vars -> Term (vars ++ more)
-embed tm = believe_me tm
-
 public export
-ClosedTerm : Type
-ClosedTerm = Term []
+interface Weaken (tm : List Name -> Type) where
+  weaken : tm vars -> tm (n :: vars)
+  weakenNs : (ns : List Name) -> tm vars -> tm (ns ++ vars)
 
-export
-apply : FC -> AppInfo -> Term vars -> List (Term vars) -> Term vars
-apply loc p fn [] = fn
-apply loc p fn (a :: args) = apply loc p (App loc fn p a) args
+  weakenNs [] t = t
+  weakenNs (n :: ns) t = weaken (weakenNs ns t)
 
-export
-applyInfo : FC -> Term vars -> List (AppInfo, Term vars) -> Term vars
-applyInfo loc fn [] = fn
-applyInfo loc fn ((p, a) :: args) = applyInfo loc (App loc fn p a) args
-
-export
-getFnArgs : Term vars -> (Term vars, List (AppInfo, Term vars))
-getFnArgs tm = getFA [] tm
-  where
-    getFA : List (AppInfo, Term vars) -> Term vars -> 
-            (Term vars, List (AppInfo, Term vars))
-    getFA args (App _ f i a) = getFA ((i, a) :: args) f
-    getFA args tm = (tm, args)
-
-export
-getFn : Term vars -> Term vars
-getFn (App _ f _ a) = getFn f
-getFn tm = tm
-
-export
-getArgs : Term vars -> (List (AppInfo, Term vars))
-getArgs = snd . getFnArgs
+  weaken = weakenNs [_]
 
 public export
 data Visibility = Private | Export | Public
@@ -412,14 +430,80 @@ Ord Visibility where
   compare Public Export = GT
 
 public export
-interface Weaken (tm : List Name -> Type) where
-  weaken : tm vars -> tm (n :: vars)
-  weakenNs : (ns : List Name) -> tm vars -> tm (ns ++ vars)
+data PartialReason 
+       = NotStrictlyPositive 
+       | BadCall (List Name)
+       | RecPath (List Name)
 
-  weakenNs [] t = t
-  weakenNs (n :: ns) t = weaken (weakenNs ns t)
+export
+Show PartialReason where
+  show NotStrictlyPositive = "not strictly positive"
+  show (BadCall [n]) 
+	   = "not terminating due to call to " ++ show n
+  show (BadCall ns) 
+	   = "not terminating due to calls to " ++ showSep ", " (map show ns) 
+  show (RecPath ns) 
+	   = "not terminating due to recursive path " ++ showSep " -> " (map show ns) 
 
-  weaken = weakenNs [_]
+public export
+data Terminating
+       = Unchecked
+       | IsTerminating
+       | NotTerminating PartialReason
+
+export
+Show Terminating where
+  show Unchecked = "not yet checked"
+  show IsTerminating = "terminating"
+  show (NotTerminating p) = show p
+
+public export
+data Covering 
+       = IsCovering
+       | MissingCases (List (Term []))
+       | NonCoveringCall (List Name)
+
+export
+Show Covering where
+  show IsCovering = "covering"
+  show (MissingCases c) = "not covering all cases"
+  show (NonCoveringCall [f]) 
+     = "not covering due to call to function " ++ show f
+  show (NonCoveringCall cs) 
+     = "not covering due to calls to functions " ++ showSep ", " (map show cs)
+
+-- Totality status of a definition. We separate termination checking from
+-- coverage checking.
+public export
+record Totality where
+     constructor MkTotality
+     isTerminating : Terminating
+     isCovering : Covering
+
+export
+Show Totality where
+  show tot
+    = let t	= isTerminating tot
+          c = isCovering tot in
+        showTot t c
+    where
+      showTot : Terminating -> Covering -> String
+      showTot IsTerminating IsCovering = "total"
+      showTot IsTerminating c = show c
+      showTot t IsCovering = show t
+      showTot t c = show c ++ "; " ++ show t
+
+export
+unchecked : Totality
+unchecked = MkTotality Unchecked IsCovering
+
+export
+isTotal : Totality
+isTotal = MkTotality Unchecked IsCovering
+
+export
+notCovering : Totality
+notCovering = MkTotality Unchecked (MissingCases [])
 
 export
 insertVar : {outer : _} ->
@@ -499,6 +583,59 @@ export
 Weaken Term where
   weaken tm = thin {outer = []} _ tm
   weakenNs ns tm = insertNames {outer = []} ns tm
+
+export
+varExtend : IsVar x idx xs -> IsVar x idx (xs ++ ys)
+-- What Could Possibly Go Wrong?
+-- This relies on the runtime representation of the term being the same
+-- after embedding! It is just an identity function at run time, though, and
+-- we don't need its definition at compile time, so let's do it...
+varExtend p = believe_me p
+
+export
+embed : Term vars -> Term (vars ++ more)
+embed tm = believe_me tm
+
+public export
+ClosedTerm : Type
+ClosedTerm = Term []
+
+export
+apply : FC -> AppInfo -> Term vars -> List (Term vars) -> Term vars
+apply loc p fn [] = fn
+apply loc p fn (a :: args) = apply loc p (App loc fn p a) args
+
+export
+applyInfo : FC -> Term vars -> List (AppInfo, Term vars) -> Term vars
+applyInfo loc fn [] = fn
+applyInfo loc fn ((p, a) :: args) = applyInfo loc (App loc fn p a) args
+
+-- Build a simple function type
+export
+fnType : Term vars -> Term vars -> Term vars
+fnType arg scope = Bind emptyFC (MN "_" 0) (Pi RigW Explicit arg) (weaken scope)
+
+export
+linFnType : Term vars -> Term vars -> Term vars
+linFnType arg scope = Bind emptyFC (MN "_" 0) (Pi Rig1 Explicit arg) (weaken scope)
+
+export
+getFnArgs : Term vars -> (Term vars, List (AppInfo, Term vars))
+getFnArgs tm = getFA [] tm
+  where
+    getFA : List (AppInfo, Term vars) -> Term vars -> 
+            (Term vars, List (AppInfo, Term vars))
+    getFA args (App _ f i a) = getFA ((i, a) :: args) f
+    getFA args tm = (tm, args)
+
+export
+getFn : Term vars -> Term vars
+getFn (App _ f _ a) = getFn f
+getFn tm = tm
+
+export
+getArgs : Term vars -> (List (AppInfo, Term vars))
+getArgs = snd . getFnArgs
 
 public export
 data CompatibleVars : List Name -> List Name -> Type where
@@ -630,10 +767,11 @@ mutual
   shrinkTerm (Erased fc) prf = Just (Erased fc)
   shrinkTerm (TType fc) prf = Just (TType fc)
 
-public export
-data Bounds : List Name -> Type where
-     None : Bounds []
-     Add : (x : Name) -> Name -> Bounds xs -> Bounds (x :: xs)
+namespace Bounds
+  public export
+  data Bounds : List Name -> Type where
+       None : Bounds []
+       Add : (x : Name) -> Name -> Bounds xs -> Bounds (x :: xs)
 
 addVars : {later, bound : _} ->
           {idx : Nat} ->

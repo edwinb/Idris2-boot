@@ -4,8 +4,11 @@ import Core.CaseTree
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Primitives
 import Core.TT
 import Core.Value
+
+import Data.Vect
 
 %default covering
 
@@ -240,6 +243,22 @@ parameters (defs : Defs, opts : EvalOpts)
                             evalWithOpts defs opts' env loc tm' stk
     evalTree env loc fc stk _ def = def
 
+    -- Take arguments from the stack, as long as there's enough.
+    -- Returns the arguments, and the rest of the stack
+    takeFromStack : (arity : Nat) -> Stack free ->
+                    Maybe (Vect arity (Closure free), Stack free)
+    takeFromStack arity stk = takeStk arity stk []
+      where
+        takeStk : (remain : Nat) -> Stack free -> 
+                  Vect got (Closure free) -> 
+                  Maybe (Vect (got + remain) (Closure free), Stack free)
+        takeStk {got} Z stk acc = Just (rewrite plusZeroRightNeutral got in
+                                    reverse acc, stk)
+        takeStk (S k) [] acc = Nothing
+        takeStk {got} (S k) (arg :: stk) acc 
+           = rewrite sym (plusSuccRightSucc got k) in
+                     takeStk k stk (snd arg :: acc)
+
     extendFromStack : (args : List Name) -> 
                       LocalEnv free vars -> Stack free ->
                       Maybe (LocalEnv free (args ++ vars), Stack free)
@@ -249,6 +268,24 @@ parameters (defs : Defs, opts : EvalOpts)
          = do (loc', stk') <- extendFromStack ns loc args
               pure (snd arg :: loc', stk')
 
+    evalOp : (Vect arity (NF free) -> Maybe (NF free)) ->
+             Stack free -> (def : Lazy (NF free)) ->
+             Core (NF free)
+    evalOp {arity} fn stk def
+        = case takeFromStack arity stk of
+               -- Stack must be exactly the right height
+               Just (args, []) => 
+                  do argsnf <- evalAll args
+                     case fn argsnf of
+                          Nothing => pure def
+                          Just res => pure res
+               _ => pure def
+      where
+        -- No traverse for Vect in Core...
+        evalAll : Vect n (Closure free) -> Core (Vect n (NF free))
+        evalAll [] = pure []
+        evalAll (c :: cs) = pure $ !(evalClosure defs c) :: !(evalAll cs)
+                   
     evalDef : {vars : _} ->
               Env Term free -> LocalEnv free vars ->
               (isMeta : Bool) -> FC ->
@@ -264,6 +301,8 @@ parameters (defs : Defs, opts : EvalOpts)
                        Just (locs', stk') => 
                             evalTree env locs' fc stk' tree (pure def)
              else pure def
+    evalDef {vars} env locs meta fc (Builtin op) flags stk def
+        = evalOp (getOp op) stk def
     -- All other cases, use the default value, which is already applied to
     -- the stack
     evalDef env locs _ _ _ _ stk def = pure def

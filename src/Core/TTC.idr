@@ -87,19 +87,6 @@ TTC PiInfo where
              _ => corrupt "PiInfo"
 
 export
-TTC Visibility where
-  toBuf b Private = tag 0
-  toBuf b Export = tag 1
-  toBuf b Public = tag 2
-
-  fromBuf s b 
-      = case !getTag of
-             0 => pure Private
-             1 => pure Export
-             2 => pure Public
-             _ => corrupt "Visibility"
-
-export
 TTC Constant where
   toBuf b (I x) = do tag 0; toBuf b x
   toBuf b (BI x) = do tag 1; toBuf b x
@@ -382,4 +369,145 @@ TTC (Env Term vars) where
       = do bnd <- fromBuf s b
            env <- fromBuf s b
            pure (bnd :: env)
+
+export
+TTC Visibility where
+  toBuf b Private = tag 0
+  toBuf b Export = tag 1
+  toBuf b Public = tag 2
+
+  fromBuf s b 
+      = case !getTag of
+             0 => pure Private
+             1 => pure Export
+             2 => pure Public
+             _ => corrupt "Visibility"
+
+export
+TTC PartialReason where
+  toBuf b NotStrictlyPositive = tag 0
+  toBuf b (BadCall xs) = do tag 1; toBuf b xs
+  toBuf b (RecPath xs) = do tag 2; toBuf b xs
+
+  fromBuf s b 
+      = case !getTag of
+             0 => pure NotStrictlyPositive
+             1 => do xs <- fromBuf s b
+                     pure (BadCall xs)
+             2 => do xs <- fromBuf s b
+                     pure (RecPath xs)
+             _ => corrupt "PartialReason"
+
+export
+TTC Terminating where
+  toBuf b Unchecked = tag 0
+  toBuf b IsTerminating = tag 1
+  toBuf b (NotTerminating p) = do tag 2; toBuf b p
+
+  fromBuf s b
+      = case !getTag of
+             0 => pure Unchecked
+             1 => pure IsTerminating
+             2 => do p <- fromBuf s b
+                     pure (NotTerminating p)
+             _ => corrupt "Terminating"
+
+export
+TTC Covering where
+  toBuf b IsCovering = tag 0
+  toBuf b (MissingCases ms) 
+      = do tag 1
+           toBuf b ms
+  toBuf b (NonCoveringCall ns) 
+      = do tag 2
+           toBuf b ns
+
+  fromBuf s b 
+      = case !getTag of
+             0 => pure IsCovering
+             1 => do ms <- fromBuf s b
+                     pure (MissingCases ms)
+             2 => do ns <- fromBuf s b
+                     pure (NonCoveringCall ns)
+             _ => corrupt "Covering"
+
+export
+TTC Totality where
+  toBuf b (MkTotality term cov) = do toBuf b term; toBuf b cov
+
+  fromBuf s b
+      = do term <- fromBuf s b
+           cov <- fromBuf s b
+           pure (MkTotality term cov)
+
+export
+TTC (PrimFn n) where
+  toBuf b (Add ty) = do tag 0; toBuf b ty
+  toBuf b (Sub ty) = do tag 1; toBuf b ty
+  toBuf b (Mul ty) = do tag 2; toBuf b ty
+  toBuf b (Div ty) = do tag 3; toBuf b ty
+  toBuf b (Mod ty) = do tag 4; toBuf b ty
+  toBuf b (Neg ty) = do tag 5; toBuf b ty
+  toBuf b (LT ty) = do tag 6; toBuf b ty
+  toBuf b (LTE ty) = do tag 7; toBuf b ty
+  toBuf b (EQ ty) = do tag 8; toBuf b ty
+  toBuf b (GTE ty) = do tag 9; toBuf b ty
+  toBuf b (GT ty) = do tag 10; toBuf b ty
+  toBuf b StrLength = tag 11
+  toBuf b StrHead = tag 12
+  toBuf b StrTail = tag 13
+  toBuf b StrIndex = tag 14
+  toBuf b StrCons = tag 15
+  toBuf b StrAppend = tag 16
+  toBuf b StrReverse = tag 17
+  toBuf b StrSubstr = tag 18
+  toBuf b (Cast x y) = do tag 19; toBuf b x; toBuf b y
+  toBuf b BelieveMe = tag 20
+
+  fromBuf {n} s b
+      = case n of
+             S Z => fromBuf1 s b
+             S (S Z) => fromBuf2 s b
+             S (S (S Z)) => fromBuf3 s b
+             _ => corrupt "PrimFn"
+    where
+      fromBuf1 : NameRefs -> Ref Bin Binary ->
+                 Core (PrimFn 1)
+      fromBuf1 s b
+          = case !getTag of
+                 5 => do ty <- fromBuf s b; pure (Neg ty)
+                 11 => pure StrLength
+                 12 => pure StrHead
+                 13 => pure StrTail
+                 17 => pure StrReverse
+                 19 => do x <- fromBuf s b; y <- fromBuf s b; pure (Cast x y)
+                 _ => corrupt "PrimFn 1"
+
+      fromBuf2 : NameRefs -> Ref Bin Binary ->
+                 Core (PrimFn 2)
+      fromBuf2 s b
+          = case !getTag of
+                 0 => do ty <- fromBuf s b; pure (Add ty)
+                 1 => do ty <- fromBuf s b; pure (Sub ty)
+                 2 => do ty <- fromBuf s b; pure (Mul ty)
+                 3 => do ty <- fromBuf s b; pure (Div ty)
+                 4 => do ty <- fromBuf s b; pure (Mod ty)
+                 6 => do ty <- fromBuf s b; pure (LT ty)
+                 7 => do ty <- fromBuf s b; pure (LTE ty)
+                 8 => do ty <- fromBuf s b; pure (EQ ty)
+                 9 => do ty <- fromBuf s b; pure (GTE ty)
+                 10 => do ty <- fromBuf s b; pure (GT ty)
+                 14 => pure StrIndex
+                 15 => pure StrCons
+                 16 => pure StrAppend
+                 _ => corrupt "PrimFn 2"
+      
+      fromBuf3 : NameRefs -> Ref Bin Binary ->
+                 Core (PrimFn 3)
+      fromBuf3 s b
+          = case !getTag of
+                 18 => pure StrSubstr
+                 20 => pure BelieveMe
+                 _ => corrupt "PrimFn 3"
+             
 

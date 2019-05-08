@@ -225,6 +225,8 @@ data Def : Type where
                 -- the environment. Used for display purposes, and for helping
                 -- find size changes in termination checking
             Def -- Ordinary function definition
+    ExternDef : (arity : Nat) -> Def
+    Builtin : {arity : Nat} -> PrimFn arity -> Def
     DCon : (tag : Int) -> (arity : Nat) -> Def -- data constructor
     TCon : (tag : Int) -> (arity : Nat) ->
            (parampos : List Nat) -> -- parameters
@@ -247,6 +249,8 @@ Show Def where
   show (DCon t a) = "DataCon " ++ show t ++ " " ++ show a
   show (TCon t a ps ds cons hints) 
       = "TyCon " ++ show t ++ " " ++ show a ++ " " ++ show cons
+  show (ExternDef arity) = "<external def with arith " ++ show arity ++ ">"
+  show (Builtin {arity} _) = "<builtin with arith " ++ show arity ++ ">"
   show (Hole inv) = "Hole"
   show (BySearch c depth def) = "Search in " ++ show def
   show (Guess tm cs) = "Guess " ++ show tm ++ " when " ++ show cs
@@ -257,15 +261,19 @@ TTC Def where
   toBuf b None = tag 0
   toBuf b (PMDef args ct rt pats) 
       = do tag 1; toBuf b args; toBuf b ct; toBuf b rt; toBuf b pats
-  toBuf b (DCon t arity) = do tag 2; toBuf b t; toBuf b arity
+  toBuf b (ExternDef a)
+      = do tag 2; toBuf b a
+  toBuf b (Builtin a)
+      = throw (InternalError "Trying to serialise a Builtin")
+  toBuf b (DCon t arity) = do tag 3; toBuf b t; toBuf b arity
   toBuf b (TCon t arity parampos detpos datacons _) 
-      = do tag 3; toBuf b t; toBuf b arity; toBuf b parampos
+      = do tag 4; toBuf b t; toBuf b arity; toBuf b parampos
            toBuf b detpos; toBuf b datacons
-  toBuf b (Hole invertible) = do tag 4; toBuf b invertible
+  toBuf b (Hole invertible) = do tag 5; toBuf b invertible
   toBuf b (BySearch c depth def) 
-      = do tag 5; toBuf b c; toBuf b depth; toBuf b def
-  toBuf b (Guess guess constraints) = do tag 6; toBuf b guess; toBuf b constraints
-  toBuf b ImpBind = tag 6
+      = do tag 6; toBuf b c; toBuf b depth; toBuf b def
+  toBuf b (Guess guess constraints) = do tag 7; toBuf b guess; toBuf b constraints
+  toBuf b ImpBind = tag 8
 
   fromBuf r b 
       = case !getTag of
@@ -275,19 +283,21 @@ TTC Def where
                      rt <- fromBuf r b
                      pats <- fromBuf r b
                      pure (PMDef args ct rt pats)
-             2 => do t <- fromBuf r b; a <- fromBuf r b
-                     pure (DCon t a)
+             2 => do a <- fromBuf r b
+                     pure (ExternDef a)
              3 => do t <- fromBuf r b; a <- fromBuf r b
+                     pure (DCon t a)
+             4 => do t <- fromBuf r b; a <- fromBuf r b
                      ps <- fromBuf r b; dets <- fromBuf r b; cs <- fromBuf r b
                      pure (TCon t a ps dets cs [])
-             4 => do i <- fromBuf r b;
+             5 => do i <- fromBuf r b;
                      pure (Hole i)
-             5 => do c <- fromBuf r b; depth <- fromBuf r b
+             6 => do c <- fromBuf r b; depth <- fromBuf r b
                      def <- fromBuf r b
                      pure (BySearch c depth def)
-             6 => do g <- fromBuf r b; cs <- fromBuf r b
+             7 => do g <- fromBuf r b; cs <- fromBuf r b
                      pure (Guess g cs)
-             7 => pure ImpBind
+             8 => pure ImpBind
              _ => corrupt "Def"
 
 public export
@@ -378,21 +388,23 @@ record GlobalDef where
   type : ClosedTerm
   multiplicity : RigCount
   visibility : Visibility
+  totality : Totality
   flags : List DefFlag
   definition : Def
 
 export
 TTC GlobalDef where
   toBuf b gdef 
-      -- Only write full details for user specified names. The others will
-      -- be holes where all we will ever need after loading is the definition
-      = do toBuf b (fullname gdef)
+      = -- Only write full details for user specified names. The others will
+        -- be holes where all we will ever need after loading is the definition
+        do toBuf b (fullname gdef)
            toBuf b (definition gdef)
            when (isUserName (fullname gdef)) $
               do toBuf b (location gdef)
                  toBuf b (type gdef)
                  toBuf b (multiplicity gdef)
                  toBuf b (visibility gdef)
+                 toBuf b (totality gdef)
                  toBuf b (flags gdef)
 
   fromBuf r b 
@@ -401,15 +413,16 @@ TTC GlobalDef where
            if isUserName name
               then do loc <- fromBuf r b; 
                       ty <- fromBuf r b; mul <- fromBuf r b
-                      vis <- fromBuf r b; fl <- fromBuf r b
-                      pure (MkGlobalDef loc name ty mul vis fl def)
+                      vis <- fromBuf r b; tot <- fromBuf r b
+                      fl <- fromBuf r b
+                      pure (MkGlobalDef loc name ty mul vis tot fl def)
               else do let fc = emptyFC
                       pure (MkGlobalDef fc name (Erased fc)
-                                        RigW Public [] def)
+                                        RigW Public unchecked [] def)
 
 export
 newDef : FC -> Name -> RigCount -> ClosedTerm -> Visibility -> Def -> GlobalDef
-newDef fc n rig ty vis def = MkGlobalDef fc n ty rig vis [] def
+newDef fc n rig ty vis def = MkGlobalDef fc n ty rig vis unchecked [] def
 
 public export
 record Defs where
@@ -470,6 +483,15 @@ addDef n def
          (idx, gam') <- addCtxt n def (gamma defs)
          put Ctxt (record { gamma = gam' } defs)
          pure idx
+
+export
+addBuiltin : {auto x : Ref Ctxt Defs} ->
+             Name -> ClosedTerm -> Totality ->
+             PrimFn arity -> Core ()
+addBuiltin n ty tot op 
+    = do addDef n (MkGlobalDef emptyFC n ty RigW Public tot 
+                               [Inline] (Builtin op)) 
+         pure ()
 
 export
 updateDef : {auto c : Ref Ctxt Defs} -> 

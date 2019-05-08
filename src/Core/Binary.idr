@@ -168,7 +168,10 @@ getSaveDefs [] acc _ = pure acc
 getSaveDefs (n :: ns) acc defs
     = do Just gdef <- lookupCtxtExact n (gamma defs)
               | Nothing => getSaveDefs ns acc defs -- 'n' really should exist though!
-         getSaveDefs ns (gdef :: acc) defs
+         -- No need to save builtins
+         case definition gdef of
+              Builtin _ => getSaveDefs ns acc defs
+              _ => getSaveDefs ns (gdef :: acc) defs
 
 -- Write out the things in the context which have been defined in the
 -- current source file

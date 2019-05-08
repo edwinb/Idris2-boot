@@ -7,6 +7,7 @@ import Core.Context
 import Core.Directory
 import Core.Env
 import Core.FC
+import Core.InitPrimitives
 import Core.Normalise
 import Core.Options
 import Core.TT
@@ -38,6 +39,7 @@ coreMain fname args
          d <- getDirs
          t <- processArgs args
          setLogTimings t
+         addPrimitives
          case span (/= '.') fname of
               (_, ".ttc") => do coreLift $ putStrLn "Processing as TTC"
                                 readFromTTC {extra = ()} emptyFC True fname [] []
