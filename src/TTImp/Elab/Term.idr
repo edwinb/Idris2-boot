@@ -9,6 +9,7 @@ import Core.TT
 import Core.Value
 
 import TTImp.Elab.App
+import TTImp.Elab.As
 import TTImp.Elab.Binders
 import TTImp.Elab.Check
 import TTImp.Elab.ImplicitBind
@@ -125,10 +126,10 @@ checkTerm rig elabinfo env (IBindHere fc binder sc) exp
     = checkBindHere rig elabinfo env fc binder sc exp
 checkTerm rig elabinfo env (IBindVar fc n) exp
     = checkBindVar rig elabinfo env fc n exp
-checkTerm rig elabinfo env (IAs fc n tm) exp
-    = throw (InternalError "As patterns not implemented")
+checkTerm rig elabinfo env (IAs fc n_in tm) exp
+    = checkAs rig elabinfo env fc n_in tm exp
 checkTerm rig elabinfo env (IMustUnify fc n tm) exp
-    = throw (InternalError "Dot patterns implemented")
+    = throw (InternalError "Dot patterns not implemented")
 
 checkTerm {vars} rig elabinfo env (IPrimVal fc c) exp 
     = do let (cval, cty) = checkPrim {vars} fc c

@@ -73,7 +73,7 @@ mutual
   insertCaseNames {outer} ns (STerm x) = STerm (insertNames {outer} ns x)
   insertCaseNames ns (Unmatched msg) = Unmatched msg
   insertCaseNames ns Impossible = Impossible
-    
+
   insertCaseAltNames : (ns : List Name) -> 
                        CaseAlt (outer ++ inner) -> 
                        CaseAlt (outer ++ (ns ++ inner))

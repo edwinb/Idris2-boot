@@ -133,6 +133,7 @@ mutual
              metaval <- metaVar fc argRig env nm metaty
              let fntm = App fc tm appinf metaval
              logNF 10 ("Delaying " ++ show nm ++ " " ++ show arg) env aty
+             logTerm 10 "...as" metaval
              fnty <- sc defs (toClosure defaultOpts env metaval)
              (tm, gty) <- checkAppWith rig elabinfo env fc
                                        fntm fnty expargs impargs kr expty

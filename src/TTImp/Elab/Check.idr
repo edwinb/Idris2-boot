@@ -15,9 +15,48 @@ import Core.Value
 import TTImp.TTImp
 
 import Data.IntMap
+import Data.NameMap
 
 public export
 data ElabMode = InType | InLHS RigCount | InExpr
+
+-- Descriptions of implicit name bindings. They're either just the name,
+-- or a binding of an @-pattern which has an associated pattern.
+public export
+data ImplBinding : List Name -> Type where
+     NameBinding : (elabAs : Term vars) -> (expTy : Term vars) ->
+                   ImplBinding vars
+     AsBinding : (elabAs : Term vars) -> (expTy : Term vars) ->
+                 (pat : Term vars) ->
+                 ImplBinding vars
+
+export
+Show (ImplBinding vars) where
+  show (NameBinding p ty) = show (p, ty)
+  show (AsBinding p ty tm) = show (p, ty) ++ "@" ++ show tm
+
+export
+bindingMetas : ImplBinding vars -> NameMap ()
+bindingMetas (NameBinding tm ty) = getMetas ty
+bindingMetas (AsBinding tm ty pat) 
+    = insertAll (toList (getMetas ty)) (getMetas pat)
+  where
+    insertAll : List (Name, ()) -> NameMap () -> NameMap ()
+    insertAll [] ns = ns
+    insertAll ((k, v) :: ks) ns = insert k v (insertAll ks ns)
+
+-- Get the type of an implicit name binding
+export
+bindingType : ImplBinding vars -> Term vars
+bindingType (NameBinding _ ty) = ty
+bindingType (AsBinding _ ty _) = ty
+
+-- Get the term (that is, the expanded thing it elaborates to, of the name
+-- applied to the context) from an implicit binding
+export
+bindingTerm : ImplBinding vars -> Term vars
+bindingTerm (NameBinding tm _) = tm
+bindingTerm (AsBinding tm _ _) = tm
 
 -- Current elaboration state (preserved/updated throughout elaboration)
 public export
@@ -30,10 +69,10 @@ record EState (vars : List Name) where
   -- the only things that unbound implicits can depend on
   outerEnv : Env Term outer
   subEnv : SubVars outer vars
-  boundNames : List (Name, (Term vars, Term vars))
+  boundNames : List (Name, ImplBinding vars)
                   -- implicit pattern/type variable bindings and the 
                   -- term/type they elaborated to
-  toBind : List (Name, (Term vars, Term vars))
+  toBind : List (Name, ImplBinding vars)
                   -- implicit pattern/type variables which haven't been
                   -- bound yet.
   bindIfUnsolved : List (Name, RigCount,
@@ -75,9 +114,11 @@ weakenedEState {e}
                               (allPatVars est))
          pure eref
   where
-    wknTms : (Name, (Term vs, Term vs)) -> 
-             (Name, (Term (n :: vs), Term (n :: vs)))
-    wknTms (f, (x, y)) = (f, (weaken x, weaken y))
+    wknTms : (Name, ImplBinding vs) -> 
+             (Name, ImplBinding (n :: vs))
+    wknTms (f, NameBinding x y) = (f, NameBinding (weaken x) (weaken y))
+    wknTms (f, AsBinding x y z)
+        = (f, AsBinding (weaken x) (weaken y) (weaken z))
 
 strengthenedEState : Ref Ctxt Defs ->
                      Ref EST (EState (n :: vars)) ->
@@ -103,15 +144,25 @@ strengthenedEState {n} {vars} c e fc env
     dropSub (DropCons sub) = pure sub
     dropSub _ = throw (InternalError "Badly formed weakened environment")
 
-    strTms : Defs -> (Name, (Term (n :: vars), Term (n :: vars))) -> 
-             Core (Name, (Term vars, Term vars))
-    strTms defs (f, (x, y))
+    strTms : Defs -> (Name, ImplBinding (n :: vars)) -> 
+             Core (Name, ImplBinding vars)
+    strTms defs (f, NameBinding x y)
         = do xnf <- normaliseHoles defs env x
              ynf <- normaliseHoles defs env y
              case (shrinkTerm xnf (DropCons SubRefl), 
                    shrinkTerm ynf (DropCons SubRefl)) of
-               (Just x', Just y') => pure (f, (x', y'))
+               (Just x', Just y') => pure (f, NameBinding x' y')
                _ => throw (GenericMsg fc ("Invalid unbound implicit " ++ 
+                               show f ++ " " ++ show xnf ++ " : " ++ show ynf))
+    strTms defs (f, AsBinding x y z)
+        = do xnf <- normaliseHoles defs env x
+             ynf <- normaliseHoles defs env y
+             znf <- normaliseHoles defs env y
+             case (shrinkTerm xnf (DropCons SubRefl), 
+                   shrinkTerm ynf (DropCons SubRefl),
+                   shrinkTerm znf (DropCons SubRefl)) of
+               (Just x', Just y', Just z') => pure (f, AsBinding x' y' z')
+               _ => throw (GenericMsg fc ("Invalid as binding " ++ 
                                show f ++ " " ++ show xnf ++ " : " ++ show ynf))
 
 export

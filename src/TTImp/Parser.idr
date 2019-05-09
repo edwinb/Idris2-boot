@@ -107,14 +107,24 @@ mutual
            symbol "}"
            pure (Nothing, tm)
 
+  as : FileName -> IndentInfo -> Rule RawImp
+  as fname indents
+      = do start <- location
+           x <- unqualifiedName
+           symbol "@"
+           pat <- simpleExpr fname indents
+           end <- location
+           pure (IAs (MkFC fname start end) (UN x) pat)
+
   simpleExpr : FileName -> IndentInfo -> Rule RawImp
   simpleExpr fname indents
-       = atom fname
-     <|> binder fname indents
-     <|> do symbol "("
-            e <- expr fname indents
-            symbol ")"
-            pure e
+      = as fname indents
+    <|> atom fname
+    <|> binder fname indents
+    <|> do symbol "("
+           e <- expr fname indents
+           symbol ")"
+           pure e
 
   multiplicity : EmptyRule (Maybe Integer)
   multiplicity

@@ -65,7 +65,10 @@ parameters (defs : Defs, opts : EvalOpts)
                                               env (arg :: locs) scope stk)
     eval env locs (App fc fn p arg) stk 
         = eval env locs fn ((p, MkClosure opts locs env arg) :: stk)
-    eval env locs (As fc _ tm) stk = eval env locs tm stk 
+    eval env locs (As fc n tm) stk 
+        = do n' <- eval env locs n stk
+             tm' <- eval env locs tm stk 
+             pure (NAs fc n' tm')
     eval env locs (TDelayed fc r ty) stk 
         = pure (NDelayed fc r (MkClosure opts locs env ty))
     eval env locs (TDelay fc r tm) stk 
@@ -442,6 +445,10 @@ mutual
   quoteGenNF q defs bound env (NTCon fc n t ar args) 
       = do args' <- quoteArgs q defs bound env args
            pure $ applyInfo fc (Ref fc (TyCon t ar) n) args'
+  quoteGenNF q defs bound env (NAs fc n pat)
+      = do n' <- quoteGenNF q defs bound env n
+           pat' <- quoteGenNF q defs bound env pat
+           pure (As fc n' pat')
   quoteGenNF q defs bound env (NDelayed fc r arg)
       = do argNF <- evalClosure defs arg
            argQ <- quoteGenNF q defs bound env argNF
@@ -589,6 +596,8 @@ mutual
         = if nm == nm'
              then allConv q defs env (map snd args) (map snd args')
              else pure False
+    convGen q defs env (NAs _ _ tm) (NAs _ _ tm')
+        = convGen q defs env tm tm'
 
     convGen q defs env (NDelayed _ r arg) (NDelayed _ r' arg')
         = if r == r'

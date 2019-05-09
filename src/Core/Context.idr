@@ -925,6 +925,8 @@ toFullNames tm
         = pure (Bind fc x !(traverse (full gam) b) !(full gam scope))
     full gam (App fc fn p arg) 
         = pure (App fc !(full gam fn) p !(full gam arg))
+    full gam (As fc p tm)
+        = pure (As fc !(full gam p) !(full gam tm))
     full gam (TDelayed fc x y) 
         = pure (TDelayed fc x !(full gam y))
     full gam (TDelay fc x y)

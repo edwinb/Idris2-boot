@@ -54,6 +54,7 @@ mutual
                   List (AppInfo, Closure vars) -> NF vars
        NTCon    : FC -> Name -> (tag : Int) -> (arity : Nat) -> 
                   List (AppInfo, Closure vars) -> NF vars
+       NAs      : FC -> NF vars -> NF vars -> NF vars
        NDelayed : FC -> LazyReason -> Closure vars -> NF vars
        NDelay   : FC -> LazyReason -> Closure vars -> NF vars
        NForce   : FC -> NF vars -> NF vars

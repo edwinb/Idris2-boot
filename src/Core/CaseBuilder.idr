@@ -230,17 +230,21 @@ clauseType : Phase -> PatClause vars (a :: as) -> ClauseType
 -- and don't see later, treat it as a variable
 -- Or, if we're compiling for runtime we won't be able to split on it, so
 -- also treat it as a variable
-clauseType CompileTime (MkPatClause pvars (MkInfo (PCon _ _ _ _ xs) _ (Known Rig0 t) :: rest) rhs) 
-    = if all (namesIn (pvars ++ concatMap namesFrom (getPatInfo rest))) xs
-         then VarClause
-         else ConClause
-clauseType phase (MkPatClause pvars (MkInfo _ _ (Known Rig0 t) :: _) rhs) 
-    = VarClause
-clauseType phase (MkPatClause _ (MkInfo (PCon _ _ _ _ xs) _ _ :: _) rhs) = ConClause
-clauseType phase (MkPatClause _ (MkInfo (PTyCon _ _ _ xs) _ _ :: _) rhs) = ConClause
-clauseType phase (MkPatClause _ (MkInfo (PConst _ x) _ _ :: _) rhs) = ConClause
-clauseType phase (MkPatClause _ (MkInfo (PArrow _ _ s t) _ _ :: _) rhs) = ConClause
-clauseType phase (MkPatClause _ (_ :: _) rhs) = VarClause
+clauseType phase (MkPatClause pvars (MkInfo arg _ ty :: rest) rhs)
+    = getClauseType phase arg ty
+  where
+    getClauseType : Phase -> Pat -> ArgType vars -> ClauseType
+    getClauseType CompileTime (PCon _ _ _ _ xs) (Known Rig0 t)
+        = if all (namesIn (pvars ++ concatMap namesFrom (getPatInfo rest))) xs
+             then VarClause
+             else ConClause
+    getClauseType phase _ (Known Rig0 t) = VarClause
+    getClauseType phase (PAs _ _ p) t = getClauseType phase p t
+    getClauseType phase (PCon _ _ _ _ xs) _ = ConClause
+    getClauseType phase (PTyCon _ _ _ xs) _ = ConClause
+    getClauseType phase (PConst _ x) _ = ConClause
+    getClauseType phase (PArrow _ _ s t) _ = ConClause
+    getClauseType phase _ _ = VarClause
 
 partition : Phase -> (ps : List (PatClause vars (a :: as))) -> Partitions ps
 partition phase [] = NoClauses
@@ -840,16 +844,12 @@ getPMDef fc phase fn ty clauses
          simpleCase fc phase fn ty Nothing cs
   where
     close : Defs ->
-            Int -> (lets : Bool) -> Env Term vars -> Term vars -> ClosedTerm
-    close defs i lets [] tm = tm
-    close defs i True (Let c val ty :: bs) tm 
-		    = close defs (i + 1) True bs 
-                (Bind fc (MN "pat" i) 
-                      (Let c val ty) (renameTop _ tm))
-    close defs i lets (b :: bs) tm 
-        = close defs (i + 1) lets bs (subst (Ref fc Bound (MN "pat" i)) tm)
+            Int -> Env Term vars -> Term vars -> ClosedTerm
+    close defs i [] tm = tm
+    close defs i (b :: bs) tm 
+        = close defs (i + 1) bs (subst (Ref fc Bound (MN "pat" i)) tm)
 
     toClosed : Defs -> Clause -> (ClosedTerm, ClosedTerm)
     toClosed defs (MkClause env lhs rhs) 
-          = (close defs 0 False env lhs, close defs 0 True env rhs)
+          = (close defs 0 env lhs, close defs 0 env rhs)
 

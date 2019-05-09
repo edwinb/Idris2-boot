@@ -227,8 +227,9 @@ data Binder : Type -> Type where
      Pi : RigCount -> PiInfo -> (ty : type) -> Binder type
 		 -- pattern bound variables
      PVar : RigCount -> (ty : type) -> Binder type 
-		 -- variable bound for an as pattern
-     -- TODO: Possibly remove, 'Let', 'As' and 'PAs' might be enough
+		 -- variable bound for an as pattern (Like a let, but no computational
+     -- force, and only used on the lhs. Converted to a let on the rhs because
+     -- we want the computational behaviour.)
      PLet : RigCount -> (val : type) -> (ty : type) -> Binder type 
 		 -- the type of pattern bound variables
      PVTy : RigCount -> (ty : type) -> Binder type
@@ -359,6 +360,10 @@ data Term : List Name -> Type where
      -- as patterns; since we check LHS patterns as terms before turning
      -- them into patterns, this helps us get it right. When normalising,
      -- we just reduce the inner term and ignore the 'as' part
+     -- The 'as' part should really be a Name rather than a Term, but it's
+     -- easier this way since it gives us the ability to work with unresolved
+     -- names (Ref) and resolved names (Local) without having to define a
+     -- special purpose thing. (But it'd be nice to tidy that up, nevertheless)
      As : FC -> (as : Term vars) -> (pat : Term vars) -> Term vars
      -- Typed laziness annotations
      TDelayed : FC -> LazyReason -> Term vars -> Term vars
@@ -1018,6 +1023,7 @@ export Show (Term vars) where
           = "pty " ++ showCount c ++ show x ++ " : " ++ show ty ++ 
             " => " ++ show sc
       showApp (App _ _ _ _) [] = "[can't happen]"
+      showApp (As _ n tm) [] = show n ++ "@" ++ show tm
       showApp (TDelayed _ _ tm) [] = "Delayed " ++ show tm
       showApp (TDelay _ _ tm) [] = "Delay " ++ show tm
       showApp (TForce _ tm) [] = "Force " ++ show tm

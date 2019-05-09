@@ -84,6 +84,7 @@ mkOuterHole loc rig n topenv Nothing
 -- Returns the hole term, its expected type (this is the type we'll use when
 -- we see the name later) and the type the binder will need to be when we
 -- instantiate it.
+export
 mkPatternHole : {auto e : Ref EST (EState vars)} ->
                 {auto c : Ref Ctxt Defs} ->
                 {auto e : Ref UST UState} ->
@@ -152,8 +153,9 @@ bindUnsolved {vars} fc elabmode _
                     do impn <- genVarName (nameRoot n)
                        tm <- metaVar fc rig env impn exp'
                        est <- get EST
-                       put EST (record { toBind $= ((impn, (embedSub subvars tm, 
-                                                            embedSub subvars exp')) ::) } est)
+                       put EST (record { toBind $= ((impn, NameBinding
+                                                             (embedSub subvars tm)
+                                                             (embedSub subvars exp')) ::) } est)
                        pure (embedSub sub tm)
 
     mkImplicit : Defs -> Env Term outer -> SubVars outer vars ->
@@ -235,11 +237,11 @@ liftImps _ x = x
 bindImplVars : FC -> BindMode ->
                Defs ->
                Env Term vars ->
-               List (Name, Term vars) ->
+               List (Name, ImplBinding vars) ->
                Term vars -> Term vars -> (Term vars, Term vars)
 bindImplVars fc NONE gam env imps_in scope scty = (scope, scty)
 bindImplVars {vars} fc mode gam env imps_in scope scty 
-    = let imps = map (\ (x, ty) => (tidyName x, x, ty)) imps_in in
+    = let imps = map (\ (x, bind) => (tidyName x, x, bind)) imps_in in
           getBinds imps None scope scty
   where
     -- Turn the pattern variable name into the user's original choice,
@@ -250,11 +252,11 @@ bindImplVars {vars} fc mode gam env imps_in scope scty
     tidyName (Nested n inner) = tidyName inner
     tidyName n = n
 
-    getBinds : (imps : List (Name, Name, Term vs)) -> 
+    getBinds : (imps : List (Name, Name, ImplBinding vs)) -> 
                Bounds new -> (tm : Term vs) -> (ty : Term vs) ->
                (Term (new ++ vs), Term (new ++ vs))
     getBinds [] bs tm ty = (refsToLocals bs tm, refsToLocals bs ty)
-    getBinds ((n, metan, bty) :: imps) bs tm ty
+    getBinds ((n, metan, NameBinding _ bty) :: imps) bs tm ty
         = let (tm', ty') = getBinds imps (Add n metan bs) tm ty 
               bty' = refsToLocals bs bty in
               case mode of
@@ -264,6 +266,12 @@ bindImplVars {vars} fc mode gam env imps_in scope scty
                    _ =>
                       (Bind fc _ (PVar RigW bty') tm', 
                        Bind fc _ (PVTy RigW bty') ty')
+    getBinds ((n, metan, AsBinding _ bty bpat) :: imps) bs tm ty
+        = let (tm', ty') = getBinds imps (Add n metan bs) tm ty 
+              bty' = refsToLocals bs bty
+              bpat' = refsToLocals bs bpat in
+              (Bind fc _ (PLet RigW bpat' bty') tm', 
+               Bind fc _ (PLet RigW bpat' bty') ty')
 
 normaliseHolesScope : Defs -> Env Term vars -> Term vars -> Core (Term vars)
 normaliseHolesScope defs env (Bind fc n b sc) 
@@ -276,15 +284,18 @@ normaliseHolesScope defs env tm = normaliseHoles defs env tm
 export
 bindImplicits : FC -> BindMode ->
                 Defs -> Env Term vars ->
-                List (Name, Term vars) ->
+                List (Name, ImplBinding vars) ->
                 Term vars -> Term vars -> Core (Term vars, Term vars)
 bindImplicits fc NONE defs env hs tm ty = pure (tm, ty)
 bindImplicits {vars} fc mode defs env hs tm ty 
    = do hs' <- traverse nHoles hs
         pure $ liftImps mode $ bindImplVars fc mode defs env hs' tm ty
   where
-    nHoles : (Name, Term vars) -> Core (Name, Term vars)
-    nHoles (n, ty) = pure (n, !(normaliseHolesScope defs env ty))
+    nHoles : (Name, ImplBinding vars) -> Core (Name, ImplBinding vars)
+    nHoles (n, NameBinding tm ty)
+        = pure (n, NameBinding tm !(normaliseHolesScope defs env ty))
+    nHoles (n, AsBinding tm ty pat)
+        = pure (n, AsBinding tm !(normaliseHolesScope defs env ty) pat)
 
 export
 implicitBind : {auto c : Ref Ctxt Defs} ->
@@ -307,7 +318,7 @@ getToBind : {auto c : Ref Ctxt Defs} -> {auto e : Ref EST (EState vars)} ->
             {auto u : Ref UST UState} ->
             FC -> ElabMode -> BindMode ->
             Env Term vars -> (excepts : List Name) -> Term vars ->
-            Core (List (Name, Term vars))
+            Core (List (Name, ImplBinding vars))
 getToBind fc elabmode NONE env excepts toptom
     = pure [] -- We should probably never get here, but for completeness...
 getToBind {vars} fc elabmode impmode env excepts toptm
@@ -327,19 +338,30 @@ getToBind {vars} fc elabmode impmode env excepts toptm
          res <- normImps defs [] tob
          let hnames = map fst res 
          -- Return then in dependency order
-         pure (depSort hnames res)
+         let res' = depSort hnames res
+         log 10 $ "Bound names: " ++ show res
+         log 10 $ "Sorted: " ++ show res'
+         pure res'
   where
-    normImps : Defs -> List Name -> List (Name, Term vars, Term vars) -> 
-               Core (List (Name, Term vars))
+    normBindingTy : Defs -> ImplBinding vars -> Core (ImplBinding vars)
+    normBindingTy defs (NameBinding tm ty)
+        = pure $ NameBinding tm !(normaliseHoles defs env ty)
+    normBindingTy defs (AsBinding tm ty pat)
+        = pure $ AsBinding tm !(normaliseHoles defs env ty) 
+                              !(normaliseHoles defs env pat)
+
+    normImps : Defs -> List Name -> List (Name, ImplBinding vars) -> 
+               Core (List (Name, ImplBinding vars))
     normImps defs ns [] = pure []
-    normImps defs ns ((PV n i, tm, ty) :: ts) 
-        = do logTermNF 10 ("Implicit pattern var " ++ show (PV n i)) env ty
+    normImps defs ns ((PV n i, bty) :: ts) 
+        = do logTermNF 10 ("Implicit pattern var " ++ show (PV n i)) env 
+                       (bindingType bty)
              if PV n i `elem` ns
                 then normImps defs ns ts
                 else do rest <- normImps defs (PV n i :: ns) ts
-                        pure ((PV n i, !(normaliseHoles defs env ty)) :: rest)
-    normImps defs ns ((n, tm, ty) :: ts)
-        = do tmnf <- normaliseHoles defs env tm
+                        pure ((PV n i, !(normBindingTy defs bty)) :: rest)
+    normImps defs ns ((n, bty) :: ts)
+        = do tmnf <- normaliseHoles defs env (bindingTerm bty)
              logTerm 10 ("Normalising implicit " ++ show n) tmnf
              case getFnArgs tmnf of
                 -- n reduces to another hole, n', so treat it as that as long
@@ -348,35 +370,33 @@ getToBind {vars} fc elabmode impmode env excepts toptm
                     do hole <- isCurrentHole i
                        if hole && not (n' `elem` ns)
                           then do rest <- normImps defs (n' :: ns) ts
-                                  tynf <- normaliseHoles defs env ty
-                                  pure ((n', tynf) :: rest)
+                                  btynf <- normBindingTy defs bty
+                                  pure ((n', btynf) :: rest)
                           else normImps defs ns ts
                 _ => -- Unified to something concrete, so drop it
                      normImps defs ns ts
---                 _ => do rest <- normImps defs (n :: ns) ts
---                         tynf <- normaliseHoles defs env ty
---                         pure ((n, tynf) :: rest)
 
     -- Insert the hole/binding pair into the list before the first thing
     -- which refers to it
-    insert : (Name, Term vars) -> List Name -> List Name -> 
-             List (Name, Term vars) -> 
-             List (Name, Term vars)
+    insert : (Name, ImplBinding vars) -> List Name -> List Name -> 
+             List (Name, ImplBinding vars) -> 
+             List (Name, ImplBinding vars)
     insert h ns sofar [] = [h]
-    insert (hn, hty) ns sofar ((hn', hty') :: rest)
-        = let used = filter (\n => elem n ns) (map fst (toList (getMetas hty'))) in
+    insert (hn, bty) ns sofar ((hn', bty') :: rest)
+        = let used = filter (\n => elem n ns) (map fst (toList (bindingMetas bty'))) in
               -- 'used' is to make sure we're only worrying about metavariables
               -- introduced in *this* expression (there may be others unresolved
               -- from elsewhere, for type inference purposes)
               if hn `elem` used
-                 then (hn, hty) :: (hn', hty') :: rest
-                 else (hn', hty') :: 
-                          insert (hn, hty) ns (hn' :: sofar) rest
+                 then (hn, bty) :: 
+                      (hn', bty') :: rest
+                 else (hn', bty') :: 
+                          insert (hn, bty) ns (hn' :: sofar) rest
     
     -- Sort the list of implicits so that each binding is inserted *after*
     -- all the things it depends on (assumes no cycles)
-    depSort : List Name -> List (Name, Term vars) -> 
-              List (Name, Term vars)
+    depSort : List Name -> List (Name, ImplBinding vars) -> 
+              List (Name, ImplBinding vars)
     depSort hnames [] = []
     depSort hnames (h :: hs) = insert h hnames [] (depSort hnames hs)
 
@@ -411,12 +431,14 @@ checkBindVar rig elabinfo env fc str topexp
                    defs <- get Ctxt
                    est <- get EST
                    put EST 
-                       (record { boundNames $= ((n, (tm, exp)) ::),
-                                 toBind $= ((n, (tm, bty)) :: ) } est)
+                       (record { boundNames $= ((n, NameBinding tm exp) ::),
+                                 toBind $= ((n, NameBinding tm bty) :: ) } est)
                    -- addNameType loc (UN str) env exp
                    checkExp rig elabinfo env fc tm (gnf env exp) topexp
-              Just (tm, ty) =>
+              Just bty =>
                 do -- TODO: for metadata addNameType loc (UN str) env ty
+                   let tm = bindingTerm bty
+                   let ty = bindingType bty
                    defs <- get Ctxt
                    checkExp rig elabinfo env fc tm (gnf env ty) topexp
 

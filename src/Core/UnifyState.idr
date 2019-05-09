@@ -230,7 +230,7 @@ mkConstantAppArgs : Bool -> FC -> Env Term vars ->
 mkConstantAppArgs lets fc [] wkns = []
 mkConstantAppArgs {done} {vars = x :: xs} lets fc (b :: env) wkns
     = let rec = mkConstantAppArgs {done} lets fc env (wkns ++ [x]) in
-          if not lets || notLet b
+          if lets || notLet b
              then Local fc Nothing (length wkns) (mkVar wkns) :: 
                   rewrite (appendAssociative wkns [x] (xs ++ done)) in rec
              else rewrite (appendAssociative wkns [x] (xs ++ done)) in rec

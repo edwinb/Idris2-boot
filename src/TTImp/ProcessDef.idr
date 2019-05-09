@@ -25,6 +25,12 @@ extendEnv env (Bind _ n (PVar c tmty) sc) (Bind _ n' (PVTy _ _) tysc) with (name
       = throw (InternalError "Can't happen: names don't match in pattern type")
   extendEnv env (Bind _ n (PVar c tmty) sc) (Bind _ n (PVTy _ _) tysc) | (Just Refl)
       = extendEnv (PVar c tmty :: env) sc tysc
+extendEnv env (Bind _ n (PLet c tmval tmty) sc) (Bind _ n' (PLet _ _ _) tysc) with (nameEq n n')
+  extendEnv env (Bind _ n (PLet c tmval tmty) sc) (Bind _ n' (PLet _ _ _) tysc) | Nothing
+      = throw (InternalError "Can't happen: names don't match in pattern type")
+  -- PLet on the left becomes Let on the right, to give it computational force
+  extendEnv env (Bind _ n (PLet c tmval tmty) sc) (Bind _ n (PLet _ _ _) tysc) | (Just Refl)
+      = extendEnv (Let c tmval tmty :: env) sc tysc
 extendEnv env tm ty 
       = pure (_ ** (env, tm, ty))
 

@@ -1,0 +1,4 @@
+as Z
+as (S (S (S Z)))
+pairPred (S (S (S (S Z))))
+:q
