@@ -8,6 +8,7 @@ import Core.UnifyState
 import Core.Unify
 
 import TTImp.Elab.Check
+import TTImp.Elab.Delayed
 import TTImp.Elab.Term
 import TTImp.TTImp
 
@@ -24,7 +25,8 @@ elabTerm : {vars : _} ->
            Env Term vars -> RawImp -> Maybe (Glued vars) ->
            Core (Term vars, Glued vars)
 elabTerm defining mode env tm ty
-    = do defs <- get Ctxt
+    = do let incase = False -- TODO
+         defs <- get Ctxt
          e <- newRef EST (initEState defining env)
          let rigc = getRigNeeded mode
          (chktm, chkty) <- check {e} rigc (initElabInfo mode) env tm ty
@@ -32,13 +34,23 @@ elabTerm defining mode env tm ty
          -- - Solve any constraints, then retry any delayed elaborations
          -- - Finally, last attempts at solving constraints, but this
          --   is most likely just to be able to display helpful errors
-         solveConstraints (case mode of
-                                InLHS _ => InLHS
-                                _ => InTerm) Normal
-         solveConstraints (case mode of
-                                InLHS _ => InLHS
-                                _ => InTerm) LastChance
-         checkNoGuards -- all unification problems must now be solved
+         let solvemode = case mode of
+                              InLHS _ => InLHS
+                              _ => InTerm
+         solveConstraints solvemode Normal
+         solveConstraints solvemode Normal
+         retryDelayedIn env chktm
+         -- As long as we're not in a case block, finish off constraint solving
+         when (not incase) $
+           -- resolve any default hints
+           do solveConstraints solvemode Defaults
+              -- perhaps resolving defaults helps...
+              -- otherwise, this last go is most likely just to give us more
+              -- helpful errors.
+              solveConstraints solvemode LastChance
+
+         when (not incase) $
+           checkNoGuards -- all unification problems must now be solved
 --          checkUserHoles True -- TODO on everything but types!
          pure (chktm, chkty)
 

@@ -66,10 +66,14 @@ record UState where
   constraints : IntMap Constraint -- map for finding constraints by ID
   nextName : Int
   nextConstraint : Int
+  delayedElab : IntMap (Core ClosedTerm)
+                -- Elaborators which we need to try again later, because
+                -- we didn't have enough type information to elaborate
+                -- successfully yet
 
 export
 initUState : UState
-initUState = MkUState empty empty empty empty 0 0
+initUState = MkUState empty empty empty empty 0 0 empty
 
 export
 data UST : Type where
@@ -321,6 +325,24 @@ newSearch {vars} fc rig depth def env n ty
     envArgs = let args = reverse (mkConstantAppArgs {done = []} False fc env []) in
                   rewrite sym (appendNilRightNeutral vars) in args
 
+-- Add a hole which stands for a delayed elaborator
+export
+newDelayed : {auto u : Ref UST UState} ->
+             {auto c : Ref Ctxt Defs} ->       
+             FC -> RigCount -> 
+             Env Term vars -> Name ->
+             (ty : Term vars) -> Core (Int, Term vars)
+newDelayed {vars} fc rig env n ty
+    = do let hty = abstractEnvType fc env ty
+         let hole = newDef fc n rig hty Public Delayed
+         log 10 $ "Added delayed elaborator " ++ show n
+         idx <- addDef n hole
+         addHoleName fc n idx
+         pure (idx, Meta fc n idx envArgs)
+  where
+    envArgs : List (Term vars)
+    envArgs = let args = reverse (mkConstantAppArgs {done = []} False fc env []) in
+                  rewrite sym (appendNilRightNeutral vars) in args
 
 export
 tryErrorUnify : {auto c : Ref Ctxt Defs} ->

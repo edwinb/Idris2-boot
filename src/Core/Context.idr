@@ -243,6 +243,9 @@ data Def : Type where
     -- constraints in the UnifyState (see Core.UnifyState)
     Guess : (guess : ClosedTerm) -> (constraints : List Int) -> Def
     ImpBind : Def -- global name temporarily standing for an implicitly bound name
+    -- A delayed elaboration. The elaborators themselves are stored in the
+    -- unifiation state
+    Delayed : Def
 
 export
 Show Def where
@@ -258,6 +261,7 @@ Show Def where
   show (BySearch c depth def) = "Search in " ++ show def
   show (Guess tm cs) = "Guess " ++ show tm ++ " when " ++ show cs
   show ImpBind = "Implicitly bound"
+  show Delayed = "Delayed"
 
 export
 TTC Def where
@@ -277,6 +281,7 @@ TTC Def where
       = do tag 6; toBuf b c; toBuf b depth; toBuf b def
   toBuf b (Guess guess constraints) = do tag 7; toBuf b guess; toBuf b constraints
   toBuf b ImpBind = tag 8
+  toBuf b Delayed = tag 9
 
   fromBuf r b 
       = case !getTag of
@@ -301,6 +306,7 @@ TTC Def where
              7 => do g <- fromBuf r b; cs <- fromBuf r b
                      pure (Guess g cs)
              8 => pure ImpBind
+             9 => pure Context.Delayed
              _ => corrupt "Def"
 
 public export

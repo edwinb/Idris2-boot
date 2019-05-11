@@ -117,8 +117,8 @@ checkTerm rig elabinfo env (ISearch fc depth) Nothing
          nm <- genName "search"
          sval <- searchVar fc rig depth (Resolved (defining est)) env nm ty
          pure (sval, gnf env ty)
-checkTerm rig elabinfo env (IAlternative fc atype alts) exp
-    = throw (InternalError "alternatives not implemented")
+checkTerm rig elabinfo env (IAlternative fc uniq alts) exp
+    = checkAlternative rig elabinfo env fc uniq alts exp
 checkTerm rig elabinfo env (IRewrite fc rule tm) exp
     = throw (InternalError "rewrite not implemented")
 checkTerm rig elabinfo env (ICoerced fc tm) exp

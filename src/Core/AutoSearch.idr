@@ -75,7 +75,8 @@ searchIfHole fc defaults ispair (S depth) def top env arg
               | _ => throw (CantSolveGoal fc [] top)
          pure ()
 
-successful : {auto c : Ref Ctxt Defs} ->
+successful : {vars : _} ->
+             {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              List (Core (Term vars)) ->
              Core (List (Either Error (Term vars, Defs, UState)))
@@ -99,7 +100,8 @@ successful (elab :: elabs)
                            elabs' <- successful elabs
                            pure (Left err :: elabs'))
 
-exactlyOne : {auto c : Ref Ctxt Defs} ->
+exactlyOne : {vars : _} ->
+             {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              FC -> Env Term vars -> (topTy : ClosedTerm) ->
              List (Core (Term vars)) ->

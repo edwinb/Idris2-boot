@@ -9,6 +9,7 @@ import Core.TT
 import Core.Value
 
 import TTImp.Elab.Check
+import TTImp.Elab.Delayed
 import TTImp.TTImp
 
 %default covering
@@ -98,3 +99,76 @@ expandAmbigName mode env orig args (IImplicitApp fc f n a) exp
     = expandAmbigName mode env orig 
                       ((fc, Just n, a) :: args) f exp
 expandAmbigName elabmode env orig args tm exp = pure orig
+
+export
+ambiguous : Error -> Bool
+ambiguous (AmbiguousElab _ _ _) = True
+ambiguous (AmbiguousName _ _) = True
+ambiguous (AllFailed _) = True
+ambiguous (InType _ _ err) = ambiguous err
+ambiguous (InCon _ _ err) = ambiguous err
+ambiguous (InLHS _ _ err) = ambiguous err
+ambiguous (InRHS _ _ err) = ambiguous err
+ambiguous (WhenUnifying _ _ _ _ err) = ambiguous err
+ambiguous _ = False
+
+getName : RawImp -> Maybe Name
+getName (IVar _ n) = Just n
+getName (IApp _ f _) = getName f
+getName (IImplicitApp _ f _ _) = getName f
+getName _ = Nothing
+
+export
+checkAlternative : {vars : _} ->
+                   {auto c : Ref Ctxt Defs} ->
+                   {auto u : Ref UST UState} ->
+                   {auto e : Ref EST (EState vars)} ->
+                   RigCount -> ElabInfo -> Env Term vars -> 
+                   FC -> AltType -> List RawImp -> Maybe (Glued vars) ->
+                   Core (Term vars, Glued vars)
+checkAlternative rig elabinfo env fc (UniqueDefault def) alts mexpected
+    = throw (InternalError "default alternatives not implemented")
+checkAlternative rig elabinfo env fc uniq alts mexpected
+    = do expected <- maybe (do nm <- genName "altTy"
+                               ty <- metaVar fc Rig0 env nm (TType fc)
+                               pure (gnf env ty))
+                           pure mexpected
+         let solvemode = case elabMode elabinfo of
+                              InLHS c => InLHS
+                              _ => InTerm
+         solveConstraints solvemode Normal
+         defs <- get Ctxt
+         delayOnFailure fc rig env expected ambiguous $ 
+            (\delayed => 
+               do defs <- get Ctxt
+                  -- If we don't know the target type, try again later
+                  when (not delayed && 
+                        !(holeIn (gamma defs) !(getTerm expected))) $
+                    throw (AllFailed [])
+                  let alts' = alts -- pruneByType defs expected alts TODO
+                  logGlue 5 ("Ambiguous elaboration " ++ show alts' ++ 
+                             "\nTarget type ") env expected
+                  let tryall = case uniq of
+                                    FirstSuccess => anyOne fc
+                                    _ => exactlyOne fc env
+                  tryall (map (\t => 
+                      (getName t, 
+                       do res <- checkImp rig elabinfo env t (Just expected)
+                          -- Do it twice for interface resolution;
+                          -- first pass gets the determining argument
+                          -- (maybe rethink this, there should be a better
+                          -- way that allows one pass)
+                          solveConstraints solvemode Normal
+                          solveConstraints solvemode Normal
+                          log 10 $ show (getName t) ++ " success"
+                          pure res)) alts'))
+  where
+    holeIn : Context GlobalDef -> Term vs -> Core Bool
+    holeIn gam tm
+        = case getFn tm of
+               Meta _ _ idx _ =>
+                  do Just (Hole _) <- lookupDefExact (Resolved idx) gam
+                          | Nothing => pure False
+                     pure True
+               _ => pure False
+

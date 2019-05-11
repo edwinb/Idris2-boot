@@ -1,0 +1,32 @@
+data Nat : Type where
+     Z : Nat
+     S : Nat -> Nat
+
+the : (a : Type) -> a -> a
+the _ $x = x
+
+namespace List
+  data List : Type -> Type where
+       Nil : List $a
+       Cons : $a -> List $a -> List $a
+
+  length : List $a -> Nat
+  length Nil = Z
+  length (Cons $x $xs) = S (length xs)
+
+namespace Vect
+  data Vect : Nat -> Type -> Type where
+       Nil : Vect Z $a
+       Cons : $a -> Vect $k $a -> Vect (S $k) $a
+
+  length : Vect $n $a -> Nat
+  length Nil = Z
+  length (Cons $x $xs) = S (length xs)
+
+testList : List Integer
+testList = Cons 1 (Cons 2 (Cons 3 Nil))
+
+testVect : Vect ? Integer
+testVect = Cons 1 (Cons 2 (Cons 3 (Cons 4 Nil)))
+
+

@@ -301,6 +301,89 @@ try elab1 elab2
                | Left err => elab2
          pure ok
 
+export
+handle : {vars : _} ->
+         {auto c : Ref Ctxt Defs} ->
+         {auto u : Ref UST UState} ->
+         {auto e : Ref EST (EState vars)} ->
+         Core a -> (Error -> Core a) -> Core a
+handle elab1 elab2
+    = do Right ok <- tryError elab1
+               | Left err => elab2 err
+         pure ok
+
+successful : {vars : _} ->
+             {auto c : Ref Ctxt Defs} ->
+             {auto u : Ref UST UState} ->
+             {auto e : Ref EST (EState vars)} ->
+             List (Maybe Name, Core a) ->
+             Core (List (Either (Maybe Name, Error) 
+                                (a, Defs, UState, EState vars)))
+successful [] = pure []
+successful ((tm, elab) :: elabs)
+    = do ust <- get UST
+         est <- get EST
+         defs <- branch
+         catch (do -- Run the elaborator 
+                   res <- elab
+                   -- Record post-elaborator state
+                   ust' <- get UST
+                   est' <- get EST
+                   defs' <- get Ctxt
+                   -- Reset to previous state and try the rest
+                   put UST ust
+                   put EST est
+                   put Ctxt defs
+                   elabs' <- successful elabs
+                   -- Record success, and the state we ended at
+                   pure (Right (res, defs', ust', est') :: elabs'))
+               (\err => do put UST ust
+                           put Ctxt defs
+                           elabs' <- successful elabs
+                           pure (Left (tm, err) :: elabs'))
+
+export
+exactlyOne : {vars : _} ->
+             {auto c : Ref Ctxt Defs} ->
+             {auto u : Ref UST UState} ->
+             {auto e : Ref EST (EState vars)} ->
+             FC -> Env Term vars -> 
+             List (Maybe Name, Core (Term vars, Glued vars)) ->
+             Core (Term vars, Glued vars)
+exactlyOne fc env [(tm, elab)] = elab
+exactlyOne {vars} fc env all
+    = do elabs <- successful all
+         case rights elabs of
+              [(res, defs, ust, est)] => 
+                    do put UST ust
+                       put EST est
+                       put Ctxt defs
+                       commit
+                       pure res
+              rs => throw (altError (lefts elabs) rs)
+  where
+    getRes : ((Term vars, Glued vars), st) -> Term vars
+    getRes ((tm, _), thisst) = tm
+
+    -- If they've all failed, collect all the errors
+    -- If more than one succeeded, report the ambiguity
+    altError : List (Maybe Name, Error) -> 
+               List ((Term vars, Glued vars), st) ->
+               Error
+    altError ls [] = AllFailed ls
+    altError ls rs = AmbiguousElab fc env (map getRes rs)
+
+export
+anyOne : {vars : _} ->
+         {auto c : Ref Ctxt Defs} ->
+         {auto u : Ref UST UState} ->
+         {auto e : Ref EST (EState vars)} ->
+         FC -> List (Maybe Name, Core (Term vars, Glued vars)) ->
+         Core (Term vars, Glued vars)
+anyOne fc [] = throw (GenericMsg fc "No elaborators provided") 
+anyOne fc [(tm, elab)] = elab
+anyOne fc ((tm, elab) :: es) = try elab (anyOne fc es)
+
 -- Implemented in TTImp.Elab.Term; delaring just the type allows us to split
 -- the elaborator over multiple files more easily
 export
