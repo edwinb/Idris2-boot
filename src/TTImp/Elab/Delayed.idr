@@ -57,8 +57,9 @@ delayOnFailure fc rig env expected pred elab
                   then 
                     do nm <- genName "delayed"
                        (ci, dtm) <- newDelayed fc rig env nm !(getTerm expected)
-                       logGlue 5 ("Postponing elaborator " ++ show nm ++ 
-                                  " for") env expected
+                       logGlueNF 5 ("Postponing elaborator " ++ show nm ++ 
+                                    " for") env expected
+                       log 10 ("Due to error " ++ show err)
                        ust <- get UST
                        put UST (record { delayedElab $= insert ci
                                            (mkClosedElab fc env (elab True)) } 

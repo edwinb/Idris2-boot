@@ -304,7 +304,8 @@ checkApp rig elabinfo env fc (IVar fc' n) expargs impargs exp
                     fnty <- quote defs env nty
                     exptyt <- maybe (pure Nothing) 
                                        (\t => do ety <- getTerm t
-                                                 pure (Just !(toFullNames ety)))
+                                                 etynf <- normaliseHoles defs env ety
+                                                 pure (Just !(toFullNames etynf)))
                                        exp
                     pure ("Checking application of " ++ show n ++
                           " to " ++ show expargs ++ "\n\tFunction type " ++

@@ -29,4 +29,17 @@ testList = Cons 1 (Cons 2 (Cons 3 Nil))
 testVect : Vect ? Integer
 testVect = Cons 1 (Cons 2 (Cons 3 (Cons 4 Nil)))
 
+data IsType : $a -> Type -> Type where
+     ItIs : {x : $a} -> IsType x $a
+
+foo : IsType 5 Integer
+foo = ItIs
+
+revapply : $arg -> ($arg -> $b) -> $b
+revapply $x $f = f x
+
+-- Testing delayed elaborationg; we can't check the list until we know
+-- whether it's List or Vect, which we work out from the second argument
+test : Integer -> Nat
+test $x = revapply (Cons x (Cons x Nil)) Vect.length
 

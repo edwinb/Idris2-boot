@@ -137,23 +137,30 @@ checkAlternative rig elabinfo env fc uniq alts mexpected
                               InLHS c => InLHS
                               _ => InTerm
          solveConstraints solvemode Normal
-         defs <- get Ctxt
          delayOnFailure fc rig env expected ambiguous $ 
             (\delayed => 
                do defs <- get Ctxt
-                  -- If we don't know the target type, try again later
+                  exp <- getTerm expected
+                  -- If we don't know the target type on the first attempt, 
+                  -- delay
                   when (not delayed && 
-                        !(holeIn (gamma defs) !(getTerm expected))) $
+                        !(holeIn (gamma defs) exp)) $
                     throw (AllFailed [])
-                  let alts' = alts -- pruneByType defs expected alts TODO
-                  logGlue 5 ("Ambiguous elaboration " ++ show alts' ++ 
-                             "\nTarget type ") env expected
+                  -- We can't just used the old NF on the second attempt, 
+                  -- because we might know more now, so recalculate it
+                  let exp' = if delayed 
+                                then gnf env exp
+                                else expected
+
+                  let alts' = alts -- pruneByType defs !(getNF exp') alts TODO
+                  logGlueNF 5 ("Ambiguous elaboration " ++ show alts' ++ 
+                               "\nTarget type ") env exp'
                   let tryall = case uniq of
                                     FirstSuccess => anyOne fc
                                     _ => exactlyOne fc env
                   tryall (map (\t => 
                       (getName t, 
-                       do res <- checkImp rig elabinfo env t (Just expected)
+                       do res <- checkImp rig elabinfo env t (Just exp')
                           -- Do it twice for interface resolution;
                           -- first pass gets the determining argument
                           -- (maybe rethink this, there should be a better
@@ -168,7 +175,7 @@ checkAlternative rig elabinfo env fc uniq alts mexpected
         = case getFn tm of
                Meta _ _ idx _ =>
                   do Just (Hole _) <- lookupDefExact (Resolved idx) gam
-                          | Nothing => pure False
+                          | _ => pure False
                      pure True
                _ => pure False
 

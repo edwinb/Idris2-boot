@@ -678,4 +678,18 @@ logGlue lvl msg env gtm
                                           ++ ": " ++ show tm'
             else pure ()
 
+export
+logGlueNF : {auto c : Ref Ctxt Defs} ->
+            Nat -> Lazy String -> Env Term vars -> Glued vars -> Core ()
+logGlueNF lvl msg env gtm
+    = do opts <- getOpts
+         if logLevel opts >= lvl
+            then do defs <- get Ctxt
+                    tm <- getTerm gtm
+                    tmnf <- normaliseHoles defs env tm
+                    tm' <- toFullNames tmnf
+                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg 
+                                          ++ ": " ++ show tm'
+            else pure ()
+
 
