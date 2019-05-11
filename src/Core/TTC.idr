@@ -56,7 +56,7 @@ TTC Name where
              7 => do x <- fromBuf r b
                      Just (n, Just idx) <- coreLift $ readArray r x
                           | Just (n, Nothing) => pure n
-                          | Nothing => corrupt "Name index"
+                          | Nothing => corrupt ("Name index " ++ show x)
                      pure (Resolved idx)
              _ => corrupt "Name"
             
@@ -244,10 +244,14 @@ mutual
                        pure (Local {name=UN "_"} fc Nothing idx (mkPrf idx))
                1 => do fc <- fromBuf r b; nt <- fromBuf r b; name <- fromBuf r b
                        pure (Ref fc nt name)
-               2 => do fc <- fromBuf r b; -- n <- fromBuf r b
-                       i <- fromBuf r b
+               2 => do fc <- fromBuf {a = FC} r b; -- n <- fromBuf r b
+                       x <- fromBuf r b
+                       Just (n, Just idx) <- coreLift $ readArray r x
+                          | Just (n, Nothing) => 
+                                corrupt ("Metavar name index " ++ show x)
+                          | Nothing => corrupt ("Metavar name index " ++ show x)
                        xs <- fromBuf r b
-                       pure (Meta fc (UN "metavar") i xs)
+                       pure (Meta fc (UN "metavar") idx xs)
                3 => do fc <- fromBuf r b; x <- fromBuf r b
                        bnd <- fromBuf r b; scope <- fromBuf r b
                        pure (Bind fc x bnd scope)

@@ -8,6 +8,7 @@ import Core.Unify
 import Core.TT
 import Core.Value
 
+import TTImp.Elab.Ambiguity
 import TTImp.Elab.App
 import TTImp.Elab.As
 import TTImp.Elab.Binders
@@ -129,7 +130,7 @@ checkTerm rig elabinfo env (IBindVar fc n) exp
 checkTerm rig elabinfo env (IAs fc n_in tm) exp
     = checkAs rig elabinfo env fc n_in tm exp
 checkTerm rig elabinfo env (IMustUnify fc n tm) exp
-    = throw (InternalError "Dot patterns not implemented")
+    = throw (InternalError ("Dot patterns not implemented: " ++ n ++ " " ++ show tm))
 
 checkTerm {vars} rig elabinfo env (IPrimVal fc c) exp 
     = do let (cval, cty) = checkPrim {vars} fc c
@@ -179,8 +180,11 @@ TTImp.Elab.Check.check rigc elabinfo env tm@(ILocal fc ds sc) exp
     = checkImp rigc elabinfo env tm exp
 TTImp.Elab.Check.check rigc elabinfo env tm@(IUpdate fc fs rec) exp
     = checkImp rigc elabinfo env tm exp
-TTImp.Elab.Check.check rigc elabinfo env tm exp 
+TTImp.Elab.Check.check rigc elabinfo env tm_in exp 
     = do defs <- get Ctxt
+         est <- get EST
+         tm <- expandAmbigName (elabMode elabinfo) env tm_in [] tm_in exp
+         -- TODO: insertLazy
          case elabMode elabinfo of
               InLHS _ => -- Don't expand implicit lambda on lhs
                  checkImp rigc elabinfo env tm exp

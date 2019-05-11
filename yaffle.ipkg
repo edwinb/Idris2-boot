@@ -40,6 +40,7 @@ modules =
     Text.Token,
 
     TTImp.Elab,
+    TTImp.Elab.Ambiguity,
     TTImp.Elab.App,
     TTImp.Elab.As,
     TTImp.Elab.Binders,

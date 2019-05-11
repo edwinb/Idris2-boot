@@ -162,7 +162,7 @@ checkClause mult hashit n env (PatClause fc lhs_in rhs)
          
          rhstm <- checkTerm n InExpr env' rhs (gnf env' lhsty')
 
-         logTermNF 5 "RHS term" env' rhstm
+         logTerm 5 "RHS term" rhstm
          pure (Just (MkClause env' lhstm' rhstm))
   where
     noLet : Env Term vs -> Env Term vs

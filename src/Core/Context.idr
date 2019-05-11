@@ -56,6 +56,8 @@ getNameRefs gam
          pure arr
   where
     addToMap : NameRefs -> (Name, Int) -> Core ()
+--     addToMap arr (PV _ _, i)
+--         = coreLift $ putStrLn ("Skipping " ++ show i) -- pure () -- These won't appear in terms
     addToMap arr (n, i)
         = coreLift $ writeArray arr i (n, Nothing)
 
@@ -113,6 +115,7 @@ getPosition n ctxt
 
 export
 getNameID : Name -> Context a -> Maybe Int
+getNameID (Resolved idx) ctxt = Just idx
 getNameID n ctxt = lookup n (resolvedAs ctxt)
 
 -- Add the name to the context, or update the existing entry if it's already

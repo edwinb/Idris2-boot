@@ -23,8 +23,13 @@ elabTerm : {vars : _} ->
            Name -> ElabMode -> 
            Env Term vars -> RawImp -> Maybe (Glued vars) ->
            Core (Term vars, Glued vars)
-elabTerm defining mode env tm ty
-    = do e <- newRef EST (initEState defining env)
+elabTerm defining_in mode env tm ty
+    = do defs <- get Ctxt
+         let defining
+               = case getNameID defining_in (gamma defs) of
+--                       Just idx => Resolved idx
+                      _ => defining_in
+         e <- newRef EST (initEState defining env)
          let rigc = getRigNeeded mode
          (chktm, chkty) <- check {e} rigc (initElabInfo mode) env tm ty
          -- Final retry of constraints and delayed elaborations
