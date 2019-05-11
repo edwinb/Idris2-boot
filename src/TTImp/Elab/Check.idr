@@ -62,8 +62,8 @@ bindingTerm (AsBinding tm _ _) = tm
 public export
 record EState (vars : List Name) where
   constructor MkEState
-  -- The function/constructor name we're currently working on
-  defining : Name
+  -- The function/constructor name we're currently working on (resolved id)
+  defining : Int
   -- The outer environment in which we're running the elaborator. Things here should
   -- be considered parametric as far as case expression elaboration goes, and are
   -- the only things that unbound implicits can depend on
@@ -92,11 +92,11 @@ export
 data EST : Type where
 
 export
-initEStateSub : Name -> Env Term outer -> SubVars outer vars -> EState vars
+initEStateSub : Int -> Env Term outer -> SubVars outer vars -> EState vars
 initEStateSub n env sub = MkEState n env sub [] [] [] [] []
 
 export
-initEState : Name -> Env Term vars -> EState vars
+initEState : Int -> Env Term vars -> EState vars
 initEState n env = initEStateSub n env SubRefl
 
 weakenedEState : {auto e : Ref EST (EState vars)} ->

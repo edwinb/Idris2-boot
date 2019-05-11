@@ -7,7 +7,7 @@ data Name : Type where
      NS : List String -> Name -> Name -- in a namespace
      UN : String -> Name -- user defined name
      MN : String -> Int -> Name -- machine generated name
-     PV : Name -> Name -> Name -- pattern variable name
+     PV : Name -> Int -> Name -- pattern variable name; int is the resolved function id
      Nested : Name -> Name -> Name -- nested function name
      CaseBlock : Name -> Int -> Name -- case block nested in name
      WithBlock : Name -> Int -> Name -- with block nested in name
@@ -135,9 +135,9 @@ nameEq (MN x t) (MN x' t') with (decEq x x')
     nameEq (MN x t) (MN x t') | (Yes Refl) | (No contra) = Nothing
   nameEq (MN x t) (MN x' t') | (No contra) = Nothing
 nameEq (PV x t) (PV y t') with (nameEq x y)
-  nameEq (PV y t) (PV y t') | (Just Refl) with (nameEq t t')
-    nameEq (PV y t) (PV y t) | (Just Refl) | (Just Refl) = Just Refl
-    nameEq (PV y t) (PV y t') | (Just Refl) | Nothing = Nothing
+  nameEq (PV y t) (PV y t') | (Just Refl) with (decEq t t')
+    nameEq (PV y t) (PV y t) | (Just Refl) | (Yes Refl) = Just Refl
+    nameEq (PV y t) (PV y t') | (Just Refl) | (No p) = Nothing
   nameEq (PV x t) (PV y t') | Nothing = Nothing
 nameEq (Nested x y) (Nested x' y') with (nameEq x x')
   nameEq (Nested x y) (Nested x' y') | Nothing = Nothing

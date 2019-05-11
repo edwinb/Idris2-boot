@@ -108,14 +108,14 @@ checkTerm rig elabinfo env (ISearch fc depth) (Just gexpty)
     = do est <- get EST
          nm <- genName "search"
          expty <- getTerm gexpty
-         sval <- searchVar fc rig depth (defining est) env nm expty
+         sval <- searchVar fc rig depth (Resolved (defining est)) env nm expty
          pure (sval, gexpty)
 checkTerm rig elabinfo env (ISearch fc depth) Nothing
     = do est <- get EST
          nmty <- genName "searchTy"
          ty <- metaVar fc Rig0 env nmty (TType fc)
          nm <- genName "search"
-         sval <- searchVar fc rig depth (defining est) env nm ty
+         sval <- searchVar fc rig depth (Resolved (defining est)) env nm ty
          pure (sval, gnf env ty)
 checkTerm rig elabinfo env (IAlternative fc atype alts) exp
     = throw (InternalError "alternatives not implemented")

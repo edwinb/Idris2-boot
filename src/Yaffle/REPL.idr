@@ -31,13 +31,13 @@ process : {auto c : Ref Ctxt Defs} ->
           {auto u : Ref UST UState} ->
           ImpREPL -> Core Bool
 process (Eval ttimp)
-    = do (tm, _) <- elabTerm (UN "[input]") InExpr [] ttimp Nothing
+    = do (tm, _) <- elabTerm 0 InExpr [] ttimp Nothing
          defs <- get Ctxt
          tmnf <- normalise defs [] tm
          coreLift (printLn !(unelab [] tmnf))
          pure True
 process (Check ttimp)
-    = do (tm, gty) <- elabTerm (UN "[input]") InExpr [] ttimp Nothing
+    = do (tm, gty) <- elabTerm 0 InExpr [] ttimp Nothing
          defs <- get Ctxt
          tyh <- getTerm gty
          ty <- normaliseHoles defs [] tyh

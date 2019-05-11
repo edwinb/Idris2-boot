@@ -68,14 +68,14 @@ expandAmbigName mode env orig args (IVar fc x) exp
     wrapDot _ _ _ _ _ (TCon _ _ _ _ _ _) tm = tm
     -- Leave primitive applications alone, because they'll be inlined
     -- before compiling the case tree
---     wrapDot defs est (InLHS _) n' [arg] _ tm 
---        = if n' == defining est || isPrimApp defs n' arg
---             then tm
---             else IMustUnify fc "Not a constructor application or primitive" tm
---     wrapDot defs est (InLHS _) n' _ _ tm 
---        = if n' == defining est
---             then tm
---             else IMustUnify fc "Not a constructor application or primitive" tm
+    wrapDot defs est (InLHS _) n' [arg] _ tm 
+       = if n' == Resolved (defining est) || isPrimApp defs n' arg
+            then tm
+            else IMustUnify fc "Not a constructor application or primitive" tm
+    wrapDot defs est (InLHS _) n' _ _ tm 
+       = if n' == Resolved (defining est)
+            then tm
+            else IMustUnify fc "Not a constructor application or primitive" tm
     wrapDot _ _ _ _ _ _ tm = tm
 
 

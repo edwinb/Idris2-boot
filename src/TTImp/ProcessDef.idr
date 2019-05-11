@@ -131,7 +131,7 @@ export
 checkClause : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               (mult : RigCount) -> (hashit : Bool) ->
-              Name -> Env Term vars ->
+              Int -> Env Term vars ->
               ImpClause -> Core (Maybe Clause)
 checkClause mult hashit n env (ImpossibleClause fc lhs)
     = throw (InternalError "impossible not implemented yet")
@@ -191,7 +191,8 @@ processDef {vars} env fc n_in cs_in
          let mult = if multiplicity gdef == Rig0
                        then Rig0
                        else Rig1
-         cs <- traverse (checkClause mult hashit n env) cs_in
+         nidx <- resolveName n
+         cs <- traverse (checkClause mult hashit nidx env) cs_in
          let pats = map toPats (mapMaybe id cs)
 
          (cargs ** tree_ct) <- getPMDef fc CompileTime n ty (mapMaybe id cs)

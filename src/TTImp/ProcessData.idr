@@ -56,8 +56,9 @@ checkCon env vis tn (MkImpTy fc cn_in ty_raw)
          -- Check 'cn' is undefined
          Nothing <- lookupCtxtExact cn (gamma defs)
              | Just gdef => throw (AlreadyDefined fc cn)
-         (ty, _) <- elabTerm cn InType env (IBindHere fc (PI Rig0) ty_raw)
-                         (Just (gType fc))
+         (ty, _) <- elabTerm !(resolveName cn) InType env 
+                              (IBindHere fc (PI Rig0) ty_raw)
+                              (Just (gType fc))
 
          -- Check 'ty' returns something in the right family
          checkFamily fc cn tn env !(nf defs env ty)
@@ -82,8 +83,9 @@ processData env fc vis (MkImpLater dfc n_in ty_raw)
          Nothing <- lookupCtxtExact n (gamma defs)
              | Just gdef => throw (AlreadyDefined fc n)
          
-         (ty, _) <- elabTerm n InType env (IBindHere fc (PI Rig0) ty_raw)
-                                 (Just (gType dfc))
+         (ty, _) <- elabTerm !(resolveName n) InType env 
+                              (IBindHere fc (PI Rig0) ty_raw)
+                              (Just (gType dfc))
          let fullty = abstractEnvType dfc env ty
          logTermNF 5 ("data " ++ show n) [] fullty
 
@@ -99,8 +101,9 @@ processData env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
     = do n <- inCurrentNS n_in
          log 1 $ "Processing " ++ show n
          defs <- get Ctxt
-         (ty, _) <- elabTerm n InType env (IBindHere fc (PI Rig0) ty_raw)
-                                 (Just (gType dfc))
+         (ty, _) <- elabTerm !(resolveName n) InType env 
+                              (IBindHere fc (PI Rig0) ty_raw)
+                              (Just (gType dfc))
          let fullty = abstractEnvType dfc env ty
 
          -- If n exists, check it's the same type as we have here, and is

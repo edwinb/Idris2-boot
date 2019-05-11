@@ -21,14 +21,16 @@ processType env fc rig vis opts (MkImpTy tfc n_in ty_raw)
     = do n <- inCurrentNS n_in
          log 1 $ "Processing " ++ show n
          log 5 $ "Checking type decl " ++ show n ++ " : " ++ show ty_raw
-         (ty, _) <- elabTerm n InType env 
+         idx <- resolveName n 
+         
+         (ty, _) <- elabTerm idx InType env 
                              (IBindHere fc (PI Rig0) ty_raw) 
                              (Just (gType fc))
          logTermNF 5 (show n) [] (abstractEnvType tfc env ty)
          -- TODO: Check name visibility
          let def = None -- TODO: External definitions
 
-         addDef n (newDef fc n rig (abstractEnvType tfc env ty) vis def)
+         addDef (Resolved idx) (newDef fc n rig (abstractEnvType tfc env ty) vis def)
 
          -- TODO: Interface hash and saving
          pure ()

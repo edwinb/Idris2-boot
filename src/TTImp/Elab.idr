@@ -20,15 +20,11 @@ export
 elabTerm : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
            {auto u : Ref UST UState} ->
-           Name -> ElabMode -> 
+           Int -> ElabMode -> 
            Env Term vars -> RawImp -> Maybe (Glued vars) ->
            Core (Term vars, Glued vars)
-elabTerm defining_in mode env tm ty
+elabTerm defining mode env tm ty
     = do defs <- get Ctxt
-         let defining
-               = case getNameID defining_in (gamma defs) of
---                       Just idx => Resolved idx
-                      _ => defining_in
          e <- newRef EST (initEState defining env)
          let rigc = getRigNeeded mode
          (chktm, chkty) <- check {e} rigc (initElabInfo mode) env tm ty
@@ -50,7 +46,7 @@ export
 checkTerm : {vars : _} ->
             {auto c : Ref Ctxt Defs} ->
             {auto u : Ref UST UState} ->
-            Name -> ElabMode -> 
+            Int -> ElabMode -> 
             Env Term vars -> RawImp -> Glued vars ->
             Core (Term vars)
 checkTerm defining mode env tm ty
