@@ -48,15 +48,15 @@ checkFamily loc cn tn env nf
 
 checkCon : {auto c : Ref Ctxt Defs} ->
            {auto u : Ref UST UState} ->
-           Env Term vars -> Visibility -> Name ->
+           NestedNames vars -> Env Term vars -> Visibility -> Name ->
            ImpTy -> Core Constructor
-checkCon env vis tn (MkImpTy fc cn_in ty_raw)
+checkCon nest env vis tn (MkImpTy fc cn_in ty_raw)
     = do cn <- inCurrentNS cn_in
          defs <- get Ctxt
          -- Check 'cn' is undefined
          Nothing <- lookupCtxtExact cn (gamma defs)
              | Just gdef => throw (AlreadyDefined fc cn)
-         (ty, _) <- elabTerm !(resolveName cn) InType env 
+         (ty, _) <- elabTerm !(resolveName cn) InType nest env 
                               (IBindHere fc (PI Rig0) ty_raw)
                               (Just (gType fc))
 
@@ -74,16 +74,16 @@ conName (MkCon _ cn _ _) = cn
 export
 processData : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
-              Env Term vars -> FC -> Visibility ->
+              NestedNames vars -> Env Term vars -> FC -> Visibility ->
               ImpData -> Core ()
-processData env fc vis (MkImpLater dfc n_in ty_raw) 
+processData nest env fc vis (MkImpLater dfc n_in ty_raw) 
     = do n <- inCurrentNS n_in
          defs <- get Ctxt
          -- Check 'n' is undefined
          Nothing <- lookupCtxtExact n (gamma defs)
              | Just gdef => throw (AlreadyDefined fc n)
          
-         (ty, _) <- elabTerm !(resolveName n) InType env 
+         (ty, _) <- elabTerm !(resolveName n) InType nest env 
                               (IBindHere fc (PI Rig0) ty_raw)
                               (Just (gType dfc))
          let fullty = abstractEnvType dfc env ty
@@ -97,11 +97,11 @@ processData env fc vis (MkImpLater dfc n_in ty_raw)
          tidx <- addDef n (newDef fc n Rig1 fullty vis
                           (TCon 0 arity [] [] [] []))
          pure ()
-processData env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
+processData nest env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
     = do n <- inCurrentNS n_in
          log 1 $ "Processing " ++ show n
          defs <- get Ctxt
-         (ty, _) <- elabTerm !(resolveName n) InType env 
+         (ty, _) <- elabTerm !(resolveName n) InType nest env 
                               (IBindHere fc (PI Rig0) ty_raw)
                               (Just (gType dfc))
          let fullty = abstractEnvType dfc env ty
@@ -132,7 +132,7 @@ processData env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
          -- Constructors are private if the data type as a whole is
          -- export
          let cvis = if vis == Export then Private else vis
-         cons <- traverse (checkCon env cvis (Resolved tidx)) cons_raw
+         cons <- traverse (checkCon nest env cvis (Resolved tidx)) cons_raw
 
          let ddef = MkData (MkCon dfc n arity fullty) cons
          addData vis ddef

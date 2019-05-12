@@ -397,7 +397,8 @@ check : {vars : _} ->
         {auto c : Ref Ctxt Defs} ->
         {auto u : Ref UST UState} ->
         {auto e : Ref EST (EState vars)} ->
-        RigCount -> ElabInfo -> Env Term vars -> RawImp -> 
+        RigCount -> ElabInfo -> 
+        NestedNames vars -> Env Term vars -> RawImp -> 
         Maybe (Glued vars) ->
         Core (Term vars, Glued vars)
 
@@ -407,9 +408,17 @@ checkImp : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
            {auto u : Ref UST UState} ->
            {auto e : Ref EST (EState vars)} ->
-           RigCount -> ElabInfo -> Env Term vars -> RawImp -> Maybe (Glued vars) ->
+           RigCount -> ElabInfo -> 
+           NestedNames vars -> Env Term vars -> RawImp -> Maybe (Glued vars) ->
            Core (Term vars, Glued vars)
 
+-- Implemented in TTImp.ProcessDecls
+export
+processDecl : {vars : _} ->
+              {auto c : Ref Ctxt Defs} ->
+              {auto u : Ref UST UState} ->
+              NestedNames vars -> Env Term vars -> ImpDecl -> Core ()
+              
 -- Check whether two terms are convertible. May solve metavariables (in Ctxt)
 -- in doing so.
 -- Returns a list of constraints which need to be solved for the conversion

@@ -17,22 +17,22 @@ import TTImp.TTImp
 -- should check the RHS, the LHS and its type in that environment,
 -- and a function which turns a checked RHS into a
 -- pattern clause
-extendEnv : Env Term vars -> 
+extendEnv : Env Term vars -> NestedNames vars ->
             Term vars -> Term vars -> 
-            Core (vars' ** (Env Term vars', Term vars', Term vars'))
-extendEnv env (Bind _ n (PVar c tmty) sc) (Bind _ n' (PVTy _ _) tysc) with (nameEq n n')
-  extendEnv env (Bind _ n (PVar c tmty) sc) (Bind _ n' (PVTy _ _) tysc) | Nothing
+            Core (vars' ** (Env Term vars', NestedNames vars', Term vars', Term vars'))
+extendEnv env nest (Bind _ n (PVar c tmty) sc) (Bind _ n' (PVTy _ _) tysc) with (nameEq n n')
+  extendEnv env nest (Bind _ n (PVar c tmty) sc) (Bind _ n' (PVTy _ _) tysc) | Nothing
       = throw (InternalError "Can't happen: names don't match in pattern type")
-  extendEnv env (Bind _ n (PVar c tmty) sc) (Bind _ n (PVTy _ _) tysc) | (Just Refl)
-      = extendEnv (PVar c tmty :: env) sc tysc
-extendEnv env (Bind _ n (PLet c tmval tmty) sc) (Bind _ n' (PLet _ _ _) tysc) with (nameEq n n')
-  extendEnv env (Bind _ n (PLet c tmval tmty) sc) (Bind _ n' (PLet _ _ _) tysc) | Nothing
+  extendEnv env nest (Bind _ n (PVar c tmty) sc) (Bind _ n (PVTy _ _) tysc) | (Just Refl)
+      = extendEnv (PVar c tmty :: env) (weaken nest) sc tysc
+extendEnv env nest (Bind _ n (PLet c tmval tmty) sc) (Bind _ n' (PLet _ _ _) tysc) with (nameEq n n')
+  extendEnv env nest (Bind _ n (PLet c tmval tmty) sc) (Bind _ n' (PLet _ _ _) tysc) | Nothing
       = throw (InternalError "Can't happen: names don't match in pattern type")
   -- PLet on the left becomes Let on the right, to give it computational force
-  extendEnv env (Bind _ n (PLet c tmval tmty) sc) (Bind _ n (PLet _ _ _) tysc) | (Just Refl)
-      = extendEnv (Let c tmval tmty :: env) sc tysc
-extendEnv env tm ty 
-      = pure (_ ** (env, tm, ty))
+  extendEnv env nest (Bind _ n (PLet c tmval tmty) sc) (Bind _ n (PLet _ _ _) tysc) | (Just Refl)
+      = extendEnv (Let c tmval tmty :: env) (weaken nest) sc tysc
+extendEnv env nest tm ty 
+      = pure (_ ** (env, nest, tm, ty))
 
 -- Find names which are applied to a function in a Rig1/Rig0 position,
 -- so that we know how they should be bound on the right hand side of the
@@ -131,13 +131,13 @@ export
 checkClause : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               (mult : RigCount) -> (hashit : Bool) ->
-              Int -> Env Term vars ->
+              Int -> NestedNames vars -> Env Term vars ->
               ImpClause -> Core (Maybe Clause)
-checkClause mult hashit n env (ImpossibleClause fc lhs)
+checkClause mult hashit n nest env (ImpossibleClause fc lhs)
     = throw (InternalError "impossible not implemented yet")
-checkClause mult hashit n env (PatClause fc lhs_in rhs)
+checkClause mult hashit n nest env (PatClause fc lhs_in rhs)
     = do lhs <- lhsInCurrentNS lhs_in 
-         (lhstm, lhstyg) <- elabTerm n (InLHS mult) env 
+         (lhstm, lhstyg) <- elabTerm n (InLHS mult) nest env 
                                 (IBindHere fc PATTERN lhs) Nothing
          lhsty <- getTerm lhstyg
 
@@ -157,10 +157,10 @@ checkClause mult hashit n env (PatClause fc lhs_in rhs)
          logTerm 5 "LHS term" lhstm_lin
          logTerm 5 "LHS type" lhsty_lin
 
-         (vars'  ** (env', lhstm', lhsty')) <- 
-             extendEnv env lhstm_lin lhsty_lin
+         (vars'  ** (env', nest', lhstm', lhsty')) <- 
+             extendEnv env nest lhstm_lin lhsty_lin
          
-         rhstm <- checkTerm n InExpr env' rhs (gnf env' lhsty')
+         rhstm <- checkTerm n InExpr nest' env' rhs (gnf env' lhsty')
 
          logTerm 5 "RHS term" rhstm
          pure (Just (MkClause env' lhstm' rhstm))
@@ -177,9 +177,9 @@ toPats (MkClause {vars} env lhs rhs)
 export
 processDef : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
-             Env Term vars -> FC ->
+             NestedNames vars -> Env Term vars -> FC ->
              Name -> List ImpClause -> Core ()
-processDef {vars} env fc n_in cs_in
+processDef {vars} nest env fc n_in cs_in
     = do n <- inCurrentNS n_in
          defs <- get Ctxt
          Just gdef <- lookupCtxtExact n (gamma defs)
@@ -192,7 +192,7 @@ processDef {vars} env fc n_in cs_in
                        then Rig0
                        else Rig1
          nidx <- resolveName n
-         cs <- traverse (checkClause mult hashit nidx env) cs_in
+         cs <- traverse (checkClause mult hashit nidx nest env) cs_in
          let pats = map toPats (mapMaybe id cs)
 
          (cargs ** tree_ct) <- getPMDef fc CompileTime n ty (mapMaybe id cs)

@@ -31,14 +31,15 @@ elabTerm : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
            {auto u : Ref UST UState} ->
            Int -> ElabMode -> 
-           Env Term vars -> RawImp -> Maybe (Glued vars) ->
+           NestedNames vars -> Env Term vars -> 
+           RawImp -> Maybe (Glued vars) ->
            Core (Term vars, Glued vars)
-elabTerm defining mode env tm ty
+elabTerm defining mode nest env tm ty
     = do let incase = False -- TODO
          defs <- get Ctxt
          e <- newRef EST (initEState defining env)
          let rigc = getRigNeeded mode
-         (chktm, chkty) <- check {e} rigc (initElabInfo mode) env tm ty
+         (chktm, chkty) <- check {e} rigc (initElabInfo mode) nest env tm ty
          -- Final retry of constraints and delayed elaborations
          -- - Solve any constraints, then retry any delayed elaborations
          -- - Finally, last attempts at solving constraints, but this
@@ -74,8 +75,9 @@ checkTerm : {vars : _} ->
             {auto c : Ref Ctxt Defs} ->
             {auto u : Ref UST UState} ->
             Int -> ElabMode -> 
-            Env Term vars -> RawImp -> Glued vars ->
+            NestedNames vars -> Env Term vars -> 
+            RawImp -> Glued vars ->
             Core (Term vars)
-checkTerm defining mode env tm ty
-    = do (tm_elab, _) <- elabTerm defining mode env tm (Just ty)
+checkTerm defining mode nest env tm ty
+    = do (tm_elab, _) <- elabTerm defining mode nest env tm (Just ty)
          pure tm_elab

@@ -21,10 +21,11 @@ checkAs : {vars : _} ->
           {auto c : Ref Ctxt Defs} ->
           {auto u : Ref UST UState} ->
           {auto e : Ref EST (EState vars)} ->
-          RigCount -> ElabInfo -> Env Term vars -> 
+          RigCount -> ElabInfo -> 
+          NestedNames vars -> Env Term vars -> 
           FC -> Name -> RawImp -> Maybe (Glued vars) ->
           Core (Term vars, Glued vars)
-checkAs rig elabinfo env fc n_in pat topexp 
+checkAs rig elabinfo nest env fc n_in pat topexp 
     = do let elabmode = elabMode elabinfo
          let InLHS _ = elabmode
              | _ => throw (GenericMsg fc "@-patterns only allowed in pattern clauses")
@@ -38,7 +39,7 @@ checkAs rig elabinfo env fc n_in pat topexp
          notePatVar n
          case lookup n (boundNames est) of
               Nothing => 
-                 do (pattm, patty) <- checkImp rig elabinfo env pat topexp
+                 do (pattm, patty) <- checkImp rig elabinfo nest env pat topexp
                     (tm, exp, bty) <- mkPatternHole fc rig n env
                                             (implicitMode elabinfo)
                                             topexp

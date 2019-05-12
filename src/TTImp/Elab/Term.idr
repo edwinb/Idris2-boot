@@ -72,75 +72,76 @@ checkTerm : {vars : _} ->
             {auto c : Ref Ctxt Defs} ->
             {auto u : Ref UST UState} ->
             {auto e : Ref EST (EState vars)} ->
-            RigCount -> ElabInfo -> Env Term vars -> RawImp -> Maybe (Glued vars) ->
+            RigCount -> ElabInfo ->
+            NestedNames vars -> Env Term vars -> RawImp -> Maybe (Glued vars) ->
             Core (Term vars, Glued vars)
-checkTerm rig elabinfo env (IVar fc n) exp 
+checkTerm rig elabinfo nest env (IVar fc n) exp 
     = -- It may actually turn out to be an application, if the expected
       -- type is expecting an implicit argument, so check it as an
       -- application with no arguments
-      checkApp rig elabinfo env fc (IVar fc n) [] [] exp
-checkTerm rig elabinfo env (IPi fc r p (Just n) argTy retTy) exp 
-    = checkPi rig elabinfo env fc r p n argTy retTy exp
-checkTerm rig elabinfo env (IPi fc r p Nothing argTy retTy) exp 
+      checkApp rig elabinfo nest env fc (IVar fc n) [] [] exp
+checkTerm rig elabinfo nest env (IPi fc r p (Just n) argTy retTy) exp 
+    = checkPi rig elabinfo nest env fc r p n argTy retTy exp
+checkTerm rig elabinfo nest env (IPi fc r p Nothing argTy retTy) exp 
     = do n <- case p of
                    Explicit => genVarName "arg"
                    Implicit => genVarName "imp"
                    AutoImplicit => genVarName "con"
-         checkPi rig elabinfo env fc r p n argTy retTy exp
-checkTerm rig elabinfo env (ILam fc r p (Just n) argTy scope) exp 
-    = checkLambda rig elabinfo env fc r p n argTy scope exp
-checkTerm rig elabinfo env (ILam fc r p Nothing argTy scope) exp 
+         checkPi rig elabinfo nest env fc r p n argTy retTy exp
+checkTerm rig elabinfo nest env (ILam fc r p (Just n) argTy scope) exp 
+    = checkLambda rig elabinfo nest env fc r p n argTy scope exp
+checkTerm rig elabinfo nest env (ILam fc r p Nothing argTy scope) exp 
     = do n <- genVarName "lam"
-         checkLambda rig elabinfo env fc r p n argTy scope exp
-checkTerm rig elabinfo env (ILet fc r n nTy nVal scope) exp
-    = checkLet rig elabinfo env fc r n nTy nVal scope exp
-checkTerm rig elabinfo env (ICase fc scr scrty als) exp
+         checkLambda rig elabinfo nest env fc r p n argTy scope exp
+checkTerm rig elabinfo nest env (ILet fc r n nTy nVal scope) exp
+    = checkLet rig elabinfo nest env fc r n nTy nVal scope exp
+checkTerm rig elabinfo nest env (ICase fc scr scrty als) exp
     = throw (InternalError "case not implemented")
-checkTerm rig elabinfo env (ILocal fc nested scope) exp
+checkTerm rig elabinfo nest env (ILocal fc nested scope) exp
     = throw (InternalError "let functions not implemented")
-checkTerm rig elabinfo env (IUpdate fc upds rec) exp
+checkTerm rig elabinfo nest env (IUpdate fc upds rec) exp
     = throw (InternalError "record update not implemented")
-checkTerm rig elabinfo env (IApp fc fn arg) exp 
-    = checkApp rig elabinfo env fc fn [arg] [] exp
-checkTerm rig elabinfo env (IImplicitApp fc fn nm arg) exp
-    = checkApp rig elabinfo env fc fn [] [(nm, arg)] exp
-checkTerm rig elabinfo env (ISearch fc depth) (Just gexpty)
+checkTerm rig elabinfo nest env (IApp fc fn arg) exp 
+    = checkApp rig elabinfo nest env fc fn [arg] [] exp
+checkTerm rig elabinfo nest env (IImplicitApp fc fn nm arg) exp
+    = checkApp rig elabinfo nest env fc fn [] [(nm, arg)] exp
+checkTerm rig elabinfo nest env (ISearch fc depth) (Just gexpty)
     = do est <- get EST
          nm <- genName "search"
          expty <- getTerm gexpty
          sval <- searchVar fc rig depth (Resolved (defining est)) env nm expty
          pure (sval, gexpty)
-checkTerm rig elabinfo env (ISearch fc depth) Nothing
+checkTerm rig elabinfo nest env (ISearch fc depth) Nothing
     = do est <- get EST
          nmty <- genName "searchTy"
          ty <- metaVar fc Rig0 env nmty (TType fc)
          nm <- genName "search"
          sval <- searchVar fc rig depth (Resolved (defining est)) env nm ty
          pure (sval, gnf env ty)
-checkTerm rig elabinfo env (IAlternative fc uniq alts) exp
-    = checkAlternative rig elabinfo env fc uniq alts exp
-checkTerm rig elabinfo env (IRewrite fc rule tm) exp
+checkTerm rig elabinfo nest env (IAlternative fc uniq alts) exp
+    = checkAlternative rig elabinfo nest env fc uniq alts exp
+checkTerm rig elabinfo nest env (IRewrite fc rule tm) exp
     = throw (InternalError "rewrite not implemented")
-checkTerm rig elabinfo env (ICoerced fc tm) exp
-    = checkTerm rig elabinfo env tm exp
-checkTerm rig elabinfo env (IBindHere fc binder sc) exp
-    = checkBindHere rig elabinfo env fc binder sc exp
-checkTerm rig elabinfo env (IBindVar fc n) exp
-    = checkBindVar rig elabinfo env fc n exp
-checkTerm rig elabinfo env (IAs fc n_in tm) exp
-    = checkAs rig elabinfo env fc n_in tm exp
-checkTerm rig elabinfo env (IMustUnify fc n tm) exp
+checkTerm rig elabinfo nest env (ICoerced fc tm) exp
+    = checkTerm rig elabinfo nest env tm exp
+checkTerm rig elabinfo nest env (IBindHere fc binder sc) exp
+    = checkBindHere rig elabinfo nest env fc binder sc exp
+checkTerm rig elabinfo nest env (IBindVar fc n) exp
+    = checkBindVar rig elabinfo nest env fc n exp
+checkTerm rig elabinfo nest env (IAs fc n_in tm) exp
+    = checkAs rig elabinfo nest env fc n_in tm exp
+checkTerm rig elabinfo nest env (IMustUnify fc n tm) exp
     = throw (InternalError ("Dot patterns not implemented: " ++ n ++ " " ++ show tm))
 
-checkTerm {vars} rig elabinfo env (IPrimVal fc c) exp 
+checkTerm {vars} rig elabinfo nest env (IPrimVal fc c) exp 
     = do let (cval, cty) = checkPrim {vars} fc c
          checkExp rig elabinfo env fc cval (gnf env cty) exp
-checkTerm rig elabinfo env (IType fc) exp 
+checkTerm rig elabinfo nest env (IType fc) exp 
     = checkExp rig elabinfo env fc (TType fc) (gType fc) exp
 
-checkTerm rig elabinfo env (IHole fc str) exp
+checkTerm rig elabinfo nest env (IHole fc str) exp
     = throw (InternalError "holes not implemented")
-checkTerm rig elabinfo env (Implicit fc b) (Just gexpty)
+checkTerm rig elabinfo nest env (Implicit fc b) (Just gexpty)
     = do nm <- genName "imp"
          expty <- getTerm gexpty
          metaval <- metaVar fc rig env nm expty
@@ -150,7 +151,7 @@ checkTerm rig elabinfo env (Implicit fc b) (Just gexpty)
                expty <- getTerm gexpty
                put EST (addBindIfUnsolved nm rig env metaval expty est)
          pure (metaval, gexpty)
-checkTerm rig elabinfo env (Implicit fc b) Nothing
+checkTerm rig elabinfo nest env (Implicit fc b) Nothing
     = do nmty <- genName "impTy"
          ty <- metaVar fc Rig0 env nmty (TType fc)
          nm <- genName "imp"
@@ -171,25 +172,25 @@ checkTerm rig elabinfo env (Implicit fc b) Nothing
 --         Core (Term vars, Glued vars)
 -- If we've just inserted an implicit coercion (in practice, that's either
 -- a force or delay) then check the term with any further insertions
-TTImp.Elab.Check.check rigc elabinfo env (ICoerced fc tm) exp
-    = checkImp rigc elabinfo env tm exp
+TTImp.Elab.Check.check rigc elabinfo nest env (ICoerced fc tm) exp
+    = checkImp rigc elabinfo nest env tm exp
 -- Don't add implicits/coercions on local blocks or record updates
-TTImp.Elab.Check.check rigc elabinfo env tm@(ILet fc c n nty nval sc) exp
-    = checkImp rigc elabinfo env tm exp
-TTImp.Elab.Check.check rigc elabinfo env tm@(ILocal fc ds sc) exp
-    = checkImp rigc elabinfo env tm exp
-TTImp.Elab.Check.check rigc elabinfo env tm@(IUpdate fc fs rec) exp
-    = checkImp rigc elabinfo env tm exp
-TTImp.Elab.Check.check rigc elabinfo env tm_in exp 
+TTImp.Elab.Check.check rigc elabinfo nest env tm@(ILet fc c n nty nval sc) exp
+    = checkImp rigc elabinfo nest env tm exp
+TTImp.Elab.Check.check rigc elabinfo nest env tm@(ILocal fc ds sc) exp
+    = checkImp rigc elabinfo nest env tm exp
+TTImp.Elab.Check.check rigc elabinfo nest env tm@(IUpdate fc fs rec) exp
+    = checkImp rigc elabinfo nest env tm exp
+TTImp.Elab.Check.check rigc elabinfo nest env tm_in exp 
     = do defs <- get Ctxt
          est <- get EST
          tm <- expandAmbigName (elabMode elabinfo) env tm_in [] tm_in exp
          -- TODO: insertLazy
          case elabMode elabinfo of
               InLHS _ => -- Don't expand implicit lambda on lhs
-                 checkImp rigc elabinfo env tm exp
+                 checkImp rigc elabinfo nest env tm exp
               _ => do tm' <- insertImpLam env tm exp
-                      checkImp rigc elabinfo env tm' exp
+                      checkImp rigc elabinfo nest env tm' exp
 
 -- As above, but doesn't add any implicit lambdas, forces, delays, etc
 -- checkImp : {vars : _} ->
@@ -198,6 +199,6 @@ TTImp.Elab.Check.check rigc elabinfo env tm_in exp
 --            {auto e : Ref EST (EState vars)} ->
 --            RigCount -> ElabInfo -> Env Term vars -> RawImp -> Maybe (Glued vars) ->
 --            Core (Term vars, Glued vars)
-TTImp.Elab.Check.checkImp rigc elabinfo env tm exp
-    = checkTerm rigc elabinfo env tm exp
+TTImp.Elab.Check.checkImp rigc elabinfo nest env tm exp
+    = checkTerm rigc elabinfo nest env tm exp
 

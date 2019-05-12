@@ -6,6 +6,27 @@ import Core.TT
 
 %default covering
 
+-- Information about names in nested blocks
+public export
+record NestedNames (vars : List Name) where
+  constructor MkNested
+  -- A map from names to the decorated version of the name, and the new name
+  -- applied to its enclosing environment
+  names : List (Name, (Maybe Name, Term vars))
+
+export
+Weaken NestedNames where
+  weaken (MkNested ns) = MkNested (map wknName ns)
+    where
+      wknName : (Name, (Maybe Name, Term vars)) ->
+                (Name, (Maybe Name, Term (n :: vars)))
+      wknName (n, (mn, rep)) = (n, (mn, weaken rep))
+
+-- Unchecked terms, with implicit arguments
+-- This is the raw, elaboratable form.
+-- Higher level expressions (e.g. case, pattern matching let, where blocks,
+-- do notation, etc, should elaborate via this, perhaps in some local 
+-- context).
 mutual
   public export
   data BindMode = PI RigCount | PATTERN | NONE

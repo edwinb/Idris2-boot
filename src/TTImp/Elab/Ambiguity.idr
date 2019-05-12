@@ -123,12 +123,13 @@ checkAlternative : {vars : _} ->
                    {auto c : Ref Ctxt Defs} ->
                    {auto u : Ref UST UState} ->
                    {auto e : Ref EST (EState vars)} ->
-                   RigCount -> ElabInfo -> Env Term vars -> 
+                   RigCount -> ElabInfo -> 
+                   NestedNames vars -> Env Term vars -> 
                    FC -> AltType -> List RawImp -> Maybe (Glued vars) ->
                    Core (Term vars, Glued vars)
-checkAlternative rig elabinfo env fc (UniqueDefault def) alts mexpected
+checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
     = throw (InternalError "default alternatives not implemented")
-checkAlternative rig elabinfo env fc uniq alts mexpected
+checkAlternative rig elabinfo nest env fc uniq alts mexpected
     = do expected <- maybe (do nm <- genName "altTy"
                                ty <- metaVar fc Rig0 env nm (TType fc)
                                pure (gnf env ty))
@@ -160,7 +161,7 @@ checkAlternative rig elabinfo env fc uniq alts mexpected
                                     _ => exactlyOne fc env
                   tryall (map (\t => 
                       (getName t, 
-                       do res <- checkImp rig elabinfo env t (Just exp')
+                       do res <- checkImp rig elabinfo nest env t (Just exp')
                           -- Do it twice for interface resolution;
                           -- first pass gets the determining argument
                           -- (maybe rethink this, there should be a better

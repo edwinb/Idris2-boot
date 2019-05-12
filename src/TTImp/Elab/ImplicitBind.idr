@@ -405,18 +405,19 @@ checkBindVar : {vars : _} ->
                {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
                {auto e : Ref EST (EState vars)} ->
-               RigCount -> ElabInfo -> Env Term vars -> 
+               RigCount -> ElabInfo -> 
+               NestedNames vars -> Env Term vars -> 
                FC -> String -> -- string is base of the pattern name 
                Maybe (Glued vars) ->
                Core (Term vars, Glued vars)
-checkBindVar rig elabinfo env fc str topexp
+checkBindVar rig elabinfo nest env fc str topexp
     = do let elabmode = elabMode elabinfo
          -- In types, don't rebind if the name is already in scope;
          -- Below, return True if we don't need to implicitly bind the name
          let False = case implicitMode elabinfo of
                           PI _ => maybe False (const True) (defined (UN str) env)
                           _ => False
-               | _ => check rig elabinfo env (IVar fc (UN str)) topexp
+               | _ => check rig elabinfo nest env (IVar fc (UN str)) topexp
          est <- get EST
          let n = PV (UN str) (defining est)
          noteLHSPatVar elabmode str
@@ -447,11 +448,12 @@ checkBindHere : {vars : _} ->
                 {auto c : Ref Ctxt Defs} ->
                 {auto u : Ref UST UState} ->
                 {auto e : Ref EST (EState vars)} ->
-                RigCount -> ElabInfo -> Env Term vars -> 
+                RigCount -> ElabInfo -> 
+                NestedNames vars -> Env Term vars -> 
                 FC -> BindMode -> RawImp ->
                 Maybe (Glued vars) ->
                 Core (Term vars, Glued vars)
-checkBindHere rig elabinfo env fc bindmode tm exp
+checkBindHere rig elabinfo nest env fc bindmode tm exp
     = do est <- get EST
          let oldenv = outerEnv est
          let oldsub = subEnv est
@@ -462,7 +464,7 @@ checkBindHere rig elabinfo env fc bindmode tm exp
          put EST (updateEnv env SubRefl [] est)
          (tmv, tmt) <- check rig (record { implicitMode = bindmode }
                                          elabinfo)
-                             env tm exp
+                             nest env tm exp
          solveConstraints (case elabMode elabinfo of
                                 InLHS c => InLHS
                                 _ => InTerm) Normal

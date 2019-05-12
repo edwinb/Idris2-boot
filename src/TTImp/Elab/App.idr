@@ -64,7 +64,8 @@ mutual
                  {auto c : Ref Ctxt Defs} ->
                  {auto u : Ref UST UState} ->
                  {auto e : Ref EST (EState vars)} ->
-                 RigCount -> RigCount -> ElabInfo -> Env Term vars -> 
+                 RigCount -> RigCount -> ElabInfo -> 
+                 NestedNames vars -> Env Term vars -> 
                  FC -> (fntm : Term vars) -> 
                  Name -> NF vars -> (Defs -> Closure vars -> Core (NF vars)) ->
                  (expargs : List RawImp) ->
@@ -72,7 +73,7 @@ mutual
                  (knownret : Bool) ->
                  (expected : Maybe (Glued vars)) ->
                  Core (Term vars, Glued vars)
-  makeImplicit rig argRig elabinfo env fc tm x aty sc expargs impargs kr expty
+  makeImplicit rig argRig elabinfo nest env fc tm x aty sc expargs impargs kr expty
       = do defs <- get Ctxt
            nm <- genMVName x
            empty <- clearDefs defs
@@ -83,14 +84,15 @@ mutual
            when (bindingVars elabinfo) $
                 do est <- get EST
                    put EST (addBindIfUnsolved nm rig env metaval metaty est)
-           checkAppWith rig elabinfo env fc
+           checkAppWith rig elabinfo nest env fc
                         fntm fnty expargs impargs kr expty
 
   makeAutoImplicit : {vars : _} ->
                      {auto c : Ref Ctxt Defs} ->
                      {auto u : Ref UST UState} ->
                      {auto e : Ref EST (EState vars)} ->
-                     RigCount -> RigCount -> ElabInfo -> Env Term vars -> 
+                     RigCount -> RigCount -> ElabInfo -> 
+                     NestedNames vars -> Env Term vars -> 
                      FC -> (fntm : Term vars) -> 
                      Name -> NF vars -> (Defs -> Closure vars -> Core (NF vars)) ->
                      (expargs : List RawImp) ->
@@ -98,7 +100,7 @@ mutual
                      (knownret : Bool) ->
                      (expected : Maybe (Glued vars)) ->
                      Core (Term vars, Glued vars)
-  makeAutoImplicit rig argRig elabinfo env fc tm x aty sc expargs impargs kr expty
+  makeAutoImplicit rig argRig elabinfo nest env fc tm x aty sc expargs impargs kr expty
        = throw (InternalError "Auto implicits not yet implemented")
            
   -- Check the rest of an application given the argument type and the
@@ -111,7 +113,8 @@ mutual
                  {auto c : Ref Ctxt Defs} ->
                  {auto u : Ref UST UState} ->
                  {auto e : Ref EST (EState vars)} ->
-                 RigCount -> RigCount -> ElabInfo -> Env Term vars -> 
+                 RigCount -> RigCount -> ElabInfo -> 
+                 NestedNames vars -> Env Term vars -> 
                  FC -> AppInfo -> (fntm : Term vars) -> Name ->
                  (aty : NF vars) -> (sc : Defs -> Closure vars -> Core (NF vars)) ->
                  (arg : RawImp) ->
@@ -120,7 +123,7 @@ mutual
                  (knownret : Bool) ->
                  (expected : Maybe (Glued vars)) ->
                  Core (Term vars, Glued vars)
-  checkRestApp rig argRig elabinfo env fc appinf tm x aty sc
+  checkRestApp rig argRig elabinfo nest env fc appinf tm x aty sc
                arg expargs impargs knownret expty
      = do defs <- get Ctxt
           kr <- if knownret
@@ -136,13 +139,13 @@ mutual
              logNF 10 ("Delaying " ++ show nm ++ " " ++ show arg) env aty
              logTerm 10 "...as" metaval
              fnty <- sc defs (toClosure defaultOpts env metaval)
-             (tm, gty) <- checkAppWith rig elabinfo env fc
+             (tm, gty) <- checkAppWith rig elabinfo nest env fc
                                        fntm fnty expargs impargs kr expty
              defs <- get Ctxt
              aty' <- nf defs env metaty
              logNF 10 ("Now trying " ++ show nm ++ " " ++ show arg) env aty'
              (argv, argt) <- check argRig (nextLevel elabinfo)
-                                   env arg (Just (glueBack defs env aty'))
+                                   nest env arg (Just (glueBack defs env aty'))
              defs <- get Ctxt
              [] <- convert fc elabinfo env (gnf env metaval)
                                            (gnf env argv)
@@ -158,11 +161,11 @@ mutual
                                      expty
                          pure ("Overall expected type: " ++ show ety))
              (argv, argt) <- check argRig (nextLevel elabinfo)
-                                   env arg (Just (glueBack defs env aty))
+                                   nest env arg (Just (glueBack defs env aty))
              defs <- get Ctxt
              let fntm = App fc tm appinf argv
              fnty <- sc defs (toClosure defaultOpts env argv)
-             checkAppWith rig elabinfo env fc
+             checkAppWith rig elabinfo nest env fc
                           fntm fnty expargs impargs kr expty
 
   -- Check an application of 'fntm', with type 'fnty' to the given list
@@ -172,7 +175,8 @@ mutual
                  {auto c : Ref Ctxt Defs} ->
                  {auto u : Ref UST UState} ->
                  {auto e : Ref EST (EState vars)} ->
-                 RigCount -> ElabInfo -> Env Term vars -> 
+                 RigCount -> ElabInfo -> 
+                 NestedNames vars -> Env Term vars -> 
                  FC -> (fntm : Term vars) -> (fnty : NF vars) ->
                  (expargs : List RawImp) ->
                  (impargs : List (Maybe Name, RawImp)) ->
@@ -182,14 +186,14 @@ mutual
                  (expected : Maybe (Glued vars)) ->
                  Core (Term vars, Glued vars)
   -- Ordinary explicit argument
-  checkAppWith rig elabinfo env fc tm (NBind tfc x (Pi rigb Explicit aty) sc)
+  checkAppWith rig elabinfo nest env fc tm (NBind tfc x (Pi rigb Explicit aty) sc)
                (arg :: expargs) impargs kr expty 
       = do let argRig = rigMult rig rigb
-           checkRestApp rig argRig elabinfo env fc (explApp (Just x))
+           checkRestApp rig argRig elabinfo nest env fc (explApp (Just x))
                         tm x aty sc arg expargs impargs kr expty
   -- If there's no more arguments given, and the plicities of the type and
   -- the expected type line up, stop
-  checkAppWith rig elabinfo env fc tm ty@(NBind tfc x (Pi rigb Implicit aty) sc)
+  checkAppWith rig elabinfo nest env fc tm ty@(NBind tfc x (Pi rigb Implicit aty) sc)
                [] [] kr (Just expty_in)
       = do let argRig = rigMult rig rigb
            expty <- getNF expty_in
@@ -197,8 +201,8 @@ mutual
            case expty of
                 NBind tfc' x' (Pi rigb' Implicit aty') sc'
                    => checkExp rig elabinfo env fc tm (glueBack defs env ty) (Just expty_in)
-                _ => makeImplicit rig argRig elabinfo env fc tm x aty sc [] [] kr (Just expty_in)
-  checkAppWith rig elabinfo env fc tm ty@(NBind tfc x (Pi rigb AutoImplicit aty) sc)
+                _ => makeImplicit rig argRig elabinfo nest env fc tm x aty sc [] [] kr (Just expty_in)
+  checkAppWith rig elabinfo nest env fc tm ty@(NBind tfc x (Pi rigb AutoImplicit aty) sc)
                [] [] kr (Just expty_in)
       = do let argRig = rigMult rig rigb
            expty <- getNF expty_in
@@ -206,17 +210,17 @@ mutual
            case expty of
                 NBind tfc' x' (Pi rigb' AutoImplicit aty') sc'
                    => checkExp rig elabinfo env fc tm (glueBack defs env ty) (Just expty_in)
-                _ => makeAutoImplicit rig argRig elabinfo env fc tm x aty sc [] [] kr (Just expty_in)
+                _ => makeAutoImplicit rig argRig elabinfo nest env fc tm x aty sc [] [] kr (Just expty_in)
 
   -- Check next auto implicit argument
-  checkAppWith rig elabinfo env fc tm (NBind tfc x (Pi rigb AutoImplicit aty) sc)
+  checkAppWith rig elabinfo nest env fc tm (NBind tfc x (Pi rigb AutoImplicit aty) sc)
                expargs impargs kr expty
       = let argRig = rigMult rig rigb in
             case useAutoImp [] impargs of
-               Nothing => makeAutoImplicit rig argRig elabinfo env fc tm 
+               Nothing => makeAutoImplicit rig argRig elabinfo nest env fc tm 
                                            x aty sc expargs impargs kr expty
                Just (arg, impargs') =>
-                     checkRestApp rig argRig elabinfo env fc 
+                     checkRestApp rig argRig elabinfo nest env fc 
                                   (appInf (Just x) AutoImplicit)
                                   tm x aty sc arg expargs impargs' kr expty
     where
@@ -228,14 +232,14 @@ mutual
       useAutoImp acc (ximp :: rest)
           = useAutoImp (ximp :: acc) rest
   -- Check next implicit argument
-  checkAppWith rig elabinfo env fc tm (NBind tfc x (Pi rigb Implicit aty) sc)
+  checkAppWith rig elabinfo nest env fc tm (NBind tfc x (Pi rigb Implicit aty) sc)
                expargs impargs kr expty
       = let argRig = rigMult rig rigb in
             case useImp x [] impargs of
-               Nothing => makeImplicit rig argRig elabinfo env fc tm 
+               Nothing => makeImplicit rig argRig elabinfo nest env fc tm 
                                        x aty sc expargs impargs kr expty
                Just (arg, impargs') =>
-                     checkRestApp rig argRig elabinfo env fc 
+                     checkRestApp rig argRig elabinfo nest env fc 
                                   (appInf (Just x) Implicit)
                                   tm x aty sc arg expargs impargs' kr expty
     where
@@ -249,12 +253,12 @@ mutual
       useImp x acc (ximp :: rest)
           = useImp x (ximp :: acc) rest
 
-  checkAppWith rig elabinfo env fc tm ty [] [] kr expty 
+  checkAppWith rig elabinfo nest env fc tm ty [] [] kr expty 
       = do defs <- get Ctxt
            checkExp rig elabinfo env fc tm (glueBack defs env ty) expty
-  checkAppWith rig elabinfo env fc tm ty [] impargs kr expty 
+  checkAppWith rig elabinfo nest env fc tm ty [] impargs kr expty 
       = throw (InvalidImplicits fc env (map fst impargs) tm)
-  checkAppWith {vars} rig elabinfo env fc tm ty (arg :: expargs) impargs kr expty 
+  checkAppWith {vars} rig elabinfo nest env fc tm ty (arg :: expargs) impargs kr expty 
       = -- Invent a function type,  and hope that we'll know enough to solve it
         -- later when we unify with expty
         do logNF 10 "Function type" env ty
@@ -269,14 +273,14 @@ mutual
                             fc Rig0 env -- (Pi RigW Explicit argTy :: env) 
                             retn (TType fc)
            (argv, argt) <- check rig (nextLevel elabinfo)
-                                 env arg (Just argTyG)
+                                 nest env arg (Just argTyG)
            let fntm = App fc tm (appInf Nothing Explicit) argv
            defs <- get Ctxt
            fnty <- nf defs env retTy -- (Bind fc argn (Let RigW argv argTy) retTy)
            let expfnty = gnf env (Bind fc argn (Pi RigW Explicit argTy) (weaken retTy))
            logGlue 10 "Expected function type" env expfnty
            maybe (pure ()) (logGlue 10 "Expected result type" env) expty
-           res <- checkAppWith rig elabinfo env fc fntm fnty expargs impargs kr expty
+           res <- checkAppWith rig elabinfo nest env fc fntm fnty expargs impargs kr expty
            [] <- Check.convert fc elabinfo env (glueBack defs env ty) expfnty
               | cs => do cty <- getTerm expfnty
                          ctm <- newConstant fc rig env (fst res) cty cs
@@ -288,17 +292,18 @@ checkApp : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
            {auto u : Ref UST UState} ->
            {auto e : Ref EST (EState vars)} ->
-           RigCount -> ElabInfo -> Env Term vars -> 
+           RigCount -> ElabInfo -> 
+           NestedNames vars -> Env Term vars -> 
            FC -> (fn : RawImp) -> 
            (expargs : List RawImp) -> 
            (impargs : List (Maybe Name, RawImp)) ->
            Maybe (Glued vars) ->
            Core (Term vars, Glued vars)
-checkApp rig elabinfo env fc (IApp fc' fn arg) expargs impargs exp
-   = checkApp rig elabinfo env fc' fn (arg :: expargs) impargs exp
-checkApp rig elabinfo env fc (IImplicitApp fc' fn nm arg) expargs impargs exp
-   = checkApp rig elabinfo env fc' fn expargs ((nm, arg) :: impargs) exp
-checkApp rig elabinfo env fc (IVar fc' n) expargs impargs exp
+checkApp rig elabinfo nest env fc (IApp fc' fn arg) expargs impargs exp
+   = checkApp rig elabinfo nest env fc' fn (arg :: expargs) impargs exp
+checkApp rig elabinfo nest env fc (IImplicitApp fc' fn nm arg) expargs impargs exp
+   = checkApp rig elabinfo nest env fc' fn expargs ((nm, arg) :: impargs) exp
+checkApp rig elabinfo nest env fc (IVar fc' n) expargs impargs exp
    = do (ntm, nty_in) <- getNameType rig env fc n Nothing
         nty <- getNF nty_in
         logC 10 (do defs <- get Ctxt
@@ -312,9 +317,9 @@ checkApp rig elabinfo env fc (IVar fc' n) expargs impargs exp
                           " to " ++ show expargs ++ "\n\tFunction type " ++
                           (show !(toFullNames fnty)) ++ "\n\tExpected app type "
                                 ++ show exptyt))
-        checkAppWith rig elabinfo env fc ntm nty expargs impargs False exp
-checkApp rig elabinfo env fc fn expargs impargs exp
-   = do (fntm, fnty_in) <- checkImp rig elabinfo env fn Nothing
+        checkAppWith rig elabinfo nest env fc ntm nty expargs impargs False exp
+checkApp rig elabinfo nest env fc fn expargs impargs exp
+   = do (fntm, fnty_in) <- checkImp rig elabinfo nest env fn Nothing
         fnty <- getNF fnty_in
-        checkAppWith rig elabinfo env fc fntm fnty expargs impargs False exp
+        checkAppWith rig elabinfo nest env fc fntm fnty expargs impargs False exp
 
