@@ -110,6 +110,13 @@ checkLambda rig_in elabinfo env fc rigl info n argTy scope (Just expty_in)
                                        (Bind fc bn (Pi rigb info pty) psc)))
               _ => inferLambda rig elabinfo env fc rigl info n argTy scope (Just expty_in)
 
+weakenExp : Env Term (x :: vars) ->
+            Maybe (Glued vars) -> Core (Maybe (Glued (x :: vars)))
+weakenExp env Nothing = pure Nothing
+weakenExp env (Just gtm)
+    = do tm <- getTerm gtm
+         pure (Just (gnf env (weaken tm)))
+
 export
 checkLet : {vars : _} ->
             {auto c : Ref Ctxt Defs} ->
@@ -121,6 +128,31 @@ checkLet : {vars : _} ->
             (nTy : RawImp) -> (nVal : RawImp) -> (scope : RawImp) ->
             (expTy : Maybe (Glued vars)) ->
             Core (Term vars, Glued vars)
-checkLet rig_in elabinfo env fc rigl n nTy nVal scope expty
-    = throw (InternalError "let not implemented")
+checkLet rigc_in elabinfo env fc rigl n nTy nVal scope expty
+    = do let rigc = if rigc_in == Rig0 then Rig0 else Rig1
+         (tyv, tyt) <- check Rig0 (nextLevel elabinfo) env nTy (Just (gType fc))
+         -- Try checking at the given multiplicity; if that doesn't work,
+         -- try checking at Rig1 (meaning that we're using a linear variable
+         -- so the resulting binding should be linear)
+         (valv, valt, rigb) <- handle
+              (do c <- check (rigMult rigl rigc) (nextLevel elabinfo)
+                             env nVal (Just (gnf env tyv))
+                  pure (fst c, snd c, rigMult rigl rigc))
+              (\err => case err of
+                            LinearMisuse _ _ Rig1 _
+                              => do c <- check Rig1 (nextLevel elabinfo) 
+                                               env nVal (Just (gnf env tyv))
+                                    pure (fst c, snd c, Rig1)
+                            e => throw e)
+         let env' : Env Term (n :: _) = Let rigb valv tyv :: env
+         -- TODO let nest' = dropName n nest -- if we see 'n' from here, it's the one we just bound
+         expScope <- weakenExp env' expty 
+         (scopev, gscopet) <- 
+            inScope fc env' (\e' => 
+              check {e=e'} rigc (nextLevel elabinfo) env' scope expScope)
+         scopet <- getTerm gscopet
+         checkExp rigc elabinfo env fc
+                  (Bind fc n (Let rigb valv tyv) scopev)
+                  (gnf env (Bind fc n (Let rigb valv tyv) scopet))
+                  expty
 

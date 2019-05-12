@@ -9,6 +9,7 @@ ttimpTests
     = ["basic001", "basic002", "basic003", "basic004", "basic005",
        "basic006",
        "eta001", "eta002",
+       "nest001",
        "perf001", "perf002", "perf003"]
 
 chdir : String -> IO Bool

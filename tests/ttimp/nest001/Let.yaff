@@ -1,0 +1,3 @@
+testlet : Integer -> Integer
+testlet $x = let y = prim__add_Integer x x in 
+                 prim__add_Integer y y 

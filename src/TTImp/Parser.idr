@@ -8,6 +8,10 @@ import Parser.Support
 import TTImp.TTImp
 
 topDecl : FileName -> IndentInfo -> Rule ImpDecl
+-- All the clauses get parsed as one-clause definitions. Collect any
+-- neighbouring clauses with the same function name into one definition.
+export
+collectDefs : List ImpDecl -> List ImpDecl
 
 atom : FileName -> Rule RawImp
 atom fname
@@ -242,6 +246,31 @@ mutual
        bindAll fc ((rig, n, ty) :: rest) scope
            = ILam fc rig Explicit (Just n) ty (bindAll fc rest scope)
 
+  let_ : FileName -> IndentInfo -> Rule RawImp
+  let_ fname indents
+      = do start <- location
+           keyword "let"
+           rigc <- multiplicity
+           rig <- getMult rigc
+           n <- name
+           symbol "="
+           commit
+           val <- expr fname indents
+           continue indents
+           keyword "in"
+           scope <- typeExpr fname indents
+           end <- location
+           let fc = MkFC fname start end
+           pure (ILet fc rig n (Implicit fc False) val scope)
+    <|> do start <- location
+           keyword "let"
+           ds <- block (topDecl fname)
+           continue indents
+           keyword "in"
+           scope <- typeExpr fname indents
+           end <- location
+           pure (ILocal (MkFC fname start end) (collectDefs ds) scope)
+
   binder : FileName -> IndentInfo -> Rule RawImp
   binder fname indents
       = autoImplicitPi fname indents
@@ -249,6 +278,7 @@ mutual
     <|> implicitPi fname indents
     <|> explicitPi fname indents
     <|> lam fname indents
+    <|> let_ fname indents
 
   typeExpr : FileName -> IndentInfo -> Rule RawImp
   typeExpr fname indents
@@ -368,10 +398,8 @@ topDecl fname indents
          directive fname indents
   <|> clause fname indents
 
--- All the clauses get parsed as one-clause definitions. Collect any
--- neighbouring clauses with the same function name into one definition.
-export
-collectDefs : List ImpDecl -> List ImpDecl
+-- Declared at the top
+-- collectDefs : List ImpDecl -> List ImpDecl
 collectDefs [] = []
 collectDefs (IDef loc fn cs :: ds)
     = let (cs', rest) = spanMap (isClause fn) ds in
