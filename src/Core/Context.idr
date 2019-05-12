@@ -298,7 +298,7 @@ TTC Def where
              4 => do t <- fromBuf r b; a <- fromBuf r b
                      ps <- fromBuf r b; dets <- fromBuf r b; cs <- fromBuf r b
                      pure (TCon t a ps dets cs [])
-             5 => do i <- fromBuf r b;
+             5 => do i <- fromBuf r b
                      pure (Hole i)
              6 => do c <- fromBuf r b; depth <- fromBuf r b
                      def <- fromBuf r b

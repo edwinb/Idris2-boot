@@ -64,7 +64,7 @@ mutual
                  {auto c : Ref Ctxt Defs} ->
                  {auto u : Ref UST UState} ->
                  {auto e : Ref EST (EState vars)} ->
-                 RigCount -> ElabInfo -> Env Term vars -> 
+                 RigCount -> RigCount -> ElabInfo -> Env Term vars -> 
                  FC -> (fntm : Term vars) -> 
                  Name -> NF vars -> (Defs -> Closure vars -> Core (NF vars)) ->
                  (expargs : List RawImp) ->
@@ -72,12 +72,12 @@ mutual
                  (knownret : Bool) ->
                  (expected : Maybe (Glued vars)) ->
                  Core (Term vars, Glued vars)
-  makeImplicit rig elabinfo env fc tm x aty sc expargs impargs kr expty
+  makeImplicit rig argRig elabinfo env fc tm x aty sc expargs impargs kr expty
       = do defs <- get Ctxt
            nm <- genMVName x
            empty <- clearDefs defs
            metaty <- quote empty env aty
-           metaval <- metaVar fc rig env nm metaty
+           metaval <- metaVar fc argRig env nm metaty
            let fntm = App fc tm (appInf (Just x) Implicit) metaval
            fnty <- sc defs (toClosure defaultOpts env metaval)
            when (bindingVars elabinfo) $
@@ -90,7 +90,7 @@ mutual
                      {auto c : Ref Ctxt Defs} ->
                      {auto u : Ref UST UState} ->
                      {auto e : Ref EST (EState vars)} ->
-                     RigCount -> ElabInfo -> Env Term vars -> 
+                     RigCount -> RigCount -> ElabInfo -> Env Term vars -> 
                      FC -> (fntm : Term vars) -> 
                      Name -> NF vars -> (Defs -> Closure vars -> Core (NF vars)) ->
                      (expargs : List RawImp) ->
@@ -98,7 +98,7 @@ mutual
                      (knownret : Bool) ->
                      (expected : Maybe (Glued vars)) ->
                      Core (Term vars, Glued vars)
-  makeAutoImplicit rig elabinfo env fc tm x aty sc expargs impargs kr expty
+  makeAutoImplicit rig argRig elabinfo env fc tm x aty sc expargs impargs kr expty
        = throw (InternalError "Auto implicits not yet implemented")
            
   -- Check the rest of an application given the argument type and the
@@ -196,7 +196,7 @@ mutual
            case expty of
                 NBind tfc' x' (Pi rigb' Implicit aty') sc'
                    => checkExp rig elabinfo env fc tm (glueBack defs env ty) (Just expty_in)
-                _ => makeImplicit argRig elabinfo env fc tm x aty sc [] [] kr (Just expty_in)
+                _ => makeImplicit rig argRig elabinfo env fc tm x aty sc [] [] kr (Just expty_in)
   checkAppWith rig elabinfo env fc tm ty@(NBind tfc x (Pi rigb AutoImplicit aty) sc)
                [] [] kr (Just expty_in)
       = do let argRig = rigMult rig rigb
@@ -205,19 +205,19 @@ mutual
            case expty of
                 NBind tfc' x' (Pi rigb' AutoImplicit aty') sc'
                    => checkExp rig elabinfo env fc tm (glueBack defs env ty) (Just expty_in)
-                _ => makeAutoImplicit argRig elabinfo env fc tm x aty sc [] [] kr (Just expty_in)
+                _ => makeAutoImplicit rig argRig elabinfo env fc tm x aty sc [] [] kr (Just expty_in)
 
   -- Check next auto implicit argument
   checkAppWith rig elabinfo env fc tm (NBind tfc x (Pi rigb AutoImplicit aty) sc)
                expargs impargs kr expty
-      = case useAutoImp [] impargs of
-             Nothing => makeAutoImplicit rig elabinfo env fc tm 
-                                         x aty sc expargs impargs kr expty
-             Just (arg, impargs') =>
-                do let argRig = rigMult rig rigb
-                   checkRestApp rig argRig elabinfo env fc 
-                                (appInf (Just x) AutoImplicit)
-                                tm x aty sc arg expargs impargs' kr expty
+      = let argRig = rigMult rig rigb in
+            case useAutoImp [] impargs of
+               Nothing => makeAutoImplicit rig argRig elabinfo env fc tm 
+                                           x aty sc expargs impargs kr expty
+               Just (arg, impargs') =>
+                     checkRestApp rig argRig elabinfo env fc 
+                                  (appInf (Just x) AutoImplicit)
+                                  tm x aty sc arg expargs impargs' kr expty
     where
       useAutoImp : List (Maybe Name, RawImp) -> List (Maybe Name, RawImp) ->
                    Maybe (RawImp, List (Maybe Name, RawImp))
@@ -229,14 +229,14 @@ mutual
   -- Check next implicit argument
   checkAppWith rig elabinfo env fc tm (NBind tfc x (Pi rigb Implicit aty) sc)
                expargs impargs kr expty
-      = case useImp x [] impargs of
-             Nothing => makeImplicit rig elabinfo env fc tm 
-                                     x aty sc expargs impargs kr expty
-             Just (arg, impargs') =>
-                do let argRig = rigMult rig rigb
-                   checkRestApp rig argRig elabinfo env fc 
-                                (appInf (Just x) Implicit)
-                                tm x aty sc arg expargs impargs' kr expty
+      = let argRig = rigMult rig rigb in
+            case useImp x [] impargs of
+               Nothing => makeImplicit rig argRig elabinfo env fc tm 
+                                       x aty sc expargs impargs kr expty
+               Just (arg, impargs') =>
+                     checkRestApp rig argRig elabinfo env fc 
+                                  (appInf (Just x) Implicit)
+                                  tm x aty sc arg expargs impargs' kr expty
     where
       useImp : Name -> List (Maybe Name, RawImp) -> List (Maybe Name, RawImp) ->
                Maybe (RawImp, List (Maybe Name, RawImp))

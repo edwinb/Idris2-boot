@@ -146,7 +146,7 @@ checkAlternative rig elabinfo env fc uniq alts mexpected
                   when (not delayed && 
                         !(holeIn (gamma defs) exp)) $
                     throw (AllFailed [])
-                  -- We can't just used the old NF on the second attempt, 
+                  -- We can't just use the old NF on the second attempt, 
                   -- because we might know more now, so recalculate it
                   let exp' = if delayed 
                                 then gnf env exp

@@ -139,7 +139,8 @@ parameters (defs : Defs, opts : EvalOpts)
     evalRef env locs meta fc nt n stk def 
         = do Just res <- lookupCtxtExact n (gamma defs)
                   | Nothing => pure def 
-             evalDef env locs meta fc (definition res) (flags res) stk def
+             evalDef env locs meta fc 
+                     (multiplicity res) (definition res) (flags res) stk def
 
     getCaseBound : List (AppInfo, Closure free) ->
                    (args : List Name) ->
@@ -292,23 +293,32 @@ parameters (defs : Defs, opts : EvalOpts)
     evalDef : {vars : _} ->
               Env Term free -> LocalEnv free vars ->
               (isMeta : Bool) -> FC ->
-              Def -> List DefFlag -> Stack free -> (def : Lazy (NF free)) ->
+              RigCount -> Def -> List DefFlag -> 
+              Stack free -> (def : Lazy (NF free)) ->
               Core (NF free)
-    evalDef {vars} env locs meta fc (PMDef args tree _ _) flags stk def
+    evalDef {vars} env locs meta fc rigd (PMDef args tree _ _) flags stk def
        -- If evaluating the definition fails (e.g. due to a case being
-       -- stuck) return the default
-        = if meta || not (holesOnly opts) ||
-                (tcInline opts && elem TCInline flags)
+       -- stuck) return the default.
+       -- We can use the definition if one of the following is true:
+       --   + We're not in 'holesOnly', 'argHolesOnly' or 'tcInline'
+       --         (that's the default mode)
+       --   + It's a metavariable and not in Rig0
+       --   + It's a metavariable and we're not in 'argHolesOnly'
+       --   + It's inlinable and and we're in 'tcInline'
+        = if (not (holesOnly opts) && not (argHolesOnly opts) && not (tcInline opts))
+             || (meta && rigd /= Rig0)
+             || (meta && holesOnly opts)
+             || (tcInline opts && elem TCInline flags)
              then case extendFromStack args locs stk of
                        Nothing => pure def
                        Just (locs', stk') => 
                             evalTree env locs' fc stk' tree (pure def)
              else pure def
-    evalDef {vars} env locs meta fc (Builtin op) flags stk def
+    evalDef {vars} env locs meta fc rigd (Builtin op) flags stk def
         = evalOp (getOp op) stk def
     -- All other cases, use the default value, which is already applied to
     -- the stack
-    evalDef env locs _ _ _ _ stk def = pure def
+    evalDef env locs _ _ _ _ _ stk def = pure def
 
 -- Make sure implicit argument order is right... 'vars' is used so we'll
 -- write it explicitly, but it does appear after the parameters in 'eval'!
@@ -495,6 +505,11 @@ export
 normaliseHoles : Defs -> Env Term free -> Term free -> Core (Term free)
 normaliseHoles defs env tm 
     = quote defs env !(nfOpts withHoles defs env tm)
+
+export
+normaliseArgHoles : Defs -> Env Term free -> Term free -> Core (Term free)
+normaliseArgHoles defs env tm 
+    = quote defs env !(nfOpts withArgHoles defs env tm)
 
 -- Normalise, but without normalising the types of binders. Dealing with
 -- binders is the slow part of normalisation so whenever we can avoid it, it's

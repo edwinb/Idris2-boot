@@ -39,6 +39,7 @@ elabTerm defining mode env tm ty
                               _ => InTerm
          solveConstraints solvemode Normal
          solveConstraints solvemode Normal
+         logTerm 5 "Looking for delayed in " chktm
          retryDelayedIn env chktm
          -- As long as we're not in a case block, finish off constraint solving
          when (not incase) $

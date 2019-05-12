@@ -79,6 +79,7 @@ retryDelayedIn env (Meta fc n i args)
          case !(lookupDefExact (Resolved i) (gamma defs)) of
               Just Delayed => 
                 do ust <- get UST
+                   log 10 $ "Retrying " ++ show n
                    let Just elab = lookup i (delayedElab ust)
                             | Nothing => pure ()
                    tm <- elab

@@ -38,8 +38,28 @@ foo = ItIs
 revapply : $arg -> ($arg -> $b) -> $b
 revapply $x $f = f x
 
--- Testing delayed elaborationg; we can't check the list until we know
+-- Testing delayed elaboration; we can't check the list until we know
 -- whether it's List or Vect, which we work out from the second argument
 test : Integer -> Nat
 test $x = revapply (Cons x (Cons x Nil)) Vect.length
 
+data Infer : Type where
+     MkInfer : $a -> Infer
+
+long : Infer
+long 
+  = MkInfer (Vect.Cons 0 (Cons 0 (Cons 0 (Cons 0 (Cons 0 (
+       Cons 0 (Cons 0 (Cons 0 (Cons 0 (Cons 0 (
+       Cons 0 (Cons 0 (Cons 0 (Cons 0 (Cons 0 (
+       Cons 0 (Cons 0 (Cons 0 (Cons 0 (Cons 0 (
+       Cons 0 (Cons 0 (Cons 0 (Cons 0 (Cons 0 (
+       Cons 0 (Cons 0 (Cons 0 (Cons 0 (Cons 0 (
+       Cons 0 (Cons 0 (Cons 0 (Cons 0 (Cons 0 (
+       Cons 0 (Cons 0 (Cons 0 (Cons 0 (Cons 0 (
+       Cons 0 (Cons 0 (Cons 0 (Cons 0 (Cons 0 (
+       Cons 0 (Cons 0 (Cons 0 (Cons 0 (Cons 0 (
+       Cons 0 (Cons 0 (Cons 0 (Cons 0 (Cons 0 (
+       Cons 0 (Cons 0 (Cons 0 (Cons 0 (Cons 0 (
+       Cons 0 (Cons 0 (Cons 0 (Cons 0 (Cons 0 (
+       Nil)))))))))))))))))))))))))))))))))))
+       )))))))))))))))))))))))))))))))

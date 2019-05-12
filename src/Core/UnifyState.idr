@@ -265,7 +265,7 @@ newMeta : {auto c : Ref Ctxt Defs} ->
 newMeta {vars} fc rig env n ty
     = do let hty = abstractEnvType fc env ty
          let hole = newDef fc n rig hty Public (Hole False)
-         log 10 $ "Adding new meta " ++ show n
+         log 5 $ "Adding new meta " ++ show (n, rig)
          idx <- addDef n hole 
          addHoleName fc n idx
          pure (idx, Meta fc n idx envArgs)
