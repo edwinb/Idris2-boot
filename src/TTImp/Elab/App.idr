@@ -14,12 +14,15 @@ import TTImp.TTImp
 
 %default covering
 
+-- Get the type of a variable, assuming we haven't found it in the nested
+-- names. Look in the Env first, then the global context.
 getNameType : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
               {auto e : Ref EST (EState vars)} ->
-              RigCount -> Env Term vars -> FC -> Name -> Maybe (Glued vars) ->
+              RigCount -> Env Term vars ->
+              FC -> Name ->
               Core (Term vars, Glued vars)
-getNameType rigc env fc x expected
+getNameType rigc env fc x
     = case defined x env of
            Just (MkIsDefined rigb lv) => 
               do rigSafe rigb rigc
@@ -42,6 +45,38 @@ getNameType rigc env fc x expected
     rigSafe Rig0 RigW = throw (LinearMisuse fc x Rig0 RigW)
     rigSafe Rig0 Rig1 = throw (LinearMisuse fc x Rig0 Rig1)
     rigSafe _ _ = pure ()
+
+-- Get the type of a variable, looking it up in the nested names first.
+getVarType : {vars : _} ->
+             {auto c : Ref Ctxt Defs} ->
+             {auto e : Ref EST (EState vars)} ->
+             RigCount -> NestedNames vars -> Env Term vars ->
+             FC -> Name ->
+             Core (Term vars, Glued vars)
+getVarType rigc nest env fc x
+    = case lookup x (names nest) of
+           Nothing => getNameType rigc env fc x
+           Just (nestn, tmf) =>
+              do defs <- get Ctxt
+                 let n' = maybe x id nestn
+                 case !(lookupCtxtExact n' (gamma defs)) of
+                      Nothing => throw (UndefinedName fc n')
+                      Just ndef =>
+                         let nt = case definition ndef of
+                                       PMDef _ _ _ _ => Func
+                                       DCon t a => DataCon t a
+                                       TCon t a _ _ _ _ => TyCon t a
+                                       _ => Func
+                             tm = tmf fc nt
+                             tyenv = useVars (map snd (getArgs tm))
+                                             (embed (type ndef)) in
+                             pure (tm, gnf env tyenv)
+    where
+      useVars : List (Term vars) -> Term vars -> Term vars
+      useVars [] sc = sc
+      useVars (a :: as) (Bind bfc n (Pi c _ ty) sc) 
+           = Bind bfc n (Let c a ty) (useVars (map weaken as) sc)
+      useVars _ sc = sc -- Can't happen?
 
 isHole : NF vars -> Bool
 isHole (NApp _ (NMeta _ _ _) _) = True
@@ -304,7 +339,7 @@ checkApp rig elabinfo nest env fc (IApp fc' fn arg) expargs impargs exp
 checkApp rig elabinfo nest env fc (IImplicitApp fc' fn nm arg) expargs impargs exp
    = checkApp rig elabinfo nest env fc' fn expargs ((nm, arg) :: impargs) exp
 checkApp rig elabinfo nest env fc (IVar fc' n) expargs impargs exp
-   = do (ntm, nty_in) <- getNameType rig env fc n Nothing
+   = do (ntm, nty_in) <- getVarType rig nest env fc n
         nty <- getNF nty_in
         logC 10 (do defs <- get Ctxt
                     fnty <- quote defs env nty

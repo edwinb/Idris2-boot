@@ -247,18 +247,18 @@ instantiate : {auto c : Ref Ctxt Defs} ->
 instantiate {newvars} loc env mname mref mdef locs otm tm
     = do log 5 $ "Instantiating " ++ show tm ++ " in " ++ show newvars 
          let ty = type mdef
-         case mkDef [] newvars (snocList newvars) CompatPre
+         defs <- get Ctxt
+         rhs <- mkDef [] newvars (snocList newvars) CompatPre
                      (rewrite appendNilRightNeutral newvars in locs)
-                     (rewrite appendNilRightNeutral newvars in tm) ty of
-               Nothing => ufail loc $ "Can't make solution for " ++ show mname
-               Just rhs =>
-                  do logTerm 5 ("Instantiated: " ++ show mname) ty
-                     logTerm 5 "Definition" rhs
-                     let newdef = record { definition = 
-                                             PMDef [] (STerm rhs) (STerm rhs) [] 
-                                         } mdef
-                     addDef (Resolved mref) newdef
-                     removeHole mref
+                     (rewrite appendNilRightNeutral newvars in tm) 
+                     !(nf defs [] ty)
+         logTerm 5 ("Instantiated: " ++ show mname) ty
+         logTerm 5 "Definition" rhs
+         let newdef = record { definition = 
+                                 PMDef [] (STerm rhs) (STerm rhs) [] 
+                             } mdef
+         addDef (Resolved mref) newdef
+         removeHole mref
   where
     updateLoc : {v : Nat} -> List (Var vs) -> .(IsVar name v vs') -> 
                 Maybe (Var vs)
@@ -295,18 +295,22 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
     mkDef : (got : List Name) -> (vs : List Name) -> SnocList vs ->
             CompatibleVars got rest ->
             List (Var (vs ++ got)) -> Term (vs ++ got) -> 
-            Term rest -> Maybe (Term rest)
+            NF [] -> Core (Term rest)
     mkDef got [] Empty cvs locs tm ty 
-        = do tm' <- updateLocs (reverse locs) tm
+        = do let Just tm' = updateLocs (reverse locs) tm
+                    | Nothing => ufail loc ("Can't make solution for " ++ show mname)
              pure (renameVars cvs tm')
-    mkDef got (vs ++ [v]) (Snoc rec) cvs locs tm (Bind bfc x (Pi c _ ty) sc) 
-        = do sc' <- mkDef (v :: got) vs rec (CompatExt cvs)
+    mkDef got (vs ++ [v]) (Snoc rec) cvs locs tm (NBind bfc x (Pi c _ ty) scfn) 
+        = do defs <- get Ctxt
+             sc <- scfn defs (toClosure defaultOpts [] (Erased bfc))
+             sc' <- mkDef (v :: got) vs rec (CompatExt cvs)
                        (rewrite appendAssociative vs [v] got in locs)
                        (rewrite appendAssociative vs [v] got in tm)
                        sc
              pure (Bind bfc x (Lam c Explicit (Erased bfc)) sc')
-    mkDef got (vs ++ [v]) (Snoc rec) cvs locs tm ty = Nothing
-    
+    mkDef got (vs ++ [v]) (Snoc rec) cvs locs tm ty
+        = ufail loc $ "Can't make solution for " ++ show mname  
+
 isDefInvertible : {auto c : Ref Ctxt Defs} ->
                   Int -> Core Bool
 isDefInvertible i

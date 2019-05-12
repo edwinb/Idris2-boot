@@ -14,6 +14,7 @@ import TTImp.Elab.As
 import TTImp.Elab.Binders
 import TTImp.Elab.Check
 import TTImp.Elab.ImplicitBind
+import TTImp.Elab.Local
 import TTImp.Elab.Prim
 import TTImp.TTImp
 
@@ -98,7 +99,7 @@ checkTerm rig elabinfo nest env (ILet fc r n nTy nVal scope) exp
 checkTerm rig elabinfo nest env (ICase fc scr scrty als) exp
     = throw (InternalError "case not implemented")
 checkTerm rig elabinfo nest env (ILocal fc nested scope) exp
-    = throw (InternalError "let functions not implemented")
+    = checkLocal rig elabinfo nest env fc nested scope exp
 checkTerm rig elabinfo nest env (IUpdate fc upds rec) exp
     = throw (InternalError "record update not implemented")
 checkTerm rig elabinfo nest env (IApp fc fn arg) exp 

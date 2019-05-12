@@ -8,9 +8,9 @@ data Name : Type where
      UN : String -> Name -- user defined name
      MN : String -> Int -> Name -- machine generated name
      PV : Name -> Int -> Name -- pattern variable name; int is the resolved function id
-     Nested : Name -> Name -> Name -- nested function name
-     CaseBlock : Name -> Int -> Name -- case block nested in name
-     WithBlock : Name -> Int -> Name -- with block nested in name
+     Nested : Int -> Name -> Name -- nested function name
+     CaseBlock : Int -> Int -> Name -- case block nested in (resolved) name
+     WithBlock : Int -> Int -> Name -- with block nested in (resolved) name
      Resolved : Int -> Name -- resolved, index into context
 
 export
@@ -32,8 +32,8 @@ nameRoot (UN n) = n
 nameRoot (MN n _) = n
 nameRoot (PV n _) = nameRoot n
 nameRoot (Nested n inner) = nameRoot inner
-nameRoot (CaseBlock n inner) = nameRoot n
-nameRoot (WithBlock n inner) = nameRoot n
+nameRoot (CaseBlock n inner) = "$" ++ show n
+nameRoot (WithBlock n inner) = "$" ++ show n
 nameRoot (Resolved i) = "$" ++ show i
 
 --- Drop a namespace from a name
@@ -139,21 +139,21 @@ nameEq (PV x t) (PV y t') with (nameEq x y)
     nameEq (PV y t) (PV y t) | (Just Refl) | (Yes Refl) = Just Refl
     nameEq (PV y t) (PV y t') | (Just Refl) | (No p) = Nothing
   nameEq (PV x t) (PV y t') | Nothing = Nothing
-nameEq (Nested x y) (Nested x' y') with (nameEq x x')
-  nameEq (Nested x y) (Nested x' y') | Nothing = Nothing
-  nameEq (Nested x y) (Nested x y') | (Just Refl) with (nameEq y y')
-    nameEq (Nested x y) (Nested x y') | (Just Refl) | Nothing = Nothing
-    nameEq (Nested x y) (Nested x y) | (Just Refl) | (Just Refl) = Just Refl
-nameEq (CaseBlock x y) (CaseBlock x' y') with (nameEq x x')
-  nameEq (CaseBlock x y) (CaseBlock x' y') | Nothing = Nothing
-  nameEq (CaseBlock x y) (CaseBlock x y') | (Just Refl) with (decEq y y')
-    nameEq (CaseBlock x y) (CaseBlock x y') | (Just Refl) | (No p) = Nothing
-    nameEq (CaseBlock x y) (CaseBlock x y) | (Just Refl) | (Yes Refl) = Just Refl
-nameEq (WithBlock x y) (WithBlock x' y') with (nameEq x x')
-  nameEq (WithBlock x y) (WithBlock x' y') | Nothing = Nothing
-  nameEq (WithBlock x y) (WithBlock x y') | (Just Refl) with (decEq y y')
-    nameEq (WithBlock x y) (WithBlock x y') | (Just Refl) | (No p) = Nothing
-    nameEq (WithBlock x y) (WithBlock x y) | (Just Refl) | (Yes Refl) = Just Refl
+nameEq (Nested x y) (Nested x' y') with (decEq x x')
+  nameEq (Nested x y) (Nested x' y') | (No p) = Nothing
+  nameEq (Nested x y) (Nested x y') | (Yes Refl) with (nameEq y y')
+    nameEq (Nested x y) (Nested x y') | (Yes Refl) | Nothing = Nothing
+    nameEq (Nested x y) (Nested x y) | (Yes Refl) | (Just Refl) = Just Refl
+nameEq (CaseBlock x y) (CaseBlock x' y') with (decEq x x')
+  nameEq (CaseBlock x y) (CaseBlock x' y') | (No p) = Nothing
+  nameEq (CaseBlock x y) (CaseBlock x y') | (Yes Refl) with (decEq y y')
+    nameEq (CaseBlock x y) (CaseBlock x y') | (Yes Refl) | (No p) = Nothing
+    nameEq (CaseBlock x y) (CaseBlock x y) | (Yes Refl) | (Yes Refl) = Just Refl
+nameEq (WithBlock x y) (WithBlock x' y') with (decEq x x')
+  nameEq (WithBlock x y) (WithBlock x' y') | (No p) = Nothing
+  nameEq (WithBlock x y) (WithBlock x y') | (Yes Refl) with (decEq y y')
+    nameEq (WithBlock x y) (WithBlock x y') | (Yes Refl) | (No p) = Nothing
+    nameEq (WithBlock x y) (WithBlock x y) | (Yes Refl) | (Yes Refl) = Just Refl
 nameEq (Resolved x) (Resolved y) with (decEq x y)
   nameEq (Resolved y) (Resolved y) | (Yes Refl) = Just Refl
   nameEq (Resolved x) (Resolved y) | (No contra) = Nothing

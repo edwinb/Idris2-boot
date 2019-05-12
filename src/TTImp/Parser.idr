@@ -374,7 +374,7 @@ directive fname indents
          s <- name
          end <- location
          let fc = MkFC fname start end
-         pure (IPragma (\c, env => setPair {c} fc p f s))
+         pure (IPragma (\c, nest, env => setPair {c} fc p f s))
 
 -- Declared at the top
 -- topDecl : FileName -> IndentInfo -> Rule ImpDecl

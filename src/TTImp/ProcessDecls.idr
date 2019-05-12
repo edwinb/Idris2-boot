@@ -31,7 +31,7 @@ process nest env (INamespace fc ns decls)
          traverse (processDecl nest env) decls
          setNS oldns
 process {c} nest env (IPragma act)
-    = act c env
+    = act c nest env
 process nest env (ILog n)
     = setLogLevel n
 

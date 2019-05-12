@@ -136,7 +136,8 @@ checkClause : {auto c : Ref Ctxt Defs} ->
 checkClause mult hashit n nest env (ImpossibleClause fc lhs)
     = throw (InternalError "impossible not implemented yet")
 checkClause mult hashit n nest env (PatClause fc lhs_in rhs)
-    = do lhs <- lhsInCurrentNS lhs_in 
+    = do lhs <- lhsInCurrentNS nest lhs_in 
+         log 5 $ "Checking " ++ show lhs
          (lhstm, lhstyg) <- elabTerm n (InLHS mult) nest env 
                                 (IBindHere fc PATTERN lhs) Nothing
          lhsty <- getTerm lhstyg

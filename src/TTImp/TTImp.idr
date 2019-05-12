@@ -12,15 +12,17 @@ record NestedNames (vars : List Name) where
   constructor MkNested
   -- A map from names to the decorated version of the name, and the new name
   -- applied to its enclosing environment
-  names : List (Name, (Maybe Name, Term vars))
+  -- Takes the location and name type, because we don't know them until we
+  -- elaborate the name at the point of use
+  names : List (Name, (Maybe Name, FC -> NameType -> Term vars))
 
 export
 Weaken NestedNames where
   weaken (MkNested ns) = MkNested (map wknName ns)
     where
-      wknName : (Name, (Maybe Name, Term vars)) ->
-                (Name, (Maybe Name, Term (n :: vars)))
-      wknName (n, (mn, rep)) = (n, (mn, weaken rep))
+      wknName : (Name, (Maybe Name, FC -> NameType -> Term vars)) ->
+                (Name, (Maybe Name, FC -> NameType -> Term (n :: vars)))
+      wknName (n, (mn, rep)) = (n, (mn, \fc, nt => weaken (rep fc nt)))
 
 -- Unchecked terms, with implicit arguments
 -- This is the raw, elaboratable form.
@@ -194,7 +196,8 @@ mutual
        IData : FC -> Visibility -> ImpData -> ImpDecl
        IDef : FC -> Name -> List ImpClause -> ImpDecl
        INamespace : FC -> List String -> List ImpDecl -> ImpDecl 
-       IPragma : ({vars : _} -> Ref Ctxt Defs -> Env Term vars -> Core ()) -> 
+       IPragma : ({vars : _} -> Ref Ctxt Defs -> 
+                  NestedNames vars -> Env Term vars -> Core ()) -> 
                  ImpDecl
        ILog : Nat -> ImpDecl
 
@@ -220,23 +223,21 @@ data ImpREPL : Type where
 
 export
 lhsInCurrentNS : {auto c : Ref Ctxt Defs} ->
-                 RawImp -> Core RawImp
-lhsInCurrentNS (IApp loc f a)
-    = do f' <- lhsInCurrentNS f
+                 NestedNames vars -> RawImp -> Core RawImp
+lhsInCurrentNS nest (IApp loc f a)
+    = do f' <- lhsInCurrentNS nest f
          pure (IApp loc f' a)
-lhsInCurrentNS (IImplicitApp loc f n a)
-    = do f' <- lhsInCurrentNS f
+lhsInCurrentNS nest (IImplicitApp loc f n a)
+    = do f' <- lhsInCurrentNS nest f
          pure (IImplicitApp loc f' n a)
-lhsInCurrentNS tm@(IVar loc (NS _ _)) = pure tm -- leave explicit NS alone
-lhsInCurrentNS (IVar loc n)
-       = do n' <- inCurrentNS n
-            pure (IVar loc n')
---     = case lookup n (names nest) of
---            Nothing =>
---               do n' <- inCurrentNS n
---                  pure (IVar loc n')
---            -- If it's one of the names in the current nested block, we'll
---            -- be rewriting it during elaboration to be in the scope of the
---            -- parent name.
---            Just _ => pure (IVar loc n)
-lhsInCurrentNS tm = pure tm
+lhsInCurrentNS nest tm@(IVar loc (NS _ _)) = pure tm -- leave explicit NS alone
+lhsInCurrentNS nest (IVar loc n)
+    = case lookup n (names nest) of
+           Nothing =>
+              do n' <- inCurrentNS n
+                 pure (IVar loc n')
+           -- If it's one of the names in the current nested block, we'll
+           -- be rewriting it during elaboration to be in the scope of the
+           -- parent name.
+           Just _ => pure (IVar loc n)
+lhsInCurrentNS nest tm = pure tm

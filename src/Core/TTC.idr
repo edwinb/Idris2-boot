@@ -4,6 +4,7 @@ import Core.CaseTree
 import Core.Core
 import Core.Env
 import Core.FC
+import Core.Name
 import Core.TT
 
 import Utils.Binary

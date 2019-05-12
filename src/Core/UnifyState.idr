@@ -256,6 +256,12 @@ applyTo {vars} fc tm env
   = let args = reverse (mkConstantAppArgs {done = []} False fc env []) in
         apply fc (explApp Nothing) tm (rewrite sym (appendNilRightNeutral vars) in args)
 
+export
+applyToFull : FC -> Term vars -> Env Term vars -> Term vars
+applyToFull {vars} fc tm env
+  = let args = reverse (mkConstantAppArgs {done = []} True fc env []) in
+        apply fc (explApp Nothing) tm (rewrite sym (appendNilRightNeutral vars) in args)
+
 -- Create a new metavariable with the given name and return type,
 -- and return a term which is the metavariable applied to the environment
 -- (and which has the given type)
