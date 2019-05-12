@@ -87,13 +87,14 @@ record EState (vars : List Name) where
   allPatVars : List Name
                   -- Holes standing for pattern variables, which we'll delete
                   -- once we're done elaborating
+  allowDelay : Bool -- Delaying elaborators is okay. We can't nest delays.
 
 export
 data EST : Type where
 
 export
 initEStateSub : Int -> Env Term outer -> SubVars outer vars -> EState vars
-initEStateSub n env sub = MkEState n env sub [] [] [] [] []
+initEStateSub n env sub = MkEState n env sub [] [] [] [] [] True
 
 export
 initEState : Int -> Env Term vars -> EState vars
@@ -111,7 +112,8 @@ weakenedEState {e}
                               (map wknTms (toBind est))
                               (bindIfUnsolved est) 
                               (lhsPatVars est)
-                              (allPatVars est))
+                              (allPatVars est)
+                              (allowDelay est))
          pure eref
   where
     wknTms : (Name, ImplBinding vs) -> 
@@ -138,7 +140,8 @@ strengthenedEState {n} {vars} c e fc env
                         todo
                         (bindIfUnsolved est) 
                         (lhsPatVars est)
-                        (allPatVars est))
+                        (allPatVars est)
+                        (allowDelay est))
   where
     dropSub : SubVars xs (y :: ys) -> Core (SubVars xs ys)
     dropSub (DropCons sub) = pure sub
@@ -187,6 +190,7 @@ updateEnv env sub bif st
                (boundNames st) (toBind st) bif
                (lhsPatVars st)
                (allPatVars st)
+               (allowDelay st)
 
 export
 addBindIfUnsolved : Name -> RigCount -> Env Term vars -> Term vars -> Term vars ->
@@ -198,6 +202,7 @@ addBindIfUnsolved hn r env tm ty st
                ((hn, r, (_ ** (env, tm, ty, subEnv st))) :: bindIfUnsolved st)
                (lhsPatVars st)
                (allPatVars st)
+               (allowDelay st)
 
 clearBindIfUnsolved : EState vars -> EState vars
 clearBindIfUnsolved st
@@ -206,6 +211,7 @@ clearBindIfUnsolved st
                (boundNames st) (toBind st) []
                (lhsPatVars st)
                (allPatVars st)
+               (allowDelay st)
 
 -- Clear the 'toBind' list, except for the names given
 export

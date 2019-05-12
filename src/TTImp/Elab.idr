@@ -17,6 +17,15 @@ getRigNeeded InType = Rig0 -- unrestricted usage in types
 getRigNeeded (InLHS Rig0) = Rig0
 getRigNeeded _ = Rig1
 
+data ElabOpts
+  = HolesOkay
+  | InCase
+
+Eq ElabOpts where
+  HolesOkay == HolesOkay = True
+  InCase == InCase = True
+  _ == _ = False
+
 export
 elabTerm : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
@@ -40,7 +49,10 @@ elabTerm defining mode env tm ty
          solveConstraints solvemode Normal
          solveConstraints solvemode Normal
          logTerm 5 "Looking for delayed in " chktm
-         retryDelayedIn env chktm
+         ust <- get UST
+         retryDelayed (delayedElab ust)
+         ust <- get UST
+         put UST (record { delayedElab = [] } ust)
          -- As long as we're not in a case block, finish off constraint solving
          when (not incase) $
            -- resolve any default hints

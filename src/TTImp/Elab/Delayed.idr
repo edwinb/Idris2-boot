@@ -53,7 +53,8 @@ delayOnFailure : {auto c : Ref Ctxt Defs} ->
 delayOnFailure fc rig env expected pred elab 
     = handle (elab False)
         (\err => 
-            do if pred err 
+            do est <- get EST
+               if pred err && allowDelay est
                   then 
                     do nm <- genName "delayed"
                        (ci, dtm) <- newDelayed fc rig env nm !(getTerm expected)
@@ -61,52 +62,29 @@ delayOnFailure fc rig env expected pred elab
                                     " for") env expected
                        log 10 ("Due to error " ++ show err)
                        ust <- get UST
-                       put UST (record { delayedElab $= insert ci
-                                           (mkClosedElab fc env (elab True)) } 
+                       put UST (record { delayedElab $= 
+                               ((ci, mkClosedElab fc env 
+                                         (do est <- get EST
+                                             put EST (record { allowDelay = False } est)
+                                             tm <- elab True
+                                             put EST (record { allowDelay = True } est)
+                                             pure tm)) :: ) } 
                                        ust)
                        pure (dtm, expected)
                   else throw err)
 
 export
-retryDelayedIn : {auto c : Ref Ctxt Defs} -> 
-                 {auto u : Ref UST UState} ->
-                 {auto e : Ref EST (EState vars)} -> 
-                 Env Term vars -> Term vars -> 
-                 Core ()
-retryDelayedIn env (Meta fc n i args)
-    = do traverse (retryDelayedIn env) args
-         defs <- get Ctxt
-         case !(lookupDefExact (Resolved i) (gamma defs)) of
-              Just Delayed => 
-                do ust <- get UST
-                   log 10 $ "Retrying " ++ show n
-                   let Just elab = lookup i (delayedElab ust)
-                            | Nothing => pure ()
-                   tm <- elab
-                   -- On success, look for delayed holes in the result
-                   retryDelayedIn env (embed tm)
-                   updateDef (Resolved i) (const (Just 
-                        (PMDef [] (STerm tm) (STerm tm) [])))
-                   logTerm 5 ("Resolved delayed hole " ++ show n) tm
-                   removeHole i
-              -- Also look for delayed names inside guarded definitions.
-              -- This helps with error messages because it shows any
-              -- problems in delayed elaborators before the constraint
-              -- failure, and it might also solve some constraints
-              Just (Guess g cs) => retryDelayedIn env (embed g)
-              _ => pure ()
-retryDelayedIn env (Bind fc x b sc) 
-    = do traverse (retryDelayedIn env) b
-         inScope fc (b :: env)
-                    (\e' => retryDelayedIn {e=e'} (b :: env) sc)
-retryDelayedIn env (App fc fn p arg)
-    = do retryDelayedIn env fn
-         retryDelayedIn env arg
-retryDelayedIn env (As fc as pat)
-    = do retryDelayedIn env as
-         retryDelayedIn env pat
-retryDelayedIn env (TDelayed fc r tm) = retryDelayedIn env tm
-retryDelayedIn env (TDelay fc r tm) = retryDelayedIn env tm
-retryDelayedIn env (TForce fc tm) = retryDelayedIn env tm
-retryDelayedIn env tm = pure ()
+retryDelayed : {auto c : Ref Ctxt Defs} -> 
+               {auto u : Ref UST UState} ->
+               {auto e : Ref EST (EState vars)} -> 
+               List (Int, Core ClosedTerm) ->
+               Core ()
+retryDelayed [] = pure ()
+retryDelayed ((i, elab) :: ds)
+    = do tm <- elab
+         updateDef (Resolved i) (const (Just 
+              (PMDef [] (STerm tm) (STerm tm) [])))
+         logTerm 5 ("Resolved delayed hole " ++ show i) tm
+         removeHole i
+         retryDelayed ds
 

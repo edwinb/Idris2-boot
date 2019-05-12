@@ -66,14 +66,16 @@ record UState where
   constraints : IntMap Constraint -- map for finding constraints by ID
   nextName : Int
   nextConstraint : Int
-  delayedElab : IntMap (Core ClosedTerm)
+  delayedElab : List (Int, Core ClosedTerm)
                 -- Elaborators which we need to try again later, because
                 -- we didn't have enough type information to elaborate
-                -- successfully yet
+                -- successfully yet.
+                -- The 'Int' is the resolved name. Delays can't be nested,
+                -- so we just process them in order.
 
 export
 initUState : UState
-initUState = MkUState empty empty empty empty 0 0 empty
+initUState = MkUState empty empty empty empty 0 0 []
 
 export
 data UST : Type where
@@ -335,8 +337,8 @@ newDelayed : {auto u : Ref UST UState} ->
 newDelayed {vars} fc rig env n ty
     = do let hty = abstractEnvType fc env ty
          let hole = newDef fc n rig hty Public Delayed
-         log 10 $ "Added delayed elaborator " ++ show n
          idx <- addDef n hole
+         log 10 $ "Added delayed elaborator " ++ show (n, idx)
          addHoleName fc n idx
          pure (idx, Meta fc n idx envArgs)
   where
