@@ -50,9 +50,11 @@ elabTerm defining mode env tm ty
          solveConstraints solvemode Normal
          logTerm 5 "Looking for delayed in " chktm
          ust <- get UST
-         retryDelayed (delayedElab ust)
-         ust <- get UST
-         put UST (record { delayedElab = [] } ust)
+         catch (retryDelayed (delayedElab ust))
+               (\err =>
+                  do ust <- get UST
+                     put UST (record { delayedElab = [] } ust)
+                     throw err)
          -- As long as we're not in a case block, finish off constraint solving
          when (not incase) $
            -- resolve any default hints
