@@ -103,8 +103,9 @@ mutual
            
   -- Check the rest of an application given the argument type and the
   -- raw argument. We choose elaboration order depending on whether we know
-  -- the return type now. If we don't know it, elaborate the rest of the
-  -- application first and come back to it. This might help with type-directed
+  -- the return type now. If we know it, elaborate the rest of the
+  -- application first and come back to it, because that might infer types
+  -- for implicit arguments, which might in turn help with type-directed
   -- disambiguation when elaborating the argument.
   checkRestApp : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->
