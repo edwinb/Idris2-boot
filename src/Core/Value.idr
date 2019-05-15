@@ -5,26 +5,29 @@ import Core.Core
 import Core.Env
 import Core.TT
 
+import Data.IntMap
+
 public export
 record EvalOpts where
   constructor MkEvalOpts
   holesOnly : Bool -- only evaluate hole solutions
   argHolesOnly : Bool -- only evaluate holes which are relevant arguments
+  usedMetas : IntMap () -- Metavariables we're under, to detect cycles
   evalAll : Bool -- evaluate everything, including private names
   tcInline : Bool -- inline for totality checking
   fuel : Maybe Nat -- Limit for recursion depth
 
 export
 defaultOpts : EvalOpts
-defaultOpts = MkEvalOpts False False True False Nothing
+defaultOpts = MkEvalOpts False False empty True False Nothing
 
 export
 withHoles : EvalOpts
-withHoles = MkEvalOpts True True True False Nothing
+withHoles = MkEvalOpts True True empty True False Nothing
 
 export
 withArgHoles : EvalOpts
-withArgHoles = MkEvalOpts False True True False Nothing
+withArgHoles = MkEvalOpts False True empty True False Nothing
 
 mutual
   public export

@@ -942,53 +942,55 @@ substName x new (TDelay fc y z)
 substName x new (TForce fc y) 
     = TForce fc (substName x new y)
 substName x new tm = tm
+    
+export
+addMetas : NameMap () -> Term vars -> NameMap ()
+addMetas ns (Local fc x idx y) = ns
+addMetas ns (Ref fc x name) = ns
+addMetas ns (Meta fc n i xs) = insert n () ns
+addMetas ns (Bind fc x (Let c val ty) scope) 
+    = addMetas (addMetas (addMetas ns val) ty) scope
+addMetas ns (Bind fc x b scope) 
+    = addMetas (addMetas ns (binderType b)) scope
+addMetas ns (App fc fn p arg) 
+    = addMetas (addMetas ns fn) arg
+addMetas ns (As fc as tm) = addMetas ns tm
+addMetas ns (TDelayed fc x y) = addMetas ns y
+addMetas ns (TDelay fc x y) = addMetas ns y
+addMetas ns (TForce fc x) = addMetas ns x
+addMetas ns (PrimVal fc c) = ns
+addMetas ns (Erased fc) = ns
+addMetas ns (TType fc) = ns
 
 -- Get the metavariable names in a term
 export
 getMetas : Term vars -> NameMap ()
-getMetas tm = getMap empty tm
-  where
-    getMap : NameMap () -> Term vars -> NameMap ()
-    getMap ns (Local fc x idx y) = ns
-    getMap ns (Ref fc x name) = ns
-    getMap ns (Meta fc n i xs) = insert n () ns
-    getMap ns (Bind fc x (Let c val ty) scope) 
-        = getMap (getMap (getMap ns val) ty) scope
-    getMap ns (Bind fc x b scope) 
-        = getMap (getMap ns (binderType b)) scope
-    getMap ns (App fc fn p arg) 
-        = getMap (getMap ns fn) arg
-    getMap ns (As fc as tm) = getMap ns tm
-    getMap ns (TDelayed fc x y) = getMap ns y
-    getMap ns (TDelay fc x y) = getMap ns y
-    getMap ns (TForce fc x) = getMap ns x
-    getMap ns (PrimVal fc c) = ns
-    getMap ns (Erased fc) = ns
-    getMap ns (TType fc) = ns
+getMetas tm = addMetas empty tm
+  
+export
+addRefs : NameMap () -> Term vars -> NameMap ()
+addRefs ns (Local fc x idx y) = ns
+addRefs ns (Ref fc x name) = insert name () ns
+addRefs ns (Meta fc n i xs) = ns
+addRefs ns (Bind fc x (Let c val ty) scope) 
+    = addRefs (addRefs (addRefs ns val) ty) scope
+addRefs ns (Bind fc x b scope) 
+    = addRefs (addRefs ns (binderType b)) scope
+addRefs ns (App fc fn p arg) 
+    = addRefs (addRefs ns fn) arg
+addRefs ns (As fc as tm) = addRefs ns tm
+addRefs ns (TDelayed fc x y) = addRefs ns y
+addRefs ns (TDelay fc x y) = addRefs ns y
+addRefs ns (TForce fc x) = addRefs ns x
+addRefs ns (PrimVal fc c) = ns
+addRefs ns (Erased fc) = ns
+addRefs ns (TType fc) = ns
 
 -- As above, but for references (the only difference is between the 'Ref' and
 -- 'Meta' cases, perhaps refector a bit?)
 export
 getRefs : Term vars -> NameMap ()
-getRefs tm = getMap empty tm
-  where
-    getMap : NameMap () -> Term vars -> NameMap ()
-    getMap ns (Local fc x idx y) = ns
-    getMap ns (Ref fc x name) = insert name () ns
-    getMap ns (Meta fc n i xs) = ns
-    getMap ns (Bind fc x (Let c val ty) scope) 
-        = getMap (getMap (getMap ns val) ty) scope
-    getMap ns (Bind fc x b scope) 
-        = getMap (getMap ns (binderType b)) scope
-    getMap ns (App fc fn p arg) 
-        = getMap (getMap ns fn) arg
-    getMap ns (As fc as tm) = getMap ns tm
-    getMap ns (TDelayed fc x y) = getMap ns y
-    getMap ns (TDelay fc x y) = getMap ns y
-    getMap ns (TForce fc x) = getMap ns x
-    getMap ns (PrimVal fc c) = ns
-    getMap ns (Erased fc) = ns
-    getMap ns (TType fc) = ns
+getRefs tm = addRefs empty tm
 
 export Show (Term vars) where
   show tm = let (fn, args) = getFnArgs tm in showApp fn args
@@ -996,7 +998,7 @@ export Show (Term vars) where
       showApp : Term vars -> List (AppInfo, Term vars) -> String
       showApp (Local {name} _ _ idx _) [] = show name ++ "[" ++ show idx ++ "]"
       showApp (Ref _ _ n) [] = show n
-      showApp (Meta _ n _ args) [] 
+      showApp (Meta _ n i args) [] 
           = "?" ++ show n ++ "_" ++ show args
       showApp (Bind _ x (Lam c p ty) sc) [] 
           = "\\" ++ showCount c ++ show x ++ " : " ++ show ty ++ 

@@ -399,6 +399,12 @@ record GlobalDef where
   visibility : Visibility
   totality : Totality
   flags : List DefFlag
+  refersTo : NameMap () 
+  noCycles : Bool -- for metavariables, whether they can be cyclic (this
+                  -- would only be allowed when using a metavariable as a 
+                  -- placeholder for a yet to be elaborated arguments, but
+                  -- not for implicits because that'd indicate failing the
+                  -- occurs check)
   definition : Def
 
 export
@@ -414,6 +420,8 @@ TTC GlobalDef where
                  toBuf b (multiplicity gdef)
                  toBuf b (visibility gdef)
                  toBuf b (totality gdef)
+                 toBuf b (map fst (toList (refersTo gdef)))
+                 toBuf b (noCycles gdef)
                  toBuf b (flags gdef)
 
   fromBuf r b 
@@ -423,15 +431,19 @@ TTC GlobalDef where
               then do loc <- fromBuf r b; 
                       ty <- fromBuf r b; mul <- fromBuf r b
                       vis <- fromBuf r b; tot <- fromBuf r b
-                      fl <- fromBuf r b
-                      pure (MkGlobalDef loc name ty mul vis tot fl def)
+                      refsList <- fromBuf r b; fl <- fromBuf r b
+                      let refs = fromList (map (\x => (x, ())) refsList)
+                      c <- fromBuf r b
+                      pure (MkGlobalDef loc name ty mul vis tot fl refs c def)
               else do let fc = emptyFC
                       pure (MkGlobalDef fc name (Erased fc)
-                                        RigW Public unchecked [] def)
+                                        RigW Public unchecked [] empty
+                                        False def)
 
 export
 newDef : FC -> Name -> RigCount -> ClosedTerm -> Visibility -> Def -> GlobalDef
-newDef fc n rig ty vis def = MkGlobalDef fc n ty rig vis unchecked [] def
+newDef fc n rig ty vis def 
+    = MkGlobalDef fc n ty rig vis unchecked [] empty False def
 
 public export
 record Defs where
@@ -499,7 +511,7 @@ addBuiltin : {auto x : Ref Ctxt Defs} ->
              PrimFn arity -> Core ()
 addBuiltin n ty tot op 
     = do addDef n (MkGlobalDef emptyFC n ty RigW Public tot 
-                               [Inline] (Builtin op)) 
+                               [Inline] empty False (Builtin op)) 
          pure ()
 
 export

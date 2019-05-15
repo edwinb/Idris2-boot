@@ -370,7 +370,11 @@ mutual
            if !(convert empty env (NApp loc (NMeta mname mref margs) margs')
                                   solnf)
               then pure success
-              else -- TODO: Occurs check
+              else -- Rather than doing the occurs check here immediately,
+                   -- we'll wait until all metavariables are resolved, and in
+                   -- the meantime look out for cycles when normalising (which
+                   -- is cheap enough because we only need to look out for
+                   -- metavariables)
                    do Just hdef <- lookupCtxtExact (Resolved mref) (gamma defs)
                            | Nothing => throw (InternalError ("Can't happen: Lost hole " ++ show mname))
                       instantiate loc env mname mref hdef locs solfull stm

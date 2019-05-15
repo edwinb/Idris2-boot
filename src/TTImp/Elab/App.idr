@@ -169,7 +169,7 @@ mutual
              nm <- genMVName x
              empty <- clearDefs defs
              metaty <- quote empty env aty
-             metaval <- metaVar fc argRig env nm metaty
+             metaval <- argVar fc argRig env nm metaty
              let fntm = App fc tm appinf metaval
              logNF 10 ("Delaying " ++ show nm ++ " " ++ show arg) env aty
              logTerm 10 "...as" metaval
@@ -302,9 +302,7 @@ mutual
            retn <- genName "retTy"
            argTy <- metaVar fc Rig0 env argn (TType fc)
            let argTyG = gnf env argTy
-           -- Can't use 'metaVar' to record it for binding because it's
-           -- in a different scope... so it'll stay global
-           (_, retTy) <- newMeta -- {vars = argn :: vars}
+           retTy <- metaVar -- {vars = argn :: vars}
                             fc Rig0 env -- (Pi RigW Explicit argTy :: env) 
                             retn (TType fc)
            (argv, argt) <- check rig (nextLevel elabinfo)

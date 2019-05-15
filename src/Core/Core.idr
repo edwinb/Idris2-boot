@@ -29,7 +29,7 @@ data Error
     = Fatal Error -- flag as unrecoverable (so don't postpone awaiting further info)
     | CantConvert FC (Env Term vars) (Term vars) (Term vars)
     | CantSolveEq FC (Env Term vars) (Term vars) (Term vars)
-    | Cycle FC (Env Term vars) (Term vars) (Term vars)
+    | CyclicMeta FC Name
     | WhenUnifying FC (Env Term vars) (Term vars) (Term vars) Error
     | ValidCase FC (Env Term vars) (Either (Term vars) Error)
     | UndefinedName FC Name
@@ -99,8 +99,8 @@ Show Error where
       = show fc ++ ":Type mismatch: " ++ show x ++ " and " ++ show y
   show (CantSolveEq fc env x y) 
       = show fc ++ ":" ++ show x ++ " and " ++ show y ++ " are not equal"
-  show (Cycle fc env x y) 
-      = show fc ++ ":Occurs check failed: " ++ show x ++ " and " ++ show y
+  show (CyclicMeta fc n) 
+      = show fc ++ ":Cycle detected in metavariable solution " ++ show n
   show (WhenUnifying fc _ x y err)
       = show fc ++ ":When unifying: " ++ show x ++ " and " ++ show y ++ "\n\t" ++ show err
   show (ValidCase fc _ prob)
@@ -240,7 +240,7 @@ getErrorLoc : Error -> Maybe FC
 getErrorLoc (Fatal err) = getErrorLoc err
 getErrorLoc (CantConvert loc env tm y) = Just loc
 getErrorLoc (CantSolveEq loc env tm y) = Just loc
-getErrorLoc (Cycle loc env tm y) = Just loc
+getErrorLoc (CyclicMeta loc n) = Just loc
 getErrorLoc (WhenUnifying loc env tm y z) = Just loc
 getErrorLoc (ValidCase loc env y) = Just loc
 getErrorLoc (UndefinedName loc y) = Just loc

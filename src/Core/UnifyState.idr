@@ -269,10 +269,11 @@ export
 newMeta : {auto c : Ref Ctxt Defs} ->
           {auto u : Ref UST UState} ->
           FC -> RigCount ->
-          Env Term vars -> Name -> Term vars -> Core (Int, Term vars)
-newMeta {vars} fc rig env n ty
+          Env Term vars -> Name -> Term vars -> Bool -> Core (Int, Term vars)
+newMeta {vars} fc rig env n ty nocyc
     = do let hty = abstractEnvType fc env ty
-         let hole = newDef fc n rig hty Public (Hole False)
+         let hole = record { noCycles = nocyc }
+                           (newDef fc n rig hty Public (Hole False))
          log 5 $ "Adding new meta " ++ show (n, rig)
          idx <- addDef n hole 
          addHoleName fc n idx

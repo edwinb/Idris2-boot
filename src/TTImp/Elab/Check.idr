@@ -243,7 +243,16 @@ metaVar : {auto c : Ref Ctxt Defs} ->
           FC -> RigCount ->
           Env Term vars -> Name -> Term vars -> Core (Term vars)
 metaVar fc rig env n ty
-    = do (_, tm) <- newMeta fc rig env n ty
+    = do (_, tm) <- newMeta fc rig env n ty True
+         pure tm
+
+export
+argVar : {auto c : Ref Ctxt Defs} ->
+         {auto u : Ref UST UState} ->
+         FC -> RigCount ->
+         Env Term vars -> Name -> Term vars -> Core (Term vars)
+argVar fc rig env n ty
+    = do (_, tm) <- newMeta fc rig env n ty False
          pure tm
 
 export
