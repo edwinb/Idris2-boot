@@ -12,6 +12,7 @@ import TTImp.Elab.Ambiguity
 import TTImp.Elab.App
 import TTImp.Elab.As
 import TTImp.Elab.Binders
+import TTImp.Elab.Case
 import TTImp.Elab.Check
 import TTImp.Elab.ImplicitBind
 import TTImp.Elab.Local
@@ -96,8 +97,8 @@ checkTerm rig elabinfo nest env (ILam fc r p Nothing argTy scope) exp
          checkLambda rig elabinfo nest env fc r p n argTy scope exp
 checkTerm rig elabinfo nest env (ILet fc r n nTy nVal scope) exp
     = checkLet rig elabinfo nest env fc r n nTy nVal scope exp
-checkTerm rig elabinfo nest env (ICase fc scr scrty als) exp
-    = throw (InternalError "case not implemented")
+checkTerm rig elabinfo nest env (ICase fc scr scrty alts) exp
+    = checkCase rig elabinfo nest env fc scr scrty alts exp
 checkTerm rig elabinfo nest env (ILocal fc nested scope) exp
     = checkLocal rig elabinfo nest env fc nested scope exp
 checkTerm rig elabinfo nest env (IUpdate fc upds rec) exp

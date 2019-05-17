@@ -183,6 +183,7 @@ mutual
 --                     List ImpClause -> ImpClause
        ImpossibleClause : FC -> (lhs : RawImp) -> ImpClause
   
+  export
   Show ImpClause where
     show (PatClause fc lhs rhs)
        = show lhs ++ " = " ++ show rhs
@@ -241,3 +242,33 @@ lhsInCurrentNS nest (IVar loc n)
            -- parent name.
            Just _ => pure (IVar loc n)
 lhsInCurrentNS nest tm = pure tm
+
+export
+getAnnot : RawImp -> FC
+getAnnot (IVar x _) = x
+getAnnot (IPi x _ _ _ _ _) = x
+getAnnot (ILam x _ _ _ _ _) = x
+getAnnot (ILet x _ _ _ _ _) = x
+getAnnot (ICase x _ _ _) = x
+getAnnot (ILocal x _ _) = x
+getAnnot (IUpdate x _ _) = x
+getAnnot (IApp x _ _) = x
+getAnnot (IImplicitApp x _ _ _) = x
+getAnnot (ISearch x _) = x
+getAnnot (IAlternative x _ _) = x
+getAnnot (IRewrite x _ _) = x
+getAnnot (ICoerced x _) = x
+getAnnot (IPrimVal x _) = x
+getAnnot (IHole x _) = x
+getAnnot (IType x) = x
+getAnnot (IBindVar x _) = x
+getAnnot (IBindHere x _ _) = x
+getAnnot (IMustUnify x _ _) = x
+getAnnot (IAs x _ _) = x
+getAnnot (Implicit x _) = x
+
+export
+apply : RawImp -> List RawImp -> RawImp
+apply f [] = f
+apply f (x :: xs) = apply (IApp (getAnnot f) f x) xs
+

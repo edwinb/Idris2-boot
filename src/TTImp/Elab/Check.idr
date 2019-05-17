@@ -250,10 +250,9 @@ export
 argVar : {auto c : Ref Ctxt Defs} ->
          {auto u : Ref UST UState} ->
          FC -> RigCount ->
-         Env Term vars -> Name -> Term vars -> Core (Term vars)
+         Env Term vars -> Name -> Term vars -> Core (Int, Term vars)
 argVar fc rig env n ty
-    = do (_, tm) <- newMeta fc rig env n ty False
-         pure tm
+    = newMeta fc rig env n ty False
 
 export
 searchVar : {auto c : Ref Ctxt Defs} ->

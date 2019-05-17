@@ -17,22 +17,29 @@ import TTImp.TTImp
 -- should check the RHS, the LHS and its type in that environment,
 -- and a function which turns a checked RHS into a
 -- pattern clause
-extendEnv : Env Term vars -> NestedNames vars ->
+-- The 'SubVars' proof contains a proof that refers to the *inner* environment,
+-- so all the outer things are marked as 'DropCons'
+
+extendEnv : Env Term vars -> SubVars inner vars ->
+            NestedNames vars ->
             Term vars -> Term vars -> 
-            Core (vars' ** (Env Term vars', NestedNames vars', Term vars', Term vars'))
-extendEnv env nest (Bind _ n (PVar c tmty) sc) (Bind _ n' (PVTy _ _) tysc) with (nameEq n n')
-  extendEnv env nest (Bind _ n (PVar c tmty) sc) (Bind _ n' (PVTy _ _) tysc) | Nothing
+            Core (vars' ** 
+                    (SubVars inner vars',
+                     Env Term vars', NestedNames vars', 
+                     Term vars', Term vars'))
+extendEnv env p nest (Bind _ n (PVar c tmty) sc) (Bind _ n' (PVTy _ _) tysc) with (nameEq n n')
+  extendEnv env p nest (Bind _ n (PVar c tmty) sc) (Bind _ n' (PVTy _ _) tysc) | Nothing
       = throw (InternalError "Can't happen: names don't match in pattern type")
-  extendEnv env nest (Bind _ n (PVar c tmty) sc) (Bind _ n (PVTy _ _) tysc) | (Just Refl)
-      = extendEnv (PVar c tmty :: env) (weaken nest) sc tysc
-extendEnv env nest (Bind _ n (PLet c tmval tmty) sc) (Bind _ n' (PLet _ _ _) tysc) with (nameEq n n')
-  extendEnv env nest (Bind _ n (PLet c tmval tmty) sc) (Bind _ n' (PLet _ _ _) tysc) | Nothing
+  extendEnv env p nest (Bind _ n (PVar c tmty) sc) (Bind _ n (PVTy _ _) tysc) | (Just Refl)
+      = extendEnv (PVar c tmty :: env) (DropCons p) (weaken nest) sc tysc
+extendEnv env p nest (Bind _ n (PLet c tmval tmty) sc) (Bind _ n' (PLet _ _ _) tysc) with (nameEq n n')
+  extendEnv env p nest (Bind _ n (PLet c tmval tmty) sc) (Bind _ n' (PLet _ _ _) tysc) | Nothing
       = throw (InternalError "Can't happen: names don't match in pattern type")
   -- PLet on the left becomes Let on the right, to give it computational force
-  extendEnv env nest (Bind _ n (PLet c tmval tmty) sc) (Bind _ n (PLet _ _ _) tysc) | (Just Refl)
-      = extendEnv (Let c tmval tmty :: env) (weaken nest) sc tysc
-extendEnv env nest tm ty 
-      = pure (_ ** (env, nest, tm, ty))
+  extendEnv env p nest (Bind _ n (PLet c tmval tmty) sc) (Bind _ n (PLet _ _ _) tysc) | (Just Refl)
+      = extendEnv (Let c tmval tmty :: env) (DropCons p) (weaken nest) sc tysc
+extendEnv env p nest tm ty 
+      = pure (_ ** (p, env, nest, tm, ty))
 
 -- Find names which are applied to a function in a Rig1/Rig0 position,
 -- so that we know how they should be bound on the right hand side of the
@@ -158,10 +165,10 @@ checkClause mult hashit n nest env (PatClause fc lhs_in rhs)
          logTerm 5 "LHS term" lhstm_lin
          logTerm 5 "LHS type" lhsty_lin
 
-         (vars'  ** (env', nest', lhstm', lhsty')) <- 
-             extendEnv env nest lhstm_lin lhsty_lin
+         (vars'  ** (sub', env', nest', lhstm', lhsty')) <- 
+             extendEnv env SubRefl nest lhstm_lin lhsty_lin
          
-         rhstm <- checkTerm n InExpr nest' env' rhs (gnf env' lhsty')
+         rhstm <- checkTermSub n InExpr nest' env' env sub' rhs (gnf env' lhsty')
 
          logTerm 5 "RHS term" rhstm
          pure (Just (MkClause env' lhstm' rhstm))

@@ -590,7 +590,7 @@ mutual
                   (NBind xfc x bx scx)
                   (NBind yfc y by scy)
 
-
+  export
   unifyNoEta : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
                {vars : _} ->
@@ -623,6 +623,9 @@ mutual
       = unifyApp False mode loc env xfc hd args y
   unifyNoEta mode loc env y (NApp yfc hd args)
       = unifyApp True mode loc env yfc hd args y
+  -- Only try stripping as patterns as a last resort
+  unifyNoEta mode loc env x (NAs _ _ y) = unifyNoEta mode loc env x y
+  unifyNoEta mode loc env (NAs _ _ x) y = unifyNoEta mode loc env x y
   unifyNoEta mode loc env x y 
       = do defs <- get Ctxt
            empty <- clearDefs defs
@@ -655,7 +658,6 @@ mutual
 
   export
   Unify NF where
-    -- TODO: Eta!
     unifyD _ _ mode loc env (NBind xfc x bx scx) (NBind yfc y by scy) 
         = unifyBothBinders mode loc env xfc x bx scx yfc y by scy
     unifyD _ _ mode loc env tmx@(NBind xfc x (Lam cx ix tx) scx) tmy

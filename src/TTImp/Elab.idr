@@ -27,17 +27,18 @@ Eq ElabOpts where
   _ == _ = False
 
 export
-elabTerm : {vars : _} ->
-           {auto c : Ref Ctxt Defs} ->
-           {auto u : Ref UST UState} ->
-           Int -> ElabMode -> 
-           NestedNames vars -> Env Term vars -> 
-           RawImp -> Maybe (Glued vars) ->
-           Core (Term vars, Glued vars)
-elabTerm defining mode nest env tm ty
+elabTermSub : {vars : _} ->
+              {auto c : Ref Ctxt Defs} ->
+              {auto u : Ref UST UState} ->
+              Int -> ElabMode -> 
+              NestedNames vars -> Env Term vars ->
+              Env Term inner -> SubVars inner vars ->
+              RawImp -> Maybe (Glued vars) ->
+              Core (Term vars, Glued vars)
+elabTermSub defining mode nest env env' sub tm ty
     = do let incase = False -- TODO
          defs <- get Ctxt
-         e <- newRef EST (initEState defining env)
+         e <- newRef EST (initEStateSub defining env' sub)
          let rigc = getRigNeeded mode
          (chktm, chkty) <- check {e} rigc (initElabInfo mode) nest env tm ty
          -- Final retry of constraints and delayed elaborations
@@ -71,6 +72,30 @@ elabTerm defining mode nest env tm ty
          pure (chktm, chkty)
 
 export
+elabTerm : {vars : _} ->
+           {auto c : Ref Ctxt Defs} ->
+           {auto u : Ref UST UState} ->
+           Int -> ElabMode -> 
+           NestedNames vars -> Env Term vars ->
+           RawImp -> Maybe (Glued vars) ->
+           Core (Term vars, Glued vars)
+elabTerm defining mode nest env tm ty
+    = elabTermSub defining mode nest env env SubRefl tm ty
+
+export
+checkTermSub : {vars : _} ->
+               {auto c : Ref Ctxt Defs} ->
+               {auto u : Ref UST UState} ->
+               Int -> ElabMode -> 
+               NestedNames vars -> Env Term vars -> 
+               Env Term inner -> SubVars inner vars ->
+               RawImp -> Glued vars ->
+               Core (Term vars)
+checkTermSub defining mode nest env env' sub tm ty
+    = do (tm_elab, _) <- elabTermSub defining mode nest env env' sub tm (Just ty)
+         pure tm_elab
+
+export
 checkTerm : {vars : _} ->
             {auto c : Ref Ctxt Defs} ->
             {auto u : Ref UST UState} ->
@@ -79,5 +104,4 @@ checkTerm : {vars : _} ->
             RawImp -> Glued vars ->
             Core (Term vars)
 checkTerm defining mode nest env tm ty
-    = do (tm_elab, _) <- elabTerm defining mode nest env tm (Just ty)
-         pure tm_elab
+    = checkTermSub defining mode nest env env SubRefl tm ty

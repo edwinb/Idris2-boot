@@ -67,7 +67,8 @@ bindSymbol
 mutual
   appExpr : FileName -> IndentInfo -> Rule RawImp
   appExpr fname indents
-      = do start <- location
+      = case_ fname indents
+    <|> do start <- location
            f <- simpleExpr fname indents
            args <- many (argExpr fname indents)
            end <- location
@@ -270,6 +271,37 @@ mutual
            scope <- typeExpr fname indents
            end <- location
            pure (ILocal (MkFC fname start end) (collectDefs ds) scope)
+
+  case_ : FileName -> IndentInfo -> Rule RawImp
+  case_ fname indents
+      = do start <- location
+           keyword "case"
+           scr <- expr fname indents
+           keyword "of"
+           alts <- block (caseAlt fname)
+           end <- location
+           let fc = MkFC fname start end
+           pure (ICase fc scr (Implicit fc False) alts)
+
+  caseAlt : FileName -> IndentInfo -> Rule ImpClause
+  caseAlt fname indents
+      = do start <- location
+           lhs <- appExpr fname indents
+           caseRHS fname indents start lhs
+          
+  caseRHS : FileName -> IndentInfo -> (Int, Int) -> RawImp -> 
+            Rule ImpClause
+  caseRHS fname indents start lhs
+      = do symbol "=>"
+           continue indents
+           rhs <- expr fname indents
+           atEnd indents
+           end <- location
+           pure (PatClause (MkFC fname start end) lhs rhs)
+    <|> do keyword "impossible"
+           atEnd indents
+           end <- location
+           pure (ImpossibleClause (MkFC fname start end) lhs)
 
   binder : FileName -> IndentInfo -> Rule RawImp
   binder fname indents

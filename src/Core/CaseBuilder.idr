@@ -712,6 +712,12 @@ mutual
           = pure $ MkPatClause (n :: pvars) 
                         !(substInPats fc a (Local pfc Nothing _ prf) pats)
                         (substName n (Local pfc Nothing _ prf) rhs)
+      -- If it's an as pattern, replace the name with the relevant variable on
+      -- the rhs then continue with the inner pattern
+      updateVar (MkPatClause pvars (MkInfo (PAs pfc n pat) prf fty :: pats) rhs)
+          = do pats' <- substInPats fc a (Local pfc Nothing _ prf) pats
+               let rhs' = substName n (Local pfc Nothing _ prf) rhs
+               updateVar (MkPatClause pvars (MkInfo pat prf fty :: pats') rhs')
       -- match anything, name won't appear in rhs but need to update
       -- LHS pattern types based on what we've learned
       updateVar (MkPatClause pvars (MkInfo pat prf fty :: pats) rhs)

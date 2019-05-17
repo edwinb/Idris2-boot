@@ -113,6 +113,15 @@ genVarName str
          put UST (record { nextName $= (+1) } ust)
          pure (MN str (nextName ust))
 
+-- Again, for case names
+export
+genCaseName : {auto u : Ref UST UState} ->
+			     		Int -> Core Name
+genCaseName root
+    = do ust <- get UST
+         put UST (record { nextName $= (+1) } ust)
+         pure (CaseBlock root (nextName ust))
+
 addHoleName : {auto u : Ref UST UState} ->
               FC -> Name -> Int -> Core ()
 addHoleName fc n i
@@ -250,6 +259,37 @@ mkConstantAppArgs {done} {vars = x :: xs} lets fc (b :: env) wkns
     mkVar [] = First
     mkVar (w :: ws) = Later (mkVar ws)
 
+mkConstantAppArgsOthers : Bool -> FC -> Env Term vars ->
+                          SubVars smaller vars ->
+                          (wkns : List Name) ->
+                          List (Term (wkns ++ (vars ++ done)))
+mkConstantAppArgsOthers lets fc [] p wkns = []
+mkConstantAppArgsOthers {done} {vars = x :: xs} 
+                        lets fc (b :: env) SubRefl wkns
+    = rewrite appendAssociative wkns [x] (xs ++ done) in
+              mkConstantAppArgsOthers lets fc env SubRefl (wkns ++ [x])
+mkConstantAppArgsOthers {done} {vars = x :: xs} 
+                        lets fc (b :: env) (KeepCons p) wkns
+    = rewrite appendAssociative wkns [x] (xs ++ done) in
+              mkConstantAppArgsOthers lets fc env p (wkns ++ [x])
+mkConstantAppArgsOthers {done} {vars = x :: xs} 
+                        lets fc (b :: env) (DropCons p) wkns
+    = let rec = mkConstantAppArgsOthers {done} lets fc env p (wkns ++ [x]) in
+          if lets || notLet b
+             then Local fc Nothing (length wkns) (mkVar wkns) :: 
+                  rewrite appendAssociative wkns [x] (xs ++ done) in rec
+             else rewrite appendAssociative wkns [x] (xs ++ done) in rec
+  where
+    notLet : Binder (Term vars) -> Bool
+    notLet (Let _ _ _) = False
+    notLet _ = True
+
+    mkVar : (wkns : List Name) ->
+            IsVar name (length wkns) (wkns ++ name :: vars ++ done)
+    mkVar [] = First
+    mkVar (w :: ws) = Later (mkVar ws)
+
+
 export
 applyTo : FC -> Term vars -> Env Term vars -> Term vars
 applyTo {vars} fc tm env
@@ -260,6 +300,13 @@ export
 applyToFull : FC -> Term vars -> Env Term vars -> Term vars
 applyToFull {vars} fc tm env
   = let args = reverse (mkConstantAppArgs {done = []} True fc env []) in
+        apply fc (explApp Nothing) tm (rewrite sym (appendNilRightNeutral vars) in args)
+
+export
+applyToOthers : FC -> Term vars -> Env Term vars -> 
+                SubVars smaller vars -> Term vars
+applyToOthers {vars} fc tm env sub
+  = let args = reverse (mkConstantAppArgsOthers {done = []} False fc env sub []) in
         apply fc (explApp Nothing) tm (rewrite sym (appendNilRightNeutral vars) in args)
 
 -- Create a new metavariable with the given name and return type,

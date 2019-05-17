@@ -307,8 +307,8 @@ data Var : List Name -> Type where
      MkVar : {i : Nat} -> {n : _} -> .(IsVar n i vars) -> Var vars
 
 export
-sameVar : {i, j : _} -> IsVar n i xs -> IsVar m j xs -> Bool
-sameVar {i} {j} _ _ = i == j
+sameVar : Var xs -> Var xs -> Bool
+sameVar (MkVar {i=x} _) (MkVar {i=y} _) = x == y
 
 public export
 record AppInfo where

@@ -2,6 +2,9 @@ data Nat : Type where
      Z : Nat
      S : Nat -> Nat
 
+simpleAs : Nat -> Nat
+simpleAs z@(_) = z
+
 as : Nat -> Nat
 as Z = Z
 as p@(S $k) = p
