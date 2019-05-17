@@ -76,11 +76,21 @@ changeVar (MkVar {i=x} old) (MkVar new) (Local fc r idx p)
     = if x == idx
          then Local fc r _ new
          else Local fc r _ p
+changeVar old new (Meta fc nm i args)
+    = Meta fc nm i (map (changeVar old new) args)
 changeVar (MkVar old) (MkVar new) (Bind fc x b sc) 
     = Bind fc x (assert_total (map (changeVar (MkVar old) (MkVar new)) b)) 
 		            (changeVar (MkVar (Later old)) (MkVar (Later new)) sc)
 changeVar old new (App fc fn p arg) 
     = App fc (changeVar old new fn) p (changeVar old new arg)
+changeVar old new (As fc nm p)
+    = As fc (changeVar old new nm) (changeVar old new p)
+changeVar old new (TDelayed fc r p)
+    = TDelayed fc r (changeVar old new p)
+changeVar old new (TDelay fc r p)
+    = TDelay fc r (changeVar old new p)
+changeVar old new (TForce fc p)
+    = TForce fc (changeVar old new p)
 changeVar old new tm = tm
 
 findLater : (x : Name) -> (newer : List Name) -> Var (newer ++ x :: older)
@@ -335,6 +345,7 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
          casefnty <- abstractOver fc defs (implicitMode elabinfo)
                                      env (Just (subEnv est)) fullImps envscope
 
+         logEnv 10 "Case env" env
          logTermNF 2 ("Case function type: " ++ show casen) [] casefnty
 
          -- If we've had to add implicits to the case type (because there

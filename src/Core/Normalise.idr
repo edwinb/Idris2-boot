@@ -82,9 +82,11 @@ parameters (defs : Defs, topopts : EvalOpts)
     eval env locs (App fc fn p arg) stk 
         = eval env locs fn ((p, MkClosure topopts locs env arg) :: stk)
     eval env locs (As fc n tm) stk 
-        = do n' <- eval env locs n stk
-             tm' <- eval env locs tm stk 
-             pure (NAs fc n' tm')
+        = if removeAs topopts
+             then eval env locs tm stk
+             else do n' <- eval env locs n stk
+                     tm' <- eval env locs tm stk 
+                     pure (NAs fc n' tm')
     eval env locs (TDelayed fc r ty) stk 
         = pure (NDelayed fc r (MkClosure topopts locs env ty))
     eval env locs (TDelay fc r tm) stk 
@@ -106,7 +108,10 @@ parameters (defs : Defs, topopts : EvalOpts)
                 Core (NF free)
     evalLocal {vars = []} env locs fc mrig idx prf stk
         = case getBinder prf env of
-               Let _ val _ => eval env [] val stk
+               Let _ val _ => 
+                   if not (holesOnly topopts)
+                      then eval env [] val stk
+                      else pure $ NApp fc (NLocal mrig idx prf) stk
                _ => pure $ NApp fc (NLocal mrig idx prf) stk
     evalLocal env (MkClosure opts locs' env' tm' :: locs) fc mrig Z First stk
         = evalWithOpts defs opts env' locs' tm' stk
@@ -359,9 +364,17 @@ nfOpts opts defs env tm = eval defs opts env [] tm []
 
 export
 gnf : Env Term vars -> Term vars -> Glued vars
-gnf env tm = MkGlue (pure tm) 
-                    (\c => do defs <- get Ctxt
-                              nf defs env tm)
+gnf env tm 
+    = MkGlue (pure tm) 
+             (\c => do defs <- get Ctxt
+                       nf defs env tm)
+
+export
+gnfOpts : EvalOpts -> Env Term vars -> Term vars -> Glued vars
+gnfOpts opts env tm 
+    = MkGlue (pure tm) 
+             (\c => do defs <- get Ctxt
+                       nfOpts opts defs env tm)
 
 export
 gType : FC -> Glued vars
@@ -526,6 +539,11 @@ export
 normaliseHoles : Defs -> Env Term free -> Term free -> Core (Term free)
 normaliseHoles defs env tm 
     = quote defs env !(nfOpts withHoles defs env tm)
+
+export
+normaliseLHS : Defs -> Env Term free -> Term free -> Core (Term free)
+normaliseLHS defs env tm 
+    = quote defs env !(nfOpts onLHS defs env tm)
 
 export
 normaliseArgHoles : Defs -> Env Term free -> Term free -> Core (Term free)
@@ -727,5 +745,25 @@ logGlueNF lvl msg env gtm
                     coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg 
                                           ++ ": " ++ show tm'
             else pure ()
+
+export
+logEnv : {vars : _} ->
+         {auto c : Ref Ctxt Defs} ->
+         Nat -> String -> Env Term vars -> Core ()
+logEnv lvl msg env
+    = do opts <- getOpts
+         if logLevel opts >= lvl
+            then dumpEnv env
+            else pure ()
+  where
+    dumpEnv : {vs : List Name} -> Env Term vs -> Core ()
+    dumpEnv [] = pure ()
+    dumpEnv {vs = x :: _} (Let _ val ty :: bs)
+        = do logTermNF lvl (msg ++ ": let " ++ show x) bs val
+             logTermNF lvl (msg ++ ":" ++ show x) bs ty
+             dumpEnv bs
+    dumpEnv {vs = x :: _} (b :: bs)
+        = do logTermNF lvl (msg ++ ":" ++ show x) bs (binderType b)
+             dumpEnv bs
 
 

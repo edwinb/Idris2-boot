@@ -70,7 +70,9 @@ getVarType rigc nest env fc x
                              tm = tmf fc nt
                              tyenv = useVars (map snd (getArgs tm))
                                              (embed (type ndef)) in
-                             pure (tm, gnf env tyenv)
+                             do logTerm 10 ("Type of " ++ show n') tyenv
+                                logTerm 10 ("Expands to") tm
+                                pure (tm, gnf env tyenv)
     where
       useVars : List (Term vars) -> Term vars -> Term vars
       useVars [] sc = sc
@@ -182,27 +184,21 @@ mutual
              (argv, argt) <- check argRig (nextLevel elabinfo)
                                    nest env arg (Just (glueBack defs env aty'))
              defs <- get Ctxt
-             -- If we're on the LHS, and the metaval was solved at this
-             -- point, reinstantiate it with 'argv' because it *may* have
-             -- as patterns in it and we need to retain them.
+             -- If we're on the LHS, reinstantiate it with 'argv' because it
+             -- *may* have as patterns in it and we need to retain them.
              -- (As patterns are a bit of a hack but I don't yet see a 
              -- better way that leads to good code...)
-             isHole <- the (Core Bool) $ case elabMode elabinfo of
-                            InLHS _ => 
-                              do Just (Hole _) <- lookupDefExact (Resolved idx)
-                                                                 (gamma defs)
-                                        | _ => pure False
-                                 pure True
-                            _ => pure True
              [] <- convert fc elabinfo env (gnf env metaval)
                                            (gnf env argv)
                 | cs => throw (CantConvert fc env metaval argv)
-             if not isHole -- reset hole and redo it
-                then do updateDef (Resolved idx) (const (Just (Hole False)))
-                        convert fc elabinfo env (gnf env metaval) 
-                                                (gnf env argv)
+             case elabMode elabinfo of
+                  InLHS _ => -- reset hole and redo it with the unexpanded definition
+                     do updateDef (Resolved idx) (const (Just (Hole False)))
+                        convert fc elabinfo env 
+                                   (gnfOpts withHoles (noLet env) metaval) 
+                                   (gnfOpts withHoles (noLet env) argv)
                         pure ()
-                else pure ()
+                  _ => pure ()
              removeHoleName nm
              pure (tm, gty)
            else do
@@ -220,6 +216,12 @@ mutual
              fnty <- sc defs (toClosure defaultOpts env argv)
              checkAppWith rig elabinfo nest env fc
                           fntm fnty expargs impargs kr expty
+    where
+      noLet : Env Term vs -> Env Term vs
+      noLet [] = []
+      noLet (Let c v t :: env) = Lam c Explicit t :: noLet env
+      noLet (b :: env) = b :: noLet env
+
 
   -- Check an application of 'fntm', with type 'fnty' to the given list
   -- of explicit and implicit arguments.

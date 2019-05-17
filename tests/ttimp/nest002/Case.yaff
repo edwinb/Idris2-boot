@@ -32,16 +32,9 @@ cvec {n = $n} $xs
            Nil => n
            Cons $x $xs => n
 
--- Doesn't quite work yet...
--- cvec2 : {n : _} -> Vect n $a -> Nat
--- cvec2 {n = n@(_)} $xs
---     = case xs of
---            Nil => n
---            Cons $x $xs => n
-
-simpleAs : Nat -> Nat
-simpleAs x@(_) = x
-
-cas : (n : Nat) -> Vect $n $a -> Nat
-cas n@(_) Nil = n
+cvec2 : {n : _} -> Vect n $a -> Nat
+cvec2 {n = n@(_)} $xs
+    = case xs of
+           Nil => n
+           Cons $x $xs => n
 

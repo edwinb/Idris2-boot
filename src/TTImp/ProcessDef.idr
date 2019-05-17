@@ -145,14 +145,16 @@ checkClause mult hashit n nest env (ImpossibleClause fc lhs)
 checkClause mult hashit n nest env (PatClause fc lhs_in rhs)
     = do lhs <- lhsInCurrentNS nest lhs_in 
          log 5 $ "Checking " ++ show lhs
+         logEnv 5 "In env" env
          (lhstm, lhstyg) <- elabTerm n (InLHS mult) nest env 
                                 (IBindHere fc PATTERN lhs) Nothing
+         logTerm 10 "Checked LHS term" lhstm
          lhsty <- getTerm lhstyg
 
          -- Normalise the LHS to get any functions or let bindings evaluated
          -- (this might be allowed, e.g. for 'fromInteger')
          defs <- get Ctxt
-         lhstm <- normalise defs (noLet env) lhstm
+         lhstm <- normaliseLHS defs (noLet env) lhstm
          lhsty <- normaliseHoles defs env lhsty
          linvars_in <- findLinear True 0 Rig1 lhstm
          log 5 $ "Linearity of names in " ++ show n ++ ": " ++ 

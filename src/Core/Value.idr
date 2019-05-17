@@ -12,6 +12,7 @@ record EvalOpts where
   constructor MkEvalOpts
   holesOnly : Bool -- only evaluate hole solutions
   argHolesOnly : Bool -- only evaluate holes which are relevant arguments
+  removeAs : Bool -- reduce 'as' patterns (don't do this on LHS)
   usedMetas : IntMap () -- Metavariables we're under, to detect cycles
   evalAll : Bool -- evaluate everything, including private names
   tcInline : Bool -- inline for totality checking
@@ -19,15 +20,19 @@ record EvalOpts where
 
 export
 defaultOpts : EvalOpts
-defaultOpts = MkEvalOpts False False empty True False Nothing
+defaultOpts = MkEvalOpts False False True empty True False Nothing
 
 export
 withHoles : EvalOpts
-withHoles = MkEvalOpts True True empty True False Nothing
+withHoles = MkEvalOpts True True False empty True False Nothing
 
 export
 withArgHoles : EvalOpts
-withArgHoles = MkEvalOpts False True empty True False Nothing
+withArgHoles = MkEvalOpts False True False empty True False Nothing
+
+export
+onLHS : EvalOpts
+onLHS = record { removeAs = False } defaultOpts
 
 mutual
   public export
