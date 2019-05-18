@@ -20,6 +20,17 @@ import Data.NameMap
 public export
 data ElabMode = InType | InLHS RigCount | InExpr
 
+public export
+data ElabOpt
+  = HolesOkay
+  | InCase
+
+public export
+Eq ElabOpt where
+  HolesOkay == HolesOkay = True
+  InCase == InCase = True
+  _ == _ = False
+
 -- Descriptions of implicit name bindings. They're either just the name,
 -- or a binding of an @-pattern which has an associated pattern.
 public export
@@ -425,7 +436,8 @@ export
 processDecl : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
-              NestedNames vars -> Env Term vars -> ImpDecl -> Core ()
+              List ElabOpt -> NestedNames vars -> 
+              Env Term vars -> ImpDecl -> Core ()
               
 -- Check whether two terms are convertible. May solve metavariables (in Ctxt)
 -- in doing so.

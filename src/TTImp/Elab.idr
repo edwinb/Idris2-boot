@@ -12,31 +12,32 @@ import TTImp.Elab.Delayed
 import TTImp.Elab.Term
 import TTImp.TTImp
 
+import Data.IntMap
+
 getRigNeeded : ElabMode -> RigCount
 getRigNeeded InType = Rig0 -- unrestricted usage in types
 getRigNeeded (InLHS Rig0) = Rig0
 getRigNeeded _ = Rig1
 
-data ElabOpts
-  = HolesOkay
-  | InCase
-
-Eq ElabOpts where
-  HolesOkay == HolesOkay = True
-  InCase == InCase = True
-  _ == _ = False
-
 export
 elabTermSub : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
-              Int -> ElabMode -> 
+              Int -> ElabMode -> List ElabOpt ->
               NestedNames vars -> Env Term vars ->
               Env Term inner -> SubVars inner vars ->
               RawImp -> Maybe (Glued vars) ->
               Core (Term vars, Glued vars)
-elabTermSub defining mode nest env env' sub tm ty
-    = do let incase = False -- TODO
+elabTermSub defining mode opts nest env env' sub tm ty
+    = do let incase = elem InCase opts
+         let holesokay = elem HolesOkay opts
+
+         -- Record the current hole state; we only check the list of current
+         -- holes is completely solved so this needs to be accurate.
+         oldhs <- if not incase
+                     then saveHoles
+                     else pure empty
+
          defs <- get Ctxt
          e <- newRef EST (initEStateSub defining env' sub)
          let rigc = getRigNeeded mode
@@ -66,42 +67,65 @@ elabTermSub defining mode nest env env' sub tm ty
               -- helpful errors.
               solveConstraints solvemode LastChance
 
+         -- on the LHS, all holes need to have been solved
+         case mode of
+              InLHS _ => checkUserHoles True
+              -- elsewhere, all unification problems must be
+              -- solved, though we defer that if it's a case block since we
+              -- might learn a bit more later
+              _ => when (not incase) $
+                       checkNoGuards
+
+
+         -- Put the current hole state back to what it was (minus anything 
+         -- which has been solved in the meantime)
          when (not incase) $
-           checkNoGuards -- all unification problems must now be solved
---          checkUserHoles True -- TODO on everything but types!
+           do hs <- getHoles
+              restoreHoles (addHoles empty hs (toList oldhs))
          pure (chktm, chkty)
+  where
+    addHoles : (acc : IntMap (FC, Name)) -> 
+               (allHoles : IntMap (FC, Name)) -> 
+               List (Int, (FC, Name)) ->
+               IntMap (FC, Name)
+    addHoles acc allhs [] = acc
+    addHoles acc allhs ((n, x) :: hs)
+        = case lookup n allhs of
+               Nothing => addHoles acc allhs hs
+               Just _ => addHoles (insert n x acc) allhs hs
 
 export
 elabTerm : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
            {auto u : Ref UST UState} ->
-           Int -> ElabMode -> 
+           Int -> ElabMode -> List ElabOpt ->
            NestedNames vars -> Env Term vars ->
            RawImp -> Maybe (Glued vars) ->
            Core (Term vars, Glued vars)
-elabTerm defining mode nest env tm ty
-    = elabTermSub defining mode nest env env SubRefl tm ty
+elabTerm defining mode opts nest env tm ty
+    = elabTermSub defining mode opts nest env env SubRefl tm ty
 
 export
 checkTermSub : {vars : _} ->
                {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
-               Int -> ElabMode -> 
+               Int -> ElabMode -> List ElabOpt -> 
                NestedNames vars -> Env Term vars -> 
                Env Term inner -> SubVars inner vars ->
                RawImp -> Glued vars ->
                Core (Term vars)
-checkTermSub defining mode nest env env' sub tm ty
-    = do (tm_elab, _) <- elabTermSub defining mode nest env env' sub tm (Just ty)
+checkTermSub defining mode opts nest env env' sub tm ty
+    = do (tm_elab, _) <- elabTermSub defining mode opts nest 
+                                     env env' sub tm (Just ty)
          pure tm_elab
 
 export
 checkTerm : {vars : _} ->
             {auto c : Ref Ctxt Defs} ->
             {auto u : Ref UST UState} ->
-            Int -> ElabMode -> 
+            Int -> ElabMode -> List ElabOpt -> 
             NestedNames vars -> Env Term vars -> 
             RawImp -> Glued vars ->
             Core (Term vars)
-checkTerm defining mode nest env tm ty
-    = checkTermSub defining mode nest env env SubRefl tm ty
+checkTerm defining mode opts nest env tm ty
+    = checkTermSub defining mode opts nest env env SubRefl tm ty

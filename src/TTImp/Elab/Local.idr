@@ -45,7 +45,7 @@ checkLocal {vars} rig elabinfo nest env fc nestdecls scope expty
          names' <- traverse (applyEnv f) defNames
          let nest' = record { names $= (names' ++) } nest
          let env' = dropLinear env
-         traverse (processDecl nest' env') (map (updateName nest') nestdecls)
+         traverse (processDecl [] nest' env') (map (updateName nest') nestdecls)
          check rig elabinfo nest' env scope expty
   where
       -- For the local definitions, don't allow access to linear things

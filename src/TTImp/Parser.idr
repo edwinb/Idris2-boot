@@ -159,8 +159,9 @@ mutual
       = sepBy1 (symbol ",")
                (do rigc <- multiplicity
                    n <- unqualifiedName
+                   end <- location
                    ty <- option 
-                            (Implicit (MkFC fname start start) False)
+                            (Implicit (MkFC fname start end) False)
                             (do symbol ":"
                                 appExpr fname indents)
                    rig <- getMult rigc

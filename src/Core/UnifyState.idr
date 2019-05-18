@@ -63,6 +63,11 @@ record UState where
   guesses : IntMap (FC, Name) -- Names which will be defined when constraints solved
                               -- (also includes auto implicit searches)
   currentHoles : IntMap (FC, Name) -- Holes introduced this elaboration session
+  delayedHoles : IntMap (FC, Name) -- Holes left unsolved after an elaboration,
+                                   -- so we need to check again at the end whether
+                                   -- they have been solved later. Doesn't include
+                                   -- user defined hole names, which don't need
+                                   -- to have been solved
   constraints : IntMap Constraint -- map for finding constraints by ID
   nextName : Int
   nextConstraint : Int
@@ -75,7 +80,7 @@ record UState where
 
 export
 initUState : UState
-initUState = MkUState empty empty empty empty 0 0 []
+initUState = MkUState empty empty empty empty empty 0 0 []
 
 export
 data UST : Type where
@@ -141,7 +146,8 @@ removeHole : {auto u : Ref UST UState} ->
 removeHole n
     = do ust <- get UST
          put UST (record { holes $= delete n,
-                           currentHoles $= delete n } ust)
+                           currentHoles $= delete n,
+                           delayedHoles $= delete n } ust)
 
 export
 removeHoleName : {auto c : Ref Ctxt Defs} ->
@@ -321,7 +327,7 @@ newMeta {vars} fc rig env n ty nocyc
     = do let hty = abstractEnvType fc env ty
          let hole = record { noCycles = nocyc }
                            (newDef fc n rig hty Public (Hole False))
-         log 5 $ "Adding new meta " ++ show (n, rig)
+         log 5 $ "Adding new meta " ++ show (n, fc, rig)
          idx <- addDef n hole 
          addHoleName fc n idx
          pure (idx, Meta fc n idx envArgs)
@@ -432,6 +438,26 @@ handleUnify elab1 elab2
                | Left err => elab2 err
          pure ok
 
+-- Note that the given hole name arises from a type declaration, so needs
+-- to be resolved later
+export
+addDelayedHoleName : {auto u : Ref UST UState} ->
+                     (Int, (FC, Name)) -> Core ()
+addDelayedHoleName (idx, h)
+    = do ust <- get UST
+         put UST (record { delayedHoles $= insert idx h } ust)
+
+export
+checkDelayedHoles : {auto u : Ref UST UState} ->
+                    {auto c : Ref Ctxt Defs} ->
+                    Core (Maybe Error)
+checkDelayedHoles
+    = do ust <- get UST
+         let hs = toList (delayedHoles ust)
+         if (not (isNil hs)) 
+            then do pure (Just (UnsolvedHoles (map snd hs)))
+            else pure Nothing
+
 -- A hole is 'valid' - i.e. okay to leave unsolved for later - as long as it's
 -- not guarded by a unification problem (in which case, report that the unification
 -- problem is unsolved) and it doesn't depend on an implicit pattern variable
@@ -477,17 +503,16 @@ checkUserHoles now
          let gs = toList gs_map
          log 10 $ "Unsolved guesses " ++ show gs
          traverse checkValidHole gs
-         if now
-            then do hs_map <- getCurrentHoles
-                    let hs = toList hs_map
-                    let hs' = if any isUserName (map (snd . snd) hs) 
-                                 then [] else hs
-                    when (not (isNil hs')) $ 
-                         throw (UnsolvedHoles (map snd (nubBy nameEq hs)))
-            else pure ()
+         hs_map <- getCurrentHoles
+         let hs = toList hs_map
+         let hs' = if any isUserName (map (snd . snd) hs) 
+                      then [] else hs
+         when (now && not (isNil hs')) $ 
+              throw (UnsolvedHoles (map snd (nubBy nameEq hs)))
          -- Note the hole names, to ensure they are resolved
          -- by the end of elaborating the current source file
---          traverse (\x => addDelayedHoleName (fst x) (snd x)) hs'
+         traverse addDelayedHoleName hs'
+         pure ()
   where
     nameEq : (a, b, Name) -> (a, b, Name) -> Bool
     nameEq (_, _, x) (_, _, y) = x == y

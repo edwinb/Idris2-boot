@@ -138,15 +138,15 @@ export
 checkClause : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               (mult : RigCount) -> (hashit : Bool) ->
-              Int -> NestedNames vars -> Env Term vars ->
+              Int -> List ElabOpt -> NestedNames vars -> Env Term vars ->
               ImpClause -> Core (Maybe Clause)
-checkClause mult hashit n nest env (ImpossibleClause fc lhs)
+checkClause mult hashit n opts nest env (ImpossibleClause fc lhs)
     = throw (InternalError "impossible not implemented yet")
-checkClause mult hashit n nest env (PatClause fc lhs_in rhs)
+checkClause mult hashit n opts nest env (PatClause fc lhs_in rhs)
     = do lhs <- lhsInCurrentNS nest lhs_in 
          log 5 $ "Checking " ++ show lhs
          logEnv 5 "In env" env
-         (lhstm, lhstyg) <- elabTerm n (InLHS mult) nest env 
+         (lhstm, lhstyg) <- elabTerm n (InLHS mult) opts nest env 
                                 (IBindHere fc PATTERN lhs) Nothing
          logTerm 10 "Checked LHS term" lhstm
          lhsty <- getTerm lhstyg
@@ -170,7 +170,7 @@ checkClause mult hashit n nest env (PatClause fc lhs_in rhs)
          (vars'  ** (sub', env', nest', lhstm', lhsty')) <- 
              extendEnv env SubRefl nest lhstm_lin lhsty_lin
          
-         rhstm <- checkTermSub n InExpr nest' env' env sub' rhs (gnf env' lhsty')
+         rhstm <- checkTermSub n InExpr opts nest' env' env sub' rhs (gnf env' lhsty')
 
          logTerm 5 "RHS term" rhstm
          pure (Just (MkClause env' lhstm' rhstm))
@@ -182,9 +182,9 @@ toPats (MkClause {vars} env lhs rhs)
 export
 processDef : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
-             NestedNames vars -> Env Term vars -> FC ->
+             List ElabOpt -> NestedNames vars -> Env Term vars -> FC ->
              Name -> List ImpClause -> Core ()
-processDef {vars} nest env fc n_in cs_in
+processDef {vars} opts nest env fc n_in cs_in
     = do n <- inCurrentNS n_in
          defs <- get Ctxt
          Just gdef <- lookupCtxtExact n (gamma defs)
@@ -197,7 +197,7 @@ processDef {vars} nest env fc n_in cs_in
                        then Rig0
                        else Rig1
          nidx <- resolveName n
-         cs <- traverse (checkClause mult hashit nidx nest env) cs_in
+         cs <- traverse (checkClause mult hashit nidx opts nest env) cs_in
          let pats = map toPats (mapMaybe id cs)
 
          (cargs ** tree_ct) <- getPMDef fc CompileTime n ty (mapMaybe id cs)

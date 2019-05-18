@@ -88,8 +88,8 @@ checkTerm rig elabinfo nest env (IPi fc r p (Just n) argTy retTy) exp
 checkTerm rig elabinfo nest env (IPi fc r p Nothing argTy retTy) exp 
     = do n <- case p of
                    Explicit => genVarName "arg"
-                   Implicit => genVarName "imp"
-                   AutoImplicit => genVarName "con"
+                   Implicit => genVarName "impArg"
+                   AutoImplicit => genVarName "conArg"
          checkPi rig elabinfo nest env fc r p n argTy retTy exp
 checkTerm rig elabinfo nest env (ILam fc r p (Just n) argTy scope) exp 
     = checkLambda rig elabinfo nest env fc r p n argTy scope exp
@@ -145,7 +145,7 @@ checkTerm rig elabinfo nest env (IType fc) exp
 checkTerm rig elabinfo nest env (IHole fc str) exp
     = checkHole rig elabinfo nest env fc str exp
 checkTerm rig elabinfo nest env (Implicit fc b) (Just gexpty)
-    = do nm <- genName "imp"
+    = do nm <- genName "_"
          expty <- getTerm gexpty
          metaval <- metaVar fc rig env nm expty
          -- Add to 'bindIfUnsolved' if 'b' set
@@ -157,7 +157,7 @@ checkTerm rig elabinfo nest env (Implicit fc b) (Just gexpty)
 checkTerm rig elabinfo nest env (Implicit fc b) Nothing
     = do nmty <- genName "impTy"
          ty <- metaVar fc Rig0 env nmty (TType fc)
-         nm <- genName "imp"
+         nm <- genName "_"
          metaval <- metaVar fc rig env nm ty
          -- Add to 'bindIfUnsolved' if 'b' set
          when (b && bindingVars elabinfo) $

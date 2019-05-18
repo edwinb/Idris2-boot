@@ -15,16 +15,16 @@ export
 processType : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
-              NestedNames vars -> Env Term vars -> 
+              List ElabOpt -> NestedNames vars -> Env Term vars -> 
               FC -> RigCount -> Visibility ->
               List FnOpt -> ImpTy -> Core ()
-processType nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
+processType eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
     = do n <- inCurrentNS n_in
          log 1 $ "Processing " ++ show n
          log 5 $ "Checking type decl " ++ show n ++ " : " ++ show ty_raw
          idx <- resolveName n 
          
-         (ty, _) <- elabTerm idx InType nest env 
+         (ty, _) <- elabTerm idx InType (HolesOkay :: eopts) nest env 
                              (IBindHere fc (PI Rig0) ty_raw) 
                              (Just (gType fc))
          logTermNF 5 (show n) [] (abstractEnvType tfc env ty)

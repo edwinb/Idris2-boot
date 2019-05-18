@@ -18,21 +18,22 @@ import TTImp.TTImp
 process : {vars : _} ->
           {auto c : Ref Ctxt Defs} ->
           {auto u : Ref UST UState} ->
+          List ElabOpt ->
           NestedNames vars -> Env Term vars -> ImpDecl -> Core ()
-process nest env (IClaim fc rig vis opts ty) 
-    = processType nest env fc rig vis opts ty
-process nest env (IData fc vis ddef) 
-    = processData nest env fc vis ddef
-process nest env (IDef fc fname def) 
-    = processDef nest env fc fname def
-process nest env (INamespace fc ns decls)
+process eopts nest env (IClaim fc rig vis opts ty) 
+    = processType eopts nest env fc rig vis opts ty
+process eopts nest env (IData fc vis ddef) 
+    = processData eopts nest env fc vis ddef
+process eopts nest env (IDef fc fname def) 
+    = processDef eopts nest env fc fname def
+process eopts nest env (INamespace fc ns decls)
     = do oldns <- getNS
          extendNS (reverse ns)
-         traverse (processDecl nest env) decls
+         traverse (processDecl eopts nest env) decls
          setNS oldns
-process {c} nest env (IPragma act)
+process {c} eopts nest env (IPragma act)
     = act c nest env
-process nest env (ILog n)
+process eopts nest env (ILog n)
     = setLogLevel n
 
 TTImp.Elab.Check.processDecl = process
@@ -43,7 +44,7 @@ processDecls : {vars : _} ->
                {auto u : Ref UST UState} ->
                NestedNames vars -> Env Term vars -> List ImpDecl -> Core Bool
 processDecls nest env decls
-    = do traverse (processDecl nest env) decls
+    = do traverse (processDecl [] nest env) decls
          pure True -- TODO: False on error
 
 export
@@ -59,6 +60,8 @@ processTTImpFile fname
                                 pure False
          logTime "Elaboration" $
             catch (do processDecls (MkNested []) [] tti
+                      Nothing <- checkDelayedHoles
+                          | Just err => throw err
                       pure True)
                   (\err => do coreLift (printLn err)
                               pure False)

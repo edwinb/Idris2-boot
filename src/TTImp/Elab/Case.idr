@@ -364,7 +364,7 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
          let nest' = record { names $= ((Resolved cidx, (Nothing, 
                                   (\fc, nt => applyToFull fc caseRef pre_env))) ::) } 
                             nest
-         processDecl nest' pre_env (IDef fc casen alts')
+         processDecl [InCase] nest' pre_env (IDef fc casen alts')
 
          let applyEnv = applyToOthers fc (applyToFull fc caseRef env) env smaller
          pure (maybe (App fc applyEnv (explApp Nothing) scrtm) 

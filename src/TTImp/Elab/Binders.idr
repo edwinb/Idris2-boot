@@ -109,13 +109,14 @@ checkLambda rig_in elabinfo nest env fc rigl info n argTy scope Nothing
           inferLambda rig elabinfo nest env fc rigl info n argTy scope Nothing
 checkLambda rig_in elabinfo nest env fc rigl info n argTy scope (Just expty_in)
     = do let rig = if rig_in == Rig0 then Rig0 else Rig1
-         (tyv, tyt) <- check Rig0 (nextLevel elabinfo) nest env argTy (Just (gType fc))
          expty <- getTerm expty_in
          exptynf <- getTyNF env expty
          defs <- get Ctxt
          case exptynf of
               Bind bfc bn (Pi c _ pty) psc =>
-                 do let rigb = min rigl c
+                 do (tyv, tyt) <- check Rig0 (nextLevel elabinfo) nest env 
+                                        argTy (Just (gType fc))
+                    let rigb = min rigl c
                     let env' : Env Term (n :: _) = Lam rigb info tyv :: env
                     let nest' = weaken (dropName n nest)
                     (scopev, scopet) <-
