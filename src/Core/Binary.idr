@@ -139,7 +139,7 @@ readTTCFile modns as r b
            gam' <- updateEntries (gamma defs) modns as 0 (max r) r
            setCtxt gam' 
            holes <- fromBuf r b
-           coreLift $ putStrLn $ "Read " ++ show holes ++ " holes"
+           coreLift $ putStrLn $ "Read " ++ show (length holes) ++ " holes"
            guesses <- fromBuf r b
            coreLift $ putStrLn $ "Read " ++ show (length guesses) ++ " guesses"
            constraints <- the (Core (List (Int, Constraint))) $ fromBuf r b

@@ -109,3 +109,9 @@ abstractFullEnvType fc (b :: env) tm
     = abstractFullEnvType fc env (Bind fc _ 
 						(Pi (multiplicity b) Explicit (binderType b)) tm)
 
+export
+letToLam : Env Term vars -> Env Term vars
+letToLam [] = []
+letToLam (Let c val ty :: env) = Lam c Explicit ty :: letToLam env
+letToLam (b :: env) = b :: letToLam env
+

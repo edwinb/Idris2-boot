@@ -45,6 +45,10 @@ atom fname
          x <- unqualifiedName
          end <- location
          pure (IBindVar (MkFC fname start end) x)
+  <|> do start <- location
+         x <- holeName
+         end <- location
+         pure (IHole (MkFC fname start end) x)
 
 visibility : EmptyRule Visibility
 visibility

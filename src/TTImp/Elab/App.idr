@@ -195,8 +195,8 @@ mutual
                   InLHS _ => -- reset hole and redo it with the unexpanded definition
                      do updateDef (Resolved idx) (const (Just (Hole False)))
                         convert fc elabinfo env 
-                                   (gnfOpts withHoles (noLet env) metaval) 
-                                   (gnfOpts withHoles (noLet env) argv)
+                                   (gnfOpts withHoles (letToLam env) metaval) 
+                                   (gnfOpts withHoles (letToLam env) argv)
                         pure ()
                   _ => pure ()
              removeHoleName nm
@@ -216,12 +216,6 @@ mutual
              fnty <- sc defs (toClosure defaultOpts env argv)
              checkAppWith rig elabinfo nest env fc
                           fntm fnty expargs impargs kr expty
-    where
-      noLet : Env Term vs -> Env Term vs
-      noLet [] = []
-      noLet (Let c v t :: env) = Lam c Explicit t :: noLet env
-      noLet (b :: env) = b :: noLet env
-
 
   -- Check an application of 'fntm', with type 'fnty' to the given list
   -- of explicit and implicit arguments.

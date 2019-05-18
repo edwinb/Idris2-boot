@@ -14,6 +14,7 @@ import TTImp.Elab.As
 import TTImp.Elab.Binders
 import TTImp.Elab.Case
 import TTImp.Elab.Check
+import TTImp.Elab.Hole
 import TTImp.Elab.ImplicitBind
 import TTImp.Elab.Local
 import TTImp.Elab.Prim
@@ -142,7 +143,7 @@ checkTerm rig elabinfo nest env (IType fc) exp
     = checkExp rig elabinfo env fc (TType fc) (gType fc) exp
 
 checkTerm rig elabinfo nest env (IHole fc str) exp
-    = throw (InternalError "holes not implemented")
+    = checkHole rig elabinfo nest env fc str exp
 checkTerm rig elabinfo nest env (Implicit fc b) (Just gexpty)
     = do nm <- genName "imp"
          expty <- getTerm gexpty

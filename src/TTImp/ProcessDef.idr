@@ -154,7 +154,7 @@ checkClause mult hashit n nest env (PatClause fc lhs_in rhs)
          -- Normalise the LHS to get any functions or let bindings evaluated
          -- (this might be allowed, e.g. for 'fromInteger')
          defs <- get Ctxt
-         lhstm <- normaliseLHS defs (noLet env) lhstm
+         lhstm <- normaliseLHS defs (letToLam env) lhstm
          lhsty <- normaliseHoles defs env lhsty
          linvars_in <- findLinear True 0 Rig1 lhstm
          log 5 $ "Linearity of names in " ++ show n ++ ": " ++ 
@@ -174,11 +174,6 @@ checkClause mult hashit n nest env (PatClause fc lhs_in rhs)
 
          logTerm 5 "RHS term" rhstm
          pure (Just (MkClause env' lhstm' rhstm))
-  where
-    noLet : Env Term vs -> Env Term vs
-    noLet [] = []
-    noLet (Let c v t :: env) = Lam c Explicit t :: noLet env
-    noLet (b :: env) = b :: noLet env
 
 toPats : Clause -> (vs ** (Env Term vs, Term vs, Term vs))
 toPats (MkClause {vars} env lhs rhs) 

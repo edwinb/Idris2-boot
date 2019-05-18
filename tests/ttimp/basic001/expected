@@ -4,7 +4,7 @@ Yaffle> (Main.S (Main.S (Main.S (Main.S Main.Z))))
 Yaffle> (Main.S (Main.S (Main.S (Main.S (Main.S Main.Z)))))
 Yaffle> Bye for now!
 Processing as TTC
-Read [] holes
+Read 0 holes
 Read 0 guesses
 Read 31 constraints
 Read TTC

@@ -7,7 +7,7 @@ import System
 ttimpTests : List String
 ttimpTests 
     = ["basic001", "basic002", "basic003", "basic004", "basic005",
-       "basic006",
+       "basic006", "basic007",
        "eta001", "eta002",
        "nest001", "nest002",
        "perf001", "perf002", "perf003"]
