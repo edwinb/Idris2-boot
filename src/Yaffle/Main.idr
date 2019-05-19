@@ -57,6 +57,6 @@ main
     = do (_ :: fname :: rest) <- getArgs
              | _ => do putStrLn usage
                        exitWith (ExitFailure 1)
-         coreRun defaultOpts (coreMain fname rest)
+         coreRun (coreMain fname rest)
                (\err : Error => putStrLn ("Uncaught error: " ++ show err))
                (\res => pure ())

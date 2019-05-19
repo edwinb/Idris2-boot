@@ -15,6 +15,8 @@ import Data.NameMap
 import Data.StringMap
 import Data.IntMap
 
+import System
+
 %default covering
 
 -- Label for array references
@@ -98,8 +100,7 @@ getPosition (Resolved idx) ctxt = pure (idx, ctxt)
 getPosition n ctxt
     = case lookup n (resolvedAs ctxt) of
            Just idx => 
-              do log 10 $ "Found " ++ show n ++ " " ++ show idx
-                 pure (idx, ctxt)
+              do pure (idx, ctxt)
            Nothing => 
               do let idx = nextEntry ctxt
                  let a = content ctxt
@@ -107,7 +108,6 @@ getPosition n ctxt
                  when (idx >= max arr) $
                          do arr' <- coreLift $ newArrayCopy (max arr + Grow) arr
                             put Arr arr'
-                 log 10 $ "Added " ++ show n ++ " " ++ show idx
                  pure (idx, record { nextEntry = idx + 1,
                                      resolvedAs $= insert n idx,
                                      possibles $= addPossible n idx
@@ -1205,15 +1205,83 @@ fromCharName : Defs -> Maybe Name
 fromCharName defs
     = fromCharName (primnames (options defs))
 
+export
+setLogLevel : {auto c : Ref Ctxt Defs} ->
+              Nat -> Core ()
+setLogLevel l
+    = do defs <- get Ctxt
+         put Ctxt (record { options->session->logLevel = l } defs)
+
+export
+setLogTimings : {auto c : Ref Ctxt Defs} ->
+                Bool -> Core ()
+setLogTimings b
+    = do defs <- get Ctxt
+         put Ctxt (record { options->session->logTimings = b } defs)
+
+export
+getSession : {auto c : Ref Ctxt Defs} ->
+             Core Session
+getSession
+    = do defs <- get Ctxt
+         pure (session (options defs))
+
 -- Log message with a term, translating back to human readable names first
 export
 logTerm : {auto c : Ref Ctxt Defs} ->
           Nat -> Lazy String -> Term vars -> Core ()
 logTerm lvl msg tm
-    = do opts <- getOpts
+    = do opts <- getSession
          if logLevel opts >= lvl
             then do tm' <- toFullNames tm
                     coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg 
                                           ++ ": " ++ show tm'
             else pure ()
+
+export
+log : {auto c : Ref Ctxt Defs} ->
+      Nat -> Lazy String -> Core ()
+log lvl msg
+    = do opts <- getSession
+         if logLevel opts >= lvl
+            then coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg
+            else pure ()
+
+export
+logC : {auto c : Ref Ctxt Defs} ->
+       Nat -> Core String -> Core ()
+logC lvl cmsg
+    = do opts <- getSession
+         if logLevel opts >= lvl
+            then do msg <- cmsg
+                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg
+            else pure ()
+
+
+export
+logTime : {auto c : Ref Ctxt Defs} ->
+          Lazy String -> Core a -> Core a
+logTime str act
+    = do opts <- getSession
+         if logTimings opts
+            then do clock <- coreLift clockTime
+                    let nano = 1000000000
+                    let t = seconds clock * nano + nanoseconds clock
+                    res <- act
+                    clock <- coreLift clockTime
+                    let t' = seconds clock * nano + nanoseconds clock
+                    let time = t' - t
+                    assert_total $ -- We're not dividing by 0
+                       coreLift $ putStrLn $ "TIMING " ++ str ++ ": " ++
+                                show (time `div` nano) ++ "." ++ 
+                                addZeros (unpack (show ((time `mod` nano) `div` 1000000))) ++
+                                "s"
+                    pure res
+            else act
+  where
+    addZeros : List Char -> String
+    addZeros [] = "000"
+    addZeros [x] = "00" ++ cast x
+    addZeros [x,y] = "0" ++ cast x ++ cast y
+    addZeros str = pack str
 

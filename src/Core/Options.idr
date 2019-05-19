@@ -140,6 +140,8 @@ record Session where
   constructor MkSessionOpts
   noprelude : Bool
   codegen : CG
+  logLevel : Nat
+  logTimings : Bool
 
 public export
 record PPrinter where
@@ -167,7 +169,7 @@ defaultPPrint : PPrinter
 defaultPPrint = MkPPOpts False True False
 
 defaultSession : Session
-defaultSession = MkSessionOpts False Chez
+defaultSession = MkSessionOpts False Chez 0 False
 
 export
 defaults : Options

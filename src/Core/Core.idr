@@ -295,39 +295,26 @@ getErrorLoc (InCon x y err) = getErrorLoc err
 getErrorLoc (InLHS x y err) = getErrorLoc err
 getErrorLoc (InRHS x y err) = getErrorLoc err
 
-public export
-record GlobalOpts where
-  constructor MkGlobalOpts
-  logLevel : Nat
-  logTimings : Bool
-
-export
-defaultOpts : GlobalOpts
-defaultOpts = MkGlobalOpts 0 False
-
 -- Core is a wrapper around IO that is specialised for efficiency.
 export
 record Core t where
   constructor MkCore
-  runCore : IORef GlobalOpts -> IO (Either Error t)
+  runCore : IO (Either Error t)
 
 export
-coreRun : GlobalOpts ->
-          Core a -> 
+coreRun : Core a -> 
           (Error -> IO b) -> (a -> IO b) -> IO b
-coreRun opts (MkCore act) err ok
-    = do oref <- newIORef opts
-         either err ok !(act oref)
+coreRun (MkCore act) err ok
+    = either err ok !act
 
 export
 coreFail : Error -> Core a
-coreFail e = MkCore (\oref => pure (Left e))
+coreFail e = MkCore (pure (Left e))
 
 export
 wrapError : (Error -> Error) -> Core a -> Core a
 wrapError fe (MkCore prog)
-    = MkCore (\oref => 
-                prog oref >>=
+    = MkCore (prog >>=
                  (\x => case x of
                              Left err => pure (Left (fe err))
                              Right val => pure (Right val)))
@@ -336,7 +323,7 @@ wrapError fe (MkCore prog)
 export
 %inline
 coreLift : IO a -> Core a
-coreLift op = MkCore (\oref => map Right op)
+coreLift op = MkCore (map Right op)
 
 {- Monad, Applicative, Traversable are specialised by hand for Core.
 In theory, this shouldn't be necessary, but it turns out that Idris 1 doesn't
@@ -351,20 +338,19 @@ in the next version (i.e., in this project...)! -}
 export %inline
 (>>=) : Core a -> (a -> Core b) -> Core b
 (>>=) (MkCore act) f 
-    = MkCore (\oref =>
-                 act oref >>= 
+    = MkCore (act >>= 
                    (\x => case x of
                                Left err => pure (Left err)
-                               Right val => runCore (f val) oref))
+                               Right val => runCore (f val)))
 
 -- Applicative (specialised)
 export %inline
 pure : a -> Core a
-pure x = MkCore (\oref => pure (pure x))
+pure x = MkCore (pure (pure x))
 
 export
 (<*>) : Core (a -> b) -> Core a -> Core b
-(<*>) (MkCore f) (MkCore a) = MkCore (\oref => [| f oref <*> a oref |])
+(<*>) (MkCore f) (MkCore a) = MkCore [| f <*> a |]
 
 export %inline
 when : Bool -> Lazy (Core ()) -> Core ()
@@ -374,11 +360,10 @@ when False f = pure ()
 export
 Catchable Core Error where
   catch (MkCore prog) h 
-      = MkCore (\oref =>
-                   do p' <- prog oref
-                      case p' of
-                           Left e => let MkCore he = h e in he oref
-                           Right val => pure (Right val))
+      = MkCore ( do p' <- prog
+                    case p' of
+                         Left e => let MkCore he = h e in he
+                         Right val => pure (Right val))
   throw = coreFail
 
 -- Traversable (specialised)
@@ -419,71 +404,8 @@ export %inline
 put : (x : label) -> {auto ref : Ref x a} -> a -> Core ()
 put x {ref = MkRef io} val = coreLift (writeIORef io val)
 
-export %inline
-getOpts : Core GlobalOpts
-getOpts = MkCore (\oref => pure (Right !(readIORef oref)))
-
-export %inline
-putOpts : GlobalOpts -> Core ()
-putOpts opts = MkCore (\oref => pure (Right !(writeIORef oref opts)))
-
 export
 cond : List (Lazy Bool, Lazy a) -> a -> a
 cond [] def = def
 cond ((x, y) :: xs) def = if x then y else cond xs def
-
-export
-log : Nat -> Lazy String -> Core ()
-log lvl msg
-    = do opts <- getOpts
-         if logLevel opts >= lvl
-            then coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg
-            else pure ()
-
-export
-logC : Nat -> Core String -> Core ()
-logC lvl cmsg
-    = do opts <- getOpts
-         if logLevel opts >= lvl
-            then do msg <- cmsg
-                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg
-            else pure ()
-
-export
-setLogLevel : Nat -> Core ()
-setLogLevel n
-    = do opts <- getOpts
-         putOpts (record { logLevel = n } opts)
-
-export
-setLogTimings : Bool -> Core ()
-setLogTimings b
-    = do opts <- getOpts
-         putOpts (record { logTimings = b } opts)
-
-export
-logTime : Lazy String -> Core a -> Core a
-logTime str act
-    = do opts <- getOpts
-         if logTimings opts
-            then do clock <- coreLift clockTime
-                    let nano = 1000000000
-                    let t = seconds clock * nano + nanoseconds clock
-                    res <- act
-                    clock <- coreLift clockTime
-                    let t' = seconds clock * nano + nanoseconds clock
-                    let time = t' - t
-                    assert_total $ -- We're not dividing by 0
-                       coreLift $ putStrLn $ "TIMING " ++ str ++ ": " ++
-                                show (time `div` nano) ++ "." ++ 
-                                addZeros (unpack (show ((time `mod` nano) `div` 1000000))) ++
-                                "s"
-                    pure res
-            else act
-  where
-    addZeros : List Char -> String
-    addZeros [] = "000"
-    addZeros [x] = "00" ++ cast x
-    addZeros [x,y] = "0" ++ cast x ++ cast y
-    addZeros str = pack str
 

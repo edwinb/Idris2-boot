@@ -4,6 +4,7 @@ import Core.CaseTree
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Options
 import Core.Primitives
 import Core.TT
 import Core.Value
@@ -705,7 +706,7 @@ export
 logNF : {auto c : Ref Ctxt Defs} ->
         Nat -> Lazy String -> Env Term vars -> NF vars -> Core ()
 logNF lvl msg env tmnf
-    = do opts <- getOpts
+    = do opts <- getSession
          if logLevel opts >= lvl
             then do defs <- get Ctxt
                     tm <- quote defs env tmnf
@@ -720,7 +721,7 @@ export
 logTermNF : {auto c : Ref Ctxt Defs} ->
             Nat -> Lazy String -> Env Term vars -> Term vars -> Core ()
 logTermNF lvl msg env tm
-    = do opts <- getOpts
+    = do opts <- getSession
          if logLevel opts >= lvl
             then do defs <- get Ctxt
                     tmnf <- normaliseHoles defs env tm
@@ -733,7 +734,7 @@ export
 logGlue : {auto c : Ref Ctxt Defs} ->
           Nat -> Lazy String -> Env Term vars -> Glued vars -> Core ()
 logGlue lvl msg env gtm
-    = do opts <- getOpts
+    = do opts <- getSession
          if logLevel opts >= lvl
             then do defs <- get Ctxt
                     tm <- getTerm gtm
@@ -746,7 +747,7 @@ export
 logGlueNF : {auto c : Ref Ctxt Defs} ->
             Nat -> Lazy String -> Env Term vars -> Glued vars -> Core ()
 logGlueNF lvl msg env gtm
-    = do opts <- getOpts
+    = do opts <- getSession
          if logLevel opts >= lvl
             then do defs <- get Ctxt
                     tm <- getTerm gtm
@@ -761,7 +762,7 @@ logEnv : {vars : _} ->
          {auto c : Ref Ctxt Defs} ->
          Nat -> String -> Env Term vars -> Core ()
 logEnv lvl msg env
-    = do opts <- getOpts
+    = do opts <- getSession
          if logLevel opts >= lvl
             then dumpEnv env
             else pure ()
