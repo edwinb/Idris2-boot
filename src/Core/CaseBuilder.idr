@@ -849,13 +849,17 @@ getPMDef fc phase fn ty clauses
          let cs = map (toClosed defs) clauses
          simpleCase fc phase fn ty Nothing cs
   where
-    close : Defs ->
-            Int -> Env Term vars -> Term vars -> ClosedTerm
-    close defs i [] tm = tm
-    close defs i (b :: bs) tm 
-        = close defs (i + 1) bs (subst (Ref fc Bound (MN "pat" i)) tm)
+    mkSubstEnv : Int -> Env Term vars -> SubstEnv vars []
+    mkSubstEnv i [] = Nil
+    mkSubstEnv i (v :: vs) 
+       = Ref fc Bound (MN "pat" i) :: mkSubstEnv (i + 1) vs
+
+    close : Env Term vars -> Term vars -> ClosedTerm
+    close {vars} env tm 
+        = substs (mkSubstEnv 0 env) 
+              (rewrite appendNilRightNeutral vars in tm)
 
     toClosed : Defs -> Clause -> (ClosedTerm, ClosedTerm)
     toClosed defs (MkClause env lhs rhs) 
-          = (close defs 0 env lhs, close defs 0 env rhs)
+          = (close env lhs, close env rhs)
 
