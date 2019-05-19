@@ -37,7 +37,7 @@ insertImpLam {vars} env tm (Just ty) = bindLam tm ty
     bindLamTm tm@(ILam _ _ Implicit _ _ _) (Bind fc n (Pi _ Implicit _) sc)
         = pure (Just tm)
     bindLamTm tm (Bind fc n (Pi c Implicit ty) sc)
-        = do n' <- genVarName ("imp_" ++ show n)
+        = do n' <- genVarName (nameRoot n)
              Just sc' <- bindLamTm tm sc
                  | Nothing => pure Nothing
              pure $ Just (ILam fc c Implicit (Just n') (Implicit fc False) sc')
@@ -53,7 +53,7 @@ insertImpLam {vars} env tm (Just ty) = bindLam tm ty
         = pure tm
     bindLamNF tm (NBind fc n (Pi c Implicit ty) sc)
         = do defs <- get Ctxt
-             n' <- genVarName ("imp_" ++ show n)
+             n' <- genVarName (nameRoot n)
              sctm <- sc defs (toClosure defaultOpts env (Ref fc Bound n'))
              sc' <- bindLamNF tm sctm
              pure $ ILam fc c Implicit (Just n') (Implicit fc False) sc'

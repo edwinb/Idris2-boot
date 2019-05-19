@@ -433,7 +433,7 @@ cond [] def = def
 cond ((x, y) :: xs) def = if x then y else cond xs def
 
 export
-log : Nat -> String -> Core ()
+log : Nat -> Lazy String -> Core ()
 log lvl msg
     = do opts <- getOpts
          if logLevel opts >= lvl

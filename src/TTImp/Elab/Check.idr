@@ -460,7 +460,9 @@ convert fc elabinfo env x y
                 = case elabMode elabinfo of
                        InLHS _ => InLHS
                        _ => InTerm in
-          catch (do vs <- unify umode fc env !(getNF x) !(getNF y)
+          catch (do logGlue 10 "Unify" env x
+                    logGlue 10 ".....with" env y
+                    vs <- unify umode fc env !(getNF x) !(getNF y)
                     when (holesSolved vs) $
                       solveConstraints umode Normal
                     pure (constraints vs))

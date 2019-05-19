@@ -202,7 +202,7 @@ mutual
                                    (gnfOpts withHoles (letToLam env) argv)
                         pure ()
                   _ => pure ()
-             removeHoleName nm
+             removeHole idx
              pure (tm, gty)
            else do
              logNF 10 ("Argument type " ++ show x) env aty

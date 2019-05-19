@@ -208,13 +208,13 @@ toSubVars (n :: ns) xs
 patternEnv : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              {vars : _} ->
-             Env Term vars -> List (Closure vars) -> 
+             Env Term vars -> List (AppInfo, Closure vars) -> 
              Core (Maybe (newvars ** (List (Var newvars),
                                      SubVars newvars vars)))
 patternEnv env args
     = do defs <- get Ctxt
          empty <- clearDefs defs
-         args' <- traverse (evalClosure empty) args
+         args' <- traverse (evalArg empty) args
          case getVars args' of
               Nothing => pure Nothing
               Just vs => 
@@ -393,12 +393,12 @@ mutual
       = do defs <- get Ctxt
            empty <- clearDefs defs
            let args = margs ++ margs'
-           logC 10 (do args' <- traverse (evalClosure empty) (map snd args)
+           logC 10 (do args' <- traverse (evalArg empty) args
                        qargs <- traverse (quote empty env) args'
                        qtm <- quote empty env tmnf
                        pure $ "Unifying: " ++ show mname ++ " " ++ show qargs ++
                               " with " ++ show qtm)
-           case !(patternEnv env (map snd args)) of
+           case !(patternEnv env args) of
                 Nothing => unifyPatVar mode loc env mname mref args tmnf
                 Just (newvars ** (locs, submv)) => 
                   do tm <- quote empty env tmnf

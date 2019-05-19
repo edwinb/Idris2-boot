@@ -26,10 +26,6 @@ Show (Usage vars) where
       showAll [el] = show el
       showAll (x :: xs) = show x ++ ", " ++ show xs
 
-Weaken Usage where
-  weaken [] = []
-  weaken (MkVar x :: xs) = MkVar (Later x) :: weaken xs
-
 doneScope : Usage (n :: vars) -> Usage vars
 doneScope [] = []
 doneScope (MkVar First :: xs) = doneScope xs

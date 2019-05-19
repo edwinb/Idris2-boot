@@ -40,6 +40,10 @@ export
 evalClosure : Defs -> Closure free -> Core (NF free)
 
 export
+evalArg : Defs -> (AppInfo, Closure free) -> Core (NF free)
+evalArg defs (p, c) = evalClosure defs c
+
+export
 toClosure : EvalOpts -> Env Term outer -> Term outer -> Closure outer
 toClosure opts env tm = MkClosure opts [] env tm
 
@@ -107,12 +111,18 @@ parameters (defs : Defs, topopts : EvalOpts)
                 Stack free ->
                 Core (NF free)
     evalLocal {vars = []} env locs fc mrig idx prf stk
-        = case getBinder prf env of
-               Let _ val _ => 
-                   if not (holesOnly topopts || argHolesOnly topopts)
-                      then eval env [] val stk
-                      else pure $ NApp fc (NLocal mrig idx prf) stk
-               _ => pure $ NApp fc (NLocal mrig idx prf) stk
+        = if not (holesOnly topopts || argHolesOnly topopts) && isLet idx env
+             then
+               case getBinder prf env of
+                    Let _ val _ => eval env [] val stk
+                    _ => pure $ NApp fc (NLocal mrig idx prf) stk
+             else pure $ NApp fc (NLocal mrig idx prf) stk
+      where
+        isLet : Nat -> Env tm vars -> Bool
+        isLet Z (Let _ _ _ :: env) = True
+        isLet Z _ = False
+        isLet (S k) (b :: env) = isLet k env
+        isLet (S k) [] = False
     evalLocal env (MkClosure opts locs' env' tm' :: locs) fc mrig Z First stk
         = evalWithOpts defs opts env' locs' tm' stk
     evalLocal {free} {vars = x :: xs} 
@@ -573,9 +583,9 @@ interface Convert (tm : List Name -> Type) where
 
 mutual
   allConv : Ref QVar Int -> Defs -> Env Term vars ->
-            List (Closure vars) -> List (Closure vars) -> Core Bool
+            List (a, Closure vars) -> List (a, Closure vars) -> Core Bool
   allConv q defs env [] [] = pure True
-  allConv q defs env (x :: xs) (y :: ys)
+  allConv q defs env ((_, x) :: xs) ((_, y) :: ys)
       = pure $ !(convGen q defs env x y) && !(allConv q defs env xs ys)
   allConv q defs env _ _ = pure False
 
@@ -585,7 +595,7 @@ mutual
   chkConvHead q defs env (NRef _ n) (NRef _ n') = pure $ n == n'
   chkConvHead q defs env (NMeta n i args) (NMeta n' i' args') 
      = if i == i'
-          then allConv q defs env (map snd args) (map snd args')
+          then allConv q defs env args args'
           else pure False
   chkConvHead q defs env _ _ = pure False
 
@@ -639,16 +649,16 @@ mutual
 
     convGen q defs env (NApp _ val args) (NApp _ val' args')
         = if !(chkConvHead q defs env val val')
-             then allConv q defs env (map snd args) (map snd args')
+             then allConv q defs env args args'
              else pure False
 
     convGen q defs env (NDCon _ nm tag _ args) (NDCon _ nm' tag' _ args')
         = if tag == tag'
-             then allConv q defs env (map snd args) (map snd args')
+             then allConv q defs env args args'
              else pure False
     convGen q defs env (NTCon _ nm tag _ args) (NTCon _ nm' tag' _ args')
         = if nm == nm'
-             then allConv q defs env (map snd args) (map snd args')
+             then allConv q defs env args args'
              else pure False
     convGen q defs env (NAs _ _ tm) (NAs _ _ tm')
         = convGen q defs env tm tm'
