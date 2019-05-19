@@ -139,14 +139,14 @@ checkClause : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               (mult : RigCount) -> (hashit : Bool) ->
               Int -> List ElabOpt -> NestedNames vars -> Env Term vars ->
-              ImpClause -> Core (Maybe Clause)
+              ImpClause -> Core (Maybe (Clause, Clause))
 checkClause mult hashit n opts nest env (ImpossibleClause fc lhs)
     = throw (InternalError "impossible not implemented yet")
 checkClause mult hashit n opts nest env (PatClause fc lhs_in rhs)
     = do lhs <- lhsInCurrentNS nest lhs_in 
          log 5 $ "Checking " ++ show lhs
          logEnv 5 "In env" env
-         (lhstm, lhstyg) <- elabTerm n (InLHS mult) opts nest env 
+         (lhstm, _, lhstyg) <- elabTerm n (InLHS mult) opts nest env 
                                 (IBindHere fc PATTERN lhs) Nothing
          logTerm 10 "Checked LHS term" lhstm
          lhsty <- getTerm lhstyg
@@ -170,10 +170,20 @@ checkClause mult hashit n opts nest env (PatClause fc lhs_in rhs)
          (vars'  ** (sub', env', nest', lhstm', lhsty')) <- 
              extendEnv env SubRefl nest lhstm_lin lhsty_lin
          
-         rhstm <- checkTermSub n InExpr opts nest' env' env sub' rhs (gnf env' lhsty')
+         (rhstm, rhserased) <- checkTermSub n InExpr opts nest' env' env sub' rhs (gnf env' lhsty')
 
          logTerm 5 "RHS term" rhstm
-         pure (Just (MkClause env' lhstm' rhstm))
+         pure (Just (MkClause env' lhstm' rhstm,
+                     MkClause env' lhstm' rhserased))
+
+nameListEq : (xs : List Name) -> (ys : List Name) -> Maybe (xs = ys)
+nameListEq [] [] = Just Refl
+nameListEq (x :: xs) (y :: ys) with (nameEq x y)
+  nameListEq (x :: xs) (x :: ys) | (Just Refl) with (nameListEq xs ys)
+    nameListEq (x :: xs) (x :: xs) | (Just Refl) | Just Refl= Just Refl
+    nameListEq (x :: xs) (x :: ys) | (Just Refl) | Nothing = Nothing
+  nameListEq (x :: xs) (y :: ys) | Nothing = Nothing
+nameListEq _ _ = Nothing
 
 toPats : Clause -> (vs ** (Env Term vs, Term vs, Term vs))
 toPats (MkClause {vars} env lhs rhs) 
@@ -198,10 +208,16 @@ processDef {vars} opts nest env fc n_in cs_in
                        else Rig1
          nidx <- resolveName n
          cs <- traverse (checkClause mult hashit nidx opts nest env) cs_in
-         let pats = map toPats (mapMaybe id cs)
+         let pats = map toPats (map fst (mapMaybe id cs))
 
-         (cargs ** tree_ct) <- getPMDef fc CompileTime n ty (mapMaybe id cs)
+         (cargs ** tree_ct) <- getPMDef fc CompileTime n ty 
+                                        (map fst (mapMaybe id cs))
+         (rargs ** tree_rt) <- getPMDef fc CompileTime n ty 
+                                        (map snd (mapMaybe id cs))
+         let Just Refl = nameListEq cargs rargs
+                 | Nothing => throw (InternalError "WAT")
+        
          log 5 $ "Case tree for " ++ show n ++ ": " ++ show tree_ct
-         addDef n (record { definition = PMDef cargs tree_ct tree_ct pats } gdef)
+         addDef n (record { definition = PMDef cargs tree_ct tree_rt pats } gdef)
          pure ()
          

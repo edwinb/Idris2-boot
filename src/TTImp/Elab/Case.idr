@@ -172,15 +172,15 @@ allow (Just (MkVar p)) env = toRig1 p env
 
 shrinkImp : SubVars outer vars -> 
             (Name, ImplBinding vars) -> Maybe (Name, ImplBinding outer)
-shrinkImp sub (n, NameBinding tm ty)
+shrinkImp sub (n, NameBinding c tm ty)
     = do tm' <- shrinkTerm tm sub
          ty' <- shrinkTerm ty sub
-         pure (n, NameBinding tm' ty')
-shrinkImp sub (n, AsBinding tm ty pat)
+         pure (n, NameBinding c tm' ty')
+shrinkImp sub (n, AsBinding c tm ty pat)
     = do tm' <- shrinkTerm tm sub
          ty' <- shrinkTerm ty sub
          pat' <- shrinkTerm pat sub
-         pure (n, AsBinding tm' ty' pat')
+         pure (n, AsBinding c tm' ty' pat')
 
 findImpsIn : FC -> Env Term vars -> List (Name, Term vars) -> Term vars ->
              Core ()
@@ -404,7 +404,7 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
     addEnv {vs = v :: vs} (b :: bs) (DropCons p) used
         = let (rest, used') = addEnv bs p used in
               case canBindName v used' of
-                   Just n => (Just (IAs fc n (Implicit fc True)) :: rest, n :: used')
+                   Just n => (Just (IAs fc UseLeft n (Implicit fc True)) :: rest, n :: used')
                    _ => (Just (Implicit fc True) :: rest, used')
 
     -- Replace a variable in the argument list; if the reference is to
@@ -415,7 +415,7 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
               List RawImp
     replace First lhs (old :: xs) 
        = let lhs' = case old of
-                         Just (IAs loc' n _) => IAs loc' n lhs 
+                         Just (IAs loc' side n _) => IAs loc' side n lhs 
                          _ => lhs in
              lhs' :: mapMaybe id xs
     replace (Later p) lhs (Nothing :: xs) 
@@ -436,7 +436,7 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
     usedIn : RawImp -> List Name
     usedIn (IBindVar _ n) = [UN n]
     usedIn (IApp _ f a) = usedIn f ++ usedIn a
-    usedIn (IAs _ n a) = n :: usedIn a
+    usedIn (IAs _ _ n a) = n :: usedIn a
     usedIn (IAlternative _ _ alts) = concatMap usedIn alts
     usedIn _ = []
 

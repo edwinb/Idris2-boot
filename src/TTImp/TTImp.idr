@@ -33,6 +33,11 @@ mutual
   public export
   data BindMode = PI RigCount | PATTERN | NONE
 
+  -- For as patterns matching linear arguments, select which side is
+  -- consumed
+  public export
+  data UseSide = UseLeft | UseRight
+
   public export
   data RawImp : Type where
        IVar : FC -> Name -> RawImp
@@ -61,7 +66,7 @@ mutual
        -- A name which should be implicitly bound
        IBindVar : FC -> String -> RawImp
        -- An 'as' pattern, valid on the LHS of a clause only
-       IAs : FC -> Name -> RawImp -> RawImp
+       IAs : FC -> UseSide -> Name -> RawImp -> RawImp
        -- A 'dot' pattern, i.e. one which must also have the given value
        -- by unification
        IMustUnify : FC -> (reason : String) -> RawImp -> RawImp
@@ -120,7 +125,7 @@ mutual
       show (IBindHere fc b sc)
          = "(%bindhere " ++ show sc ++ ")"
       show (IBindVar fc n) = "$" ++ n
-      show (IAs fc n tm) = show n ++ "@(" ++ show tm ++ ")"
+      show (IAs fc _ n tm) = show n ++ "@(" ++ show tm ++ ")"
       show (IMustUnify fc r tm) = ".(" ++ show tm ++ ")"
       show (IPrimVal fc c) = show c
       show (IHole _ x) = "?" ++ x
@@ -244,31 +249,31 @@ lhsInCurrentNS nest (IVar loc n)
 lhsInCurrentNS nest tm = pure tm
 
 export
-getAnnot : RawImp -> FC
-getAnnot (IVar x _) = x
-getAnnot (IPi x _ _ _ _ _) = x
-getAnnot (ILam x _ _ _ _ _) = x
-getAnnot (ILet x _ _ _ _ _) = x
-getAnnot (ICase x _ _ _) = x
-getAnnot (ILocal x _ _) = x
-getAnnot (IUpdate x _ _) = x
-getAnnot (IApp x _ _) = x
-getAnnot (IImplicitApp x _ _ _) = x
-getAnnot (ISearch x _) = x
-getAnnot (IAlternative x _ _) = x
-getAnnot (IRewrite x _ _) = x
-getAnnot (ICoerced x _) = x
-getAnnot (IPrimVal x _) = x
-getAnnot (IHole x _) = x
-getAnnot (IType x) = x
-getAnnot (IBindVar x _) = x
-getAnnot (IBindHere x _ _) = x
-getAnnot (IMustUnify x _ _) = x
-getAnnot (IAs x _ _) = x
-getAnnot (Implicit x _) = x
+getFC : RawImp -> FC
+getFC (IVar x _) = x
+getFC (IPi x _ _ _ _ _) = x
+getFC (ILam x _ _ _ _ _) = x
+getFC (ILet x _ _ _ _ _) = x
+getFC (ICase x _ _ _) = x
+getFC (ILocal x _ _) = x
+getFC (IUpdate x _ _) = x
+getFC (IApp x _ _) = x
+getFC (IImplicitApp x _ _ _) = x
+getFC (ISearch x _) = x
+getFC (IAlternative x _ _) = x
+getFC (IRewrite x _ _) = x
+getFC (ICoerced x _) = x
+getFC (IPrimVal x _) = x
+getFC (IHole x _) = x
+getFC (IType x) = x
+getFC (IBindVar x _) = x
+getFC (IBindHere x _ _) = x
+getFC (IMustUnify x _ _) = x
+getFC (IAs x _ _ _) = x
+getFC (Implicit x _) = x
 
 export
 apply : RawImp -> List RawImp -> RawImp
 apply f [] = f
-apply f (x :: xs) = apply (IApp (getAnnot f) f x) xs
+apply f (x :: xs) = apply (IApp (getFC f) f x) xs
 

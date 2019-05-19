@@ -164,7 +164,7 @@ mutual
       = do (p', _) <- unelabTy' umode env p 
            (tm', ty) <- unelabTy' umode env tm
            case p' of
-                IVar _ n => pure (IAs fc n tm', ty)
+                IVar _ n => pure (IAs fc UseRight n tm', ty)
                 _ => pure (tm', ty) -- Should never happen!
   unelabTy' umode env (TDelayed fc r tm)
       = do (tm', ty) <- unelabTy' umode env tm

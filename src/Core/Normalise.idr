@@ -68,7 +68,7 @@ parameters (defs : Defs, topopts : EvalOpts)
     eval env locs (Bind fc x (Lam r _ ty) scope) ((p, thunk) :: stk)
         = eval env (thunk :: locs) scope stk
     eval env locs (Bind fc x b@(Let r val ty) scope) stk
-        = if holesOnly topopts
+        = if holesOnly topopts || argHolesOnly topopts
              then do b' <- traverse (\tm => eval env locs tm stk) b
                      pure $ NBind fc x b'
                         (\defs', arg => evalWithOpts defs' topopts 
@@ -109,7 +109,7 @@ parameters (defs : Defs, topopts : EvalOpts)
     evalLocal {vars = []} env locs fc mrig idx prf stk
         = case getBinder prf env of
                Let _ val _ => 
-                   if not (holesOnly topopts)
+                   if not (holesOnly topopts || argHolesOnly topopts)
                       then eval env [] val stk
                       else pure $ NApp fc (NLocal mrig idx prf) stk
                _ => pure $ NApp fc (NLocal mrig idx prf) stk
@@ -758,12 +758,14 @@ logEnv lvl msg env
   where
     dumpEnv : {vs : List Name} -> Env Term vs -> Core ()
     dumpEnv [] = pure ()
-    dumpEnv {vs = x :: _} (Let _ val ty :: bs)
+    dumpEnv {vs = x :: _} (Let c val ty :: bs)
         = do logTermNF lvl (msg ++ ": let " ++ show x) bs val
-             logTermNF lvl (msg ++ ":" ++ show x) bs ty
+             logTermNF lvl (msg ++ ":" ++ show c ++ " " ++ 
+                            show x) bs ty
              dumpEnv bs
     dumpEnv {vs = x :: _} (b :: bs)
-        = do logTermNF lvl (msg ++ ":" ++ show x) bs (binderType b)
+        = do logTermNF lvl (msg ++ ":" ++ show (multiplicity b) ++ " " ++ 
+                            show x) bs (binderType b)
              dumpEnv bs
 
 

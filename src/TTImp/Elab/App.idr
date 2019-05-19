@@ -120,7 +120,7 @@ mutual
            fnty <- sc defs (toClosure defaultOpts env metaval)
            when (bindingVars elabinfo) $
                 do est <- get EST
-                   put EST (addBindIfUnsolved nm rig env metaval metaty est)
+                   put EST (addBindIfUnsolved nm argRig env metaval metaty est)
            checkAppWith rig elabinfo nest env fc
                         fntm fnty expargs impargs kr expty
 
@@ -188,8 +188,11 @@ mutual
              -- *may* have as patterns in it and we need to retain them.
              -- (As patterns are a bit of a hack but I don't yet see a 
              -- better way that leads to good code...)
-             [] <- convert fc elabinfo env (gnf env metaval)
-                                           (gnf env argv)
+             [] <- handle 
+                    (convert fc elabinfo env (gnf env metaval)
+                                   (gnfOpts withHoles (letToLam env) argv))
+                    (\err => convert fc elabinfo env (gnf env metaval)
+                                                     (gnf env argv))
                 | cs => throw (CantConvert fc env metaval argv)
              case elabMode elabinfo of
                   InLHS _ => -- reset hole and redo it with the unexpanded definition

@@ -35,21 +35,21 @@ Eq ElabOpt where
 -- or a binding of an @-pattern which has an associated pattern.
 public export
 data ImplBinding : List Name -> Type where
-     NameBinding : (elabAs : Term vars) -> (expTy : Term vars) ->
+     NameBinding : RigCount -> (elabAs : Term vars) -> (expTy : Term vars) ->
                    ImplBinding vars
-     AsBinding : (elabAs : Term vars) -> (expTy : Term vars) ->
+     AsBinding : RigCount -> (elabAs : Term vars) -> (expTy : Term vars) ->
                  (pat : Term vars) ->
                  ImplBinding vars
 
 export
 Show (ImplBinding vars) where
-  show (NameBinding p ty) = show (p, ty)
-  show (AsBinding p ty tm) = show (p, ty) ++ "@" ++ show tm
+  show (NameBinding c p ty) = show (p, ty)
+  show (AsBinding c p ty tm) = show (p, ty) ++ "@" ++ show tm
 
 export
 bindingMetas : ImplBinding vars -> NameMap ()
-bindingMetas (NameBinding tm ty) = getMetas ty
-bindingMetas (AsBinding tm ty pat) 
+bindingMetas (NameBinding c tm ty) = getMetas ty
+bindingMetas (AsBinding c tm ty pat) 
     = insertAll (toList (getMetas ty)) (getMetas pat)
   where
     insertAll : List (Name, ()) -> NameMap () -> NameMap ()
@@ -59,15 +59,20 @@ bindingMetas (AsBinding tm ty pat)
 -- Get the type of an implicit name binding
 export
 bindingType : ImplBinding vars -> Term vars
-bindingType (NameBinding _ ty) = ty
-bindingType (AsBinding _ ty _) = ty
+bindingType (NameBinding _ _ ty) = ty
+bindingType (AsBinding _ _ ty _) = ty
 
 -- Get the term (that is, the expanded thing it elaborates to, of the name
 -- applied to the context) from an implicit binding
 export
 bindingTerm : ImplBinding vars -> Term vars
-bindingTerm (NameBinding tm _) = tm
-bindingTerm (AsBinding tm _ _) = tm
+bindingTerm (NameBinding _ tm _) = tm
+bindingTerm (AsBinding _ tm _ _) = tm
+
+export
+bindingRig : ImplBinding vars -> RigCount
+bindingRig (NameBinding c _ _) = c
+bindingRig (AsBinding c _ _ _) = c
 
 -- Current elaboration state (preserved/updated throughout elaboration)
 public export
@@ -129,9 +134,9 @@ weakenedEState {e}
   where
     wknTms : (Name, ImplBinding vs) -> 
              (Name, ImplBinding (n :: vs))
-    wknTms (f, NameBinding x y) = (f, NameBinding (weaken x) (weaken y))
-    wknTms (f, AsBinding x y z)
-        = (f, AsBinding (weaken x) (weaken y) (weaken z))
+    wknTms (f, NameBinding c x y) = (f, NameBinding c (weaken x) (weaken y))
+    wknTms (f, AsBinding c x y z)
+        = (f, AsBinding c (weaken x) (weaken y) (weaken z))
 
 strengthenedEState : Ref Ctxt Defs ->
                      Ref EST (EState (n :: vars)) ->
@@ -160,22 +165,22 @@ strengthenedEState {n} {vars} c e fc env
 
     strTms : Defs -> (Name, ImplBinding (n :: vars)) -> 
              Core (Name, ImplBinding vars)
-    strTms defs (f, NameBinding x y)
+    strTms defs (f, NameBinding c x y)
         = do xnf <- normaliseHoles defs env x
              ynf <- normaliseHoles defs env y
              case (shrinkTerm xnf (DropCons SubRefl), 
                    shrinkTerm ynf (DropCons SubRefl)) of
-               (Just x', Just y') => pure (f, NameBinding x' y')
+               (Just x', Just y') => pure (f, NameBinding c x' y')
                _ => throw (GenericMsg fc ("Invalid unbound implicit " ++ 
                                show f ++ " " ++ show xnf ++ " : " ++ show ynf))
-    strTms defs (f, AsBinding x y z)
+    strTms defs (f, AsBinding c x y z)
         = do xnf <- normaliseHoles defs env x
              ynf <- normaliseHoles defs env y
              znf <- normaliseHoles defs env y
              case (shrinkTerm xnf (DropCons SubRefl), 
                    shrinkTerm ynf (DropCons SubRefl),
                    shrinkTerm znf (DropCons SubRefl)) of
-               (Just x', Just y', Just z') => pure (f, AsBinding x' y' z')
+               (Just x', Just y', Just z') => pure (f, AsBinding c x' y' z')
                _ => throw (GenericMsg fc ("Invalid as binding " ++ 
                                show f ++ " " ++ show xnf ++ " : " ++ show ynf))
 

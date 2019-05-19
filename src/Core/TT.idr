@@ -310,6 +310,14 @@ export
 sameVar : Var xs -> Var xs -> Bool
 sameVar (MkVar {i=x} _) (MkVar {i=y} _) = x == y
 
+export
+varIdx : Var xs -> Nat
+varIdx (MkVar {i} _) = i
+
+export
+Show (Var ns) where
+  show (MkVar {n} _) = show n
+
 public export
 record AppInfo where
   constructor MkAppInfo
@@ -871,6 +879,7 @@ resolveNames vars tm = tm
 -- Substitute some explicit terms for names in a term, and remove those
 -- names from the scope
 namespace SubstEnv
+  public export
   data SubstEnv : List Name -> List Name -> Type where
        Nil : SubstEnv [] vars
        (::) : Term vars -> 
@@ -913,6 +922,10 @@ namespace SubstEnv
   substEnv env (PrimVal fc c) = PrimVal fc c
   substEnv env (Erased fc) = Erased fc
   substEnv env (TType fc) = TType fc
+
+export
+substs : SubstEnv drop vars -> Term (drop ++ vars) -> Term vars
+substs env tm = substEnv {outer = []} env tm
 
 export
 subst : Term vars -> Term (x :: vars) -> Term vars
@@ -1007,8 +1020,8 @@ export Show (Term vars) where
           = "let " ++ showCount c ++ show x ++ " : " ++ show ty ++ 
             " = " ++ show val ++ " in " ++ show sc
       showApp (Bind _ x (Pi c Explicit ty) sc) [] 
-          = "(" ++ showCount c ++ show x ++ " : " ++ show ty ++ 
-            ") -> " ++ show sc
+          = "((" ++ showCount c ++ show x ++ " : " ++ show ty ++ 
+            ") -> " ++ show sc ++ ")"
       showApp (Bind _ x (Pi c Implicit ty) sc) [] 
           = "{" ++ showCount c ++ show x ++ " : " ++ show ty ++ 
             "} -> " ++ show sc

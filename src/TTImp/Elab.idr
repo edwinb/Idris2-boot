@@ -3,6 +3,7 @@ module TTImp.Elab
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.LinearCheck
 import Core.Normalise
 import Core.UnifyState
 import Core.Unify
@@ -27,7 +28,7 @@ elabTermSub : {vars : _} ->
               NestedNames vars -> Env Term vars ->
               Env Term inner -> SubVars inner vars ->
               RawImp -> Maybe (Glued vars) ->
-              Core (Term vars, Glued vars)
+              Core (Term vars, Term vars, Glued vars)
 elabTermSub defining mode opts nest env env' sub tm ty
     = do let incase = elem InCase opts
          let holesokay = elem HolesOkay opts
@@ -58,6 +59,8 @@ elabTermSub defining mode opts nest env env' sub tm ty
                   do ust <- get UST
                      put UST (record { delayedElab = [] } ust)
                      throw err)
+         defs <- get Ctxt
+         chktm <- normaliseArgHoles defs env chktm
          -- As long as we're not in a case block, finish off constraint solving
          when (not incase) $
            -- resolve any default hints
@@ -67,22 +70,34 @@ elabTermSub defining mode opts nest env env' sub tm ty
               -- helpful errors.
               solveConstraints solvemode LastChance
 
+         -- Linearity and hole checking.
          -- on the LHS, all holes need to have been solved
-         case mode of
-              InLHS _ => checkUserHoles True
+         chktm <- case mode of
+              InLHS _ => do checkUserHoles True
+                            pure chktm
               -- elsewhere, all unification problems must be
               -- solved, though we defer that if it's a case block since we
-              -- might learn a bit more later
-              _ => when (not incase) $
-                       checkNoGuards
-
+              -- might learn a bit more later.
+              _ => if (not incase)
+                      then do checkNoGuards
+                              linearCheck (getFC tm) rigc False env chktm
+                          -- Linearity checking looks in case blocks, so no
+                          -- need to check here.
+                      else pure chktm
 
          -- Put the current hole state back to what it was (minus anything 
          -- which has been solved in the meantime)
          when (not incase) $
            do hs <- getHoles
               restoreHoles (addHoles empty hs (toList oldhs))
-         pure (chktm, chkty)
+
+         -- On the RHS, erase everything in a 0-multiplicity position
+         -- (This doesn't do a full linearity check, just erases by
+         -- type)
+         chkErase <- case mode of
+              InExpr => linearCheck (getFC tm) rigc True env chktm
+              _ => pure chktm
+         pure (chktm, chkErase, chkty)
   where
     addHoles : (acc : IntMap (FC, Name)) -> 
                (allHoles : IntMap (FC, Name)) -> 
@@ -101,7 +116,7 @@ elabTerm : {vars : _} ->
            Int -> ElabMode -> List ElabOpt ->
            NestedNames vars -> Env Term vars ->
            RawImp -> Maybe (Glued vars) ->
-           Core (Term vars, Glued vars)
+           Core (Term vars, Term vars, Glued vars)
 elabTerm defining mode opts nest env tm ty
     = elabTermSub defining mode opts nest env env SubRefl tm ty
 
@@ -113,11 +128,12 @@ checkTermSub : {vars : _} ->
                NestedNames vars -> Env Term vars -> 
                Env Term inner -> SubVars inner vars ->
                RawImp -> Glued vars ->
-               Core (Term vars)
+               Core (Term vars, Term vars)
 checkTermSub defining mode opts nest env env' sub tm ty
-    = do (tm_elab, _) <- elabTermSub defining mode opts nest 
-                                     env env' sub tm (Just ty)
-         pure tm_elab
+    = do (tm_elab, tm_erase, _) <- 
+                    elabTermSub defining mode opts nest 
+                                env env' sub tm (Just ty)
+         pure (tm_elab, tm_erase)
 
 export
 checkTerm : {vars : _} ->
@@ -126,6 +142,6 @@ checkTerm : {vars : _} ->
             Int -> ElabMode -> List ElabOpt -> 
             NestedNames vars -> Env Term vars -> 
             RawImp -> Glued vars ->
-            Core (Term vars)
+            Core (Term vars, Term vars)
 checkTerm defining mode opts nest env tm ty
     = checkTermSub defining mode opts nest env env SubRefl tm ty

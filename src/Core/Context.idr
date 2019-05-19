@@ -405,6 +405,7 @@ record GlobalDef where
                   -- placeholder for a yet to be elaborated arguments, but
                   -- not for implicits because that'd indicate failing the
                   -- occurs check)
+  linearChecked : Bool -- Flag whether we've already checked its linearity
   definition : Def
 
 export
@@ -435,16 +436,17 @@ TTC GlobalDef where
                       refsList <- fromBuf r b; 
                       let refs = fromList (map (\x => (x, ())) refsList)
                       c <- fromBuf r b
-                      pure (MkGlobalDef loc name ty mul vis tot fl refs c def)
+                      pure (MkGlobalDef loc name ty mul vis 
+                                        tot fl refs c True def)
               else do let fc = emptyFC
                       pure (MkGlobalDef fc name (Erased fc)
                                         RigW Public unchecked [] empty
-                                        False def)
+                                        False True def)
 
 export
 newDef : FC -> Name -> RigCount -> ClosedTerm -> Visibility -> Def -> GlobalDef
 newDef fc n rig ty vis def 
-    = MkGlobalDef fc n ty rig vis unchecked [] empty False def
+    = MkGlobalDef fc n ty rig vis unchecked [] empty False False def
 
 public export
 record Defs where
@@ -512,7 +514,7 @@ addBuiltin : {auto x : Ref Ctxt Defs} ->
              PrimFn arity -> Core ()
 addBuiltin n ty tot op 
     = do addDef n (MkGlobalDef emptyFC n ty RigW Public tot 
-                               [Inline] empty False (Builtin op)) 
+                               [Inline] empty False True (Builtin op)) 
          pure ()
 
 export
@@ -526,6 +528,28 @@ updateDef n fdef
               Nothing => pure ()
               Just def' => do addDef n (record { definition = def' } gdef)
                               pure ()
+
+export
+updateTy : {auto c : Ref Ctxt Defs} ->
+           Int -> ClosedTerm -> Core ()
+updateTy i ty
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact (Resolved i) (gamma defs)
+              | Nothing => pure ()
+         addDef (Resolved i) (record { type = ty } gdef)
+         pure ()
+
+-- Record that the name has been linearity checked so we don't need to do
+-- it again
+export
+setLinearCheck : {auto c : Ref Ctxt Defs} ->
+                 Int -> Bool -> Core ()
+setLinearCheck i chk
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact (Resolved i) (gamma defs)
+              | Nothing => pure ()
+         addDef (Resolved i) (record { linearChecked = chk } gdef)
+         pure ()
 
 export
 setCtxt : {auto c : Ref Ctxt Defs} -> Context GlobalDef -> Core ()
@@ -874,6 +898,12 @@ inCurrentNS : {auto c : Ref Ctxt Defs} ->
 inCurrentNS (UN n)
     = do defs <- get Ctxt
          pure (NS (currentNS defs) (UN n))
+inCurrentNS n@(CaseBlock _ _)
+    = do defs <- get Ctxt
+         pure (NS (currentNS defs) n)
+inCurrentNS n@(WithBlock _ _)
+    = do defs <- get Ctxt
+         pure (NS (currentNS defs) n)
 inCurrentNS n@(MN _ _)
     = do defs <- get Ctxt
          pure (NS (currentNS defs) n)

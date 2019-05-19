@@ -131,8 +131,8 @@ checkTerm rig elabinfo nest env (IBindHere fc binder sc) exp
     = checkBindHere rig elabinfo nest env fc binder sc exp
 checkTerm rig elabinfo nest env (IBindVar fc n) exp
     = checkBindVar rig elabinfo nest env fc n exp
-checkTerm rig elabinfo nest env (IAs fc n_in tm) exp
-    = checkAs rig elabinfo nest env fc n_in tm exp
+checkTerm rig elabinfo nest env (IAs fc side n_in tm) exp
+    = checkAs rig elabinfo nest env fc side n_in tm exp
 checkTerm rig elabinfo nest env (IMustUnify fc n tm) exp
     = throw (InternalError ("Dot patterns not implemented: " ++ n ++ " " ++ show tm))
 

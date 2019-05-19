@@ -13,10 +13,10 @@ data Elem : $a -> List $a -> Type where
 data Pair : Type -> Type -> Type where
      MkPair : $a -> $b -> Pair $a $b
 
-fst : Pair $a $b -> $a
+fst : {0 a, b : _} -> Pair a b -> a
 fst (MkPair $x _) = x
 
-snd : Pair $a $b -> $b
+snd : {0 a, b : _} -> Pair a b -> b
 snd (MkPair _ $y) = y
 
 %pair Pair fst snd

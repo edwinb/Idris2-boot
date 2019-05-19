@@ -4,6 +4,7 @@ import Core.Context
 import Core.Core
 import Core.Env
 import Core.FC
+import Core.Normalise
 import Core.TT
 import Core.TTC
 import Utils.Binary
@@ -120,12 +121,13 @@ genVarName str
 
 -- Again, for case names
 export
-genCaseName : {auto u : Ref UST UState} ->
+genCaseName : {auto c : Ref Ctxt Defs} ->
+              {auto u : Ref UST UState} ->
 			     		Int -> Core Name
 genCaseName root
     = do ust <- get UST
          put UST (record { nextName $= (+1) } ust)
-         pure (CaseBlock root (nextName ust))
+         inCurrentNS (CaseBlock root (nextName ust))
 
 addHoleName : {auto u : Ref UST UState} ->
               FC -> Name -> Int -> Core ()
@@ -328,6 +330,7 @@ newMeta {vars} fc rig env n ty nocyc
          let hole = record { noCycles = nocyc }
                            (newDef fc n rig hty Public (Hole False))
          log 5 $ "Adding new meta " ++ show (n, fc, rig)
+         logTerm 10 ("New meta type " ++ show n) hty
          idx <- addDef n hole 
          addHoleName fc n idx
          pure (idx, Meta fc n idx envArgs)

@@ -1,11 +1,11 @@
 Processing as TTImp
 Written TTC
-Yaffle> (%pi Rig0 Explicit Just {m:39} Main.Nat (%pi Rig0 Explicit Just {a:38} %type (%pi Rig0 Explicit Just {k:37} Main.Nat (%pi RigW Explicit Nothing {a:38} (%pi RigW Explicit Nothing ((Main.Vect {k:37}) {a:38}) (%pi RigW Explicit Nothing ((Main.Vect {m:39}) {a:38}) ((Main.Vect ((Main.plus {k:37}) {m:39})) {a:38})))))))
+Yaffle> Main.foo : (%pi Rig0 Explicit Just {m:39} Main.Nat (%pi Rig0 Explicit Just {a:38} %type (%pi Rig0 Explicit Just {k:37} Main.Nat (%pi RigW Explicit Nothing {a:38} (%pi RigW Explicit Nothing ((Main.Vect {k:37}) {a:38}) (%pi RigW Explicit Nothing ((Main.Vect {m:39}) {a:38}) ((Main.Vect ((Main.plus {k:37}) {m:39})) {a:38})))))))
 Yaffle> Bye for now!
 Processing as TTC
-Read 2 holes
+Read 1 holes
 Read 0 guesses
 Read 0 constraints
 Read TTC
-Yaffle> (%pi Rig0 Explicit Just {m:39} Main.Nat (%pi Rig0 Explicit Just {a:38} %type (%pi Rig0 Explicit Just {k:37} Main.Nat (%pi RigW Explicit Nothing {a:38} (%pi RigW Explicit Nothing ((Main.Vect {k:37}) {a:38}) (%pi RigW Explicit Nothing ((Main.Vect {m:39}) {a:38}) ((Main.Vect ((Main.plus {k:37}) {m:39})) {a:38})))))))
+Yaffle> Main.foo : (%pi Rig0 Explicit Just {m:39} Main.Nat (%pi Rig0 Explicit Just {a:38} %type (%pi Rig0 Explicit Just {k:37} Main.Nat (%pi RigW Explicit Nothing {a:38} (%pi RigW Explicit Nothing ((Main.Vect {k:37}) {a:38}) (%pi RigW Explicit Nothing ((Main.Vect {m:39}) {a:38}) ((Main.Vect ((Main.plus {k:37}) {m:39})) {a:38})))))))
 Yaffle> Bye for now!

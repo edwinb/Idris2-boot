@@ -85,7 +85,7 @@ processData eopts nest env fc vis (MkImpLater dfc n_in ty_raw)
          Nothing <- lookupCtxtExact n (gamma defs)
              | Just gdef => throw (AlreadyDefined fc n)
          
-         (ty, _) <- elabTerm !(resolveName n) InType eopts nest env 
+         (ty, _, _) <- elabTerm !(resolveName n) InType eopts nest env 
                               (IBindHere fc (PI Rig0) ty_raw)
                               (Just (gType dfc))
          let fullty = abstractEnvType dfc env ty
@@ -103,7 +103,7 @@ processData eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
     = do n <- inCurrentNS n_in
          log 1 $ "Processing " ++ show n
          defs <- get Ctxt
-         (ty, _) <- elabTerm !(resolveName n) InType eopts nest env 
+         (ty, _, _) <- elabTerm !(resolveName n) InType eopts nest env 
                               (IBindHere fc (PI Rig0) ty_raw)
                               (Just (gType dfc))
          let fullty = abstractEnvType dfc env ty

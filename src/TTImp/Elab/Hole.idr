@@ -25,14 +25,11 @@ checkHole : {vars : _} ->
 checkHole rig elabinfo nest env fc n_in (Just gexpty)
     = do nm <- inCurrentNS (UN n_in)
          expty <- getTerm gexpty
-         let env' = letToLam env -- we want all the names to appear in the
-                                 -- hole type
-         metaval <- metaVar fc rig env' nm expty
+         metaval <- metaVar fc rig env nm expty
          pure (metaval, gexpty)
 checkHole rig elabinfo nest env fc n_in exp
     = do nmty <- genName "holeTy"
          ty <- metaVar fc Rig0 env nmty (TType fc)
          nm <- inCurrentNS (UN n_in)
-         let env' = letToLam env
-         metaval <- metaVar fc rig env' nm ty
+         metaval <- metaVar fc rig env nm ty
          pure (metaval, gnf env ty)

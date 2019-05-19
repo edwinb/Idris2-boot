@@ -12,4 +12,4 @@ plus (S $k) $y = S (plus k y)
 
 append : Vect $n $a -> Vect $m $a -> Vect (plus $n $m) $a
 append Nil $ys = ys
-append (Cons $x $xs) $ys = Cons $x ?foo
+append (Cons $x $xs) $ys = Cons x ?foo

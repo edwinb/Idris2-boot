@@ -23,9 +23,9 @@ checkAs : {vars : _} ->
           {auto e : Ref EST (EState vars)} ->
           RigCount -> ElabInfo -> 
           NestedNames vars -> Env Term vars -> 
-          FC -> Name -> RawImp -> Maybe (Glued vars) ->
+          FC -> UseSide -> Name -> RawImp -> Maybe (Glued vars) ->
           Core (Term vars, Glued vars)
-checkAs rig elabinfo nest env fc n_in pat topexp 
+checkAs rig elabinfo nest env fc side n_in pat topexp 
     = do let elabmode = elabMode elabinfo
          let InLHS _ = elabmode
              | _ => throw (GenericMsg fc "@-patterns only allowed in pattern clauses")
@@ -39,19 +39,37 @@ checkAs rig elabinfo nest env fc n_in pat topexp
          notePatVar n
          case lookup n (boundNames est) of
               Nothing => 
-                 do (pattm, patty) <- checkImp rig elabinfo nest env pat topexp
+                 do (pattm, patty) <- checkImp rigPat elabinfo nest env pat topexp
                     (tm, exp, bty) <- mkPatternHole fc rig n env
                                             (implicitMode elabinfo)
                                             topexp
-                    log 5 $ "Added as pattern name " ++ show (n, (tm, exp, bty))
+                    log 5 $ "Added as pattern name " ++ show (n, (rigAs, tm, exp, bty))
                     defs <- get Ctxt
                     est <- get EST
                     put EST
-                        (record { boundNames $= ((n, AsBinding tm exp pattm) :: ),
-                                  toBind $= ((n, AsBinding tm bty pattm) ::) }
+                        (record { boundNames $= ((n, AsBinding rigAs tm exp pattm) :: ),
+                                  toBind $= ((n, AsBinding rigAs tm bty pattm) ::) }
                                 est)
                    -- addNameType loc (UN str) env exp
                     (ntm, nty) <- checkExp rig elabinfo env fc tm (gnf env exp)
                                            (Just patty)
                     pure (As fc ntm pattm, patty)
               Just bty => throw (NonLinearPattern fc n_in) 
+  where
+    -- Only one side can be usable if it's linear! Normally we'd assume this
+    -- to be the new variable (UseRight), but in generated case blocks it's
+    -- better if it's the pattern (UseLeft)
+    rigPat' : UseSide -> RigCount
+    rigPat' UseLeft = if rig == Rig1 then Rig1 else rig
+    rigPat' UseRight = if rig == Rig1 then Rig0 else rig
+
+    rigPat : RigCount
+    rigPat = rigPat' side
+
+    rigAs' : UseSide -> RigCount
+    rigAs' UseLeft = if rig == Rig1 then Rig0 else rig
+    rigAs' UseRight = if rig == Rig1 then Rig1 else rig
+
+    rigAs : RigCount
+    rigAs = rigAs' side
+

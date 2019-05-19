@@ -10,7 +10,8 @@ ttimpTests
        "basic006", "basic007",
        "eta001", "eta002",
        "nest001", "nest002",
-       "perf001", "perf002", "perf003"]
+       "perf001", "perf002", "perf003",
+       "qtt001", "qtt002"]
 
 chdir : String -> IO Bool
 chdir dir 

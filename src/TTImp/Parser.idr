@@ -123,7 +123,7 @@ mutual
            symbol "@"
            pat <- simpleExpr fname indents
            end <- location
-           pure (IAs (MkFC fname start end) (UN x) pat)
+           pure (IAs (MkFC fname start end) UseRight (UN x) pat)
 
   simpleExpr : FileName -> IndentInfo -> Rule RawImp
   simpleExpr fname indents

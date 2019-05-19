@@ -153,7 +153,7 @@ bindUnsolved {vars} fc elabmode _
                     do impn <- genVarName (nameRoot n)
                        tm <- metaVar fc rig env impn exp'
                        est <- get EST
-                       put EST (record { toBind $= ((impn, NameBinding
+                       put EST (record { toBind $= ((impn, NameBinding rig
                                                              (embedSub subvars tm)
                                                              (embedSub subvars exp')) ::) } est)
                        pure (embedSub sub tm)
@@ -256,7 +256,7 @@ bindImplVars {vars} fc mode gam env imps_in scope scty
                Bounds new -> (tm : Term vs) -> (ty : Term vs) ->
                (Term (new ++ vs), Term (new ++ vs))
     getBinds [] bs tm ty = (refsToLocals bs tm, refsToLocals bs ty)
-    getBinds ((n, metan, NameBinding _ bty) :: imps) bs tm ty
+    getBinds ((n, metan, NameBinding c _ bty) :: imps) bs tm ty
         = let (tm', ty') = getBinds imps (Add n metan bs) tm ty 
               bty' = refsToLocals bs bty in
               case mode of
@@ -264,14 +264,14 @@ bindImplVars {vars} fc mode gam env imps_in scope scty
                       (Bind fc _ (Pi c Implicit bty') tm', 
                        TType fc)
                    _ =>
-                      (Bind fc _ (PVar RigW bty') tm', 
-                       Bind fc _ (PVTy RigW bty') ty')
-    getBinds ((n, metan, AsBinding _ bty bpat) :: imps) bs tm ty
+                      (Bind fc _ (PVar c bty') tm', 
+                       Bind fc _ (PVTy c bty') ty')
+    getBinds ((n, metan, AsBinding c _ bty bpat) :: imps) bs tm ty
         = let (tm', ty') = getBinds imps (Add n metan bs) tm ty 
               bty' = refsToLocals bs bty
               bpat' = refsToLocals bs bpat in
-              (Bind fc _ (PLet RigW bpat' bty') tm', 
-               Bind fc _ (PLet RigW bpat' bty') ty')
+              (Bind fc _ (PLet c bpat' bty') tm', 
+               Bind fc _ (PLet c bpat' bty') ty')
 
 normaliseHolesScope : Defs -> Env Term vars -> Term vars -> Core (Term vars)
 normaliseHolesScope defs env (Bind fc n b sc) 
@@ -292,10 +292,10 @@ bindImplicits {vars} fc mode defs env hs tm ty
         pure $ liftImps mode $ bindImplVars fc mode defs env hs' tm ty
   where
     nHoles : (Name, ImplBinding vars) -> Core (Name, ImplBinding vars)
-    nHoles (n, NameBinding tm ty)
-        = pure (n, NameBinding tm !(normaliseHolesScope defs env ty))
-    nHoles (n, AsBinding tm ty pat)
-        = pure (n, AsBinding tm !(normaliseHolesScope defs env ty) pat)
+    nHoles (n, NameBinding c tm ty)
+        = pure (n, NameBinding c tm !(normaliseHolesScope defs env ty))
+    nHoles (n, AsBinding c tm ty pat)
+        = pure (n, AsBinding c tm !(normaliseHolesScope defs env ty) pat)
 
 export
 implicitBind : {auto c : Ref Ctxt Defs} ->
@@ -344,11 +344,11 @@ getToBind {vars} fc elabmode impmode env excepts toptm
          pure res'
   where
     normBindingTy : Defs -> ImplBinding vars -> Core (ImplBinding vars)
-    normBindingTy defs (NameBinding tm ty)
-        = pure $ NameBinding tm !(normaliseHoles defs env ty)
-    normBindingTy defs (AsBinding tm ty pat)
-        = pure $ AsBinding tm !(normaliseHoles defs env ty) 
-                              !(normaliseHoles defs env pat)
+    normBindingTy defs (NameBinding c tm ty)
+        = pure $ NameBinding c tm !(normaliseHoles defs env ty)
+    normBindingTy defs (AsBinding c tm ty pat)
+        = pure $ AsBinding c tm !(normaliseHoles defs env ty) 
+                                !(normaliseHoles defs env pat)
 
     normImps : Defs -> List Name -> List (Name, ImplBinding vars) -> 
                Core (List (Name, ImplBinding vars))
@@ -428,20 +428,45 @@ checkBindVar rig elabinfo nest env fc str topexp
                 do (tm, exp, bty) <- mkPatternHole fc rig n env
                                               (implicitMode elabinfo)
                                               topexp
-                   log 5 $ "Added Bound implicit " ++ show (n, (tm, exp, bty))
+                   log 5 $ "Added Bound implicit " ++ show (n, (rig, tm, exp, bty))
                    defs <- get Ctxt
                    est <- get EST
                    put EST 
-                       (record { boundNames $= ((n, NameBinding tm exp) ::),
-                                 toBind $= ((n, NameBinding tm bty) :: ) } est)
+                       (record { boundNames $= ((n, NameBinding rig tm exp) ::),
+                                 toBind $= ((n, NameBinding rig tm bty) :: ) } est)
                    -- addNameType loc (UN str) env exp
                    checkExp rig elabinfo env fc tm (gnf env exp) topexp
               Just bty =>
                 do -- TODO: for metadata addNameType loc (UN str) env ty
+                   -- Check rig is consistent with the one in bty, and
+                   -- update if necessary
+                   combine n rig (bindingRig bty)
                    let tm = bindingTerm bty
                    let ty = bindingType bty
                    defs <- get Ctxt
                    checkExp rig elabinfo env fc tm (gnf env ty) topexp
+  where
+    updateRig : Name -> RigCount -> List (Name, ImplBinding vars) -> 
+                List (Name, ImplBinding vars)
+    updateRig n c [] = []
+    updateRig n c ((bn, r) :: bs)
+        = if n == bn
+             then case r of
+                  NameBinding _ tm ty => (bn, NameBinding c tm ty) :: bs
+                  AsBinding _ tm ty p => (bn, AsBinding c tm ty p) :: bs
+             else (bn, r) :: updateRig n c bs
+
+    combine : Name -> RigCount -> RigCount -> Core ()
+    combine n Rig1 Rig1 = throw (LinearUsed fc 2 n)
+    combine n Rig1 RigW = throw (LinearUsed fc 2 n)
+    combine n RigW Rig1 = throw (LinearUsed fc 2 n)
+    combine n RigW RigW = pure ()
+    combine n Rig0 c = pure ()
+    combine n c Rig0 
+       -- It was 0, make it c
+       = do est <- get EST
+            put EST (record { boundNames $= updateRig n c,
+                              toBind $= updateRig n c } est)
 
 export
 checkBindHere : {vars : _} ->

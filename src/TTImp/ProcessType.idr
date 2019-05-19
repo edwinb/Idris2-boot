@@ -24,7 +24,7 @@ processType eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
          log 5 $ "Checking type decl " ++ show n ++ " : " ++ show ty_raw
          idx <- resolveName n 
          
-         (ty, _) <- elabTerm idx InType (HolesOkay :: eopts) nest env 
+         (ty, _, _) <- elabTerm idx InType (HolesOkay :: eopts) nest env 
                              (IBindHere fc (PI Rig0) ty_raw) 
                              (Just (gType fc))
          logTermNF 5 (show n) [] (abstractEnvType tfc env ty)
@@ -32,6 +32,11 @@ processType eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
          let def = None -- TODO: External definitions
 
          addDef (Resolved idx) (newDef fc n rig (abstractEnvType tfc env ty) vis def)
+         -- Flag it as checked, because we're going to check the clauses 
+         -- from the top level.
+         -- But, if it's a case block, it'll be checked as part of the top
+         -- level check so don't set the flag.
+         when (not (InCase `elem` eopts)) $ setLinearCheck idx True
 
          -- TODO: Interface hash and saving
          pure ()

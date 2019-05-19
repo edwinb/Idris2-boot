@@ -1,0 +1,7 @@
+Processing as TTImp
+QTT.yaff:14:13--16:1:There are 2 uses of linear name x
+Yaffle> Main.foo : (%pi Rig0 Explicit Just {a:4} %type (%pi Rig1 Explicit Just x {a:4} {a:4}))
+Yaffle> Main.bar : (%pi Rig0 Explicit Just {a:4} %type (%pi Rig1 Explicit Just x {a:4} {a:4}))
+Yaffle> Main.baz1 : (%pi Rig0 Explicit Just {a:11} %type (%pi Rig0 Explicit Just x {a:11} {a:11}))
+Yaffle> Main.baz2 : (%pi Rig0 Explicit Just {a:18} %type (%pi Rig0 Explicit Just x {a:18} {a:18}))
+Yaffle> Bye for now!

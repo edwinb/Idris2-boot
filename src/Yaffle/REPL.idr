@@ -31,13 +31,25 @@ process : {auto c : Ref Ctxt Defs} ->
           {auto u : Ref UST UState} ->
           ImpREPL -> Core Bool
 process (Eval ttimp)
-    = do (tm, _) <- elabTerm 0 InExpr [] (MkNested []) [] ttimp Nothing
+    = do (tm, _, _) <- elabTerm 0 InExpr [] (MkNested []) [] ttimp Nothing
          defs <- get Ctxt
          tmnf <- normalise defs [] tm
          coreLift (printLn !(unelab [] tmnf))
          pure True
+process (Check (IVar _ n))
+    = do defs <- get Ctxt
+         ns <- lookupTyName n (gamma defs)
+         traverse printName ns
+         pure True
+  where
+    printName : (Name, Int, ClosedTerm) -> Core ()
+    printName (n, _, tyh) 
+        = do defs <- get Ctxt
+             ty <- normaliseHoles defs [] tyh
+             coreLift $ putStrLn $ show n ++ " : " ++ 
+                                   show !(unelab [] ty)
 process (Check ttimp)
-    = do (tm, gty) <- elabTerm 0 InExpr [] (MkNested []) [] ttimp Nothing
+    = do (tm, _, gty) <- elabTerm 0 InExpr [] (MkNested []) [] ttimp Nothing
          defs <- get Ctxt
          tyh <- getTerm gty
          ty <- normaliseHoles defs [] tyh
