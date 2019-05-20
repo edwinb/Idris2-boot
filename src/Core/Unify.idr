@@ -226,11 +226,49 @@ patternEnv {vars} env args
         = case subElem p svs of
                Nothing => updateVars ps svs
                Just p' => p' :: updateVars ps svs
+  
+getVarsBelowTm : Nat -> List (Term vars) -> Maybe (List (Var vars))
+getVarsBelowTm max [] = Just []
+getVarsBelowTm max (Local fc r idx v :: xs) 
+    = if idx >= max then Nothing
+         else do xs' <- getVarsBelowTm idx xs
+                 pure (MkVar v :: xs')
+getVarsBelowTm _ (_ :: xs) = Nothing
+
+export
+patternEnvTm : {auto c : Ref Ctxt Defs} ->
+               {auto u : Ref UST UState} ->
+               {vars : _} ->
+               Env Term vars -> List (Term vars) -> 
+               Core (Maybe (newvars ** (Maybe (List (Var newvars)),
+                                       SubVars newvars vars)))
+patternEnvTm {vars} env args
+    = do defs <- get Ctxt
+         empty <- clearDefs defs
+         case getVarsBelowTm 1000000 args of
+              Nothing => pure Nothing
+              Just vs => 
+                 let (newvars ** svs) = toSubVars _ vs in
+                     pure (Just (newvars ** 
+                                     (if vars == newvars
+                                         then Nothing
+                                         else Just (updateVars vs svs), svs)))
+  where
+    -- Update the variable list to point into the sub environment
+    -- (All of these will succeed because the SubVars we have comes from
+    -- the list of variable uses! It's not stated in the type, though.)
+    updateVars : List (Var vars) -> SubVars newvars vars -> List (Var newvars)
+    updateVars [] svs = []
+    updateVars (MkVar p :: ps) svs
+        = case subElem p svs of
+               Nothing => updateVars ps svs
+               Just p' => p' :: updateVars ps svs
 
 -- Instantiate a metavariable by binding the variables in 'newvars'
 -- and returning the term
 -- If the type of the metavariable doesn't have enough arguments, fail, because
 -- this wasn't valid for pattern unification
+export
 instantiate : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               {newvars : _} ->
@@ -706,8 +744,8 @@ mutual
   Unify Term where
     unifyD _ _ mode loc env x y 
           = do defs <- get Ctxt
-               if !(convert defs env x y)
-                  then do log 10 $ "Skipped unification (convert already): "
+               if x == y
+                  then do log 10 $ "Skipped unification (equal already): "
                                  ++ show x ++ " and " ++ show y
                           pure success
                   else unify mode loc env !(nf defs env x) !(nf defs env y)

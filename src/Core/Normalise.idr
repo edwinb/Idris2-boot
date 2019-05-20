@@ -19,15 +19,21 @@ import Data.Vect
 -- part will only be constructed when needed, because it's in Core.
 public export
 data Glued : List Name -> Type where
-     MkGlue : Core (Term vars) -> (Ref Ctxt Defs -> Core (NF vars)) -> Glued vars
+     MkGlue : (fromTerm : Bool) -> -- is it built from the term; i.e. can
+                                   -- we read the term straight back?
+              Core (Term vars) -> (Ref Ctxt Defs -> Core (NF vars)) -> Glued vars
+
+export
+isFromTerm : Glued vars -> Bool
+isFromTerm (MkGlue ft _ _) = ft
 
 export
 getTerm : Glued vars -> Core (Term vars)
-getTerm (MkGlue tm _) = tm
+getTerm (MkGlue _ tm _) = tm
 
 export
 getNF : {auto c : Ref Ctxt Defs} -> Glued vars -> Core (NF vars)
-getNF {c} (MkGlue _ nf) = nf c
+getNF {c} (MkGlue _ _ nf) = nf c
 
 Stack : List Name -> Type
 Stack vars = List (AppInfo, Closure vars)
@@ -376,24 +382,26 @@ nfOpts opts defs env tm = eval defs opts env [] tm []
 export
 gnf : Env Term vars -> Term vars -> Glued vars
 gnf env tm 
-    = MkGlue (pure tm) 
+    = MkGlue True
+             (pure tm) 
              (\c => do defs <- get Ctxt
                        nf defs env tm)
 
 export
 gnfOpts : EvalOpts -> Env Term vars -> Term vars -> Glued vars
 gnfOpts opts env tm 
-    = MkGlue (pure tm) 
+    = MkGlue True
+             (pure tm) 
              (\c => do defs <- get Ctxt
                        nfOpts opts defs env tm)
 
 export
 gType : FC -> Glued vars
-gType fc = MkGlue (pure (TType fc)) (const (pure (NType fc)))
+gType fc = MkGlue True (pure (TType fc)) (const (pure (NType fc)))
 
 export
 gErased : FC -> Glued vars
-gErased fc = MkGlue (pure (Erased fc)) (const (pure (NErased fc)))
+gErased fc = MkGlue True (pure (Erased fc)) (const (pure (NErased fc)))
 
 export
 data QVar : Type where
@@ -538,7 +546,8 @@ Quote Closure where
 export
 glueBack : Defs -> Env Term vars -> NF vars -> Glued vars
 glueBack defs env nf 
-    = MkGlue (do empty <- clearDefs defs
+    = MkGlue False
+             (do empty <- clearDefs defs
                  quote empty env nf) 
              (const (pure nf))
 

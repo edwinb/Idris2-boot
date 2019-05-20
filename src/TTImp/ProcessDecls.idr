@@ -29,7 +29,7 @@ process eopts nest env (IDef fc fname def)
 process eopts nest env (INamespace fc ns decls)
     = do oldns <- getNS
          extendNS (reverse ns)
-         traverse (processDecl eopts nest env) decls
+         traverse_ (processDecl eopts nest env) decls
          setNS oldns
 process {c} eopts nest env (IPragma act)
     = act c nest env
@@ -44,7 +44,7 @@ processDecls : {vars : _} ->
                {auto u : Ref UST UState} ->
                NestedNames vars -> Env Term vars -> List ImpDecl -> Core Bool
 processDecls nest env decls
-    = do traverse (processDecl [] nest env) decls
+    = do traverse_ (processDecl [] nest env) decls
          pure True -- TODO: False on error
 
 export

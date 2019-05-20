@@ -8,7 +8,6 @@ import Data.Vect
 
 %default covering
 
-%hide Raw -- from Reflection in the Prelude
 %hide Binder
 %hide NameType
 

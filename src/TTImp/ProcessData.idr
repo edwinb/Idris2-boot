@@ -139,10 +139,9 @@ processData eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
          let ddef = MkData (MkCon dfc n arity fullty) cons
          addData vis ddef
 
-         traverse (processDataOpt fc (Resolved tidx)) opts
+         traverse_ (processDataOpt fc (Resolved tidx)) opts
          when (not (NoHints `elem` opts)) $
-              do traverse (\x => addHintFor fc n x True) (map conName cons)
-                 pure ()
+              traverse_ (\x => addHintFor fc n x True) (map conName cons)
 
          -- TODO: Interface hash
          

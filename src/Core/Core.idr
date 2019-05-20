@@ -323,7 +323,8 @@ wrapError fe (MkCore prog)
 export
 %inline
 coreLift : IO a -> Core a
-coreLift op = MkCore (map Right op)
+coreLift op = MkCore (do op' <- op
+                         pure (Right op'))
 
 {- Monad, Applicative, Traversable are specialised by hand for Core.
 In theory, this shouldn't be necessary, but it turns out that Idris 1 doesn't
@@ -375,6 +376,16 @@ traverse' f (x :: xs) acc
 export
 traverse : (a -> Core b) -> List a -> Core (List b)
 traverse f xs = traverse' f xs []
+
+traverse_' : (a -> Core b) -> List a -> Core ()
+traverse_' f [] = pure ()
+traverse_' f (x :: xs)
+    = do f x
+         traverse_' f xs
+
+export
+traverse_ : (a -> Core b) -> List a -> Core ()
+traverse_ f xs = traverse_' f xs
 
 namespace Binder
   export

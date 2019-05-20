@@ -484,8 +484,7 @@ checkValidHole (idx, (fc, n))
                           MkSeqConstraint fc env (x :: _) (y :: _) =>
                              throw (CantSolveEq fc env x y)
                           _ => pure ()
-              _ => do traverse checkRef (map fst (toList (getRefs (type gdef))))
-                      pure ()
+              _ => traverse_ checkRef (map fst (toList (getRefs (type gdef))))
   where
     checkRef : Name -> Core ()
     checkRef (PV n f)
@@ -505,7 +504,7 @@ checkUserHoles now
     = do gs_map <- getGuesses
          let gs = toList gs_map
          log 10 $ "Unsolved guesses " ++ show gs
-         traverse checkValidHole gs
+         traverse_ checkValidHole gs
          hs_map <- getCurrentHoles
          let hs = toList hs_map
          let hs' = if any isUserName (map (snd . snd) hs) 
@@ -514,8 +513,7 @@ checkUserHoles now
               throw (UnsolvedHoles (map snd (nubBy nameEq hs)))
          -- Note the hole names, to ensure they are resolved
          -- by the end of elaborating the current source file
-         traverse addDelayedHoleName hs'
-         pure ()
+         traverse_ addDelayedHoleName hs'
   where
     nameEq : (a, b, Name) -> (a, b, Name) -> Bool
     nameEq (_, _, x) (_, _, y) = x == y

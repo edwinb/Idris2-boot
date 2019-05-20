@@ -139,8 +139,7 @@ bindUnsolved {vars} fc elabmode _
          defs <- get Ctxt
          let bifs = bindIfUnsolved est
          log 5 $ "Bindable unsolved implicits: " ++ show (map fst bifs)
-         traverse (mkImplicit defs (outerEnv est) (subEnv est)) (bindIfUnsolved est)
-         pure ()
+         traverse_ (mkImplicit defs (outerEnv est) (subEnv est)) (bindIfUnsolved est)
   where
     makeBoundVar : Name -> RigCount -> Env Term outer ->
                    SubVars outer vs -> SubVars outer vars ->
@@ -505,5 +504,5 @@ checkBindHere rig elabinfo nest env fc bindmode tm exp
                                    defs env argImps
                                    !(normaliseHoles defs env tmv)
                                    !(normaliseHoles defs env ty)
-         traverse implicitBind (map fst argImps)
+         traverse_ implicitBind (map fst argImps)
          checkExp rig elabinfo env fc bv (gnf env bt) exp

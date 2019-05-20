@@ -54,7 +54,7 @@ export
 getNameRefs : Context a -> Core NameRefs
 getNameRefs gam
     = do arr <- coreLift $ newArray (nextEntry gam)
-         traverse (addToMap arr) (toList (resolvedAs gam))
+         traverse_ (addToMap arr) (toList (resolvedAs gam))
          pure arr
   where
     addToMap : NameRefs -> (Name, Int) -> Core ()

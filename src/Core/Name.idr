@@ -60,7 +60,7 @@ export Show Name where
 
 export
 Eq Name where
-    (==) (NS ns n) (NS ns' n') = ns == ns' && n == n'
+    (==) (NS ns n) (NS ns' n') = n == n' && ns == ns'
     (==) (UN x) (UN y) = x == y
     (==) (MN x y) (MN x' y') = y == y' && x == x'
     (==) (PV x y) (PV x' y') = x == x' && y == y'

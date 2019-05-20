@@ -41,8 +41,7 @@ toRead : Chunk -> Int
 toRead c = used c - loc c
 
 appended : Int -> Chunk -> Chunk
-appended i c = record { loc $= (+i),
-                        used $= (+i) } c
+appended i (MkChunk b loc s used) = MkChunk b (loc+i) s (used + i)
 
 incLoc : Int -> Chunk -> Chunk
 incLoc i c = record { loc $= (+i) } c
