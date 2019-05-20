@@ -192,12 +192,14 @@ treeDelete {n=(S (S _))} k (Branch3 t1 k1 t2 k2 t3) =
       Right t3' => Left (merge3 t1 k1 t2 k2 t3')
 
 treeToList : Tree n v -> List (Key, v)
-treeToList = treeToList' (:: [])
+treeToList = treeToList' []
   where
-    treeToList' : ((Key, v) -> List (Key, v)) -> Tree n v -> List (Key, v)
-    treeToList' cont (Leaf k v) = cont (k, v)
-    treeToList' cont (Branch2 t1 _ t2) = treeToList' (:: treeToList' cont t2) t1
-    treeToList' cont (Branch3 t1 _ t2 _ t3) = treeToList' (:: treeToList' (:: treeToList' cont t3) t2) t1
+    treeToList' : List (Key, v) -> Tree n v -> List (Key, v)
+    treeToList' rest (Leaf k v) = (k, v) :: rest
+    treeToList' rest (Branch2 t1 _ t2) 
+        = treeToList' (treeToList' rest t2) t1
+    treeToList' rest (Branch3 t1 _ t2 _ t3) 
+        = treeToList' (treeToList' (treeToList' rest t3) t2) t1
 
 export
 data IntMap : Type -> Type where

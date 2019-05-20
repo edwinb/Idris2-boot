@@ -304,7 +304,7 @@ dropVar (n :: xs) (Later p) = n :: dropVar xs p
 
 public export
 data Var : List Name -> Type where
-     MkVar : {i : Nat} -> {n : _} -> .(IsVar n i vars) -> Var vars
+     MkVar : {i : Nat} -> .(IsVar n i vars) -> Var vars
 
 export
 sameVar : Var xs -> Var xs -> Bool
@@ -316,7 +316,7 @@ varIdx (MkVar {i} _) = i
 
 export
 Show (Var ns) where
-  show (MkVar {n} _) = show n
+  show (MkVar {i} _) = show i
 
 public export
 record AppInfo where
@@ -400,6 +400,34 @@ export
 Eq LazyReason where
   (==) LInf LInf = True
   (==) LLazy LLazy = True
+  (==) _ _ = False
+
+export
+Eq a => Eq (Binder a) where
+  (Lam c p ty) == (Lam c' p' ty') = c == c' && p == p' && ty == ty'
+  (Let c v ty) == (Let c' v' ty') = c == c' && v == v' && ty == ty'
+  (Pi c p ty) == (Pi c' p' ty') = c == c' && p == p' && ty == ty'
+  (PVar c ty) == (PVar c' ty') = c == c' && ty == ty'
+  (PLet c v ty) == (PLet c' v' ty') = c == c' && v == v' && ty == ty'
+  (PVTy c ty) == (PVTy c' ty') = c == c' && ty == ty'
+  _ == _ = False
+
+export
+Eq (Term vars) where
+  (==) (Local _ _ idx _) (Local _ _ idx' _) = idx == idx'
+  (==) (Ref _ _ n) (Ref _ _ n') = n == n'
+  (==) (Meta _ _ i args) (Meta _ _ i' args') 
+      = assert_total (i == i' && args == args')
+  (==) (Bind _ _ b sc) (Bind _ _ b' sc') 
+      = assert_total (b == b' && sc == believe_me sc')
+  (==) (App _ f _ a) (App _ f' _ a') = f == f' && a == a'
+  (==) (As _ a p) (As _ a' p') = a == a' && p == p'
+  (==) (TDelayed _ _ t) (TDelayed _ _ t') = t == t'
+  (==) (TDelay _ _ t) (TDelay _ _ t') = t == t'
+  (==) (TForce _ t) (TForce _ t') = t == t'
+  (==) (PrimVal _ c) (PrimVal _ c') = c == c'
+  (==) (Erased _) (Erased _) = True
+  (==) (TType _) (TType _) = True
   (==) _ _ = False
 
 public export

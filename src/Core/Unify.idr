@@ -149,20 +149,13 @@ unifyArgs mode loc env _ _ = ufail loc ""
 -- are not variables, fail if there's any repetition of variables
 -- We use this to check that the pattern unification rule is applicable
 -- when solving a metavariable applied to arguments
-getVars : List (NF vars) -> Maybe (List (Var vars))
-getVars [] = Just []
-getVars (NApp fc (NLocal r idx v) [] :: xs) 
-    = if vIn xs then Nothing
-         else do xs' <- getVars xs
+getVarsBelow : Nat -> List (NF vars) -> Maybe (List (Var vars))
+getVarsBelow max [] = Just []
+getVarsBelow max (NApp fc (NLocal r idx v) [] :: xs) 
+    = if idx >= max then Nothing
+         else do xs' <- getVarsBelow idx xs
                  pure (MkVar v :: xs')
-  where
-    -- Check the variable doesn't appear later
-    vIn : List (NF vars) -> Bool
-    vIn [] = False
-    vIn (NApp _ (NLocal r idx' el') [] :: xs)
-        = if idx == idx' then True else vIn xs
-    vIn (_ :: xs) = vIn xs
-getVars (_ :: xs) = Nothing
+getVarsBelow _ (_ :: xs) = Nothing
 
 -- Make a sublist representing the variables used in the application.
 -- We'll use this to ensure that local variables which appear in a term
@@ -209,17 +202,20 @@ patternEnv : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              {vars : _} ->
              Env Term vars -> List (AppInfo, Closure vars) -> 
-             Core (Maybe (newvars ** (List (Var newvars),
+             Core (Maybe (newvars ** (Maybe (List (Var newvars)),
                                      SubVars newvars vars)))
-patternEnv env args
+patternEnv {vars} env args
     = do defs <- get Ctxt
          empty <- clearDefs defs
          args' <- traverse (evalArg empty) args
-         case getVars args' of
+         case getVarsBelow 1000000 args' of
               Nothing => pure Nothing
               Just vs => 
                  let (newvars ** svs) = toSubVars _ vs in
-                     pure (Just (newvars ** (updateVars vs svs, svs)))
+                     pure (Just (newvars ** 
+                                     (if vars == newvars
+                                         then Nothing
+                                         else Just (updateVars vs svs), svs)))
   where
     -- Update the variable list to point into the sub environment
     -- (All of these will succeed because the SubVars we have comes from
@@ -240,7 +236,7 @@ instantiate : {auto c : Ref Ctxt Defs} ->
               {newvars : _} ->
               FC -> Env Term vars -> 
               (metavar : Name) -> (mref : Int) -> (mdef : GlobalDef) ->
-              List (Var newvars) -> -- Variable each argument maps to
+              Maybe (List (Var newvars)) -> -- Variable each argument maps to
               Term vars -> -- original, just for error message
               Term newvars -> -- shrunk environment
               Core ()
@@ -294,10 +290,10 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
 
     mkDef : (got : List Name) -> (vs : List Name) -> SnocList vs ->
             CompatibleVars got rest ->
-            List (Var (vs ++ got)) -> Term (vs ++ got) -> 
+            Maybe (List (Var (vs ++ got))) -> Term (vs ++ got) -> 
             NF [] -> Core (Term rest)
     mkDef got [] Empty cvs locs tm ty 
-        = do let Just tm' = updateLocs (reverse locs) tm
+        = do let Just tm' = maybe (Just tm) (\lvs => updateLocs (reverse lvs) tm) locs
                     | Nothing => ufail loc ("Can't make solution for " ++ show mname)
              pure (renameVars cvs tm')
     mkDef got (vs ++ [v]) (Snoc rec) cvs locs tm (NBind bfc x (Pi c _ ty) scfn) 
@@ -356,7 +352,7 @@ mutual
               (metaname : Name) -> (metaref : Int) ->
               (margs : List (AppInfo, Closure vars)) ->
               (margs' : List (AppInfo, Closure vars)) ->
-              List (Var newvars) ->
+              Maybe (List (Var newvars)) ->
               SubVars newvars vars ->
               (solfull : Term vars) -> -- Original solution
               (soln : Term newvars) -> -- Solution with shrunk environment
@@ -367,8 +363,7 @@ mutual
            empty <- clearDefs defs
            -- if the terms are the same, this isn't a solution
            -- but they are already unifying, so just return
-           if !(convert empty env (NApp loc (NMeta mname mref margs) margs')
-                                  solnf)
+           if solutionHeadSame solnf 
               then pure success
               else -- Rather than doing the occurs check here immediately,
                    -- we'll wait until all metavariables are resolved, and in
@@ -379,6 +374,13 @@ mutual
                            | Nothing => throw (InternalError ("Can't happen: Lost hole " ++ show mname))
                       instantiate loc env mname mref hdef locs solfull stm
                       pure solvedHole
+    where
+      -- Only need to check the head metavar is the same, we've already
+      -- checked the rest if they are the same (and we couldn't instantiate it
+      -- anyway...)
+      solutionHeadSame : NF vars -> Bool
+      solutionHeadSame (NApp _ (NMeta _ shead _) _) = shead == mref
+      solutionHeadSame _ = False
 
   unifyHole : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
