@@ -143,23 +143,23 @@ mutual
   solveIfUndefined : {vars : _} ->
                      {auto c : Ref Ctxt Defs} ->
                      {auto u : Ref UST UState} ->
-                     Env Term vars -> Term vars -> Term vars -> Core ()
+                     Env Term vars -> Term vars -> Term vars -> Core Bool
   solveIfUndefined env (Meta fc mname idx args) soln
       = do defs <- get Ctxt
            Just (Hole _) <- lookupDefExact (Resolved idx) (gamma defs)
-                | throw (InternalError "Solution found")
+                | pure False
            case !(patternEnvTm env args) of
-                Nothing => throw (InternalError "Partial solution found")
+                Nothing => pure False
                 Just (newvars ** (locs, submv)) =>
                     case shrinkTerm soln submv of
-                         Nothing => throw (InternalError "Can't happen: doesn't fit in hole env")
+                         Nothing => pure False
                          Just stm =>
                             do Just hdef <- lookupCtxtExact (Resolved idx) (gamma defs)
                                     | Nothing => throw (InternalError "Can't happen: no definition")
                                instantiate fc env mname idx hdef locs soln stm
-                               pure ()
+                               pure True
   solveIfUndefined env metavar soln 
-      = throw (InternalError "Can't happen: Badly formed metavar app")
+      = pure False
 
   -- Check the rest of an application given the argument type and the
   -- raw argument. We choose elaboration order depending on whether we know
@@ -209,17 +209,17 @@ mutual
              -- *may* have as patterns in it and we need to retain them.
              -- (As patterns are a bit of a hack but I don't yet see a 
              -- better way that leads to good code...)
-             [] <- handle 
-                    (do solveIfUndefined env metaval argv
-                        pure [])
-                    (\err => convert fc elabinfo env (gnf env metaval)
-                                                     (gnf env argv))
-
-                | cs => throw (CantConvert fc env metaval argv)
+             ok <- solveIfUndefined env metaval argv
+             when (not ok) $
+                do [] <- convert fc elabinfo env (gnf env metaval)
+                                                 (gnf env argv)
+                      | cs => throw (CantConvert fc env metaval argv)
+                   pure ()
              case elabMode elabinfo of
                   InLHS _ => -- reset hole and redo it with the unexpanded definition
                      do updateDef (Resolved idx) (const (Just (Hole False)))
                         solveIfUndefined env metaval argv
+                        pure ()
                   _ => pure ()
              removeHole idx
              pure (tm, gty)
