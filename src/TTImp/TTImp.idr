@@ -277,3 +277,9 @@ apply : RawImp -> List RawImp -> RawImp
 apply f [] = f
 apply f (x :: xs) = apply (IApp (getFC f) f x) xs
 
+export
+getFn : RawImp -> RawImp
+getFn (IApp _ f arg) = getFn f
+getFn (IImplicitApp _ f _ _) = getFn f
+getFn f = f
+

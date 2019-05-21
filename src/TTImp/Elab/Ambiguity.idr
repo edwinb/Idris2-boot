@@ -100,6 +100,123 @@ expandAmbigName mode env orig args (IImplicitApp fc f n a) exp
                       ((fc, Just n, a) :: args) f exp
 expandAmbigName elabmode env orig args tm exp = pure orig
 
+stripDelay : Defs -> NF vars -> Core (NF vars)
+stripDelay defs (NDelayed fc r t) = evalClosure defs t
+stripDelay defs tm = pure tm
+
+data TypeMatch = Concrete | Poly | NoMatch
+
+mutual
+  mightMatchD : Defs -> NF vars -> NF [] -> Core TypeMatch
+  mightMatchD defs l r 
+      = mightMatch defs !(stripDelay defs l) !(stripDelay defs r)
+
+  mightMatchArg : Defs -> 
+                  (AppInfo, Closure vars) -> (AppInfo, Closure []) -> 
+                  Core Bool
+  mightMatchArg defs (_, l) (_, r)
+      = case !(mightMatchD defs !(evalClosure defs l) !(evalClosure defs r)) of
+             NoMatch => pure False
+             _ => pure True
+
+  mightMatchArgs : Defs ->
+                   List (AppInfo, Closure vars) -> List (AppInfo, Closure []) ->
+                   Core Bool
+  mightMatchArgs defs [] [] = pure True
+  mightMatchArgs defs (x :: xs) (y :: ys)
+      = do amatch <- mightMatchArg defs x y
+           if amatch
+              then mightMatchArgs defs xs ys
+              else pure False
+  mightMatchArgs _ _ _ = pure False
+
+  mightMatch : Defs -> NF vars -> NF [] -> Core TypeMatch
+  mightMatch defs target (NBind fc n (Pi _ _ _) sc)
+      = mightMatchD defs target !(sc defs (toClosure defaultOpts [] (Erased fc)))
+  mightMatch defs (NTCon _ n t a args) (NTCon _ n' t' a' args')
+      = if n == n' 
+           then do amatch <- mightMatchArgs defs args args'
+                   if amatch then pure Concrete else pure NoMatch
+           else pure NoMatch
+  mightMatch defs (NDCon _ n t a args) (NDCon _ n' t' a' args')
+      = if t == t' 
+           then do amatch <- mightMatchArgs defs args args'
+                   if amatch then pure Concrete else pure NoMatch
+           else pure NoMatch
+  mightMatch defs (NPrimVal _ x) (NPrimVal _ y) 
+      = if x == y then pure Concrete else pure NoMatch
+  mightMatch defs (NType _) (NType _) = pure Concrete
+  mightMatch defs (NApp _ _ _) _ = pure Poly
+  mightMatch defs (NErased _) _ = pure Poly
+  mightMatch defs _ (NApp _ _ _) = pure Poly
+  mightMatch defs _ (NErased _) = pure Poly
+  mightMatch _ _ _ = pure NoMatch
+
+-- Return true if the given name could return something of the given target type
+couldBeName : Defs -> NF vars -> Name -> Core TypeMatch
+couldBeName defs target n
+    = case !(lookupTyExact n (gamma defs)) of
+           Nothing => pure Poly -- could be a local name, don't rule it out
+           Just ty => mightMatchD defs target !(nf defs [] ty)
+
+couldBeFn : Defs -> NF vars -> RawImp -> Core TypeMatch
+couldBeFn defs ty (IVar _ n) = couldBeName defs ty n
+couldBeFn defs ty _ = pure Poly
+
+-- Returns Nothing if there's no possibility the expression's type matches
+-- the target type
+-- Just (True, app) if it's a match on concrete return type
+-- Just (False, app) if it might be a match due to being polymorphic
+couldBe : Defs -> NF vars -> RawImp -> Core (Maybe (Bool, RawImp))
+couldBe {vars} defs ty@(NTCon _ n _ _ _) app 
+   = case !(couldBeFn {vars} defs ty (getFn app)) of
+          Concrete => pure $ Just (True, app)
+          Poly => pure $ Just (False, app)
+          NoMatch => pure Nothing
+couldBe {vars} defs ty@(NPrimVal _ _) app 
+   = case !(couldBeFn {vars} defs ty (getFn app)) of
+          Concrete => pure $ Just (True, app)
+          Poly => pure $ Just (False, app)
+          NoMatch => pure Nothing
+couldBe defs ty app = pure $ Just (False, app)
+
+
+notOverloadable : Defs -> RawImp -> Core Bool
+notOverloadable defs fn = notOverloadableFn (getFn fn)
+  where
+    notOverloadableFn : RawImp -> Core Bool
+    notOverloadableFn (IVar _ n)
+        = do Just gdef <- lookupCtxtExact n (gamma defs)
+                  | Nothing => pure True
+             pure (not (Overloadable `elem` flags gdef))
+    notOverloadableFn _ = pure True
+
+filterCore : (a -> Core Bool) -> List a -> Core (List a)
+filterCore f [] = pure []
+filterCore f (x :: xs)
+    = do p <- f x
+         xs' <- filterCore f xs
+         if p then pure (x :: xs')
+              else pure xs'
+
+pruneByType : {auto c : Ref Ctxt Defs} ->
+              {auto u : Ref UST UState} ->
+              NF vars -> List RawImp -> 
+              Core (List RawImp)
+pruneByType target alts
+    = do defs <- get Ctxt
+         matches_in <- traverse (couldBe defs target) alts
+         let matches = mapMaybe id matches_in
+         res <- if or (map Delay (map fst matches))
+                -- if there's any concrete matches, drop the ones marked
+                -- as '%allow_overloads' from the possible set
+                   then filterCore (notOverloadable defs) (map snd matches)
+                   else pure (map snd matches)
+         if isNil res
+            then pure alts -- if none of them work, better to show all the errors
+            else pure res
+
+
 export
 ambiguous : Error -> Bool
 ambiguous (AmbiguousElab _ _ _) = True
@@ -141,6 +258,7 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
          delayOnFailure fc rig env expected ambiguous $ 
             (\delayed => 
                do defs <- get Ctxt
+                  alts' <- pruneByType !(getNF expected) alts
                   exp <- getTerm expected
                   -- If we don't know the target type on the first attempt, 
                   -- delay
