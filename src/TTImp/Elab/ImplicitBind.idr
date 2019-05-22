@@ -43,7 +43,8 @@ mutual
   embedSub sub (As fc nm pat) 
       = As fc (embedSub sub nm) (embedSub sub pat)
   embedSub sub (TDelayed fc x y) = TDelayed fc x (embedSub sub y)
-  embedSub sub (TDelay fc x y) = TDelay fc x (embedSub sub y)
+  embedSub sub (TDelay fc x t y) 
+      = TDelay fc x (embedSub sub t) (embedSub sub y)
   embedSub sub (TForce fc x) = TForce fc (embedSub sub x)
   embedSub sub (PrimVal fc c) = PrimVal fc c
   embedSub sub (Erased fc) = Erased fc
@@ -199,7 +200,7 @@ swapVars {vs} (Bind fc x b scope)
 swapVars (App fc fn p arg) = App fc (swapVars fn) p (swapVars arg)
 swapVars (As fc nm pat) = As fc (swapVars nm) (swapVars pat)
 swapVars (TDelayed fc x tm) = TDelayed fc x (swapVars tm)
-swapVars (TDelay fc x tm) = TDelay fc x (swapVars tm)
+swapVars (TDelay fc x ty tm) = TDelay fc x (swapVars ty) (swapVars tm)
 swapVars (TForce fc tm) = TForce fc (swapVars tm)
 swapVars (PrimVal fc c) = PrimVal fc c
 swapVars (Erased fc) = Erased fc

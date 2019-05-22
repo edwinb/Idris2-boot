@@ -28,29 +28,37 @@ Eq UnifyMode where
    InSearch == InSearch = True
    _ == _ = False
 
+-- If we're unifying a Lazy type with a non-lazy type, we need to add an
+-- explicit force or delay to the first argument to unification. This says
+-- which to add, if any. Can only added at the very top level.
+public export
+data AddLazy = NoLazy | AddForce | AddDelay LazyReason
+
 public export
 record UnifyResult where
   constructor MkUnifyResult
   constraints : List Int
   holesSolved : Bool
+  addLazy : AddLazy
 
 union : UnifyResult -> UnifyResult -> UnifyResult
 union u1 u2 = MkUnifyResult (union (constraints u1) (constraints u2))
                             (holesSolved u1 || holesSolved u2)
+                            NoLazy -- only top level, so assume no annotation
 
 unionAll : List UnifyResult -> UnifyResult
-unionAll [] = MkUnifyResult [] False
+unionAll [] = MkUnifyResult [] False NoLazy
 unionAll [c] = c
 unionAll (c :: cs) = union c (unionAll cs)
 
 constrain : Int -> UnifyResult
-constrain c = MkUnifyResult [c] False
+constrain c = MkUnifyResult [c] False NoLazy
 
 success : UnifyResult
-success = MkUnifyResult [] False
+success = MkUnifyResult [] False NoLazy
 
 solvedHole : UnifyResult
-solvedHole = MkUnifyResult [] True
+solvedHole = MkUnifyResult [] True NoLazy
 
 public export
 interface Unify (tm : List Name -> Type) where
@@ -61,6 +69,15 @@ interface Unify (tm : List Name -> Type) where
            FC -> Env Term vars ->
            tm vars -> tm vars -> 
            Core UnifyResult
+  -- As unify but at the top level can allow lazy/non-lazy to be mixed in
+  -- order to infer annotations
+  unifyWithLazyD : Ref Ctxt Defs ->
+                   Ref UST UState ->
+                   UnifyMode ->
+                   FC -> Env Term vars ->
+                   tm vars -> tm vars -> 
+                   Core UnifyResult
+  unifyWithLazyD = unifyD
 
 -- Workaround for auto implicits not working in interfaces
 -- In calls to unification, the first argument is the given type, and the second
@@ -74,6 +91,16 @@ unify : Unify tm =>
         tm vars -> tm vars -> 
         Core UnifyResult
 unify {c} {u} = unifyD c u
+
+export
+unifyWithLazy : Unify tm => 
+                {auto c : Ref Ctxt Defs} ->
+                {auto u : Ref UST UState} ->
+                UnifyMode ->
+                FC -> Env Term vars ->
+                tm vars -> tm vars -> 
+                Core UnifyResult
+unifyWithLazy {c} {u} = unifyWithLazyD c u
 
 -- Defined in Core.AutoSearch
 export
@@ -656,7 +683,12 @@ mutual
            else convertError loc env 
                      (NTCon xfc x tagx ax xs)
                      (NTCon yfc y tagy ay ys)
-
+  unifyNoEta mode loc env (NDelayed xfc _ x) (NDelayed yfc _ y)
+      = unify mode loc env x y
+  unifyNoEta mode loc env (NDelay xfc _ xty x) (NDelay yfc _ yty y)
+      = unifyArgs mode loc env [xty, x] [yty, y]
+  unifyNoEta mode loc env (NForce xfc x) (NForce yfc y)
+      = unify mode loc env x y
   unifyNoEta mode loc env (NApp xfc fx axs) (NApp yfc fy ays)
       = unifyBothApps mode loc env xfc fx axs yfc fy ays
   unifyNoEta mode loc env (NApp xfc hd args) y 
@@ -740,15 +772,33 @@ mutual
                              _ => unifyNoEta mode loc env tmx tmy
     unifyD _ _ mode loc env tmx tmy = unifyNoEta mode loc env tmx tmy
 
+    unifyWithLazyD _ _ mode loc env (NDelayed _ _ tmx) (NDelayed _ _ tmy)
+       = unify mode loc env tmx tmy
+    unifyWithLazyD _ _ mode loc env (NDelayed _ r tmx) tmy
+       = do vs <- unify mode loc env tmx tmy
+            pure (record { addLazy = AddForce } vs)
+    unifyWithLazyD _ _ mode loc env tmx (NDelayed _ r tmy)
+       = do vs <- unify mode loc env tmx tmy
+            pure (record { addLazy = AddDelay r } vs)
+    unifyWithLazyD _ _ mode loc env tmx tmy
+       = unify mode loc env tmx tmy
+
   export
   Unify Term where
     unifyD _ _ mode loc env x y 
           = do defs <- get Ctxt
                if x == y
-                  then do log 10 $ "Skipped unification (equal already): "
+                  then do log 10 $ "S§kipped unification (equal already): "
                                  ++ show x ++ " and " ++ show y
                           pure success
                   else unify mode loc env !(nf defs env x) !(nf defs env y)
+    unifyWithLazyD _ _ mode loc env x y 
+          = do defs <- get Ctxt
+               if x == y
+                  then do log 10 $ "Skipped unification (equal already): "
+                                 ++ show x ++ " and " ++ show y
+                          pure success
+                  else unifyWithLazy mode loc env !(nf defs env x) !(nf defs env y)
 
   export
   Unify Closure where

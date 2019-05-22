@@ -8,7 +8,8 @@ mutual
   public export
   data CaseTree : List Name -> Type where
        Case : {name : _} ->
-              (idx : Nat) -> IsVar name idx vars ->
+              (idx : Nat) -> 
+              IsVar name idx vars ->
               (scTy : Term vars) -> List (CaseAlt vars) ->
               CaseTree vars
        STerm : Term vars -> CaseTree vars
@@ -19,6 +20,8 @@ mutual
   data CaseAlt : List Name -> Type where
        ConCase : Name -> (tag : Int) -> (args : List Name) ->
                  CaseTree (args ++ vars) -> CaseAlt vars
+       DelayCase : (ty : Name) -> (arg : Name) -> 
+                   CaseTree (ty :: arg :: vars) -> CaseAlt vars
        ConstCase : Constant -> CaseTree vars -> CaseAlt vars
        DefaultCase : CaseTree vars -> CaseAlt vars
 
@@ -30,6 +33,8 @@ data Pat : Type where
      PTyCon : FC -> Name -> (arity : Nat) -> List Pat -> Pat
      PConst : FC -> (c : Constant) -> Pat
      PArrow : FC -> (x : Name) -> Pat -> Pat -> Pat
+     PDelay : FC -> LazyReason -> Pat -> Pat -> Pat
+     -- TODO: Matching on lazy types
      PLoc : FC -> Name -> Pat
      PUnmatchable : FC -> Term [] -> Pat
 
@@ -48,6 +53,8 @@ mutual
     show (ConCase n tag args sc)
         = show n ++ " " ++ showSep " " (map show args) ++ " => " ++
           show sc
+    show (DelayCase _ arg sc)
+        = "Delay " ++ show arg ++ " => " ++ show sc
     show (ConstCase c sc)
         = show c ++ " => " ++ show sc
     show (DefaultCase sc)
@@ -60,6 +67,7 @@ Show Pat where
   show (PTyCon _ n _ args) = "<TyCon>" ++ show n ++ " " ++ assert_total (show args)
   show (PConst _ c) = show c
   show (PArrow _ x s t) = "(" ++ show s ++ " -> " ++ show t ++ ")"
+  show (PDelay _ _ _ p) = "(Delay " ++ show p ++ ")"
   show (PLoc _ n) = show n
   show (PUnmatchable _ tm) = ".(" ++ show tm ++ ")"
 
@@ -83,6 +91,9 @@ mutual
                     insertCaseNames {outer = args ++ outer} {inner} ns
                         (rewrite sym (appendAssociative args outer inner) in
                                  ct))
+  insertCaseAltNames {outer} {inner} ns (DelayCase tyn valn ct)
+      = DelayCase tyn valn 
+                  (insertCaseNames {outer = tyn :: valn :: outer} {inner} ns ct)
   insertCaseAltNames ns (ConstCase x ct) 
       = ConstCase x (insertCaseNames ns ct)
   insertCaseAltNames ns (DefaultCase ct) 
@@ -114,6 +125,8 @@ mkPat' args orig (App fc fn p arg)
                  mkPat' (parg :: args) orig fn
 mkPat' args orig (As fc (Ref _ Bound n) ptm) 
     = PAs fc n (mkPat' [] ptm ptm)
+mkPat' args orig (TDelay fc r ty p) 
+    = PDelay fc r (mkPat' [] orig ty) (mkPat' [] orig p)
 mkPat' args orig (PrimVal fc c) = PConst fc c
 mkPat' args orig tm = PUnmatchable (getLoc orig) orig
 
@@ -134,6 +147,8 @@ mkTerm vars (PTyCon fc x arity xs)
 mkTerm vars (PConst fc c) = PrimVal fc c
 mkTerm vars (PArrow fc x s t) 
     = Bind fc x (Pi RigW Explicit (mkTerm vars s)) (mkTerm (x :: vars) t)
+mkTerm vars (PDelay fc r ty p)
+    = TDelay fc r (mkTerm vars ty) (mkTerm vars p)
 mkTerm vars (PLoc fc n) 
     = case isVar n vars of
            Just (MkVar prf) => Local fc Nothing _ prf

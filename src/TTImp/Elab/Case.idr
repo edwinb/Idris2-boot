@@ -46,7 +46,7 @@ mutual
   findUsed env used (As _ as pat) 
     = findUsed env (findUsed env used as) pat
   findUsed env used (TDelayed _ _ tm) = findUsed env used tm 
-  findUsed env used (TDelay _ _ tm) = findUsed env used tm 
+  findUsed env used (TDelay _ _ _ tm) = findUsed env used tm 
   findUsed env used (TForce _ tm) = findUsed env used tm 
   findUsed env used _ = used
   
@@ -87,8 +87,8 @@ changeVar old new (As fc nm p)
     = As fc (changeVar old new nm) (changeVar old new p)
 changeVar old new (TDelayed fc r p)
     = TDelayed fc r (changeVar old new p)
-changeVar old new (TDelay fc r p)
-    = TDelay fc r (changeVar old new p)
+changeVar old new (TDelay fc r t p)
+    = TDelay fc r (changeVar old new t) (changeVar old new p)
 changeVar old new (TForce fc p)
     = TForce fc (changeVar old new p)
 changeVar old new tm = tm

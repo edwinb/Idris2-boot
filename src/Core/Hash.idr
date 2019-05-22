@@ -112,8 +112,8 @@ mutual
         = h `hashWithSalt` 5 `hashWithSalt` nm `hashWithSalt` pat
     hashWithSalt h (TDelayed fc x y) 
         = h `hashWithSalt` 6 `hashWithSalt` y
-    hashWithSalt h (TDelay fc x y)
-        = h `hashWithSalt` 7 `hashWithSalt` y
+    hashWithSalt h (TDelay fc x t y)
+        = h `hashWithSalt` 7 `hashWithSalt` t `hashWithSalt` y
     hashWithSalt h (TForce fc x)
         = h `hashWithSalt` 8 `hashWithSalt` x
     hashWithSalt h (PrimVal fc c) 
@@ -135,10 +135,12 @@ mutual
         = h `hashWithSalt` 3 `hashWithSalt` (show c)
     hashWithSalt h (PArrow fc x s t) 
         = h `hashWithSalt` 4 `hashWithSalt` s `hashWithSalt` t
+    hashWithSalt h (PDelay fc r t p)
+        = h `hashWithSalt` 5 `hashWithSalt` t `hashWithSalt` p
     hashWithSalt h (PLoc fc x) 
-        = h `hashWithSalt` 5 `hashWithSalt` x
-    hashWithSalt h (PUnmatchable fc x) 
         = h `hashWithSalt` 6 `hashWithSalt` x
+    hashWithSalt h (PUnmatchable fc x) 
+        = h `hashWithSalt` 7 `hashWithSalt` x
 
   export
   Hashable (CaseTree vars) where
@@ -156,9 +158,12 @@ mutual
     hashWithSalt h (ConCase x tag args y) 
         = h `hashWithSalt` 0 `hashWithSalt` x `hashWithSalt` args
             `hashWithSalt` y
+    hashWithSalt h (DelayCase t x y) 
+        = h `hashWithSalt` 2 `hashWithSalt` (show t) 
+            `hashWithSalt` (show x) `hashWithSalt` y
     hashWithSalt h (ConstCase x y) 
-        = h `hashWithSalt` 1 `hashWithSalt` (show x) `hashWithSalt` y
+        = h `hashWithSalt` 3 `hashWithSalt` (show x) `hashWithSalt` y
     hashWithSalt h (DefaultCase x) 
-        = h `hashWithSalt` 2 `hashWithSalt` x
+        = h `hashWithSalt` 4 `hashWithSalt` x
 
 

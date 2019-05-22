@@ -454,7 +454,7 @@ convert : {vars : _} ->
           {auto u : Ref UST UState} ->
           {auto e : Ref EST (EState vars)} ->
           FC -> ElabInfo -> Env Term vars -> Glued vars -> Glued vars ->
-          Core (List Int)
+          Core UnifyResult
 convert fc elabinfo env x y
     = let umode : UnifyMode
                 = case elabMode elabinfo of
@@ -463,13 +463,13 @@ convert fc elabinfo env x y
           catch (do vs <- if isFromTerm x && isFromTerm y
                              then do xtm <- getTerm x
                                      ytm <- getTerm y
-                                     unify umode fc env xtm ytm
+                                     unifyWithLazy umode fc env xtm ytm
                              else do xnf <- getNF x
                                      ynf <- getNF y
-                                     unify umode fc env xnf ynf
+                                     unifyWithLazy umode fc env xnf ynf
                     when (holesSolved vs) $
                         solveConstraints umode Normal
-                    pure (constraints vs))
+                    pure vs)
                 (\err => do xtm <- getTerm x
                             ytm <- getTerm y
                             -- See if we can improve the error message by
@@ -493,9 +493,13 @@ checkExp : {vars : _} ->
            (got : Glued vars) -> (expected : Maybe (Glued vars)) -> 
            Core (Term vars, Glued vars)
 checkExp rig elabinfo env fc tm got (Just exp) 
-    = do constr <- convert fc elabinfo env got exp
-         case constr of
-              [] => pure (tm, got)
+    = do vs <- convert fc elabinfo env got exp
+         case (constraints vs) of
+              [] => case addLazy vs of
+                         NoLazy => pure (tm, got)
+                         AddForce => pure (TForce fc tm, exp)
+                         AddDelay r => do ty <- getTerm got
+                                          pure (TDelay fc r ty tm, exp)
               cs => do defs <- get Ctxt
                        empty <- clearDefs defs
                        cty <- getTerm exp

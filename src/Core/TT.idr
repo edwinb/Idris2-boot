@@ -350,7 +350,7 @@ namespace CList
 -- These are guaranteed to be well-scoped wrt local variables, because they are
 -- indexed by the names of local variables in scope
 public export
-data LazyReason = LInf | LLazy 
+data LazyReason = LInf | LLazy | LUnknown
 
 public export
 data Term : List Name -> Type where
@@ -374,7 +374,7 @@ data Term : List Name -> Type where
      As : FC -> (as : Term vars) -> (pat : Term vars) -> Term vars
      -- Typed laziness annotations
      TDelayed : FC -> LazyReason -> Term vars -> Term vars
-     TDelay : FC -> LazyReason -> Term vars -> Term vars
+     TDelay : FC -> LazyReason -> (ty : Term vars) -> (arg : Term vars) -> Term vars
      TForce : FC -> Term vars -> Term vars
      PrimVal : FC -> (c : Constant) -> Term vars
      Erased : FC -> Term vars
@@ -389,7 +389,7 @@ getLoc (Bind fc x b scope) = fc
 getLoc (App fc fn p arg) = fc
 getLoc (As fc x y) = fc
 getLoc (TDelayed fc x y) = fc
-getLoc (TDelay fc x y) = fc
+getLoc (TDelay fc x t y) = fc
 getLoc (TForce fc x) = fc
 getLoc (PrimVal fc c) = fc
 getLoc (Erased fc) = fc
@@ -399,7 +399,14 @@ export
 Eq LazyReason where
   (==) LInf LInf = True
   (==) LLazy LLazy = True
+  (==) LUnknown LUnknown = True
   (==) _ _ = False
+
+export
+compatible : LazyReason -> LazyReason -> Bool
+compatible LUnknown _ = True
+compatible _ LUnknown = True
+compatible x y = x == y
 
 export
 Eq a => Eq (Binder a) where
@@ -422,7 +429,7 @@ Eq (Term vars) where
   (==) (App _ f _ a) (App _ f' _ a') = f == f' && a == a'
   (==) (As _ a p) (As _ a' p') = a == a' && p == p'
   (==) (TDelayed _ _ t) (TDelayed _ _ t') = t == t'
-  (==) (TDelay _ _ t) (TDelay _ _ t') = t == t'
+  (==) (TDelay _ _ t x) (TDelay _ _ t' x') = t == t' && x == x'
   (==) (TForce _ t) (TForce _ t') = t == t'
   (==) (PrimVal _ c) (PrimVal _ c') = c == c'
   (==) (Erased _) (Erased _) = True
@@ -589,7 +596,7 @@ thin {outer} {inner} n (Bind fc x b scope)
 thin n (App fc fn p arg) = App fc (thin n fn) p (thin n arg)
 thin n (As fc nm tm) = As fc (thin n nm) (thin n tm)
 thin n (TDelayed fc r ty) = TDelayed fc r (thin n ty)
-thin n (TDelay fc r tm) = TDelay fc r (thin n tm)
+thin n (TDelay fc r ty tm) = TDelay fc r (thin n ty) (thin n tm)
 thin n (TForce fc tm) = TForce fc (thin n tm)
 thin n (PrimVal fc c) = PrimVal fc c
 thin n (Erased fc) = Erased fc
@@ -613,7 +620,8 @@ insertNames ns (App fc fn p arg)
 insertNames ns (As fc as tm) 
     = As fc (insertNames ns as) (insertNames ns tm)
 insertNames ns (TDelayed fc r ty) = TDelayed fc r (insertNames ns ty)
-insertNames ns (TDelay fc r tm) = TDelay fc r (insertNames ns tm)
+insertNames ns (TDelay fc r ty tm) 
+    = TDelay fc r (insertNames ns ty) (insertNames ns tm)
 insertNames ns (TForce fc tm) = TForce fc (insertNames ns tm)
 insertNames ns (PrimVal fc c) = PrimVal fc c
 insertNames ns (Erased fc) = Erased fc
@@ -727,7 +735,8 @@ renameVars prf (App fc fn p arg)
 renameVars prf (As fc as tm)
     = As fc  (renameVars prf as) (renameVars prf tm)
 renameVars prf (TDelayed fc r ty) = TDelayed fc r (renameVars prf ty)
-renameVars prf (TDelay fc r tm) = TDelay fc r (renameVars prf tm)
+renameVars prf (TDelay fc r ty tm) 
+    = TDelay fc r (renameVars prf ty) (renameVars prf tm)
 renameVars prf (TForce fc x) = TForce fc (renameVars prf x)
 renameVars prf (PrimVal fc c) = PrimVal fc c
 renameVars prf (Erased fc) = Erased fc
@@ -799,8 +808,8 @@ mutual
      = Just (As fc !(shrinkTerm as prf) !(shrinkTerm tm prf))
   shrinkTerm (TDelayed fc x y) prf 
      = Just (TDelayed fc x !(shrinkTerm y prf))
-  shrinkTerm (TDelay fc x y) prf
-     = Just (TDelay fc x !(shrinkTerm y prf))
+  shrinkTerm (TDelay fc x t y) prf
+     = Just (TDelay fc x !(shrinkTerm t prf) !(shrinkTerm y prf))
   shrinkTerm (TForce fc x) prf
      = Just (TForce fc !(shrinkTerm x prf))
   shrinkTerm (PrimVal fc c) prf = Just (PrimVal fc c)
@@ -856,8 +865,8 @@ mkLocals bs (As fc as tm)
     = As fc (mkLocals bs as) (mkLocals bs tm)
 mkLocals bs (TDelayed fc x y) 
     = TDelayed fc x (mkLocals bs y)
-mkLocals bs (TDelay fc x y)
-    = TDelay fc x (mkLocals bs y)
+mkLocals bs (TDelay fc x t y)
+    = TDelay fc x (mkLocals bs t) (mkLocals bs y)
 mkLocals bs (TForce fc x)
     = TForce fc (mkLocals bs x)
 mkLocals bs (PrimVal fc c) = PrimVal fc c
@@ -894,8 +903,8 @@ resolveNames vars (As fc as pat)
     = As fc (resolveNames vars as) (resolveNames vars pat)
 resolveNames vars (TDelayed fc x y) 
     = TDelayed fc x (resolveNames vars y)
-resolveNames vars (TDelay fc x y) 
-    = TDelay fc x (resolveNames vars y)
+resolveNames vars (TDelay fc x t y)
+    = TDelay fc x (resolveNames vars t) (resolveNames vars y)
 resolveNames vars (TForce fc x) 
     = TForce fc (resolveNames vars x)
 resolveNames vars tm = tm
@@ -944,7 +953,8 @@ namespace SubstEnv
   substEnv env (As fc as pat) 
       = As fc (substEnv env as) (substEnv env pat)
   substEnv env (TDelayed fc x y) = TDelayed fc x (substEnv env y)
-  substEnv env (TDelay fc x y) = TDelay fc x (substEnv env y)
+  substEnv env (TDelay fc x t y) 
+      = TDelay fc x (substEnv env t) (substEnv env y)
   substEnv env (TForce fc x) = TForce fc (substEnv env x)
   substEnv env (PrimVal fc c) = PrimVal fc c
   substEnv env (Erased fc) = Erased fc
@@ -977,8 +987,8 @@ substName x new (As fc as pat)
     = As fc (substName x new as) (substName x new pat)
 substName x new (TDelayed fc y z) 
     = TDelayed fc y (substName x new z)
-substName x new (TDelay fc y z)
-    = TDelay fc y (substName x new z)
+substName x new (TDelay fc y t z)
+    = TDelay fc y (substName x new t) (substName x new z)
 substName x new (TForce fc y) 
     = TForce fc (substName x new y)
 substName x new tm = tm
@@ -996,7 +1006,8 @@ addMetas ns (App fc fn p arg)
     = addMetas (addMetas ns fn) arg
 addMetas ns (As fc as tm) = addMetas ns tm
 addMetas ns (TDelayed fc x y) = addMetas ns y
-addMetas ns (TDelay fc x y) = addMetas ns y
+addMetas ns (TDelay fc x t y) 
+    = addMetas (addMetas ns t) y
 addMetas ns (TForce fc x) = addMetas ns x
 addMetas ns (PrimVal fc c) = ns
 addMetas ns (Erased fc) = ns
@@ -1020,7 +1031,8 @@ addRefs ns (App fc fn p arg)
     = addRefs (addRefs ns fn) arg
 addRefs ns (As fc as tm) = addRefs ns tm
 addRefs ns (TDelayed fc x y) = addRefs ns y
-addRefs ns (TDelay fc x y) = addRefs ns y
+addRefs ns (TDelay fc x t y) 
+    = addRefs (addRefs ns t) y
 addRefs ns (TForce fc x) = addRefs ns x
 addRefs ns (PrimVal fc c) = ns
 addRefs ns (Erased fc) = ns
@@ -1066,9 +1078,9 @@ export Show (Term vars) where
             " => " ++ show sc
       showApp (App _ _ _ _) [] = "[can't happen]"
       showApp (As _ n tm) [] = show n ++ "@" ++ show tm
-      showApp (TDelayed _ _ tm) [] = "Delayed " ++ show tm
-      showApp (TDelay _ _ tm) [] = "Delay " ++ show tm
-      showApp (TForce _ tm) [] = "Force " ++ show tm
+      showApp (TDelayed _ _ tm) [] = "%Delayed " ++ show tm
+      showApp (TDelay _ _ _ tm) [] = "%Delay " ++ show tm
+      showApp (TForce _ tm) [] = "%Force " ++ show tm
       showApp (PrimVal _ c) [] = show c
       showApp (Erased _) [] = "[__]"
       showApp (TType _) [] = "Type"

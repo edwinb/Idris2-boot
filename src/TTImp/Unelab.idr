@@ -22,7 +22,7 @@ used idx (Meta _ _ _ args) = any (used idx) args
 used idx (App _ f _ a) = used idx f || used idx a
 used idx (As _ _ pat) = used idx pat
 used idx (TDelayed _ _ tm) = used idx tm
-used idx (TDelay _ _ tm) = used idx tm
+used idx (TDelay _ _ _ tm) = used idx tm
 used idx (TForce _ tm) = used idx tm
 used idx _ = False
 
@@ -169,33 +169,15 @@ mutual
   unelabTy' umode env (TDelayed fc r tm)
       = do (tm', ty) <- unelabTy' umode env tm
            defs <- get Ctxt
-           case laziness (options defs) of
-                Nothing => pure (tm', Erased fc)
-                Just lnames =>
-                   pure (IApp fc 
-                             (IApp fc (IVar fc (delayType lnames)) 
-                                      (Implicit fc False))
-                             tm', Erased fc)
-  unelabTy' umode env (TDelay fc r tm)
+           pure (IDelayed fc r tm', Erased fc)
+  unelabTy' umode env (TDelay fc r _ tm)
       = do (tm', ty) <- unelabTy' umode env tm
            defs <- get Ctxt
-           case laziness (options defs) of
-                Nothing => pure (tm', Erased fc)
-                Just lnames =>
-                   pure (IApp fc 
-                             (IImplicitApp fc (IVar fc (delay lnames)) 
-                                              Nothing (Implicit fc False))
-                             tm', Erased fc)
+           pure (IDelay fc tm', Erased fc)
   unelabTy' umode env (TForce fc tm)
       = do (tm', ty) <- unelabTy' umode env tm
            defs <- get Ctxt
-           case laziness (options defs) of
-                Nothing => pure (tm', Erased fc)
-                Just lnames =>
-                   pure (IApp fc 
-                             (IImplicitApp fc (IVar fc (delay lnames)) 
-                                              Nothing (Implicit fc False))
-                             tm', Erased fc)
+           pure (IForce fc tm', Erased fc)
   unelabTy' umode env (PrimVal fc c) = pure (IPrimVal fc c, Erased fc)
   unelabTy' umode env (Erased fc) = pure (Implicit fc False, Erased fc)
   unelabTy' umode env (TType fc) = pure (IType fc, TType fc)

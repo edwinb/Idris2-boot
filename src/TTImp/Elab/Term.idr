@@ -16,6 +16,7 @@ import TTImp.Elab.Case
 import TTImp.Elab.Check
 import TTImp.Elab.Hole
 import TTImp.Elab.ImplicitBind
+import TTImp.Elab.Lazy
 import TTImp.Elab.Local
 import TTImp.Elab.Prim
 import TTImp.TTImp
@@ -135,7 +136,12 @@ checkTerm rig elabinfo nest env (IAs fc side n_in tm) exp
     = checkAs rig elabinfo nest env fc side n_in tm exp
 checkTerm rig elabinfo nest env (IMustUnify fc n tm) exp
     = throw (InternalError ("Dot patterns not implemented: " ++ n ++ " " ++ show tm))
-
+checkTerm rig elabinfo nest env (IDelayed fc r tm) exp
+    = checkDelayed rig elabinfo nest env fc r tm exp
+checkTerm rig elabinfo nest env (IDelay fc tm) exp
+    = checkDelay rig elabinfo nest env fc tm exp
+checkTerm rig elabinfo nest env (IForce fc tm) exp
+    = checkForce rig elabinfo nest env fc tm exp
 checkTerm {vars} rig elabinfo nest env (IPrimVal fc c) exp 
     = do let (cval, cty) = checkPrim {vars} fc c
          checkExp rig elabinfo env fc cval (gnf env cty) exp

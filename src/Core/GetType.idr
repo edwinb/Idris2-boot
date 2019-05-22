@@ -47,17 +47,17 @@ mutual
                         throw (NotFunctionType fc env fty')
   chk env (As fc n p) = chk env p
   chk env (TDelayed fc r tm) = pure (gType fc)
-  chk env (TDelay fc r tm) 
-      = do tm' <- chk env tm
+  chk env (TDelay fc r dty tm) 
+      = do gtm <- chk env tm
+           tm' <- getNF gtm
            defs <- get Ctxt
-           let ctm = toClosure defaultOpts env !(getTerm tm')
-           pure $ glueBack defs env (NDelayed fc r ctm)
+           pure $ glueBack defs env (NDelayed fc r tm')
   chk env (TForce fc tm) 
       = do tm' <- chk env tm
            case !(getNF tm') of
                 NDelayed fc r fty => 
                     do defs <- get Ctxt
-                       pure $ glueBack defs env !(evalClosure defs fty)
+                       pure $ glueBack defs env fty
   chk env (PrimVal fc x) = pure $ gnf env (chkConstant fc x)
   chk env (TType fc) = pure (gType fc)
   chk env (Erased fc) = pure (gErased fc)

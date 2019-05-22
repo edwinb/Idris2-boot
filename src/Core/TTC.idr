@@ -123,11 +123,13 @@ export
 TTC LazyReason where
   toBuf b LInf = tag 0
   toBuf b LLazy = tag 1
+  toBuf b LUnknown = tag 2
 
   fromBuf r b
       = case !getTag of
              0 => pure LInf
              1 => pure LLazy
+             2 => pure LUnknown
              _ => corrupt "LazyReason"
 
 export
@@ -222,9 +224,9 @@ mutual
     toBuf b (TDelayed fc r tm) 
         = do tag 6;
              toBuf b fc; toBuf b r; toBuf b tm
-    toBuf b (TDelay fc r tm)
+    toBuf b (TDelay fc r ty tm)
         = do tag 7;
-             toBuf b fc; toBuf b r; toBuf b tm
+             toBuf b fc; toBuf b r; toBuf b ty; toBuf b tm
     toBuf b (TForce fc tm)
         = do tag 8;
              toBuf b fc; toBuf b tm
@@ -265,8 +267,9 @@ mutual
                        pure (As fc as tm)
                6 => do fc <- fromBuf r b; lr <- fromBuf r b; tm <- fromBuf r b
                        pure (TDelayed fc lr tm)
-               7 => do fc <- fromBuf r b; lr <- fromBuf r b; tm <- fromBuf r b
-                       pure (TDelay fc lr tm)
+               7 => do fc <- fromBuf r b; lr <- fromBuf r b; 
+                       ty <- fromBuf r b; tm <- fromBuf r b
+                       pure (TDelay fc lr ty tm)
                8 => do fc <- fromBuf r b; tm <- fromBuf r b
                        pure (TForce fc tm)
                9 => do fc <- fromBuf r b; c <- fromBuf r b
@@ -290,10 +293,12 @@ TTC Pat where
       = do tag 3; toBuf b fc; toBuf b c
   toBuf b (PArrow fc x s t)
       = do tag 4; toBuf b fc; toBuf b x; toBuf b s; toBuf b t
+  toBuf b (PDelay fc x t y) 
+      = do tag 5; toBuf b fc; toBuf b x; toBuf b t; toBuf b y
   toBuf b (PLoc fc x) 
-      = do tag 5; toBuf b fc; toBuf b x
-  toBuf b (PUnmatchable fc x) 
       = do tag 6; toBuf b fc; toBuf b x
+  toBuf b (PUnmatchable fc x) 
+      = do tag 7; toBuf b fc; toBuf b x
 
   fromBuf r b 
       = case !getTag of
@@ -313,9 +318,12 @@ TTC Pat where
              4 => do fc <- fromBuf r b; x <- fromBuf r b
                      s <- fromBuf r b; t <- fromBuf r b
                      pure (PArrow fc x s t)
-             5 => do fc <- fromBuf r b; x <- fromBuf r b
-                     pure (PLoc fc x)
+             5 => do fc <- fromBuf r b; x <- fromBuf r b;
+                     t <- fromBuf r b; y <- fromBuf r b
+                     pure (PDelay fc x t y)
              6 => do fc <- fromBuf r b; x <- fromBuf r b
+                     pure (PLoc fc x)
+             7 => do fc <- fromBuf r b; x <- fromBuf r b
                      pure (PUnmatchable fc x)
              _ => corrupt "Pat"
 
@@ -346,19 +354,23 @@ mutual
   TTC (CaseAlt vars) where
     toBuf b (ConCase x t args y) 
         = do tag 0; toBuf b x; toBuf b t; toBuf b args; toBuf b y
+    toBuf b (DelayCase ty arg y) 
+        = do tag 1; toBuf b ty; toBuf b arg; toBuf b y
     toBuf b (ConstCase x y)
-        = do tag 1; toBuf b x; toBuf b y
+        = do tag 2; toBuf b x; toBuf b y
     toBuf b (DefaultCase x)
-        = do tag 2; toBuf b x
+        = do tag 3; toBuf b x
 
     fromBuf r b 
         = case !getTag of
                0 => do x <- fromBuf r b; t <- fromBuf r b
                        args <- fromBuf r b; y <- fromBuf r b
                        pure (ConCase x t args y)
-               1 => do x <- fromBuf r b; y <- fromBuf r b
+               1 => do ty <- fromBuf r b; arg <- fromBuf r b; y <- fromBuf r b
+                       pure (DelayCase ty arg y)
+               2 => do x <- fromBuf r b; y <- fromBuf r b
                        pure (ConstCase x y)
-               2 => do x <- fromBuf r b
+               3 => do x <- fromBuf r b
                        pure (DefaultCase x)
                _ => corrupt "CaseAlt"
 

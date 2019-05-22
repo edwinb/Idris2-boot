@@ -102,7 +102,8 @@ keywords = ["data", "module", "where", "let", "in", "do", "record",
             "public", "export", "private",
             "infixl", "infixr", "infix", "prefix",
             "Type", "Int", "Integer", "String", "Char", "Double",
-            "total", "partial", "covering"]
+            "total", "partial", "covering",
+            "Lazy", "Inf", "Delay", "Force"]
 
 -- Reserved words for internal syntax
 special : List String

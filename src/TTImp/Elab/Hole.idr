@@ -1,4 +1,4 @@
-module TTImp.Elab.As
+module TTImp.Elab.Hole
 
 import Core.Context
 import Core.Core

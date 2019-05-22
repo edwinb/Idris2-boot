@@ -214,6 +214,7 @@ namesIn pvars (PAs _ n p) = (n `elem` pvars) && namesIn pvars p
 namesIn pvars (PCon _ _ _ _ ps) = all (namesIn pvars) ps
 namesIn pvars (PTyCon _ _ _ ps) = all (namesIn pvars) ps
 namesIn pvars (PArrow _ _ s t) = namesIn pvars s && namesIn pvars t
+namesIn pvars (PDelay _ _ t p) = namesIn pvars t && namesIn pvars p
 namesIn pvars (PLoc _ n) = n `elem` pvars
 namesIn pvars _ = True
 
@@ -222,6 +223,7 @@ namesFrom (PAs _ n p) = n :: namesFrom p
 namesFrom (PCon _ _ _ _ ps) = concatMap namesFrom ps
 namesFrom (PTyCon _ _ _ ps) = concatMap namesFrom ps
 namesFrom (PArrow _ _ s t) = namesFrom s ++ namesFrom t
+namesFrom (PDelay _ _ t p) = namesFrom t ++ namesFrom p
 namesFrom (PLoc _ n) = [n]
 namesFrom _ = []
 
@@ -244,6 +246,7 @@ clauseType phase (MkPatClause pvars (MkInfo arg _ ty :: rest) rhs)
     getClauseType phase (PTyCon _ _ _ xs) _ = ConClause
     getClauseType phase (PConst _ x) _ = ConClause
     getClauseType phase (PArrow _ _ s t) _ = ConClause
+    getClauseType phase (PDelay _ _ _ _) t = ConClause
     getClauseType phase _ _ = VarClause
 
 partition : Phase -> (ps : List (PatClause vars (a :: as))) -> Partitions ps
@@ -264,6 +267,7 @@ partition phase (x :: xs) with (partition phase xs)
 
 data ConType : Type where
      CName : Name -> (tag : Int) -> ConType
+     CDelay : ConType
      CConst : Constant -> ConType
 
 conTypeEq : (x, y : ConType) -> Maybe (x = y)
@@ -272,12 +276,12 @@ conTypeEq (CName x tag) (CName x' tag')
         case decEq tag tag' of
              Yes Refl => Just Refl
              No contra => Nothing
-conTypeEq (CName x tag) (CConst y) = Nothing
-conTypeEq (CConst x) (CName y tag) = Nothing
+conTypeEq CDelay CDelay = Just Refl
 conTypeEq (CConst x) (CConst y) 
    = case constantEq x y of
           Nothing => Nothing
           Just Refl => Just Refl
+conTypeEq _ _ = Nothing
 
 data Group : List Name -> -- variables in scope
              List Name -> -- pattern variables still to process
@@ -285,17 +289,23 @@ data Group : List Name -> -- variables in scope
      ConGroup : Name -> (tag : Int) -> 
                 List (PatClause (newargs ++ vars) (newargs ++ todo)) ->
                 Group vars todo
+     DelayGroup : List (PatClause (tyarg :: valarg :: vars) 
+                                  (tyarg :: valarg :: todo)) -> 
+                  Group vars todo
      ConstGroup : Constant -> List (PatClause vars todo) ->
                   Group vars todo
 
 Show (Group vars todo) where
   show (ConGroup c t cs) = "Con " ++ show c ++ ": " ++ show cs
+  show (DelayGroup cs) = "Delay: " ++ show cs
   show (ConstGroup c cs) = "Const " ++ show c ++ ": " ++ show cs
 
 data GroupMatch : ConType -> List Pat -> Group vars todo -> Type where
   ConMatch : LengthMatch ps newargs ->
              GroupMatch (CName n tag) ps 
                (ConGroup {newargs} n tag (MkPatClause pvs pats rhs :: rest))
+  DelayMatch : GroupMatch CDelay [] 
+               (DelayGroup {tyarg} {valarg} (MkPatClause pvs pats rhs :: rest))
   ConstMatch : GroupMatch (CConst c) []
                   (ConstGroup c (MkPatClause pvs pats rhs :: rest))
   NoMatch : GroupMatch ct ps g
@@ -308,8 +318,9 @@ checkGroupMatch (CName x tag) ps (ConGroup {newargs} x' tag' (MkPatClause pvs pa
            Just prf => case (nameEq x x', decEq tag tag') of
                             (Just Refl, Yes Refl) => ConMatch prf
                             _ => NoMatch
-checkGroupMatch (CName x tag) ps (ConstGroup _ xs) = NoMatch
-checkGroupMatch (CConst x) ps (ConGroup _ _ xs) = NoMatch
+checkGroupMatch (CName x tag) ps _ = NoMatch
+checkGroupMatch CDelay [] (DelayGroup (MkPatClause pvs pats rhs :: rest))
+    = DelayMatch
 checkGroupMatch (CConst c) [] (ConstGroup c' (MkPatClause pvs pats rhs :: rest)) 
     = case constantEq c c' of
            Nothing => NoMatch
@@ -381,6 +392,7 @@ updatePatNames ns (pi :: ps)
     update (PCon fc n i a ps) = PCon fc n i a (map update ps)
     update (PTyCon fc n a ps) = PTyCon fc n a (map update ps)
     update (PArrow fc x s t) = PArrow fc x (update s) (update t)
+    update (PDelay fc r t p) = PDelay fc r (update t) (update p)
     update (PLoc fc n) 
         = case lookup n ns of
                Nothing => PLoc fc n
@@ -443,6 +455,48 @@ groupCons fc fn pvars cs
         = do gs' <- addConG n tag pargs pats rhs gs
              pure (g :: gs')
 
+    -- This rather ugly special case is to deal with laziness, where Delay
+    -- is like a constructor, but with a special meaning that it forces
+    -- evaluation when case analysis reaches it (dealt with in the evaluator
+    -- and compiler)
+    addDelayG : Pat -> Pat -> NamedPats vars todo ->
+                (rhs : Term vars) ->
+                (acc : List (Group vars todo)) ->
+                Core (List (Group vars todo))
+    addDelayG {todo} pty parg pats rhs []
+        = do let dty = NBind fc (MN "a" 0) (Pi Rig0 Explicit (NType fc)) $
+                        (\d, a => 
+                            do a' <- evalClosure d a
+                               pure (NBind fc (MN "x" 0) (Pi RigW Explicit a')
+                                       (\dv, av => pure (NDelayed fc LUnknown a'))))
+             ([tyname, argname] ** newargs) <- nextNames {vars} fc "e" [pty, parg] 
+                                                  (Just dty)
+                | _ => throw (InternalError "Error compiling Delay pattern match")
+             let pats' = updatePatNames (updateNames [(tyname, pty),
+                                                      (argname, parg)])
+                                        (weakenNs [tyname, argname] pats)
+             let clause = MkPatClause {todo = tyname :: argname :: todo}
+                             pvars (newargs ++  pats')
+                                   (weakenNs [tyname, argname] rhs)
+             pure [DelayGroup [clause]]
+    addDelayG {todo} pty parg pats rhs (g :: gs) with (checkGroupMatch CDelay [] g)
+      addDelayG {todo} pty parg pats rhs
+          ((DelayGroup {tyarg} {valarg} ((MkPatClause pvars ps tm) :: rest)) :: gs)
+                 | (DelayMatch {tyarg} {valarg})
+         = do let newps = newPats [pty, parg] (ConsMatch (ConsMatch NilMatch)) ps
+              let pats' = updatePatNames (updateNames [(tyarg, pty),
+                                                       (valarg, parg)])
+                                         (weakenNs [tyarg, valarg] pats)
+              let newclause : PatClause (tyarg :: valarg :: vars) 
+                                        (tyarg :: valarg :: todo)
+                    = MkPatClause pvars (newps ++ pats') 
+                                        (weakenNs [tyarg, valarg] rhs)
+              pure ((DelayGroup (MkPatClause pvars ps tm :: rest ++ [newclause]))
+                         :: gs)
+      addDelayG pty parg pats rhs (g :: gs) | NoMatch
+         = do gs' <- addDelayG pty parg pats rhs gs
+              pure (g :: gs')
+
     addConstG : Constant -> NamedPats vars todo ->
                 (rhs : Term vars) ->
                 (acc : List (Group vars todo)) ->
@@ -474,6 +528,10 @@ groupCons fc fn pvars cs
          = addConG n 0 pargs pats rhs acc
     addGroup (PArrow _ _ s t) pprf pats rhs acc
          = addConG (UN "->") 0 [s, t] pats rhs acc
+    -- Go inside the delay; we'll flag the case as needing to force its
+    -- scrutinee (need to check in 'caseGroups below)
+    addGroup (PDelay _ _ pty parg) pprf pats rhs acc
+         = addDelayG pty parg pats rhs acc
     addGroup (PConst _ c) pprf pats rhs acc 
          = addConstG c pats rhs acc
     addGroup _ pprf pats rhs acc = pure acc -- Can't happen, not a constructor
@@ -552,6 +610,8 @@ samePat (pi :: xs) = samePatAs (getFirstPat pi) (map getFirstPat xs)
              else False
     samePatAs (PArrow fc x s t) (PArrow _ _ s' t' :: ps)
         = samePatAs (PArrow fc x s t) ps
+    samePatAs (PDelay fc r t p) (PDelay _ _ _ _ :: ps)
+        = samePatAs (PDelay fc r t p) ps
     samePatAs (PLoc fc n) (PLoc _ _ :: ps) = samePatAs (PLoc fc n) ps
     samePatAs x y = False
 
@@ -568,6 +628,7 @@ countDiff xs = length (distinct [] (map getFirstCon xs))
     isVar (PTyCon _ _ _ _) = False
     isVar (PConst _ _) = False
     isVar (PArrow _ _ _ _) = False
+    isVar (PDelay _ _ _ p) = False
     isVar _ = True
 
     -- Return whether two patterns would lead to the same match
@@ -578,6 +639,7 @@ countDiff xs = length (distinct [] (map getFirstCon xs))
     sameCase (PTyCon _ t _ _) (PTyCon _ t' _ _) = t == t'
     sameCase (PConst _ c) (PConst _ c') = c == c'
     sameCase (PArrow _ _ _ _) (PArrow _ _ _ _) = True
+    sameCase (PDelay _ _ _ _) (PDelay _ _ _ _) = True
     sameCase x y = isVar x && isVar y
 
     distinct : List Pat -> List Pat -> List Pat
@@ -672,6 +734,10 @@ mutual
           = do crest <- match fc fn phase rest (map (weakenNs newargs) errorCase)
                cs' <- altGroups cs
                pure (ConCase cn tag newargs crest :: cs')
+      altGroups (DelayGroup {tyarg} {valarg} rest :: cs)
+          = do crest <- match fc fn phase rest (map (weakenNs [tyarg, valarg]) errorCase)
+               cs' <- altGroups cs
+               pure (DelayCase tyarg valarg crest :: cs')
       altGroups (ConstGroup c rest :: cs)
           = do crest <- match fc fn phase rest errorCase
                cs' <- altGroups cs

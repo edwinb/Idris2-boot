@@ -48,6 +48,7 @@ modules =
     TTImp.Elab.Check,
     TTImp.Elab.Hole,
     TTImp.Elab.ImplicitBind,
+    TTImp.Elab.Lazy,
     TTImp.Elab.Local,
     TTImp.Elab.Prim,
     TTImp.Elab.Term,

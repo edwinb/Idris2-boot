@@ -55,7 +55,6 @@ record TTCFile extra where
   imported : List (List String, Bool, List String)
   nextVar : Int
   currentNS : List String
-  laziness : Maybe LazyNames
   pairnames : Maybe PairNames
   rewritenames : Maybe RewriteNames
   primnames : PrimNames
@@ -115,7 +114,6 @@ writeTTCFile b file
            toBuf b (imported file)
            toBuf b (nextVar file)
            toBuf b (currentNS file)
-           toBuf b (laziness file)
            toBuf b (pairnames file)
            toBuf b (rewritenames file)
            toBuf b (primnames file)
@@ -151,7 +149,6 @@ readTTCFile modns as r b
            imp <- fromBuf r b
            nextv <- fromBuf r b
            cns <- fromBuf r b
-           lz <- fromBuf r b
            pns <- fromBuf r b
            rws <- fromBuf r b
            prims <- fromBuf r b
@@ -160,7 +157,7 @@ readTTCFile modns as r b
            pure (MkTTCFile ver ifaceHash importHashes r
                            holes guesses constraints defs 
                            autohs typehs imp nextv cns 
-                           lz pns rws prims nds ex)
+                           pns rws prims nds ex)
 
 -- Pull out the list of GlobalDefs that we want to save
 getSaveDefs : List Name -> List GlobalDef -> Defs -> Core (List GlobalDef)
@@ -200,7 +197,6 @@ writeToTTC extradata fname
                               (imported defs)
                               (nextName ust)
                               (currentNS defs)
-                              (laziness (options defs)) 
                               (pairnames (options defs)) 
                               (rewritenames (options defs)) 
                               (primnames (options defs)) 
@@ -252,6 +248,7 @@ readFromTTC loc reexp fname modNS importAs
          traverse (addGlobalDef modNS as) (context ttc)
          setNS (currentNS ttc)
          -- TODO: Set up typeHints and autoHints properly
+         -- TODO: Set up pair/rewrite etc names, name directives
          resetFirstEntry
 
          -- Finally, update the unification state with the holes from the

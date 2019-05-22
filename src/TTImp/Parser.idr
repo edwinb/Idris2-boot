@@ -72,6 +72,7 @@ mutual
   appExpr : FileName -> IndentInfo -> Rule RawImp
   appExpr fname indents
       = case_ fname indents
+    <|> lazy fname indents
     <|> do start <- location
            f <- simpleExpr fname indents
            args <- many (argExpr fname indents)
@@ -307,6 +308,30 @@ mutual
            atEnd indents
            end <- location
            pure (ImpossibleClause (MkFC fname start end) lhs)
+
+  lazy : FileName -> IndentInfo -> Rule RawImp
+  lazy fname indents
+      = do start <- location
+           keyword "Lazy"
+           tm <- simpleExpr fname indents
+           end <- location
+           pure (IDelayed (MkFC fname start end) LLazy tm)
+    <|> do start <- location
+           keyword "Inf"
+           tm <- simpleExpr fname indents
+           end <- location
+           pure (IDelayed (MkFC fname start end) LInf tm)
+    <|> do start <- location
+           keyword "Delay"
+           tm <- simpleExpr fname indents
+           end <- location
+           pure (IDelay (MkFC fname start end) tm)
+    <|> do start <- location
+           keyword "Force"
+           tm <- simpleExpr fname indents
+           end <- location
+           pure (IForce (MkFC fname start end) tm)
+
 
   binder : FileName -> IndentInfo -> Rule RawImp
   binder fname indents

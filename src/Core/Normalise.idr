@@ -99,13 +99,15 @@ parameters (defs : Defs, topopts : EvalOpts)
                      tm' <- eval env locs tm stk 
                      pure (NAs fc n' tm')
     eval env locs (TDelayed fc r ty) stk 
-        = pure (NDelayed fc r (MkClosure topopts locs env ty))
-    eval env locs (TDelay fc r tm) stk 
-        = pure (NDelay fc r (MkClosure topopts locs env tm))
+        = do ty' <- eval env locs ty stk
+             pure (NDelayed fc r ty')
+    eval env locs (TDelay fc r ty tm) stk 
+        = pure (NDelay fc r (MkClosure topopts locs env ty)
+                            (MkClosure topopts locs env tm))
     eval env locs (TForce fc tm) stk 
         = do tm' <- eval env locs tm stk
              case tm' of
-                  NDelay fc r arg => evalClosure defs arg
+                  NDelay fc r _ arg => evalClosure defs arg
                   _ => pure (NForce fc tm')
     eval env locs (PrimVal fc c) stk = pure $ NPrimVal fc c
     eval env locs (Erased fc) stk = pure $ NErased fc
@@ -240,6 +242,9 @@ parameters (defs : Defs, topopts : EvalOpts)
                   [(explApp Nothing, MkNFClosure aty), 
                    (explApp Nothing, MkNFClosure (NBind pfc x (Lam r e aty) scty))]
                   sc def
+    -- Delay matching
+    tryAlt env loc opts fc stk (NDelay _ _ ty arg) (DelayCase tyn argn sc) def
+         = evalTree env (ty :: arg :: loc) opts fc stk sc def
     -- Constant matching
     tryAlt env loc opts fc stk (NPrimVal _ c') (ConstCase c sc) def
          = if c == c' then evalTree env loc opts fc stk sc def
@@ -513,16 +518,28 @@ mutual
            pat' <- quoteGenNF q defs bound env pat
            pure (As fc n' pat')
   quoteGenNF q defs bound env (NDelayed fc r arg)
-      = do argNF <- evalClosure defs arg
-           argQ <- quoteGenNF q defs bound env argNF
+      = do argQ <- quoteGenNF q defs bound env arg
            pure (TDelayed fc r argQ)
-  quoteGenNF q defs bound env (NDelay fc r arg) 
+  quoteGenNF q defs bound env (NDelay fc LInf ty arg)
+      = do argNF <- evalClosure defs (toHolesOnly arg)
+           argQ <- quoteGenNF q defs bound env argNF
+           tyNF <- evalClosure defs (toHolesOnly ty)
+           tyQ <- quoteGenNF q defs bound env tyNF
+           pure (TDelay fc LInf tyQ argQ)
+    where
+      toHolesOnly : Closure vs -> Closure vs
+      toHolesOnly (MkClosure _ locs env tm) 
+          = MkClosure withArgHoles locs env tm
+      toHolesOnly c = c
+  quoteGenNF q defs bound env (NDelay fc r ty arg) 
       = do argNF <- evalClosure defs arg
            argQ <- quoteGenNF q defs bound env argNF
-           pure (TDelay fc r argQ)
+           tyNF <- evalClosure defs ty
+           tyQ <- quoteGenNF q defs bound env tyNF
+           pure (TDelay fc r tyQ argQ)
   quoteGenNF q defs bound env (NForce fc arg) 
       = case arg of
-             NDelay fc _ arg =>
+             NDelay fc _ _ arg =>
                 do argNF <- evalClosure defs arg
                    quoteGenNF q defs bound env argNF
              t => do arg' <- quoteGenNF q defs bound env arg
@@ -674,11 +691,11 @@ mutual
         = convGen q defs env tm tm'
 
     convGen q defs env (NDelayed _ r arg) (NDelayed _ r' arg')
-        = if r == r'
+        = if compatible r r'
              then convGen q defs env arg arg'
              else pure False
-    convGen q defs env (NDelay _ r arg) (NDelay _ r' arg')
-        = if r == r'
+    convGen q defs env (NDelay _ r _ arg) (NDelay _ r' _ arg')
+        = if compatible r r'
              then convGen q defs env arg arg'
              else pure False
     convGen q defs env (NForce _ arg) (NForce _ arg')

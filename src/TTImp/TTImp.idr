@@ -71,6 +71,11 @@ mutual
        -- by unification
        IMustUnify : FC -> (reason : String) -> RawImp -> RawImp
 
+       -- Laziness annotations
+       IDelayed : FC -> LazyReason -> RawImp -> RawImp -- the type
+       IDelay : FC -> RawImp -> RawImp -- delay constructor
+       IForce : FC -> RawImp -> RawImp
+       
        IPrimVal : FC -> (c : Constant) -> RawImp
        IType : FC -> RawImp
        IHole : FC -> String -> RawImp
@@ -127,6 +132,9 @@ mutual
       show (IBindVar fc n) = "$" ++ n
       show (IAs fc _ n tm) = show n ++ "@(" ++ show tm ++ ")"
       show (IMustUnify fc r tm) = ".(" ++ show tm ++ ")"
+      show (IDelayed fc r tm) = "(%delayed " ++ show tm ++ ")"
+      show (IDelay fc tm) = "(%delay " ++ show tm ++ ")"
+      show (IForce fc tm) = "(%force " ++ show tm ++ ")"
       show (IPrimVal fc c) = show c
       show (IHole _ x) = "?" ++ x
       show (IType fc) = "%type"
@@ -269,6 +277,9 @@ getFC (IType x) = x
 getFC (IBindVar x _) = x
 getFC (IBindHere x _ _) = x
 getFC (IMustUnify x _ _) = x
+getFC (IDelayed x _ _) = x
+getFC (IDelay x _) = x
+getFC (IForce x _) = x
 getFC (IAs x _ _ _) = x
 getFC (Implicit x _) = x
 

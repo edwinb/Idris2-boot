@@ -211,8 +211,9 @@ mutual
              -- better way that leads to good code...)
              ok <- solveIfUndefined env metaval argv
              when (not ok) $
-                do [] <- convert fc elabinfo env (gnf env metaval)
+                do res <- convert fc elabinfo env (gnf env metaval)
                                                  (gnf env argv)
+                   let [] = constraints res
                       | cs => throw (CantConvert fc env metaval argv)
                    pure ()
              case elabMode elabinfo of
@@ -350,7 +351,8 @@ mutual
            logGlue 10 "Expected function type" env expfnty
            maybe (pure ()) (logGlue 10 "Expected result type" env) expty
            res <- checkAppWith rig elabinfo nest env fc fntm fnty expargs impargs kr expty
-           [] <- Check.convert fc elabinfo env (glueBack defs env ty) expfnty
+           cres <- Check.convert fc elabinfo env (glueBack defs env ty) expfnty
+           let [] = constraints cres
               | cs => do cty <- getTerm expfnty
                          ctm <- newConstant fc rig env (fst res) cty cs
                          pure (ctm, expfnty)

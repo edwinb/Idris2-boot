@@ -991,8 +991,8 @@ toFullNames tm
         = pure (As fc !(full gam p) !(full gam tm))
     full gam (TDelayed fc x y) 
         = pure (TDelayed fc x !(full gam y))
-    full gam (TDelay fc x y)
-        = pure (TDelay fc x !(full gam y))
+    full gam (TDelay fc x t y)
+        = pure (TDelay fc x !(full gam t) !(full gam y))
     full gam (TForce fc y)
         = pure (TForce fc !(full gam y))
     full gam tm = pure tm
@@ -1055,36 +1055,32 @@ checkUnambig fc n
               ns => throw (AmbiguousName fc (map fst ns))
 
 export
-setLazy : {auto c : Ref Ctxt Defs} ->
-          FC -> (delayType : Name) -> (delay : Name) -> (force : Name) ->
-          (infinite : Name) ->
-          Core ()
-setLazy fc ty d f i
-    = do defs <- get Ctxt
-         ty' <- checkUnambig fc ty
-         d' <- checkUnambig fc d
-         f' <- checkUnambig fc f
-         i' <- checkUnambig fc i
-         put Ctxt (record { options $= setLazy ty' d' f' i' } defs)
-
-export
 lazyActive : {auto c : Ref Ctxt Defs} ->
              Bool -> Core ()
 lazyActive a
     = do defs <- get Ctxt
-         let l = laziness (options defs)
-         maybe (pure ())
-               (\lns =>
-                    do let l' = record { active = a } lns
-                       put Ctxt (record { options->laziness = Just l' }
-                                        defs)) l
+         put Ctxt (record { options->elabDirectives->lazyActive = a } defs)
+
+export
+autoImplicits : {auto c : Ref Ctxt Defs} ->
+                Bool -> Core ()
+autoImplicits a
+    = do defs <- get Ctxt
+         put Ctxt (record { options->elabDirectives->autoImplicits = a } defs)
 
 export
 isLazyActive : {auto c : Ref Ctxt Defs} ->
                Core Bool
 isLazyActive
     = do defs <- get Ctxt
-         pure (maybe False active (laziness (options defs)))
+         pure (lazyActive (elabDirectives (options defs)))
+
+export
+isAutoImplicits : {auto c : Ref Ctxt Defs} ->
+                  Core Bool
+isAutoImplicits
+    = do defs <- get Ctxt
+         pure (autoImplicits (elabDirectives (options defs)))
 
 export
 setPair : {auto c : Ref Ctxt Defs} ->
@@ -1129,34 +1125,6 @@ setFromChar n
          put Ctxt (record { options $= setFromChar n } defs)
 
 -- Checking special names from Options
-
-export
-isDelayType : Name -> Defs -> Bool
-isDelayType n defs
-    = case laziness (options defs) of
-           Nothing => False
-           Just l => active l && n == delayType l
-
-export
-isDelay : Name -> Defs -> Bool
-isDelay n defs
-    = case laziness (options defs) of
-           Nothing => False
-           Just l => active l && n == delay l
-
-export
-isForce : Name -> Defs -> Bool
-isForce n defs
-    = case laziness (options defs) of
-           Nothing => False
-           Just l => active l && n == force l
-
-export
-isInfinite : Name -> Defs -> Bool
-isInfinite n defs
-    = case laziness (options defs) of
-           Nothing => False
-           Just l => active l && n == infinite l
 
 export
 isPairType : Name -> Defs -> Bool

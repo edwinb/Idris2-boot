@@ -100,16 +100,16 @@ expandAmbigName mode env orig args (IImplicitApp fc f n a) exp
                       ((fc, Just n, a) :: args) f exp
 expandAmbigName elabmode env orig args tm exp = pure orig
 
-stripDelay : Defs -> NF vars -> Core (NF vars)
-stripDelay defs (NDelayed fc r t) = evalClosure defs t
-stripDelay defs tm = pure tm
+stripDelay : Defs -> NF vars -> NF vars
+stripDelay defs (NDelayed fc r t) = t
+stripDelay defs tm = tm
 
 data TypeMatch = Concrete | Poly | NoMatch
 
 mutual
   mightMatchD : Defs -> NF vars -> NF [] -> Core TypeMatch
   mightMatchD defs l r 
-      = mightMatch defs !(stripDelay defs l) !(stripDelay defs r)
+      = mightMatch defs (stripDelay defs l) (stripDelay defs r)
 
   mightMatchArg : Defs -> 
                   (AppInfo, Closure vars) -> (AppInfo, Closure []) -> 

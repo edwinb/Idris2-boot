@@ -58,15 +58,6 @@ getCG cg = lookup (toLower cg) availableCGs
 
 -- Name options, to be saved in TTC
 public export
-record LazyNames where
-  constructor MkLazy
-  active : Bool
-  delayType : Name
-  delay : Name
-  force : Name
-  infinite : Name
-
-public export
 record PairNames where
   constructor MkPairNs
   pairType : Name
@@ -85,20 +76,6 @@ record PrimNames where
   fromIntegerName : Maybe Name
   fromStringName : Maybe Name
   fromCharName : Maybe Name
-
-export
-TTC LazyNames where
-  toBuf b l
-      = do toBuf b (delayType l)
-           toBuf b (delay l)
-           toBuf b (force l)
-           toBuf b (infinite l)
-  fromBuf r b
-      = do ty <- fromBuf r b
-           d <- fromBuf r b
-           f <- fromBuf r b
-           i <- fromBuf r b
-           pure (MkLazy True ty d f i)
 
 export
 TTC PairNames where
@@ -136,6 +113,12 @@ TTC PrimNames where
 
 -- Other options relevant to the current session (so not to be saved in a TTC)
 public export
+record ElabDirectives where
+  constructor MkElabDirectives
+  lazyActive : Bool
+  autoImplicits : Bool
+
+public export
 record Session where
   constructor MkSessionOpts
   noprelude : Bool
@@ -156,7 +139,7 @@ record Options where
   dirs : Dirs
   printing : PPrinter
   session : Session
-  laziness : Maybe LazyNames
+  elabDirectives : ElabDirectives
   pairnames : Maybe PairNames
   rewritenames : Maybe RewriteNames
   primnames : PrimNames
@@ -171,17 +154,15 @@ defaultPPrint = MkPPOpts False True False
 defaultSession : Session
 defaultSession = MkSessionOpts False Chez 0 False
 
+defaultElab : ElabDirectives
+defaultElab = MkElabDirectives True True
+
 export
 defaults : Options
 defaults = MkOptions defaultDirs defaultPPrint defaultSession
-                     Nothing Nothing Nothing
+                     defaultElab Nothing Nothing
                      (MkPrimNs Nothing Nothing Nothing)
                      []
-
-export
-setLazy : (delayType : Name) -> (delay : Name) -> (force : Name) ->
-          (infinite : Name) -> Options -> Options
-setLazy ty d f i = record { laziness = Just (MkLazy True ty d f i) }
 
 export
 setPair : (pairType : Name) -> (fstn : Name) -> (sndn : Name) ->
