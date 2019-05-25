@@ -138,7 +138,33 @@ mutual
                      (expected : Maybe (Glued vars)) ->
                      Core (Term vars, Glued vars)
   makeAutoImplicit rig argRig elabinfo nest env fc tm x aty sc expargs impargs kr expty
-       = throw (InternalError "Auto implicits not yet implemented")
+  -- on the LHS, just treat it as an implicit pattern variable.
+  -- on the RHS, add a searchable hole
+      = case elabMode elabinfo of
+             InLHS _ => 
+                do defs <- get Ctxt
+                   nm <- genMVName x
+                   empty <- clearDefs defs
+                   metaty <- quote empty env aty
+                   metaval <- metaVar fc argRig env nm metaty
+                   let fntm = App fc tm (appInf (Just x) AutoImplicit) metaval
+                   fnty <- sc defs (toClosure defaultOpts env metaval)
+                   est <- get EST
+                   put EST (addBindIfUnsolved nm argRig env metaval metaty est)
+                   checkAppWith rig elabinfo nest env fc
+                                fntm fnty expargs impargs kr expty
+             _ =>
+                do defs <- get Ctxt
+                   nm <- genMVName x
+                   empty <- clearDefs defs
+                   metaty <- quote empty env aty
+                   est <- get EST
+                   metaval <- searchVar fc argRig 500 (Resolved (defining est))
+                                        env nm metaty
+                   let fntm = App fc tm (appInf (Just x) AutoImplicit) metaval
+                   fnty <- sc defs (toClosure defaultOpts env metaval)
+                   checkAppWith rig elabinfo nest env fc
+                                fntm fnty expargs impargs kr expty
 
   solveIfUndefined : {vars : _} ->
                      {auto c : Ref Ctxt Defs} ->
@@ -301,13 +327,17 @@ mutual
       useAutoImp acc [] = Nothing
       useAutoImp acc ((Nothing, xtm) :: rest)
           = Just (xtm, reverse acc ++ rest)
+      useAutoImp acc ((Just x', xtm) :: rest)
+          = if x == x'
+               then Just (xtm, reverse acc ++ rest)
+               else useAutoImp ((Just x', xtm) :: acc) rest
       useAutoImp acc (ximp :: rest)
           = useAutoImp (ximp :: acc) rest
   -- Check next implicit argument
   checkAppWith rig elabinfo nest env fc tm (NBind tfc x (Pi rigb Implicit aty) sc)
                expargs impargs kr expty
       = let argRig = rigMult rig rigb in
-            case useImp x [] impargs of
+            case useImp [] impargs of
                Nothing => makeImplicit rig argRig elabinfo nest env fc tm 
                                        x aty sc expargs impargs kr expty
                Just (arg, impargs') =>
@@ -315,15 +345,15 @@ mutual
                                   (appInf (Just x) Implicit)
                                   tm x aty sc arg expargs impargs' kr expty
     where
-      useImp : Name -> List (Maybe Name, RawImp) -> List (Maybe Name, RawImp) ->
+      useImp : List (Maybe Name, RawImp) -> List (Maybe Name, RawImp) ->
                Maybe (RawImp, List (Maybe Name, RawImp))
-      useImp x acc [] = Nothing
-      useImp x acc ((Just x', xtm) :: rest)
+      useImp acc [] = Nothing
+      useImp acc ((Just x', xtm) :: rest)
           = if x == x'
                then Just (xtm, reverse acc ++ rest)
-               else useImp x ((Just x', xtm) :: acc) rest
-      useImp x acc (ximp :: rest)
-          = useImp x (ximp :: acc) rest
+               else useImp ((Just x', xtm) :: acc) rest
+      useImp acc (ximp :: rest)
+          = useImp (ximp :: acc) rest
 
   checkAppWith rig elabinfo nest env fc tm ty [] [] kr expty 
       = do defs <- get Ctxt
