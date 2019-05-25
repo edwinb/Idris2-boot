@@ -145,6 +145,7 @@ readTTCFile modns as r b
            defs <- fromBuf r b
            autohs <- fromBuf r b
            typehs <- fromBuf r b
+--            coreLift $ putStrLn ("Hints: " ++ show typehs)
 --            coreLift $ putStrLn $ "Read " ++ show (length (map fullname defs)) ++ " defs"
            imp <- fromBuf r b
            nextv <- fromBuf r b
@@ -192,8 +193,8 @@ writeToTTC extradata fname
                               (toList (guesses ust)) 
                               (toList (constraints ust))
                               gdefs
-                              (toList (autoHints defs))
-                              (typeHints defs)
+                              (saveAutoHints defs)
+                              (saveTypeHints defs)
                               (imported defs)
                               (nextName ust)
                               (currentNS defs)
@@ -213,6 +214,14 @@ addGlobalDef modns as def
     = do let n = fullname def
          addDef (asName modns as n) def
          pure ()
+
+addTypeHint : {auto c : Ref Ctxt Defs} ->
+              FC -> (Name, Name, Bool) -> Core ()
+addTypeHint fc (tyn, hintn, d) = addHintFor fc tyn hintn d
+
+addAutoHint : {auto c : Ref Ctxt Defs} ->
+              (Name, Bool) -> Core ()
+addAutoHint (hintn, d) = addGlobalHint hintn d
 
 -- Add definitions from a binary file to the current context
 -- Returns the "extra" section of the file (user defined data), the interface
@@ -247,8 +256,11 @@ readFromTTC loc reexp fname modNS importAs
          ttc <- readTTCFile modNS as r bin
          traverse (addGlobalDef modNS as) (context ttc)
          setNS (currentNS ttc)
-         -- TODO: Set up typeHints and autoHints properly
+         -- Set up typeHints and autoHints based on the loaded data
+         traverse_ (addTypeHint loc) (typeHints ttc)
+         traverse_ addAutoHint (autoHints ttc)
          -- TODO: Set up pair/rewrite etc names, name directives
+         when (not reexp) clearSavedHints
          resetFirstEntry
 
          -- Finally, update the unification state with the holes from the

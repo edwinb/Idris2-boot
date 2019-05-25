@@ -141,7 +141,7 @@ processData eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
 
          traverse_ (processDataOpt fc (Resolved tidx)) opts
          when (not (NoHints `elem` opts)) $
-              traverse_ (\x => addHintFor fc n x True) (map conName cons)
+              traverse_ (\x => addHintFor fc (Resolved tidx) x True) (map conName cons)
 
          -- TODO: Interface hash
          

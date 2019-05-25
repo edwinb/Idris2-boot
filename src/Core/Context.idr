@@ -464,7 +464,7 @@ record Defs where
   openHints : NameMap ()
      -- ^ currently open global hints; just for the rest of this module (not exported)
      -- and prioritised
-  typeHints : List (Name, Name, Bool)
+  saveTypeHints : List (Name, Name, Bool)
      -- ^ a mapping from type names to hints (and a flag setting whether it's 
      -- a "direct" hint). Direct hints are searched first (as part of a group)
      -- the indirect hints. Indirect hints, in practice, are used to find
@@ -472,6 +472,7 @@ record Defs where
      -- tried to find a direct result via a constructor or a top level hint.
      -- We don't look up anything in here, it's merely for saving out to TTC.
      -- We save the hints in the 'GlobalDef' itself for faster lookup.
+  saveAutoHints : List (Name, Bool)
   ifaceHash : Int
   importHashes : List (List String, Int)
      -- ^ interface hashes of imported modules
@@ -493,7 +494,7 @@ initDefs : Core Defs
 initDefs 
     = do gam <- initCtxt
          pure (MkDefs gam ["Main"] defaults empty 100 
-                      empty empty [] 5381 [] [] [])
+                      empty empty [] [] 5381 [] [] [])
       
 -- Label for context references
 export
@@ -794,6 +795,9 @@ addHintFor fc tyn hintn_in direct
          Just (TCon t a ps dets cons hs) <- lookupDefExact tyn (gamma defs)
               | _ => throw (GenericMsg fc (show tyn ++ " is not a type constructor"))
          updateDef tyn (const (Just (TCon t a ps dets cons ((hintn, direct) :: hs))))
+         defs <- get Ctxt
+         put Ctxt (record { saveTypeHints $= ((tyn, hintn, direct) :: )
+                          } defs)
 
 export
 addGlobalHint : {auto c : Ref Ctxt Defs} ->
@@ -806,7 +810,8 @@ addGlobalHint hintn_in isdef
                     _ => case getNameID hintn_in (gamma defs) of
                               Nothing => hintn_in
                               Just idx => Resolved idx
-         put Ctxt (record { autoHints $= insert hintn isdef } defs)
+         put Ctxt (record { autoHints $= insert hintn isdef,
+                            saveAutoHints $= ((hintn, isdef) ::) } defs)
 
 export
 addOpenHint : {auto c : Ref Ctxt Defs} -> Name -> Core ()
@@ -819,6 +824,13 @@ addOpenHint hintn_in
                               Nothing => hintn_in
                               Just idx => Resolved idx
          put Ctxt (record { openHints $= insert hintn () } defs)
+
+export
+clearSavedHints : {auto c : Ref Ctxt Defs} -> Core ()
+clearSavedHints
+    = do defs <- get Ctxt
+         put Ctxt (record { saveTypeHints = [],
+                            saveAutoHints = [] } defs)
 
 -- Set the default namespace for new definitions
 export
