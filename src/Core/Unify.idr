@@ -307,6 +307,9 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
     = do log 5 $ "Instantiating " ++ show tm ++ " in " ++ show newvars 
          let Hole _ = definition mdef
              | def => ufail {a=()} loc (show mname ++ " already resolved as " ++ show def)
+         case fullname mdef of
+              PV pv pi => throw (PatternVariableUnifies loc env (PV pv pi) otm)
+              _ => pure ()
          let ty = type mdef
          defs <- get Ctxt
          rhs <- mkDef [] newvars (snocList newvars) CompatPre
@@ -556,11 +559,15 @@ mutual
                                -- so we can also unify the arguments.
               then unifyArgs mode loc env (map snd (xargs ++ xargs'))
                                           (map snd (yargs ++ yargs'))
-              else if length xargs >= length yargs
+              else if length xargs >= length yargs && not (pv xn)
                       then unifyApp False mode loc env xfc (NMeta xn xi xargs) xargs'
                                           (NApp yfc (NMeta yn yi yargs) yargs')
                       else unifyApp False mode loc env yfc (NMeta yn yi yargs) yargs'
                                           (NApp xfc (NMeta xn xi xargs) xargs')
+    where
+      pv : Name -> Bool
+      pv (PV _ _) = True
+      pv _ = False
   doUnifyBothApps mode loc env xfc fx ax yfc fy ay
       = unifyApp False mode loc env xfc fx ax (NApp yfc fy ay)
 

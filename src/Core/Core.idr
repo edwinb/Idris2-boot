@@ -29,6 +29,7 @@ data Error
     = Fatal Error -- flag as unrecoverable (so don't postpone awaiting further info)
     | CantConvert FC (Env Term vars) (Term vars) (Term vars)
     | CantSolveEq FC (Env Term vars) (Term vars) (Term vars)
+    | PatternVariableUnifies FC (Env Term vars) Name (Term vars)
     | CyclicMeta FC Name
     | WhenUnifying FC (Env Term vars) (Term vars) (Term vars) Error
     | ValidCase FC (Env Term vars) (Either (Term vars) Error)
@@ -99,6 +100,8 @@ Show Error where
       = show fc ++ ":Type mismatch: " ++ show x ++ " and " ++ show y
   show (CantSolveEq fc env x y) 
       = show fc ++ ":" ++ show x ++ " and " ++ show y ++ " are not equal"
+  show (PatternVariableUnifies fc env n x)
+      = show fc ++ ":Pattern variable " ++ show n ++ " unifies with " ++ show x
   show (CyclicMeta fc n) 
       = show fc ++ ":Cycle detected in metavariable solution " ++ show n
   show (WhenUnifying fc _ x y err)
@@ -240,6 +243,7 @@ getErrorLoc : Error -> Maybe FC
 getErrorLoc (Fatal err) = getErrorLoc err
 getErrorLoc (CantConvert loc env tm y) = Just loc
 getErrorLoc (CantSolveEq loc env tm y) = Just loc
+getErrorLoc (PatternVariableUnifies loc env n x) = Just loc
 getErrorLoc (CyclicMeta loc n) = Just loc
 getErrorLoc (WhenUnifying loc env tm y z) = Just loc
 getErrorLoc (ValidCase loc env y) = Just loc
