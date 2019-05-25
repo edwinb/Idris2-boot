@@ -431,16 +431,15 @@ checkBindVar rig elabinfo nest env fc str topexp
                    log 5 $ "Added Bound implicit " ++ show (n, (rig, tm, exp, bty))
                    defs <- get Ctxt
                    est <- get EST
-                   put EST 
-                       (record { boundNames $= ((n, NameBinding rig tm exp) ::),
-                                 toBind $= ((n, NameBinding rig tm bty) :: ) } est)
+                   put EST (record { boundNames $= ((n, NameBinding rig tm exp) ::),
+                                     toBind $= ((n, NameBinding rig tm bty) :: ) } est)
                    -- addNameType loc (UN str) env exp
                    checkExp rig elabinfo env fc tm (gnf env exp) topexp
               Just bty =>
                 do -- TODO: for metadata addNameType loc (UN str) env ty
                    -- Check rig is consistent with the one in bty, and
                    -- update if necessary
-                   combine n rig (bindingRig bty)
+                   combine (UN str) rig (bindingRig bty)
                    let tm = bindingTerm bty
                    let ty = bindingType bty
                    defs <- get Ctxt
@@ -493,6 +492,8 @@ checkBindHere rig elabinfo nest env fc bindmode tm exp
          solveConstraints (case elabMode elabinfo of
                                 InLHS c => InLHS
                                 _ => InTerm) Normal
+         checkDots -- Check dot patterns unifying with the claimed thing
+                   -- before binding names
          argImps <- getToBind fc (elabMode elabinfo)
                               bindmode env dontbind tmv
          clearToBind dontbind

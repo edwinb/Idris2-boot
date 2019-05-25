@@ -260,7 +260,7 @@ Show Def where
   show (Hole inv) = "Hole"
   show (BySearch c depth def) = "Search in " ++ show def
   show (Guess tm cs) = "Guess " ++ show tm ++ " when " ++ show cs
-  show ImpBind = "Implicitly bound"
+  show ImpBind = "Bound name"
   show Delayed = "Delayed"
 
 export

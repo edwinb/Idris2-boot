@@ -1,0 +1,18 @@
+data Nat : Type where
+     Z : Nat
+     S : Nat -> Nat
+
+plus : Nat -> Nat -> Nat
+plus Z $y = y
+plus (S $k) $y = S (plus k y)
+
+data Baz : Nat -> Type where
+     AddThings : (x : Nat) -> (y : Nat) -> Baz (plus x y)
+
+addBaz : (x : Nat) -> Baz x -> Nat
+addBaz (plus $x $y) (AddThings $x $y) = plus x y
+
+-- Can't unify because we can't infer the arguments to 'plus'
+addBaz4 : (x : Nat) -> Baz x -> Nat
+addBaz4 (plus _ _) (AddThings $x $y) = plus x y
+

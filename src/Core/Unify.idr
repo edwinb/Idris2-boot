@@ -18,13 +18,11 @@ import Data.List.Views
 public export
 data UnifyMode = InLHS
                | InTerm
-               | InDot
                | InSearch
 
 Eq UnifyMode where
    InLHS == InLHS = True
    InTerm == InTerm = True
-   InDot == InDot = True
    InSearch == InSearch = True
    _ == _ = False
 
@@ -307,6 +305,8 @@ instantiate : {auto c : Ref Ctxt Defs} ->
               Core ()
 instantiate {newvars} loc env mname mref mdef locs otm tm
     = do log 5 $ "Instantiating " ++ show tm ++ " in " ++ show newvars 
+         let Hole _ = definition mdef
+             | def => ufail {a=()} loc (show mname ++ " already resolved as " ++ show def)
          let ty = type mdef
          defs <- get Ctxt
          rhs <- mkDef [] newvars (snocList newvars) CompatPre
@@ -908,4 +908,38 @@ solveConstraints umode smode
     = do ust <- get UST
          progress <- traverse (retryGuess umode smode) (toList (guesses ust))
          when (or (map Delay progress)) $ solveConstraints umode smode
+
+export
+checkDots : {auto u : Ref UST UState} ->
+            {auto c : Ref Ctxt Defs} ->
+            Core ()
+checkDots
+    = do ust <- get UST
+         hs <- getCurrentHoles
+         traverse_ checkConstraint (reverse (dotConstraints ust))
+         hs <- getCurrentHoles
+         ust <- get UST
+         put UST (record { dotConstraints = [] } ust)
+  where
+    checkConstraint : (Name, String, Constraint) -> Core ()
+    checkConstraint (n, reason, MkConstraint fc env x y)
+        = do logTermNF 10 "Dot" env y
+             logTermNF 10 "  =" env x
+             catch
+               (do cs <- unify InTerm fc env x y
+                   defs <- get Ctxt
+                   Just ndef <- lookupDefExact n (gamma defs)
+                        | Nothing => throw (UndefinedName fc n)
+                   let h = case ndef of
+                                Hole _ => True
+                                _ => False
+                   
+                   when (not (isNil (constraints cs)) || h) $
+                      throw (InternalError "Dot pattern match fail"))
+               (\err => do defs <- get Ctxt
+                           throw (BadDotPattern fc env reason 
+                                   !(normaliseHoles defs env x) 
+                                   !(normaliseHoles defs env y)))
+    checkConstraint _ = pure ()
+
 

@@ -70,6 +70,7 @@ record UState where
                                    -- user defined hole names, which don't need
                                    -- to have been solved
   constraints : IntMap Constraint -- map for finding constraints by ID
+  dotConstraints : List (Name, String, Constraint) -- dot pattern constraints
   nextName : Int
   nextConstraint : Int
   delayedElab : List (Int, Core ClosedTerm)
@@ -81,7 +82,7 @@ record UState where
 
 export
 initUState : UState
-initUState = MkUState empty empty empty empty empty 0 0 []
+initUState = MkUState empty empty empty empty empty [] 0 0 []
 
 export
 data UST : Type where
@@ -246,6 +247,16 @@ addConstraint constr
          put UST (record { constraints $= insert cid constr,
                            nextConstraint = cid+1 } ust)
          pure cid
+
+export
+addDot : {auto u : Ref UST UState} ->
+         FC -> Env Term vars -> Name -> Term vars -> String -> Term vars ->
+         Core ()
+addDot fc env dotarg x reason y
+    = do ust <- get UST
+         put UST (record { dotConstraints $= 
+                             ((dotarg, reason, MkConstraint fc env x y) ::) 
+                         } ust)
 
 mkConstantAppArgs : Bool -> FC -> Env Term vars -> 
                     (wkns : List Name) ->

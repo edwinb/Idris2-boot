@@ -14,6 +14,7 @@ import TTImp.Elab.As
 import TTImp.Elab.Binders
 import TTImp.Elab.Case
 import TTImp.Elab.Check
+import TTImp.Elab.Dot
 import TTImp.Elab.Hole
 import TTImp.Elab.ImplicitBind
 import TTImp.Elab.Lazy
@@ -134,8 +135,8 @@ checkTerm rig elabinfo nest env (IBindVar fc n) exp
     = checkBindVar rig elabinfo nest env fc n exp
 checkTerm rig elabinfo nest env (IAs fc side n_in tm) exp
     = checkAs rig elabinfo nest env fc side n_in tm exp
-checkTerm rig elabinfo nest env (IMustUnify fc n tm) exp
-    = throw (InternalError ("Dot patterns not implemented: " ++ n ++ " " ++ show tm))
+checkTerm rig elabinfo nest env (IMustUnify fc reason tm) exp
+    = checkDot rig elabinfo nest env fc reason tm exp
 checkTerm rig elabinfo nest env (IDelayed fc r tm) exp
     = checkDelayed rig elabinfo nest env fc r tm exp
 checkTerm rig elabinfo nest env (IDelay fc tm) exp

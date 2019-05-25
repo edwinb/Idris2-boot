@@ -1,0 +1,12 @@
+Processing as TTImp
+Written TTC
+Yaffle> Bye for now!
+Processing as TTImp
+Dot2.yaff:15:10--15:15:Can't match on ($resolved73 ?{P:n:92}_[] ?{P:m:92}_[]) (Not a constructor application or primitive) - it elaborates to ($resolved73 ?{P:n:92}_[] ?{P:n:92}_[])
+Yaffle> Bye for now!
+Processing as TTImp
+Dot3.yaff:18:10--18:15:Can't match on ($resolved73 ?{P:x:100}_[] ?{P:y:100}_[]) (Not a constructor application or primitive) - it elaborates to ($resolved73 ?Main.{_:30}_[] ?Main.{_:29}_[])
+Yaffle> Bye for now!
+Processing as TTImp
+Dot4.yaff:17:10--17:15:Can't match on ($resolved73 ?Main.{_:32}_[] ?Main.{_:31}_[]) (Not a constructor application or primitive) - it elaborates to ($resolved73 ?{P:x:100}_[] ?{P:y:100}_[])
+Yaffle> Bye for now!
