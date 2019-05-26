@@ -75,3 +75,17 @@ mutual
        NErased  : FC -> NF vars
        NType    : FC -> NF vars
 
+export
+getLoc : NF vars -> FC
+getLoc (NBind fc _ _ _) = fc
+getLoc (NApp fc _ _) = fc
+getLoc (NDCon fc _ _ _ _) = fc
+getLoc (NTCon fc _ _ _ _) = fc
+getLoc (NAs fc _ _) = fc
+getLoc (NDelayed fc _ _) = fc
+getLoc (NDelay fc _ _ _) = fc
+getLoc (NForce fc _) = fc
+getLoc (NPrimVal fc _) = fc
+getLoc (NErased fc) = fc
+getLoc (NType fc) = fc
+

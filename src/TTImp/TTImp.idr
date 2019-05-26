@@ -149,11 +149,41 @@ mutual
   public export
   data FnOpt : Type where
        Inline : FnOpt
+       -- Flag means the hint is a direct hint, not a function which might
+       -- find the result (e.g. chasing parent interface dictionaries)
+       Hint : Bool -> FnOpt
+       -- flag means always use this in search. If not set, it is only
+       -- used as a hint if all else fails (i.e. a default)
+       GlobalHint : Bool -> FnOpt
+       ExternFn : FnOpt
+       -- assume safe to cancel arguments in unification
+       Invertible : FnOpt
+       Total : FnOpt
+       Covering : FnOpt
+       PartialOK : FnOpt
+
+  export
+  Show FnOpt where
+    show Inline = "%inline"
+    show (Hint t) = "%hint " ++ show t
+    show (GlobalHint t) = "%globalhint " ++ show t
+    show ExternFn = "%extern"
+    show Invertible = "%invertible"
+    show Total = "total"
+    show Covering = "covering"
+    show PartialOK = "partial"
 
   export
   Eq FnOpt where
-    (==) Inline Inline = True
-    (==) _ _ = False
+    Inline == Inline = True
+    (Hint x) == (Hint y) = x == y
+    (GlobalHint x) == (GlobalHint y) = x == y
+    ExternFn == ExternFn = True
+    Invertible == Invertible = True
+    Total == Total = True
+    Covering == Covering = True
+    PartialOK == PartialOK = True
+    _ == _ = False
 
   public export
   data ImpTy : Type where

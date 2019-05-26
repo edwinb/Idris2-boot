@@ -218,7 +218,7 @@ mutual
              nm <- genMVName x
              empty <- clearDefs defs
              metaty <- quote empty env aty
-             (idx, metaval) <- argVar fc argRig env nm metaty
+             (idx, metaval) <- argVar (getFC arg) argRig env nm metaty
              let fntm = App fc tm appinf metaval
              logNF 10 ("Delaying " ++ show nm ++ " " ++ show arg) env aty
              logTerm 10 "...as" metaval
@@ -235,6 +235,7 @@ mutual
              -- *may* have as patterns in it and we need to retain them.
              -- (As patterns are a bit of a hack but I don't yet see a 
              -- better way that leads to good code...)
+             logTerm 5 ("Solving " ++ show metaval ++ " with") argv
              ok <- solveIfUndefined env metaval argv
              when (not ok) $
                 do res <- convert fc elabinfo env (gnf env metaval)

@@ -50,8 +50,8 @@ atom fname
          end <- location
          pure (IHole (MkFC fname start end) x)
 
-visibility : EmptyRule Visibility
-visibility
+visOption : Rule Visibility
+visOption
     = do keyword "public"
          keyword "export"
          pure Public
@@ -59,7 +59,58 @@ visibility
          pure Export
   <|> do keyword "private"
          pure Private
+
+visibility : EmptyRule Visibility
+visibility
+    = visOption
   <|> pure Private
+
+fnOpt : Rule FnOpt
+fnOpt
+    = do keyword "partial"
+         pure PartialOK
+  <|> do keyword "total"
+         pure Total
+  <|> do keyword "covering"
+         pure Covering
+
+fnDirectOpt : Rule FnOpt
+fnDirectOpt
+    = do exactIdent "hint"
+         pure (Hint True)
+  <|> do exactIdent "chaser"
+         pure (Hint False)
+  <|> do exactIdent "globalhint"
+         pure (GlobalHint True)
+  <|> do exactIdent "defaulthint"
+         pure (GlobalHint False)
+  <|> do exactIdent "inline"
+         pure Inline
+  <|> do exactIdent "extern"
+         pure ExternFn
+
+visOpt : Rule (Either Visibility FnOpt)
+visOpt
+    = do vis <- visOption
+         pure (Left vis)
+  <|> do tot <- fnOpt
+         pure (Right tot)
+  <|> do symbol "%"
+         opt <- fnDirectOpt
+         pure (Right opt)
+
+getVisibility : Maybe Visibility -> List (Either Visibility FnOpt) -> 
+                EmptyRule Visibility
+getVisibility Nothing [] = pure Private
+getVisibility (Just vis) [] = pure vis
+getVisibility Nothing (Left x :: xs) = getVisibility (Just x) xs
+getVisibility (Just vis) (Left x :: xs)
+   = fatalError "Multiple visibility modifiers"
+getVisibility v (_ :: xs) = getVisibility v xs
+
+getRight : Either a b -> Maybe b
+getRight (Left _) = Nothing
+getRight (Right v) = Just v
 
 bindSymbol : Rule PiInfo
 bindSymbol
@@ -404,6 +455,14 @@ clause fname indents
          lhs <- expr fname indents
          parseRHS fname indents start lhs
 
+dataOpt : Rule DataOpt
+dataOpt
+    = do exactIdent "noHints"
+         pure NoHints
+  <|> do exactIdent "search"
+         ns <- some name
+         pure (SearchBy ns)
+
 dataDecl : FileName -> IndentInfo -> Rule ImpData
 dataDecl fname indents
     = do start <- location
@@ -412,9 +471,13 @@ dataDecl fname indents
          symbol ":"
          ty <- expr fname indents
          keyword "where"
+         opts <- option [] (do symbol "["
+                               dopts <- sepBy1 (symbol ",") dataOpt
+                               symbol "]"
+                               pure dopts)
          cs <- block (tyDecl fname)
          end <- location
-         pure (MkImpData (MkFC fname start end) n ty [] cs)
+         pure (MkImpData (MkFC fname start end) n ty opts cs)
 
 namespaceDecl : Rule (List String)
 namespaceDecl
@@ -452,10 +515,12 @@ topDecl fname indents
          end <- location
          pure (INamespace (MkFC fname start end) ns ds)
   <|> do start <- location
-         vis <- visibility
+         visOpts <- many visOpt
+         vis <- getVisibility Nothing visOpts
+         let opts = mapMaybe getRight visOpts
          claim <- tyDecl fname indents
          end <- location
-         pure (IClaim (MkFC fname start end) RigW vis [] claim)
+         pure (IClaim (MkFC fname start end) RigW vis opts claim)
   <|> do symbol "%"; commit
          directive fname indents
   <|> clause fname indents

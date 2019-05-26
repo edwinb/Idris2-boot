@@ -203,6 +203,7 @@ searchLocalWith {vars} fc rigc defaults depth def top env ((prf, ty) :: rest) ta
              -- We can only use the local if its type is not an unsolved hole
              if !(usableLocal fc defaults env ty)
                 then do
+                   logNF 10 "Trying " env ty
                    ures <- unify InTerm fc env target appTy
                    let [] = constraints ures
                        | _ => throw (CantSolveGoal fc [] top)
@@ -211,7 +212,8 @@ searchLocalWith {vars} fc rigc defaults depth def top env ((prf, ty) :: rest) ta
                    logTermNF 10 "Candidate " env candidate
                    traverse (searchIfHole fc defaults False depth def top env) args
                    pure candidate
-                else throw (CantSolveGoal fc [] top)
+                else do logNF 10 "Can't use " env ty
+                        throw (CantSolveGoal fc [] top)
 
     findPos : Defs -> Term vars -> 
               (Term vars -> Term vars) ->
@@ -364,7 +366,9 @@ searchType {vars} fc rigc defaults depth def top env target
                              sd <- getSearchData fc defaults tyn
                              -- Check determining arguments are okay for 'args' 
                              concreteDets fc defaults env top 0 (detArgs sd) args
-                             tryGroups nty (hintGroups sd)
+                             tryUnify
+                               (searchLocal fc rigc defaults depth def top env nty)
+                               (tryGroups nty (hintGroups sd))
                      else throw (CantSolveGoal fc [] top)
               _ => do logNF 10 "Next target: " env nty
                       searchLocal fc rigc defaults depth def top env nty
@@ -389,11 +393,12 @@ searchType {vars} fc rigc defaults depth def top env target
 --          (defaults : Bool) -> (depth : Nat) ->
 --          (defining : Name) -> (topTy : Term vars) -> Env Term vars -> 
 --          Core (Term vars)
-Core.Unify.search fc rigc defaults depth def top env
+Core.Unify.search fc rigc defaults depth def top_in env
     = do defs <- get Ctxt
+         top <- normaliseScope defs env top_in
          logTerm 10 "Initial target: " top
          tm <- searchType fc rigc defaults depth def 
                           (abstractEnvType fc env top) env 
-                          !(normaliseScope defs env top)
+                          top
          defs <- get Ctxt
          quote defs env tm
