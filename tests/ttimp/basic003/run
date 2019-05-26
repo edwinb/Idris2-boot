@@ -1,3 +1,4 @@
-$1 Auto.yaff < input
+$1 Hole.yaff < input
+$1 build/Hole.ttc < input
 
 rm -rf build

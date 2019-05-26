@@ -7,13 +7,14 @@ import System
 ttimpTests : List String
 ttimpTests 
     = ["basic001", "basic002", "basic003", "basic004", "basic005",
-       "basic006", "basic007",
+       "basic006",
        "dot001",
        "eta001", "eta002",
        "lazy001",
        "nest001", "nest002",
        "perf001", "perf002", "perf003",
-       "qtt001", "qtt002", "qtt003"]
+       "qtt001", "qtt002", "qtt003",
+       "search001", "search002"]
 
 chdir : String -> IO Bool
 chdir dir 
