@@ -40,6 +40,7 @@ modules =
     Text.Quantity,
     Text.Token,
 
+    TTImp.BindImplicits,
     TTImp.Elab,
     TTImp.Elab.Ambiguity,
     TTImp.Elab.App,
@@ -58,9 +59,11 @@ modules =
     TTImp.ProcessData,
     TTImp.ProcessDecls,
     TTImp.ProcessDef,
+    TTImp.ProcessRecord,
     TTImp.ProcessType,
     TTImp.TTImp,
     TTImp.Unelab,
+    TTImp.Utils,
 
     Utils.Binary,
 

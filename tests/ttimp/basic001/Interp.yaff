@@ -3,16 +3,16 @@ data Nat : Type where
      S : Nat -> Nat
 
 plus : Nat -> Nat -> Nat
-plus Z $y = y
-plus (S $k) $y = S (plus k y)
+plus Z y = y
+plus (S k) y = S (plus k y)
 
 data Vect : Nat -> Type -> Type where
-     Nil  : Vect Z $a
-     Cons : $a -> Vect $k $a -> Vect (S $k) $a
+     Nil  : Vect Z a
+     Cons : a -> Vect k a -> Vect (S k) a
 
-append : Vect $n $a -> Vect $m $a -> Vect (plus $n $m) $a
-append Nil $ys = ys
-append (Cons $x $xs) $ys = Cons x (append xs ys)
+append : Vect n a -> Vect m a -> Vect (plus n m) a
+append Nil ys = ys
+append (Cons x xs) ys = Cons x (append xs ys)
 
 data Fin : Nat -> Type where
      FZ : Fin (S $k)

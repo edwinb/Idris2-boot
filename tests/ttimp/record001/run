@@ -1,0 +1,4 @@
+$1 Record.yaff < input
+$1 build/Record.ttc < input
+
+rm -rf build

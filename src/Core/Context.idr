@@ -919,6 +919,9 @@ inCurrentNS n@(WithBlock _ _)
 inCurrentNS n@(MN _ _)
     = do defs <- get Ctxt
          pure (NS (currentNS defs) n)
+inCurrentNS n@(DN _ _)
+    = do defs <- get Ctxt
+         pure (NS (currentNS defs) n)
 inCurrentNS n = pure n
 
 export

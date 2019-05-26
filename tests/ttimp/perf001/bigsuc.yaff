@@ -5,12 +5,12 @@ data Nat : Type where
      S : Nat -> Nat
 
 plus : Nat -> Nat -> Nat
-plus Z     $y = y
-plus (S $k) $y = S (plus k y)
+plus Z     y = y
+plus (S k) y = S (plus k y)
 
 mult : Nat -> Nat -> Nat
-mult Z $y = Z
-mult (S $k) $y = plus y (mult k y)
+mult Z y = Z
+mult (S k) y = plus y (mult k y)
 
 five : Nat
 five = S (S (S (S (S Z))))
@@ -33,5 +33,5 @@ hundredthousand = mult ten tenthousand
 data IsSuc : Nat -> Type where 
      Yes : IsSuc (S $k)
 
-nonZero : IsSuc hundredthousand
+nonZero : IsSuc Main.hundredthousand
 nonZero = Yes

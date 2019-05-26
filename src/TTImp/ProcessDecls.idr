@@ -11,6 +11,7 @@ import TTImp.Elab.Check
 import TTImp.Parser
 import TTImp.ProcessData
 import TTImp.ProcessDef
+import TTImp.ProcessRecord
 import TTImp.ProcessType
 import TTImp.TTImp
 
@@ -29,7 +30,7 @@ process eopts nest env (IDef fc fname def)
 process eopts nest env (IParameters fc ps decls)
     = throw (InternalError "Parameters blocks not yet implemented")
 process eopts nest env (IRecord fc vis rec)
-    = throw (InternalError "Records not yet implemented")
+    = processRecord eopts nest env vis rec
 process eopts nest env (INamespace fc ns decls)
     = do oldns <- getNS
          extendNS (reverse ns)

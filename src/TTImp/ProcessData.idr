@@ -7,6 +7,7 @@ import Core.Normalise
 import Core.UnifyState
 import Core.Value
 
+import TTImp.BindImplicits
 import TTImp.Elab.Check
 import TTImp.Elab
 import TTImp.TTImp
@@ -46,13 +47,16 @@ checkFamily loc cn tn env nf
                                else throw (BadDataConType loc cn tn)
                       _ => throw (BadDataConType loc cn tn))
 
-checkCon : {auto c : Ref Ctxt Defs} ->
+checkCon : {vars : _} ->
+           {auto c : Ref Ctxt Defs} ->
            {auto u : Ref UST UState} ->
            List ElabOpt -> NestedNames vars -> 
            Env Term vars -> Visibility -> Name ->
            ImpTy -> Core Constructor
-checkCon opts nest env vis tn (MkImpTy fc cn_in ty_raw)
+checkCon {vars} opts nest env vis tn (MkImpTy fc cn_in ty_raw)
     = do cn <- inCurrentNS cn_in
+         ty_raw <- bindTypeNames vars ty_raw
+
          defs <- get Ctxt
          -- Check 'cn' is undefined
          Nothing <- lookupCtxtExact cn (gamma defs)
@@ -73,13 +77,16 @@ conName : Constructor -> Name
 conName (MkCon _ cn _ _) = cn
 
 export
-processData : {auto c : Ref Ctxt Defs} ->
+processData : {vars : _} ->
+              {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               List ElabOpt -> NestedNames vars -> 
               Env Term vars -> FC -> Visibility ->
               ImpData -> Core ()
-processData eopts nest env fc vis (MkImpLater dfc n_in ty_raw) 
+processData {vars} eopts nest env fc vis (MkImpLater dfc n_in ty_raw) 
     = do n <- inCurrentNS n_in
+         ty_raw <- bindTypeNames vars ty_raw
+
          defs <- get Ctxt
          -- Check 'n' is undefined
          Nothing <- lookupCtxtExact n (gamma defs)
@@ -99,8 +106,10 @@ processData eopts nest env fc vis (MkImpLater dfc n_in ty_raw)
          tidx <- addDef n (newDef fc n Rig1 fullty vis
                           (TCon 0 arity [] [] [] []))
          pure ()
-processData eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
+processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
     = do n <- inCurrentNS n_in
+         ty_raw <- bindTypeNames vars ty_raw
+
          log 1 $ "Processing " ++ show n
          defs <- get Ctxt
          (ty, _, _) <- elabTerm !(resolveName n) InType eopts nest env 

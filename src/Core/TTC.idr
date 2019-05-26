@@ -27,10 +27,11 @@ TTC Name where
   toBuf b (UN x) = do tag 1; toBuf b x
   toBuf b (MN x y) = do tag 2; toBuf b x; toBuf b y
   toBuf b (PV x y) = do tag 3; toBuf b x; toBuf b y
-  toBuf b (Nested x y) = do tag 4; toBuf b x; toBuf b y
-  toBuf b (CaseBlock x y) = do tag 5; toBuf b x; toBuf b y
-  toBuf b (WithBlock x y) = do tag 6; toBuf b x; toBuf b y
-  toBuf b (Resolved x) = do tag 7; toBuf b x
+  toBuf b (DN x y) = do tag 4; toBuf b x; toBuf b y
+  toBuf b (Nested x y) = do tag 5; toBuf b x; toBuf b y
+  toBuf b (CaseBlock x y) = do tag 6; toBuf b x; toBuf b y
+  toBuf b (WithBlock x y) = do tag 7; toBuf b x; toBuf b y
+  toBuf b (Resolved x) = do tag 8; toBuf b x
 
   fromBuf r b
       = case !getTag of
@@ -47,14 +48,17 @@ TTC Name where
                      pure (PV x y)
              4 => do x <- fromBuf r b
                      y <- fromBuf r b
-                     pure (Nested x y)
+                     pure (DN x y)
              5 => do x <- fromBuf r b
                      y <- fromBuf r b
-                     pure (CaseBlock x y)
+                     pure (Nested x y)
              6 => do x <- fromBuf r b
                      y <- fromBuf r b
-                     pure (WithBlock x y)
+                     pure (CaseBlock x y)
              7 => do x <- fromBuf r b
+                     y <- fromBuf r b
+                     pure (WithBlock x y)
+             8 => do x <- fromBuf r b
                      Just (n, Just idx) <- coreLift $ readArray r x
                           | Just (n, Nothing) => pure n
                           | Nothing => corrupt ("Name index " ++ show x)

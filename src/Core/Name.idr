@@ -8,6 +8,7 @@ data Name : Type where
      UN : String -> Name -- user defined name
      MN : String -> Int -> Name -- machine generated name
      PV : Name -> Int -> Name -- pattern variable name; int is the resolved function id
+     DN : String -> Name -> Name -- a name and how to display it
      Nested : Int -> Name -> Name -- nested function name
      CaseBlock : Int -> Int -> Name -- case block nested in (resolved) name
      WithBlock : Int -> Int -> Name -- with block nested in (resolved) name
@@ -17,12 +18,14 @@ export
 userNameRoot : Name -> Maybe String
 userNameRoot (NS _ n) = userNameRoot n
 userNameRoot (UN n) = Just n
+userNameRoot (DN _ n) = userNameRoot n
 userNameRoot _ = Nothing
 
 export
 isUserName : Name -> Bool
 isUserName (UN _) = True
 isUserName (NS _ n) = isUserName n
+isUserName (DN _ n) = isUserName n
 isUserName _ = False
 
 export
@@ -31,6 +34,7 @@ nameRoot (NS _ n) = nameRoot n
 nameRoot (UN n) = n
 nameRoot (MN n _) = n
 nameRoot (PV n _) = nameRoot n
+nameRoot (DN _ n) = nameRoot n
 nameRoot (Nested n inner) = nameRoot inner
 nameRoot (CaseBlock n inner) = "$" ++ show n
 nameRoot (WithBlock n inner) = "$" ++ show n
@@ -53,6 +57,7 @@ export Show Name where
   show (UN x) = x
   show (MN x y) = "{" ++ x ++ ":" ++ show y ++ "}"
   show (PV n d) = "{P:" ++ show n ++ ":" ++ show d ++ "}"
+  show (DN str _) = str
   show (Nested outer inner) = show outer ++ ":" ++ show inner
   show (CaseBlock outer i) = "case block in " ++ show outer
   show (WithBlock outer i) = "with block in " ++ show outer
@@ -64,6 +69,7 @@ Eq Name where
     (==) (UN x) (UN y) = x == y
     (==) (MN x y) (MN x' y') = y == y' && x == x'
     (==) (PV x y) (PV x' y') = x == x' && y == y'
+    (==) (DN _ n) (DN _ n') = n == n'
     (==) (Nested x y) (Nested x' y') = x == x' && y == y'
     (==) (CaseBlock x y) (CaseBlock x' y') = y == y' && x == x'
     (==) (WithBlock x y) (WithBlock x' y') = y == y' && x == x'
@@ -75,10 +81,11 @@ nameTag (NS _ _) = 0
 nameTag (UN _) = 1
 nameTag (MN _ _) = 2
 nameTag (PV _ _) = 3
-nameTag (Nested _ _) = 4
-nameTag (CaseBlock _ _) = 5
-nameTag (WithBlock _ _) = 6
-nameTag (Resolved _) = 7
+nameTag (DN _ _) = 4
+nameTag (Nested _ _) = 5
+nameTag (CaseBlock _ _) = 6
+nameTag (WithBlock _ _) = 7
+nameTag (Resolved _) = 8
 
 export
 Ord Name where
@@ -100,6 +107,7 @@ Ord Name where
                EQ => compare x x'
                GT => GT
                LT => LT
+    compare (DN _ n) (DN _ n') = compare n n'
     compare (Nested x y) (Nested x' y')
         = case compare y y' of
                EQ => compare x x'
@@ -139,6 +147,11 @@ nameEq (PV x t) (PV y t') with (nameEq x y)
     nameEq (PV y t) (PV y t) | (Just Refl) | (Yes Refl) = Just Refl
     nameEq (PV y t) (PV y t') | (Just Refl) | (No p) = Nothing
   nameEq (PV x t) (PV y t') | Nothing = Nothing
+nameEq (DN x t) (DN y t') with (decEq x y)
+  nameEq (DN y t) (DN y t') | (Yes Refl) with (nameEq t t')
+    nameEq (DN y t) (DN y t) | (Yes Refl) | (Just Refl) = Just Refl
+    nameEq (DN y t) (DN y t') | (Yes Refl) | Nothing = Nothing
+  nameEq (DN x t) (DN y t') | (No p) = Nothing
 nameEq (Nested x y) (Nested x' y') with (decEq x x')
   nameEq (Nested x y) (Nested x' y') | (No p) = Nothing
   nameEq (Nested x y) (Nested x y') | (Yes Refl) with (nameEq y y')

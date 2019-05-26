@@ -13,21 +13,6 @@ import TTImp.TTImp
 
 %default covering
 
-definedInBlock : List ImpDecl -> List Name
-definedInBlock = concatMap defName
-  where
-    getName : ImpTy -> Name
-    getName (MkImpTy _ n _) = n
-
-    defName : ImpDecl -> List Name
-    defName (IClaim _ _ _ _ ty) = [getName ty]
-    defName (IData _ _ (MkImpData _ n _ _ cons)) = n :: map getName cons
-    defName (IData _ _ (MkImpLater _ n _)) = [n]
--- TODO after adding these cases to ImpDecl
---     defName (IParameters _ _ pds) = concatMap defName pds
---     defName (IRecord _ _ (MkImpRecord _ n _ _ _)) = [n]
-    defName _ = []
-
 export
 checkLocal : {vars : _} ->
              {auto c : Ref Ctxt Defs} ->

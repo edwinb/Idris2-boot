@@ -182,6 +182,8 @@ mutual
       = as fname indents
     <|> atom fname
     <|> binder fname indents
+    <|> rewrite_ fname indents
+    <|> record_ fname indents
     <|> do symbol "("
            e <- expr fname indents
            symbol ")"
@@ -360,6 +362,37 @@ mutual
            end <- location
            pure (ImpossibleClause (MkFC fname start end) lhs)
 
+  record_ : FileName -> IndentInfo -> Rule RawImp
+  record_ fname indents
+      = do start <- location
+           keyword "record"
+           commit
+           symbol "{"
+           fs <- sepBy1 (symbol ",") (field fname indents)
+           symbol "}"
+           sc <- expr fname indents
+           end <- location
+           pure (IUpdate (MkFC fname start end) fs sc)
+
+  field : FileName -> IndentInfo -> Rule IFieldUpdate
+  field fname indents
+      = do path <- sepBy1 (symbol "->") unqualifiedName
+           upd <- (do symbol "="; pure ISetField)
+                      <|>
+                  (do symbol "$="; pure ISetFieldApp)
+           val <- appExpr fname indents
+           pure (upd path val)
+
+  rewrite_ : FileName -> IndentInfo -> Rule RawImp
+  rewrite_ fname indents
+      = do start <- location
+           keyword "rewrite"
+           rule <- expr fname indents
+           keyword "in"
+           tm <- expr fname indents
+           end <- location
+           pure (IRewrite (MkFC fname start end) rule tm)
+  
   lazy : FileName -> IndentInfo -> Rule RawImp
   lazy fname indents
       = do start <- location
@@ -479,6 +512,59 @@ dataDecl fname indents
          end <- location
          pure (MkImpData (MkFC fname start end) n ty opts cs)
 
+ifaceParam : FileName -> IndentInfo -> Rule (Name, RawImp)
+ifaceParam fname indents
+    = do symbol "("
+         n <- name
+         symbol ":"
+         tm <- expr fname indents
+         symbol ")"
+         pure (n, tm)
+  <|> do start <- location
+         n <- name
+         end <- location
+         pure (n, Implicit (MkFC fname start end) False)
+
+fieldDecl : FileName -> IndentInfo -> Rule (List IField)
+fieldDecl fname indents
+      = do symbol "{"
+           commit
+           fs <- fieldBody Implicit
+           symbol "}"
+           atEnd indents
+           pure fs
+    <|> do fs <- fieldBody Explicit
+           atEnd indents
+           pure fs
+  where
+    fieldBody : PiInfo -> Rule (List IField)
+    fieldBody p
+        = do start <- location
+             ns <- sepBy1 (symbol ",") unqualifiedName
+             symbol ":"
+             ty <- expr fname indents
+             end <- location
+             pure (map (\n => MkIField (MkFC fname start end)
+                                       Rig1 p (UN n) ty) ns)
+
+recordDecl : FileName -> IndentInfo -> Rule ImpDecl
+recordDecl fname indents
+    = do start <- location
+         vis <- visibility
+         col <- column
+         keyword "record"
+         commit
+         n <- name
+         params <- many (ifaceParam fname indents)
+         keyword "where"
+         dc <- option Nothing (do exactIdent "constructor"
+                                  n <- name
+                                  pure (Just n))
+         flds <- assert_total (blockAfter col (fieldDecl fname))
+         end <- location
+         let fc = MkFC fname start end
+         pure (IRecord fc vis (MkImpRecord fc n params dc (concat flds)))
+
 namespaceDecl : Rule (List String)
 namespaceDecl
     = do keyword "namespace"
@@ -500,6 +586,13 @@ directive fname indents
          end <- location
          let fc = MkFC fname start end
          pure (IPragma (\c, nest, env => setPair {c} fc p f s))
+  <|> do exactIdent "rewrite"
+         start <- location
+         eq <- name
+         rw <- name
+         end <- location
+         let fc = MkFC fname start end
+         pure (IPragma (\c, nest, env => setRewrite {c} fc eq rw))
 
 -- Declared at the top
 -- topDecl : FileName -> IndentInfo -> Rule ImpDecl
@@ -521,6 +614,7 @@ topDecl fname indents
          claim <- tyDecl fname indents
          end <- location
          pure (IClaim (MkFC fname start end) RigW vis opts claim)
+  <|> recordDecl fname indents
   <|> do symbol "%"; commit
          directive fname indents
   <|> clause fname indents

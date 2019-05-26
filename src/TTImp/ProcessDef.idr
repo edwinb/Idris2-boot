@@ -9,6 +9,7 @@ import Core.Normalise
 import Core.Value
 import Core.UnifyState
 
+import TTImp.BindImplicits
 import TTImp.Elab
 import TTImp.Elab.Check
 import TTImp.TTImp
@@ -135,15 +136,21 @@ combineLinear loc ((n, count) :: cs)
 -- Check a pattern clause, returning the component of the 'Case' expression it
 -- represents, or Nothing if it's an impossible clause
 export
-checkClause : {auto c : Ref Ctxt Defs} ->
+checkClause : {vars : _} ->
+              {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               (mult : RigCount) -> (hashit : Bool) ->
               Int -> List ElabOpt -> NestedNames vars -> Env Term vars ->
               ImpClause -> Core (Maybe (Clause, Clause))
 checkClause mult hashit n opts nest env (ImpossibleClause fc lhs)
     = throw (InternalError "impossible not implemented yet")
-checkClause mult hashit n opts nest env (PatClause fc lhs_in rhs)
-    = do lhs <- lhsInCurrentNS nest lhs_in 
+checkClause {vars} mult hashit n opts nest env (PatClause fc lhs_in rhs)
+    = do lhs_raw <- lhsInCurrentNS nest lhs_in 
+         autoimp <- isAutoImplicits
+         autoImplicits True
+         (_, lhs) <- bindNames False lhs_raw
+         autoImplicits autoimp
+
          log 5 $ "Checking " ++ show lhs
          logEnv 5 "In env" env
          (lhstm, _, lhstyg) <- elabTerm n (InLHS mult) opts nest env 
@@ -170,7 +177,10 @@ checkClause mult hashit n opts nest env (PatClause fc lhs_in rhs)
          (vars'  ** (sub', env', nest', lhstm', lhsty')) <- 
              extendEnv env SubRefl nest lhstm_lin lhsty_lin
          
-         (rhstm, rhserased) <- checkTermSub n InExpr opts nest' env' env sub' rhs (gnf env' lhsty')
+         let rhsMode = case mult of
+                            Rig0 => InType
+                            _ => InExpr
+         (rhstm, rhserased) <- checkTermSub n rhsMode opts nest' env' env sub' rhs (gnf env' lhsty')
 
          logTerm 5 "RHS term" rhstm
          pure (Just (MkClause env' lhstm' rhstm,
