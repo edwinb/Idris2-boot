@@ -14,7 +14,7 @@ ttimpTests
        "nest001", "nest002",
        "perf001", "perf002", "perf003",
        "qtt001", "qtt002", "qtt003",
-       "search001", "search002", "search003"]
+       "search001", "search002", "search003", "search004"]
 
 chdir : String -> IO Bool
 chdir dir 

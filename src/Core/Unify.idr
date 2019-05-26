@@ -397,7 +397,120 @@ mutual
                 else if post 
                         then postpone loc "Postponing unifyIfEq" env x y
                         else convertError loc env x y
-  
+
+  getArgTypes : Defs -> (fnType : NF vars) -> List (AppInfo, Closure vars) -> 
+                Core (Maybe (List (NF vars)))
+  getArgTypes defs (NBind _ n (Pi _ _ ty) sc) ((_, a) :: as)
+     = do Just scTys <- getArgTypes defs !(sc defs a) as
+               | Nothing => pure Nothing
+          pure (Just (ty :: scTys))
+  getArgTypes _ _ [] = pure (Just [])
+  getArgTypes _ _ _ = pure Nothing
+
+  headsConvert : {auto c : Ref Ctxt Defs} ->
+                 Env Term vars -> 
+                 Maybe (List (NF vars)) -> Maybe (List (NF vars)) ->
+                 Core Bool
+  headsConvert env (Just vs) (Just ns)
+      = case (reverse vs, reverse ns) of
+             (v :: _, n :: _) => 
+                do logNF 10 "Converting" env v
+                   logNF 10 "......with" env n
+                   defs <- get Ctxt
+                   convert defs env v n
+             _ => pure False
+  headsConvert env _ _ 
+      = do log 10 "Nothing to convert"
+           pure True
+
+  unifyInvertible : {auto c : Ref Ctxt Defs} ->
+                    {auto u : Ref UST UState} ->
+                    {vars : _} ->
+                    UnifyMode -> FC -> Env Term vars ->
+                    (metaname : Name) -> (metaref : Int) ->
+                    (margs : List (AppInfo, Closure vars)) ->
+                    (margs' : List (AppInfo, Closure vars)) ->
+                    Maybe ClosedTerm ->
+                    (List (AppInfo, Closure vars) -> NF vars) ->
+                    List (AppInfo, Closure vars) ->
+                    Core UnifyResult
+  unifyInvertible mode fc env mname mref margs margs' nty con args'
+      = do defs <- get Ctxt
+           -- Get the types of the arguments to ensure that the rightmost
+           -- argument types match up
+           Just vty <- lookupTyExact (Resolved mref) (gamma defs)
+                | Nothing => ufail fc ("No such metavariable " ++ show mname)
+           vargTys <- getArgTypes defs !(nf defs env (embed vty)) (margs ++ margs')
+           nargTys <- maybe (pure Nothing)
+                            (\ty => getArgTypes defs !(nf defs env (embed ty)) args')
+                            nty
+           -- If the rightmost arguments have the same type, or we don't
+           -- know the types of the arguments, we'll get on with it.
+           if !(headsConvert env vargTys nargTys)
+              then 
+                -- Unify the rightmost arguments, with the goal of turning the
+                -- hole application into a pattern form
+                case (reverse margs', reverse args') of
+                     ((_, h) :: hargs, (_, f) :: fargs) =>
+                        tryUnify
+                          (do unify mode fc env h f
+                              unify mode fc env 
+                                    (NApp fc (NMeta mname mref margs) (reverse hargs))
+                                    (con (reverse fargs)))
+                          (postpone fc "Postponing hole application [1]" env
+                                (NApp fc (NMeta mname mref margs) margs')
+                                (con args'))
+                     _ => postpone fc "Postponing hole application [2]" env
+                                (NApp fc (NMeta mname mref margs) margs')
+                                (con args')
+              else -- TODO: Cancellable function applications
+                   postpone fc "Postponing hole application [3]" env 
+                            (NApp fc (NMeta mname mref margs) margs') (con args')
+
+  -- Unify a hole application - we have already checked that the hole is
+  -- invertible (i.e. it's a determining argument to a proof search where
+  -- it is a constructor or something else invertible in each case)
+  unifyHoleApp : {auto c : Ref Ctxt Defs} ->
+                 {auto u : Ref UST UState} ->
+                 {vars : _} ->
+                 UnifyMode -> FC -> Env Term vars ->
+                 (metaname : Name) -> (metaref : Int) ->
+                 (margs : List (AppInfo, Closure vars)) ->
+                 (margs' : List (AppInfo, Closure vars)) ->
+                 NF vars ->
+                 Core UnifyResult
+  unifyHoleApp mode loc env mname mref margs margs' (NTCon nfc n t a args')
+      = do defs <- get Ctxt
+           mty <- lookupTyExact n (gamma defs)
+           unifyInvertible mode loc env mname mref margs margs' mty (NTCon nfc n t a) args'
+  unifyHoleApp mode loc env mname mref margs margs' (NDCon nfc n t a args')
+      = do defs <- get Ctxt
+           mty <- lookupTyExact n (gamma defs)
+           unifyInvertible mode loc env mname mref margs margs' mty (NTCon nfc n t a) args'
+  unifyHoleApp mode loc env mname mref margs margs' (NApp nfc (NLocal r idx p) args')
+      = unifyInvertible mode loc env mname mref margs margs' Nothing 
+                        (NApp nfc (NLocal r idx p)) args'
+  unifyHoleApp mode loc env mname mref margs margs' tm@(NApp nfc (NMeta n i margs2) args2')
+      = do defs <- get Ctxt
+           Just mdef <- lookupCtxtExact (Resolved i) (gamma defs)
+                | Nothing => throw (UndefinedName nfc mname)
+           let inv = case definition mdef of
+                          Hole i => i
+                          _ => isPatName n
+           if inv
+              then unifyInvertible mode loc env mname mref margs margs' Nothing
+                                   (NApp nfc (NMeta n i margs2)) args2'
+              else postpone loc "Postponing hole application" env 
+                             (NApp loc (NMeta mname mref margs) margs') tm
+    where
+      isPatName : Name -> Bool
+      isPatName (PV _ _) = True
+      isPatName _ = False
+           
+  unifyHoleApp mode loc env mname mref margs margs' tm
+      = postpone loc "Postponing hole application" env 
+                 (NApp loc (NMeta mname mref margs) margs') tm
+
   unifyPatVar : {auto c : Ref Ctxt Defs} ->
                 {auto u : Ref UST UState} ->
                 {vars : _} ->
@@ -469,7 +582,12 @@ mutual
                        pure $ "Unifying: " ++ show mname ++ " " ++ show qargs ++
                               " with " ++ show qtm)
            case !(patternEnv env args) of
-                Nothing => unifyPatVar mode loc env mname mref args tmnf
+                Nothing => 
+                  do Just (Hole inv) <- lookupDefExact (Resolved mref) (gamma defs)
+                        | _ => unifyPatVar mode loc env mname mref args tmnf
+                     if inv
+                        then unifyHoleApp mode loc env mname mref margs margs' tmnf
+                        else unifyPatVar mode loc env mname mref args tmnf
                 Just (newvars ** (locs, submv)) => 
                   do tm <- quote empty env tmnf
                      case shrinkTerm tm submv of

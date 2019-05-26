@@ -220,6 +220,31 @@ mutual
         = "(%datadecl " ++ show n ++ " " ++ show tycon ++ ")"
 
   public export
+  data IField : Type where
+       MkIField : FC -> RigCount -> PiInfo -> Name -> RawImp ->
+                  IField
+
+  public export
+  data ImpRecord : Type where
+       MkImpRecord : FC -> (n : Name) ->
+                     (params : List (Name, RawImp)) ->
+                     (conName : Maybe Name) ->
+                     (fields : List IField) ->
+                     ImpRecord
+
+  export
+  Show IField where
+    show (MkIField _ c Explicit n ty) = show n ++ " : " ++ show ty
+    show (MkIField _ c _ n ty) = "{" ++ show n ++ " : " ++ show ty ++ "}"
+
+  export
+  Show ImpRecord where
+    show (MkImpRecord _ n params con fields)
+        = "record " ++ show n ++ " " ++ show params ++ 
+          " " ++ show con ++ "\n\t" ++ 
+          showSep "\n\t" (map show fields) ++ "\n"
+
+  public export
   data ImpClause : Type where
        PatClause : FC -> (lhs : RawImp) -> (rhs : RawImp) -> ImpClause 
 --        WithClause : FC -> (lhs : RawImp) -> (wval : RawImp) ->
@@ -239,6 +264,9 @@ mutual
                 ImpTy -> ImpDecl
        IData : FC -> Visibility -> ImpData -> ImpDecl
        IDef : FC -> Name -> List ImpClause -> ImpDecl
+       IParameters : FC -> List (Name, RawImp) ->
+                     List ImpDecl -> ImpDecl 
+       IRecord : FC -> Visibility -> ImpRecord -> ImpDecl
        INamespace : FC -> List String -> List ImpDecl -> ImpDecl 
        IPragma : ({vars : _} -> Ref Ctxt Defs -> 
                   NestedNames vars -> Env Term vars -> Core ()) -> 
@@ -250,6 +278,10 @@ mutual
     show (IClaim _ _ _ _ ty) = show ty
     show (IData _ _ d) = show d
     show (IDef _ n cs) = "(%def " ++ show n ++ " " ++ show cs ++ ")"
+    show (IParameters _ ps ds) 
+        = "parameters " ++ show ps ++ "\n\t" ++
+          showSep "\n\t" (assert_total $ map show ds)
+    show (IRecord _ _ d) = show d
     show (INamespace _ ns decls) 
         = "namespace " ++ show ns ++ 
           showSep "\n" (assert_total $ map show decls)

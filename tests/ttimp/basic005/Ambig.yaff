@@ -15,7 +15,7 @@ namespace List
   length (Cons $x $xs) = S (length xs)
 
 namespace Vect
-  data Vect : Nat -> Type -> Type where
+  data Vect : ? -> Type -> Type where
        Nil : Vect Z $a
        Cons : $a -> Vect $k $a -> Vect (S $k) $a
 
