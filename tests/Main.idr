@@ -13,7 +13,7 @@ ttimpTests
        "lazy001",
        "nest001", "nest002",
        "perf001", "perf002", "perf003",
-       "record001",
+       "record001", "record002",
        "qtt001", "qtt002", "qtt003",
        "search001", "search002", "search003", "search004"]
 

@@ -20,6 +20,7 @@ import TTImp.Elab.ImplicitBind
 import TTImp.Elab.Lazy
 import TTImp.Elab.Local
 import TTImp.Elab.Prim
+import TTImp.Elab.Record
 import TTImp.TTImp
 
 %default covering
@@ -105,7 +106,7 @@ checkTerm rig elabinfo nest env (ICase fc scr scrty alts) exp
 checkTerm rig elabinfo nest env (ILocal fc nested scope) exp
     = checkLocal rig elabinfo nest env fc nested scope exp
 checkTerm rig elabinfo nest env (IUpdate fc upds rec) exp
-    = throw (InternalError "record update not implemented")
+    = checkUpdate rig elabinfo nest env fc upds rec exp
 checkTerm rig elabinfo nest env (IApp fc fn arg) exp 
     = checkApp rig elabinfo nest env fc fn [arg] [] exp
 checkTerm rig elabinfo nest env (IImplicitApp fc fn nm arg) exp

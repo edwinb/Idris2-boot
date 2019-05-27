@@ -54,6 +54,7 @@ modules =
     TTImp.Elab.Lazy,
     TTImp.Elab.Local,
     TTImp.Elab.Prim,
+    TTImp.Elab.Record,
     TTImp.Elab.Term,
     TTImp.Parser,
     TTImp.ProcessData,
