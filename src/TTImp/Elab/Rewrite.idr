@@ -1,0 +1,130 @@
+module TTImp.Elab.Rewrite
+
+import Core.Context
+import Core.Core
+import Core.Env
+import Core.GetType
+import Core.Normalise
+import Core.Unify
+import Core.TT
+import Core.Value
+
+import TTImp.Elab.Check
+import TTImp.Elab.Delayed
+import TTImp.TTImp
+
+%default covering
+
+-- TODO: Later, we'll get the name of the lemma from the type, if it's one
+-- that's generated for a dependent type. For now, always return the default
+findRewriteLemma : {auto c : Ref Ctxt Defs} -> 
+                   FC -> (rulety : Term vars) ->
+                   Core Name
+findRewriteLemma loc rulety
+   = do defs <- get Ctxt
+        case getRewrite defs of
+             Nothing => throw (GenericMsg loc "No rewrite lemma defined")
+             Just n => pure n
+
+getRewriteTerms : FC -> Defs -> NF vars -> Error ->
+                  Core (NF vars, NF vars, NF vars)
+getRewriteTerms loc defs (NTCon nfc eq t a args) err
+    = if isEqualTy eq defs
+         then case reverse (map snd args) of
+                   (rhs :: lhs :: rhsty :: lhsty :: _) =>
+                        pure (!(evalClosure defs lhs), 
+                              !(evalClosure defs rhs),
+                              !(evalClosure defs lhsty))
+                   _ => throw err
+         else throw err
+getRewriteTerms loc defs ty err
+    = throw err
+
+rewriteErr : Error -> Bool
+rewriteErr (NotRewriteRule _ _ _) = True
+rewriteErr (RewriteNoChange _ _ _ _) = True
+rewriteErr (InType _ _ err) = rewriteErr err
+rewriteErr (InCon _ _ err) = rewriteErr err
+rewriteErr (InLHS _ _ err) = rewriteErr err
+rewriteErr (InRHS _ _ err) = rewriteErr err
+rewriteErr (WhenUnifying _ _ _ _ err) = rewriteErr err
+rewriteErr _ = False
+
+-- Returns the rewriting lemma to use, and the predicate for passing to the
+-- rewriting lemma
+export
+elabRewrite : {vars : _} ->
+              {auto c : Ref Ctxt Defs} ->
+              {auto u : Ref UST UState} -> 
+              FC -> Env Term vars ->
+              (expected : Glued vars) -> 
+              (rulety : Term vars) ->
+              Core (Name, Term vars, Term vars)
+elabRewrite loc env expected rulety
+    = do defs <- get Ctxt
+         parg <- genVarName "rwarg"
+         tynf <- nf defs env rulety
+         (lt, rt, lty) <- getRewriteTerms loc defs tynf (NotRewriteRule loc env rulety)
+         lemn <- findRewriteLemma loc rulety
+
+         rwexp_sc <- replace defs env lt (Ref loc Bound parg) 
+                                        !(getNF expected)
+         empty <- clearDefs defs
+         let pred = Bind loc parg (Lam RigW Explicit 
+                          !(quote empty env lty))
+                          (refsToLocals (Add parg parg None) rwexp_sc)
+         gpredty <- getType env pred
+         predty <- getTerm gpredty
+         exptm <- getTerm expected
+
+         -- if the rewritten expected type converts with the original,
+         -- then the rewrite did nothing, which is an error
+         when !(convert defs env rwexp_sc exptm) $
+             throw (RewriteNoChange loc env rulety exptm)
+         pure (lemn, pred, predty)
+
+export
+checkRewrite : {vars : _} ->
+               {auto c : Ref Ctxt Defs} ->
+               {auto u : Ref UST UState} ->
+               {auto e : Ref EST (EState vars)} ->
+               RigCount -> ElabInfo -> 
+               NestedNames vars -> Env Term vars -> 
+               FC -> RawImp -> RawImp -> Maybe (Glued vars) ->
+               Core (Term vars, Glued vars)
+checkRewrite rigc elabinfo nest env fc rule tm Nothing
+    = throw (GenericMsg fc "Can't infer a type for rewrite")
+checkRewrite {vars} rigc elabinfo nest env fc rule tm (Just expected)
+    = delayOnFailure fc rigc env expected rewriteErr (\delayed =>
+        do (rulev, grulet) <- check Rig0 elabinfo nest env rule Nothing
+           rulet <- getTerm grulet
+           expTy <- getTerm expected
+           (lemma, pred, predty) <- elabRewrite fc env expected rulet
+
+           rname <- genVarName "_"
+           pname <- genVarName "_"
+
+           let pbind = Let Rig0 pred predty
+           let rbind = Let Rig0 (weaken rulev) (weaken rulet)
+
+           let env' = rbind :: pbind :: env
+
+           -- Nothing we do in this last part will affect the EState,
+           -- we're only doing the application this way to make sure the
+           -- implicits for the rewriting lemma are in the right place. But,
+           -- we still need the right type for the EState, so weaken it once
+           -- for each of the let bindings above.
+           (rwtm, grwty) <- inScope fc (pbind :: env)
+              (\e' => inScope {e=e'} fc env'
+                 (\e'' => check {e = e''} {vars = rname :: pname :: vars}
+                                rigc elabinfo (weaken (weaken nest)) env'
+                                (apply (IVar fc lemma) [IVar fc pname,
+                                                        IVar fc rname, 
+                                                        tm]) 
+                                (Just (gnf env'
+                                         (weakenNs [rname, pname] expTy)))
+                         ))
+           rwty <- getTerm grwty
+           pure (Bind fc pname pbind (Bind fc rname rbind rwtm), 
+                 gnf env (Bind fc pname pbind (Bind fc rname rbind rwty))))
+

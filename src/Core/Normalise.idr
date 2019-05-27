@@ -805,4 +805,54 @@ logEnv lvl msg env
                             show x) bs (binderType b)
              dumpEnv bs
 
+replace' : Int -> Defs -> Env Term vars ->
+           (lhs : NF vars) -> (parg : Term vars) -> (exp : NF vars) ->
+           Core (Term vars)
+replace' {vars} tmpi defs env lhs parg tm
+    = if !(convert defs env lhs tm)
+         then pure parg
+         else repSub tm
+  where
+    repArg : (AppInfo, Closure vars) -> Core (AppInfo, Term vars)
+    repArg (p, c)
+        = do tmnf <- evalClosure defs c
+             tm <- replace' tmpi defs env lhs parg tmnf
+             pure (p, tm)
+
+    repSub : NF vars -> Core (Term vars)
+    repSub (NBind fc x b scfn)
+        = do b' <- traverse repSub b 
+             let x' = MN "tmp" tmpi
+             sc' <- replace' (tmpi + 1) defs env lhs parg 
+                             !(scfn defs (toClosure defaultOpts env (Ref fc Bound x')))
+             pure (Bind fc x b' (refsToLocals (Add x x' None) sc'))
+    repSub (NApp fc hd []) 
+        = do empty <- clearDefs defs
+             quote empty env (NApp fc hd [])
+    repSub (NApp fc hd args) 
+        = do args' <- traverse repArg args
+             pure $ applyInfo fc 
+                        !(replace' tmpi defs env lhs parg (NApp fc hd []))
+                        args'
+    repSub (NDCon fc n t a args) 
+        = do args' <- traverse repArg args
+             empty <- clearDefs defs
+             pure $ applyInfo fc 
+                        !(quote empty env (NDCon fc n t a []))
+                        args'
+    repSub (NTCon fc n t a args) 
+        = do args' <- traverse repArg args
+             empty <- clearDefs defs
+             pure $ applyInfo fc 
+                        !(quote empty env (NTCon fc n t a []))
+                        args'
+    repSub tm = do empty <- clearDefs defs
+                   quote empty env tm
+
+export
+replace : Defs -> Env Term vars ->
+          (orig : NF vars) -> (new : Term vars) -> (tm : NF vars) ->
+          Core (Term vars)
+replace = replace' 0
+
 

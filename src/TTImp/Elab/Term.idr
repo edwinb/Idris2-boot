@@ -21,6 +21,7 @@ import TTImp.Elab.Lazy
 import TTImp.Elab.Local
 import TTImp.Elab.Prim
 import TTImp.Elab.Record
+import TTImp.Elab.Rewrite
 import TTImp.TTImp
 
 %default covering
@@ -127,7 +128,7 @@ checkTerm rig elabinfo nest env (ISearch fc depth) Nothing
 checkTerm rig elabinfo nest env (IAlternative fc uniq alts) exp
     = checkAlternative rig elabinfo nest env fc uniq alts exp
 checkTerm rig elabinfo nest env (IRewrite fc rule tm) exp
-    = throw (InternalError "rewrite not implemented")
+    = checkRewrite rig elabinfo nest env fc rule tm exp
 checkTerm rig elabinfo nest env (ICoerced fc tm) exp
     = checkTerm rig elabinfo nest env tm exp
 checkTerm rig elabinfo nest env (IBindHere fc binder sc) exp

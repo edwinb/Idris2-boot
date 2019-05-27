@@ -586,7 +586,7 @@ directive fname indents
          end <- location
          let fc = MkFC fname start end
          pure (IPragma (\c, nest, env => setPair {c} fc p f s))
-  <|> do exactIdent "rewrite"
+  <|> do keyword "rewrite"
          start <- location
          eq <- name
          rw <- name

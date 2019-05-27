@@ -9,8 +9,9 @@ import Core.TT
 import Core.Value
 
 import TTImp.Elab.Check
-import TTImp.Elab.ImplicitBind
 import TTImp.TTImp
+
+%default covering
 
 getRecordType : Env Term vars -> NF vars -> Maybe Name
 getRecordType env (NTCon _ n _ _ _) = Just n
