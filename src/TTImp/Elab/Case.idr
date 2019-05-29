@@ -16,60 +16,6 @@ import Data.NameMap
 
 %default covering
 
-mutual
-  dropS : List Nat -> List Nat
-  dropS [] = []
-  dropS (Z :: xs) = dropS xs
-  dropS (S p :: xs) = p :: dropS xs
-
-	-- Quicker, if less safe, to store variables as a Nat, for quick comparison
-  findUsed : Env Term vars -> List Nat -> Term vars -> List Nat
-  findUsed env used (Local _ r idx p) 
-    = if elem idx used 
-         then used
-         else assert_total (findUsedInBinder env (idx :: used)
-                           (getBinder p env))
-  findUsed env used (Meta _ _ _ args)
-      = findUsedArgs env used args
-    where
-      findUsedArgs : Env Term vars -> List Nat -> List (Term vars) -> List Nat
-      findUsedArgs env u [] = u
-      findUsedArgs env u (a :: as)
-          = findUsedArgs env (findUsed env u a) as
-  findUsed env used (Bind _ x b tm) 
-    = assert_total $
-        dropS (findUsed (b :: env)
-                        (map S (findUsedInBinder env used b))
-                        tm)
-  findUsed env used (App _ fn _ arg) 
-    = findUsed env (findUsed env used fn) arg
-  findUsed env used (As _ as pat) 
-    = findUsed env (findUsed env used as) pat
-  findUsed env used (TDelayed _ _ tm) = findUsed env used tm 
-  findUsed env used (TDelay _ _ _ tm) = findUsed env used tm 
-  findUsed env used (TForce _ tm) = findUsed env used tm 
-  findUsed env used _ = used
-  
-  findUsedInBinder : Env Term vars -> List Nat ->
-										 Binder (Term vars) -> List Nat
-  findUsedInBinder env used (Let _ val ty) 
-    = findUsed env (findUsed env used val) ty
-  findUsedInBinder env used (PLet _ val ty)
-    = findUsed env (findUsed env used val) ty
-  findUsedInBinder env used b = findUsed env used (binderType b)
-
-
-toVar : (vars : List Name) -> Nat -> Maybe (Var vars)
-toVar (v :: vs) Z = Just (MkVar First)
-toVar (v :: vs) (S k)
-   = do MkVar prf <- toVar vs k 
-        Just (MkVar (Later prf))
-toVar _ _ = Nothing
-
-findUsedLocs : Env Term vars -> Term vars -> List (Var vars)
-findUsedLocs env tm 
-    = mapMaybe (toVar _) (findUsed env [] tm)
-
 export
 changeVar : (old : Var vs) -> (new : Var vs) -> Term vs -> Term vs
 changeVar (MkVar {i=x} old) (MkVar new) (Local fc r idx p)
@@ -212,11 +158,6 @@ extendNeeded (PLet c ty val) env needed
     = merge (findUsedLocs env ty) (merge (findUsedLocs env val) needed)
 extendNeeded b env needed
     = merge (findUsedLocs env (binderType b)) needed
-
-dropFirst : List (Var (v :: vs)) -> List (Var vs)
-dropFirst [] = []
-dropFirst (MkVar First :: vs) = dropFirst vs
-dropFirst (MkVar (Later p) :: vs) = MkVar p :: dropFirst vs
 
 isNeeded : Nat -> List (Var vs) -> Bool
 isNeeded x [] = False
@@ -448,10 +389,10 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
               args' = mkSplit splitOn lhs args in
               PatClause loc' (apply (IVar loc' casen) args') rhs
     -- With isn't allowed in a case block but include for completeness
-    -- updateClause casen splitOn env sub (WithClause loc' lhs wval cs)
-    --     = let args = fst (addEnv env sub (usedIn lhs))
-    --           args' = mkSplit splitOn lhs args in
-    --           WithClause loc' (apply (IVar loc' casen) args') wval cs
+    updateClause casen splitOn env sub (WithClause loc' lhs wval cs)
+        = let args = fst (addEnv env sub (usedIn lhs))
+              args' = mkSplit splitOn lhs args in
+              WithClause loc' (apply (IVar loc' casen) args') wval cs
     updateClause casen splitOn env sub (ImpossibleClause loc' lhs)
         = let args = fst (addEnv env sub (usedIn lhs))
               args' = mkSplit splitOn lhs args in

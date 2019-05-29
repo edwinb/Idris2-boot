@@ -113,11 +113,11 @@ mutual
                         ++ bound in
             PatClause fc (substNames [] [] lhs) 
                          (substNames bound' ps rhs)
---   substNamesClause bound ps (WithClause fc lhs wval cs)
---       = let bound' = map UN (map snd (findBindableNames True bound [] lhs))
---                         ++ bound in
---             WithClause fc (substNames [] [] lhs) 
---                           (substNames bound' ps wval) cs
+  substNamesClause bound ps (WithClause fc lhs wval cs)
+      = let bound' = map UN (map snd (findBindableNames True bound [] lhs))
+                        ++ bound in
+            WithClause fc (substNames [] [] lhs) 
+                          (substNames bound' ps wval) cs
   substNamesClause bound ps (ImpossibleClause fc lhs)
       = ImpossibleClause fc (substNames bound [] lhs)
 
@@ -191,10 +191,10 @@ mutual
   substLocClause fc' (PatClause fc lhs rhs)
       = PatClause fc' (substLoc fc' lhs) 
                       (substLoc fc' rhs)
---   substLocClause fc' (WithClause fc lhs wval cs)
---       = WithClause fc' (substLoc fc' lhs)
---                        (substLoc fc' wval)
---                        (map (substLocClause fc') cs)
+  substLocClause fc' (WithClause fc lhs wval cs)
+      = WithClause fc' (substLoc fc' lhs)
+                       (substLoc fc' wval)
+                       (map (substLocClause fc') cs)
   substLocClause fc' (ImpossibleClause fc lhs)
       = ImpossibleClause fc' (substLoc fc' lhs)
 

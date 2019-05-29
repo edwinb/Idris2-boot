@@ -846,6 +846,20 @@ replace' {vars} tmpi defs env lhs parg tm
              pure $ applyInfo fc 
                         !(quote empty env (NTCon fc n t a []))
                         args'
+    repSub (NAs fc a p)
+        = do a' <- repSub a
+             p' <- repSub p
+             pure (As fc a' p')
+    repSub (NDelayed fc r tm)
+        = do tm' <- repSub tm
+             pure (TDelayed fc r tm')
+    repSub (NDelay fc r ty tm)
+        = do ty' <- replace' tmpi defs env lhs parg !(evalClosure defs ty)
+             tm' <- replace' tmpi defs env lhs parg !(evalClosure defs tm)
+             pure (TDelay fc r ty' tm')
+    repSub (NForce fc tm)
+        = do tm' <- repSub tm
+             pure (TForce fc tm')
     repSub tm = do empty <- clearDefs defs
                    quote empty env tm
 

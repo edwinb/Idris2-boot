@@ -115,3 +115,98 @@ letToLam [] = []
 letToLam (Let c val ty :: env) = Lam c Explicit ty :: letToLam env
 letToLam (b :: env) = b :: letToLam env
 
+mutual
+  dropS : List Nat -> List Nat
+  dropS [] = []
+  dropS (Z :: xs) = dropS xs
+  dropS (S p :: xs) = p :: dropS xs
+
+	-- Quicker, if less safe, to store variables as a Nat, for quick comparison
+  findUsed : Env Term vars -> List Nat -> Term vars -> List Nat
+  findUsed env used (Local fc r idx p) 
+      = if elem idx used 
+           then used
+           else assert_total (findUsedInBinder env (idx :: used)
+                                               (getBinder p env))
+  findUsed env used (Meta _ _ _ args)
+      = findUsedArgs env used args
+    where
+      findUsedArgs : Env Term vars -> List Nat -> List (Term vars) -> List Nat
+      findUsedArgs env u [] = u
+      findUsedArgs env u (a :: as)
+          = findUsedArgs env (findUsed env u a) as
+  findUsed env used (Bind fc x b tm) 
+      = assert_total $
+          dropS (findUsed (b :: env)
+                          (map S (findUsedInBinder env used b))
+                          tm)
+  findUsed env used (App fc fn p arg) 
+      = findUsed env (findUsed env used fn) arg
+  findUsed env used (As fc a p) 
+      = findUsed env (findUsed env used a) p
+  findUsed env used (TDelayed fc r tm)
+      = findUsed env used tm
+  findUsed env used (TDelay fc r ty tm)
+      = findUsed env (findUsed env used ty) tm
+  findUsed env used (TForce fc tm)
+      = findUsed env used tm
+  findUsed env used _ = used
+  
+  findUsedInBinder : Env Term vars -> List Nat ->
+										 Binder (Term vars) -> List Nat
+  findUsedInBinder env used (Let _ val ty) 
+    = findUsed env (findUsed env used val) ty
+  findUsedInBinder env used (PLet _ val ty)
+    = findUsed env (findUsed env used val) ty
+  findUsedInBinder env used b = findUsed env used (binderType b)
+
+toVar : (vars : List Name) -> Nat -> Maybe (Var vars)
+toVar (v :: vs) Z = Just (MkVar First)
+toVar (v :: vs) (S k)
+   = do MkVar prf <- toVar vs k 
+        Just (MkVar (Later prf))
+toVar _ _ = Nothing
+
+export
+findUsedLocs : Env Term vars -> Term vars -> List (Var vars)
+findUsedLocs env tm 
+    = mapMaybe (toVar _) (findUsed env [] tm)
+
+isUsed : Nat -> List (Var vars) -> Bool
+isUsed n [] = False
+isUsed n (v :: vs) = n == varIdx v || isUsed n vs
+
+mkShrinkSub : (vars : _) -> List (Var (n :: vars)) -> 
+              (newvars ** SubVars newvars (n :: vars))
+mkShrinkSub [] els 
+    = if isUsed 0 els
+         then (_ ** KeepCons SubRefl)
+         else (_ ** DropCons SubRefl)
+mkShrinkSub (x :: xs) els 
+    = let (_ ** subRest) = mkShrinkSub xs (dropFirst els) in
+					if isUsed 0 els
+				     then (_ ** KeepCons subRest)
+				     else (_ ** DropCons subRest)
+
+mkShrink : List (Var vars) -> 
+           (newvars ** SubVars newvars vars)
+mkShrink {vars = []} xs = (_ ** SubRefl)
+mkShrink {vars = v :: vs} xs = mkShrinkSub _ xs
+
+-- Find the smallest subset of the environment which is needed to type check
+-- the given term
+export
+findSubEnv : Env Term vars -> Term vars -> 
+						 (vars' : List Name ** SubVars vars' vars)
+findSubEnv env tm = mkShrink (findUsedLocs env tm)
+
+export
+shrinkEnv : Env Term vars -> SubVars newvars vars -> Maybe (Env Term newvars)
+shrinkEnv env SubRefl = Just env
+shrinkEnv (b :: env) (DropCons p) = shrinkEnv env p
+shrinkEnv (b :: env) (KeepCons p) 
+    = do env' <- shrinkEnv env p
+         b' <- shrinkBinder b p
+         pure (b' :: env')
+
+

@@ -130,6 +130,15 @@ genCaseName root
          put UST (record { nextName $= (+1) } ust)
          inCurrentNS (CaseBlock root (nextName ust))
 
+export
+genWithName : {auto c : Ref Ctxt Defs} ->
+              {auto u : Ref UST UState} ->
+			     		Int -> Core Name
+genWithName root
+    = do ust <- get UST
+         put UST (record { nextName $= (+1) } ust)
+         inCurrentNS (WithBlock root (nextName ust))
+
 addHoleName : {auto u : Ref UST UState} ->
               FC -> Name -> Int -> Core ()
 addHoleName fc n i

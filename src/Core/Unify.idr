@@ -203,11 +203,6 @@ toSubVars (n :: ns) xs
     anyFirst (MkVar First :: xs) = True
     anyFirst (MkVar (Later p) :: xs) = anyFirst xs
 
-    dropFirst : List (Var (n :: ns)) -> List (Var ns) 
-    dropFirst [] = []
-    dropFirst (MkVar First :: xs) = dropFirst xs
-    dropFirst (MkVar (Later p) :: xs) = MkVar p :: dropFirst xs
-
 {- Applying the pattern unification rule is okay if:
    * Arguments are all distinct local variables
    * The metavariable name doesn't appear in the unifying term

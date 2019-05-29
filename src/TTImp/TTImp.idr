@@ -247,14 +247,16 @@ mutual
   public export
   data ImpClause : Type where
        PatClause : FC -> (lhs : RawImp) -> (rhs : RawImp) -> ImpClause 
---        WithClause : FC -> (lhs : RawImp) -> (wval : RawImp) ->
---                     List ImpClause -> ImpClause
+       WithClause : FC -> (lhs : RawImp) -> (wval : RawImp) ->
+                    List ImpClause -> ImpClause
        ImpossibleClause : FC -> (lhs : RawImp) -> ImpClause
   
   export
   Show ImpClause where
     show (PatClause fc lhs rhs)
        = show lhs ++ " = " ++ show rhs
+    show (WithClause fc lhs wval block)
+       = show lhs ++ " with " ++ show wval ++ "\n\t" ++ show block
     show (ImpossibleClause fc lhs)
        = show lhs ++ " impossible"
 

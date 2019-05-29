@@ -314,6 +314,12 @@ varIdx : Var xs -> Nat
 varIdx (MkVar {i} _) = i
 
 export
+dropFirst : List (Var (v :: vs)) -> List (Var vs)
+dropFirst [] = []
+dropFirst (MkVar First :: vs) = dropFirst vs
+dropFirst (MkVar (Later p) :: vs) = MkVar p :: dropFirst vs
+
+export
 Show (Var ns) where
   show (MkVar {i} _) = show i
 
@@ -771,6 +777,7 @@ subExtend [] sub = sub
 subExtend (x :: xs) sub = KeepCons (subExtend xs sub)
 
 mutual
+  export
   shrinkBinder : Binder (Term vars) -> SubVars newvars vars -> 
                  Maybe (Binder (Term newvars))
   shrinkBinder (Lam c p ty) prf 
@@ -876,6 +883,11 @@ mkLocals bs (TType fc) = TType fc
 export
 refsToLocals : Bounds bound -> Term vars -> Term (bound ++ vars)
 refsToLocals bs y = mkLocals {later = []} bs y
+
+-- Replace any reference to 'x' with a locally bound name 'new'
+export
+refToLocal : (x : Name) -> (new : Name) -> Term vars -> Term (new :: vars)
+refToLocal x new tm = refsToLocals (Add new x None) tm
 
 export
 isVar : (n : Name) -> (ns : List Name) -> Maybe (Var ns)

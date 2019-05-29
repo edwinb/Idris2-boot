@@ -458,35 +458,67 @@ tyDecl fname indents
          atEnd indents
          pure (MkImpTy (MkFC fname start end) n ty)
 
-parseRHS : FileName -> IndentInfo -> (Int, Int) -> RawImp -> Rule ImpDecl
-parseRHS fname indents start lhs
-    = do symbol "="
-         commit
-         rhs <- expr fname indents
-         atEnd indents
-         fn <- getFn lhs
-         end <- location
-         let fc = MkFC fname start end
-         pure (IDef fc fn [PatClause fc lhs rhs])
-  <|> do keyword "impossible"
-         atEnd indents
-         fn <- getFn lhs
-         end <- location
-         let fc = MkFC fname start end
-         pure (IDef fc fn [ImpossibleClause fc lhs])
-  where
-    getFn : RawImp -> EmptyRule Name
-    getFn (IVar _ n) = pure n
-    getFn (IApp _ f a) = getFn f
-    getFn (IImplicitApp _ f _ a) = getFn f
-    getFn _ = fail "Not a function application" 
+mutual
+  parseRHS : (withArgs : Nat) ->
+             FileName -> IndentInfo -> (Int, Int) -> RawImp ->
+             Rule (Name, ImpClause)
+  parseRHS withArgs fname indents start lhs
+      = do symbol "="
+           commit
+           rhs <- expr fname indents
+           atEnd indents
+           end <- location
+           let fc = MkFC fname start end
+           pure (!(getFn lhs), PatClause fc lhs rhs)
+    <|> do keyword "with"
+           wstart <- location
+           symbol "("
+           wval <- expr fname indents
+           symbol ")"
+           ws <- nonEmptyBlock (clause (S withArgs) fname)
+           end <- location
+           let fc = MkFC fname start end
+           pure (!(getFn lhs), WithClause fc lhs wval (map snd ws))
 
+    <|> do keyword "impossible"
+           atEnd indents
+           end <- location
+           let fc = MkFC fname start end
+           pure (!(getFn lhs), ImpossibleClause fc lhs)
+    where
+      getFn : RawImp -> EmptyRule Name
+      getFn (IVar _ n) = pure n
+      getFn (IApp _ f a) = getFn f
+      getFn (IImplicitApp _ f _ a) = getFn f
+      getFn _ = fail "Not a function application" 
 
-clause : FileName -> IndentInfo -> Rule ImpDecl
-clause fname indents
+  clause : Nat -> FileName -> IndentInfo -> Rule (Name, ImpClause)
+  clause withArgs fname indents
+      = do start <- location
+           lhs <- expr fname indents
+           extra <- many parseWithArg
+           if (withArgs /= length extra)
+              then fatalError "Wrong number of 'with' arguments"
+              else parseRHS withArgs fname indents start (applyArgs lhs extra)
+    where
+      applyArgs : RawImp -> List (FC, RawImp) -> RawImp
+      applyArgs f [] = f
+      applyArgs f ((fc, a) :: args) = applyArgs (IApp fc f a) args
+
+      parseWithArg : Rule (FC, RawImp)
+      parseWithArg 
+          = do symbol "|"
+               start <- location
+               tm <- expr fname indents
+               end <- location
+               pure (MkFC fname start end, tm)
+  
+definition : FileName -> IndentInfo -> Rule ImpDecl
+definition fname indents
     = do start <- location
-         lhs <- expr fname indents
-         parseRHS fname indents start lhs
+         nd <- clause 0 fname indents
+         end <- location
+         pure (IDef (MkFC fname start end) (fst nd) [snd nd])
 
 dataOpt : Rule DataOpt
 dataOpt
@@ -617,7 +649,7 @@ topDecl fname indents
   <|> recordDecl fname indents
   <|> do symbol "%"; commit
          directive fname indents
-  <|> clause fname indents
+  <|> definition fname indents
 
 -- Declared at the top
 -- collectDefs : List ImpDecl -> List ImpDecl

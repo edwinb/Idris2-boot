@@ -61,7 +61,9 @@ checkCon {vars} opts nest env vis tn (MkImpTy fc cn_in ty_raw)
          -- Check 'cn' is undefined
          Nothing <- lookupCtxtExact cn (gamma defs)
              | Just gdef => throw (AlreadyDefined fc cn)
-         (ty, _) <- elabTerm !(resolveName cn) InType opts nest env 
+         (ty, _) <- 
+             wrapError (InCon fc cn) $
+                    elabTerm !(resolveName cn) InType opts nest env 
                               (IBindHere fc (PI Rig0) ty_raw)
                               (Just (gType fc))
 
@@ -92,7 +94,9 @@ processData {vars} eopts nest env fc vis (MkImpLater dfc n_in ty_raw)
          Nothing <- lookupCtxtExact n (gamma defs)
              | Just gdef => throw (AlreadyDefined fc n)
          
-         (ty, _, _) <- elabTerm !(resolveName n) InType eopts nest env 
+         (ty, _, _) <- 
+             wrapError (InCon fc n) $
+                    elabTerm !(resolveName n) InType eopts nest env 
                               (IBindHere fc (PI Rig0) ty_raw)
                               (Just (gType dfc))
          let fullty = abstractEnvType dfc env ty
@@ -112,7 +116,9 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
 
          log 1 $ "Processing " ++ show n
          defs <- get Ctxt
-         (ty, _, _) <- elabTerm !(resolveName n) InType eopts nest env 
+         (ty, _, _) <-
+             wrapError (InCon fc n) $
+                    elabTerm !(resolveName n) InType eopts nest env 
                               (IBindHere fc (PI Rig0) ty_raw)
                               (Just (gType dfc))
          let fullty = abstractEnvType dfc env ty
