@@ -31,6 +31,8 @@ modules =
     Data.NameMap,
     Data.StringMap,
 
+    Idris.Syntax,
+
     Parser.Lexer,
     Parser.Support,
 

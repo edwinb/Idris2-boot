@@ -1075,6 +1075,16 @@ setPrefix dir
          put Ctxt (record { options->dirs->dir_prefix = dir } defs)
 
 export
+setExtension : {auto c : Ref Ctxt Defs} -> LangExt -> Core ()
+setExtension e
+    = do defs <- get Ctxt
+         put Ctxt (record { options $= setExtension e } defs)
+
+export
+isExtension : LangExt -> Defs -> Bool
+isExtension e defs = isExtension e (options defs)
+
+export
 checkUnambig : {auto c : Ref Ctxt Defs} ->
                FC -> Name -> Core Name
 checkUnambig fc n

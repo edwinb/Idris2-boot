@@ -1,8 +1,10 @@
 module TTImp.TTImp
 
+import Core.Binary
 import Core.Context
 import Core.Env
 import Core.TT
+import Core.TTC
 
 %default covering
 
@@ -372,4 +374,339 @@ getFn : RawImp -> RawImp
 getFn (IApp _ f arg) = getFn f
 getFn (IImplicitApp _ f _ _) = getFn f
 getFn f = f
+
+-- Everything below is TTC instances
+
+mutual
+  export
+  TTC RawImp where
+    toBuf b (IVar fc n) = do tag 0; toBuf b fc; toBuf b n
+    toBuf b (IPi fc r p n argTy retTy) 
+        = do tag 1; toBuf b fc; toBuf b r; toBuf b p; toBuf b n
+             toBuf b argTy; toBuf b retTy
+    toBuf b (ILam fc r p n argTy scope) 
+        = do tag 2; toBuf b fc; toBuf b r; toBuf b p; toBuf b n;
+             toBuf b argTy; toBuf b scope
+    toBuf b (ILet fc r n nTy nVal scope) 
+        = do tag 3; toBuf b fc; toBuf b r; toBuf b n; 
+             toBuf b nTy; toBuf b nVal; toBuf b scope
+    toBuf b (ICase fc y ty xs) 
+        = do tag 4; toBuf b fc; toBuf b y; toBuf b ty; toBuf b xs
+    toBuf b (ILocal fc xs sc) 
+        = do tag 5; toBuf b fc; toBuf b xs; toBuf b sc
+    toBuf b (IUpdate fc fs rec) 
+        = do tag 6; toBuf b fc; toBuf b fs; toBuf b rec
+    toBuf b (IApp fc fn arg) 
+        = do tag 7; toBuf b fc; toBuf b fn; toBuf b arg
+    toBuf b (IImplicitApp fc fn y arg) 
+        = do tag 8; toBuf b fc; toBuf b fn; toBuf b y; toBuf b arg
+    toBuf b (ISearch fc depth) 
+        = do tag 9; toBuf b fc; toBuf b depth
+    toBuf b (IAlternative fc y xs) 
+        = do tag 10; toBuf b fc; toBuf b y; toBuf b xs
+    toBuf b (IRewrite fc x y) 
+        = do tag 11; toBuf b fc; toBuf b x; toBuf b y
+    toBuf b (ICoerced fc y) 
+        = do tag 12; toBuf b fc; toBuf b y
+
+    toBuf b (IBindHere fc m y)
+        = do tag 13; toBuf b fc; toBuf b m; toBuf b y
+    toBuf b (IBindVar fc y)
+        = do tag 14; toBuf b fc; toBuf b y
+    toBuf b (IAs fc s y pattern)
+        = do tag 15; toBuf b fc; toBuf b s; toBuf b y; toBuf b pattern
+    toBuf b (IMustUnify fc r pattern)
+        -- No need to record 'r', it's for type errors only
+        = do tag 16; toBuf b fc; toBuf b pattern
+
+    toBuf b (IDelayed fc r y)
+        = do tag 17; toBuf b fc; toBuf b r; toBuf b y
+    toBuf b (IDelay fc t)
+        = do tag 18; toBuf b fc; toBuf b t
+    toBuf b (IForce fc t)
+        = do tag 19; toBuf b fc; toBuf b t
+
+    toBuf b (IPrimVal fc y)
+        = do tag 20; toBuf b fc; toBuf b y
+    toBuf b (IType fc)
+        = do tag 21; toBuf b fc
+    toBuf b (IHole fc y)
+        = do tag 22; toBuf b fc; toBuf b y
+
+    toBuf b (Implicit fc i)
+        = do tag 23; toBuf b fc; toBuf b i
+
+    fromBuf s b
+        = case !getTag of
+               0 => do fc <- fromBuf s b; n <- fromBuf s b;
+                       pure (IVar fc n)
+               1 => do fc <- fromBuf s b;
+                       r <- fromBuf s b; p <- fromBuf s b; 
+                       n <- fromBuf s b
+                       argTy <- fromBuf s b; retTy <- fromBuf s b
+                       pure (IPi fc r p n argTy retTy)
+               2 => do fc <- fromBuf s b;
+                       r <- fromBuf s b; p <- fromBuf s b; n <- fromBuf s b
+                       argTy <- fromBuf s b; scope <- fromBuf s b
+                       pure (ILam fc r p n argTy scope)
+               3 => do fc <- fromBuf s b;
+                       r <- fromBuf s b; n <- fromBuf s b
+                       nTy <- fromBuf s b; nVal <- fromBuf s b
+                       scope <- fromBuf s b
+                       pure (ILet fc r n nTy nVal scope)
+               4 => do fc <- fromBuf s b; y <- fromBuf s b;
+                       ty <- fromBuf s b; xs <- fromBuf s b
+                       pure (ICase fc y ty xs)
+               5 => do fc <- fromBuf s b;
+                       xs <- fromBuf s b; sc <- fromBuf s b
+                       pure (ILocal fc xs sc)
+               6 => do fc <- fromBuf s b; fs <- fromBuf s b
+                       rec <- fromBuf s b
+                       pure (IUpdate fc fs rec)
+               7 => do fc <- fromBuf s b; fn <- fromBuf s b
+                       arg <- fromBuf s b
+                       pure (IApp fc fn arg)
+               8 => do fc <- fromBuf s b; fn <- fromBuf s b
+                       y <- fromBuf s b; arg <- fromBuf s b
+                       pure (IImplicitApp fc fn y arg)
+               9 => do fc <- fromBuf s b; depth <- fromBuf s b
+                       pure (ISearch fc depth)
+               10 => do fc <- fromBuf s b; y <- fromBuf s b
+                        xs <- fromBuf s b
+                        pure (IAlternative fc y xs)
+               11 => do fc <- fromBuf s b; x <- fromBuf s b; y <- fromBuf s b
+                        pure (IRewrite fc x y)
+               12 => do fc <- fromBuf s b; y <- fromBuf s b
+                        pure (ICoerced fc y)
+               13 => do fc <- fromBuf s b; m <- fromBuf s b; y <- fromBuf s b
+                        pure (IBindHere fc m y)
+               14 => do fc <- fromBuf s b; y <- fromBuf s b
+                        pure (IBindVar fc y)
+               15 => do fc <- fromBuf s b; side <- fromBuf s b
+                        y <- fromBuf s b
+                        pattern <- fromBuf s b
+                        pure (IAs fc side y pattern)
+               16 => do fc <- fromBuf s b
+                        pattern <- fromBuf s b
+                        pure (IMustUnify fc "" pattern)
+
+               17 => do fc <- fromBuf s b; r <- fromBuf s b
+                        y <- fromBuf s b
+                        pure (IDelayed fc r y)
+               18 => do fc <- fromBuf s b; y <- fromBuf s b
+                        pure (IDelay fc y)
+               19 => do fc <- fromBuf s b; y <- fromBuf s b
+                        pure (IForce fc y)
+
+               20 => do fc <- fromBuf s b; y <- fromBuf s b
+                        pure (IPrimVal fc y)
+               21 => do fc <- fromBuf s b
+                        pure (IType fc)
+               22 => do fc <- fromBuf s b; y <- fromBuf s b
+                        pure (IHole fc y)
+               23 => do fc <- fromBuf s b
+                        i <- fromBuf s b
+                        pure (Implicit fc i)
+               _ => corrupt "RawImp"
+  
+  export
+  TTC IFieldUpdate where
+    toBuf b (ISetField p val)
+        = do tag 0; toBuf b p; toBuf b val
+    toBuf b (ISetFieldApp p val)
+        = do tag 1; toBuf b p; toBuf b val
+
+    fromBuf s b
+        = case !getTag of
+               0 => do p <- fromBuf s b; val <- fromBuf s b
+                       pure (ISetField p val)
+               1 => do p <- fromBuf s b; val <- fromBuf s b
+                       pure (ISetFieldApp p val)
+               _ => corrupt "IFieldUpdate"
+
+  export
+  TTC BindMode where
+    toBuf b (PI r) = do tag 0; toBuf b r
+    toBuf b PATTERN = tag 1
+    toBuf b NONE = tag 2
+
+    fromBuf s b
+        = case !getTag of
+               0 => do x <- fromBuf s b
+                       pure (PI x)
+               1 => pure PATTERN
+               2 => pure NONE
+               _ => corrupt "BindMode"
+
+  export
+  TTC UseSide where
+    toBuf b UseLeft = tag 0
+    toBuf b UseRight = tag 1
+
+    fromBuf s b
+        = case !getTag of
+               0 => pure UseLeft
+               1 => pure UseRight
+               _ => corrupt "UseSide"
+
+  export
+  TTC AltType where
+    toBuf b FirstSuccess = tag 0
+    toBuf b Unique = tag 1
+    toBuf b (UniqueDefault x) = do tag 2; toBuf b x
+
+    fromBuf s b
+        = case !getTag of
+               0 => pure FirstSuccess
+               1 => pure Unique
+               2 => do x <- fromBuf s b
+                       pure (UniqueDefault x)
+               _ => corrupt "AltType"
+  
+  export
+  TTC ImpTy where
+    toBuf b (MkImpTy fc n ty) 
+        = do toBuf b fc; toBuf b n; toBuf b ty
+    fromBuf s b
+        = do fc <- fromBuf s b; n <- fromBuf s b; ty <- fromBuf s b
+             pure (MkImpTy fc n ty)
+
+  export
+  TTC ImpClause where
+    toBuf b (PatClause fc lhs rhs) 
+        = do tag 0; toBuf b fc; toBuf b lhs; toBuf b rhs
+    toBuf b (ImpossibleClause fc lhs) 
+        = do tag 1; toBuf b fc; toBuf b lhs
+    toBuf b (WithClause fc lhs wval cs) 
+        = do tag 2; toBuf b fc; toBuf b lhs; toBuf b wval; toBuf b cs
+
+    fromBuf s b
+        = case !getTag of
+               0 => do fc <- fromBuf s b; lhs <- fromBuf s b; 
+                       rhs <- fromBuf s b
+                       pure (PatClause fc lhs rhs)
+               1 => do fc <- fromBuf s b; lhs <- fromBuf s b; 
+                       pure (ImpossibleClause fc lhs)
+               2 => do fc <- fromBuf s b; lhs <- fromBuf s b; 
+                       wval <- fromBuf s b; cs <- fromBuf s b
+                       pure (WithClause fc lhs wval cs)
+               _ => corrupt "ImpClause"
+
+  export
+  TTC DataOpt where
+    toBuf b (SearchBy ns) 
+        = do tag 0; toBuf b ns
+    toBuf b NoHints = tag 1
+
+    fromBuf s b
+        = case !getTag of
+               0 => do ns <- fromBuf s b
+                       pure (SearchBy ns)
+               1 => pure NoHints
+               _ => corrupt "DataOpt"
+
+  export
+  TTC ImpData where
+    toBuf b (MkImpData fc n tycon opts cons) 
+        = do tag 0; toBuf b fc; toBuf b n; toBuf b tycon; toBuf b opts
+             toBuf b cons
+    toBuf b (MkImpLater fc n tycon) 
+        = do tag 1; toBuf b fc; toBuf b n; toBuf b tycon
+
+    fromBuf s b
+        = case !getTag of
+               0 => do fc <- fromBuf s b; n <- fromBuf s b;
+                       tycon <- fromBuf s b; opts <- fromBuf s b
+                       cons <- fromBuf s b
+                       pure (MkImpData fc n tycon opts cons)
+               1 => do fc <- fromBuf s b; n <- fromBuf s b;
+                       tycon <- fromBuf s b
+                       pure (MkImpLater fc n tycon)
+               _ => corrupt "ImpData"
+
+  export
+  TTC IField where
+    toBuf b (MkIField fc c p n ty)
+        = do toBuf b fc; toBuf b c; toBuf b p; toBuf b n; toBuf b ty
+
+    fromBuf s b
+        = do fc <- fromBuf s b; c <- fromBuf s b; p <- fromBuf s b
+             n <- fromBuf s b; ty <- fromBuf s b
+             pure (MkIField fc c p n ty)
+
+  export
+  TTC ImpRecord where
+    toBuf b (MkImpRecord fc n ps con fs)
+        = do toBuf b fc; toBuf b n; toBuf b ps; toBuf b con; toBuf b fs
+
+    fromBuf s b
+        = do fc <- fromBuf s b; n <- fromBuf s b; ps <- fromBuf s b
+             con <- fromBuf s b; fs <- fromBuf s b
+             pure (MkImpRecord fc n ps con fs)
+
+  export
+  TTC FnOpt where
+    toBuf b Inline = tag 0
+    toBuf b (Hint t) = do tag 1; toBuf b t
+    toBuf b (GlobalHint t) = do tag 2; toBuf b t
+    toBuf b ExternFn = tag 3
+    toBuf b Invertible = tag 4
+    toBuf b Total = tag 5
+    toBuf b Covering = tag 6
+    toBuf b PartialOK = tag 7
+
+    fromBuf s b
+        = case !getTag of
+               0 => pure Inline
+               1 => do t <- fromBuf s b; pure (Hint t)
+               2 => do t <- fromBuf s b; pure (GlobalHint t)
+               3 => pure ExternFn
+               4 => pure Invertible
+               5 => pure Total
+               6 => pure Covering
+               7 => pure PartialOK
+               _ => corrupt "FnOpt"
+
+  export
+  TTC ImpDecl where
+    toBuf b (IClaim fc c vis xs d) 
+        = do tag 0; toBuf b c; toBuf b fc; toBuf b vis; toBuf b xs; toBuf b d
+    toBuf b (IData fc vis d) 
+        = do tag 1; toBuf b fc; toBuf b vis; toBuf b d
+    toBuf b (IDef fc n xs) 
+        = do tag 2; toBuf b fc; toBuf b n; toBuf b xs
+    toBuf b (IParameters fc vis d) 
+        = do tag 3; toBuf b fc; toBuf b vis; toBuf b d
+    toBuf b (IRecord fc vis r) 
+        = do tag 4; toBuf b fc; toBuf b vis; toBuf b r
+    toBuf b (INamespace fc xs ds) 
+        = do tag 5; toBuf b fc; toBuf b xs; toBuf b ds
+    toBuf b (IPragma f) = throw (InternalError "Can't write Pragma")
+    toBuf b (ILog n) 
+        = do tag 6; toBuf b n
+
+    fromBuf s b
+        = case !getTag of
+               0 => do fc <- fromBuf s b; c <- fromBuf s b
+                       vis <- fromBuf s b;
+                       xs <- fromBuf s b; d <- fromBuf s b
+                       pure (IClaim fc c vis xs d)
+               1 => do fc <- fromBuf s b; vis <- fromBuf s b
+                       d <- fromBuf s b
+                       pure (IData fc vis d)
+               2 => do fc <- fromBuf s b; n <- fromBuf s b
+                       xs <- fromBuf s b
+                       pure (IDef fc n xs)
+               3 => do fc <- fromBuf s b; vis <- fromBuf s b
+                       d <- fromBuf s b
+                       pure (IParameters fc vis d)
+               4 => do fc <- fromBuf s b; vis <- fromBuf s b
+                       r <- fromBuf s b
+                       pure (IRecord fc vis r)
+               5 => do fc <- fromBuf s b; xs <- fromBuf s b
+                       ds <- fromBuf s b
+                       pure (INamespace fc xs ds)
+               6 => do n <- fromBuf s b
+                       pure (ILog n)
+               _ => corrupt "ImpDecl"
 

@@ -77,6 +77,13 @@ record PrimNames where
   fromStringName : Maybe Name
   fromCharName : Maybe Name
 
+public export
+data LangExt = Borrowing -- not yet implemented
+
+export
+Eq LangExt where
+  Borrowing == Borrowing = True
+
 export
 TTC PairNames where
   toBuf b l
@@ -144,6 +151,7 @@ record Options where
   rewritenames : Maybe RewriteNames
   primnames : PrimNames
   namedirectives : List (Name, List String)
+  extensions : List LangExt
 
 defaultDirs : Dirs
 defaultDirs = MkDirs "." "build" "/usr/local" ["."] []
@@ -162,7 +170,7 @@ defaults : Options
 defaults = MkOptions defaultDirs defaultPPrint defaultSession
                      defaultElab Nothing Nothing
                      (MkPrimNs Nothing Nothing Nothing)
-                     []
+                     [] []
 
 export
 setPair : (pairType : Name) -> (fstn : Name) -> (sndn : Name) ->
@@ -188,4 +196,12 @@ setFromChar n = record { primnames->fromCharName = Just n }
 export
 addNameDirective : (Name, List String) -> Options -> Options
 addNameDirective nd = record { namedirectives $= (nd ::) }
+
+export
+setExtension : LangExt -> Options -> Options
+setExtension e = record { extensions $= (e ::) }
+
+export
+isExtension : LangExt -> Options -> Bool
+isExtension e opts = e `elem` extensions opts
 
