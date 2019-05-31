@@ -3,6 +3,7 @@ module TTImp.ProcessData
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Hash
 import Core.Metadata
 import Core.Normalise
 import Core.UnifyState
@@ -73,8 +74,11 @@ checkCon {vars} opts nest env vis tn (MkImpTy fc cn_in ty_raw)
          checkFamily fc cn tn env !(nf defs env ty)
          let fullty = abstractEnvType fc env ty
          logTermNF 5 (show cn) [] fullty
-         -- TODO: Interface hash
 
+         case vis of
+              Public => do addHash cn
+                           addHash fullty
+              _ => pure ()
          pure (MkCon fc cn !(getArity defs [] fullty) fullty)
 
 conName : Constructor -> Name
@@ -108,10 +112,13 @@ processData {vars} eopts nest env fc vis (MkImpLater dfc n_in ty_raw)
          checkIsType fc n env !(nf defs env ty)
          arity <- getArity defs [] fullty
 
-         -- Add the type constructor as a placeholder while checking
-         -- data constructors
+         -- Add the type constructor as a placeholder
          tidx <- addDef n (newDef fc n Rig1 fullty vis
                           (TCon 0 arity [] [] [] []))
+         case vis of
+              Private => pure ()
+              _ => do addHash n
+                      addHash fullty
          pure ()
 processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
     = do n <- inCurrentNS n_in
@@ -148,6 +155,10 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
          -- data constructors
          tidx <- addDef n (newDef fc n Rig1 fullty vis
                           (TCon 0 arity [] [] [] []))
+         case vis of
+              Private => pure ()
+              _ => do addHash n
+                      addHash fullty
 
          -- Constructors are private if the data type as a whole is
          -- export

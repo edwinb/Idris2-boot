@@ -5,6 +5,7 @@ import Core.CaseTree
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Hash
 import Core.Metadata
 import Core.Normalise
 import Core.Value
@@ -177,6 +178,7 @@ checkLHS mult hashit n opts nest env fc lhs_in
 
          logTerm 5 "LHS term" lhstm_lin
          logTerm 5 "LHS type" lhsty_lin
+         setHoleLHS (bindEnv fc env lhstm_lin)
 
          extendEnv env SubRefl nest lhstm_lin lhsty_lin
 
@@ -233,8 +235,21 @@ checkClause {vars} mult hashit n opts nest env (PatClause fc lhs_in rhs)
                             Rig0 => InType
                             _ => InExpr
          (rhstm, rhserased) <- checkTermSub n rhsMode opts nest' env' env sub' rhs (gnf env' lhsty')
+         clearHoleLHS
 
          logTerm 5 "RHS term" rhstm
+         when hashit $ 
+           do addHash lhstm'
+              addHash rhstm
+
+         -- If the rhs is a hole, record the lhs in the metadata because we 
+         -- might want to split it interactively
+         case rhstm of
+              Meta _ _ _ _ => 
+                 addLHS (getFC lhs_in) (length env) env' lhstm'
+              _ => pure ()
+                          
+
          pure (Just (MkClause env' lhstm' rhstm,
                      MkClause env' lhstm' rhserased))
 checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs)
@@ -247,6 +262,8 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
 
          (wval, wval_erased, gwvalTy) <- wrapError (InRHS fc (Resolved n)) $
                 elabTermSub n wmode opts nest' env' env sub' wval_raw Nothing
+         clearHoleLHS
+         
          logTerm 5 "With value" wval
          logTerm 5 "Required type" reqty
          wvalTy <- getTerm gwvalTy

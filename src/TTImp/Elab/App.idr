@@ -19,6 +19,7 @@ import TTImp.TTImp
 -- names. Look in the Env first, then the global context.
 getNameType : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
+              {auto m : Ref MD Metadata} ->
               {auto e : Ref EST (EState vars)} ->
               RigCount -> Env Term vars ->
               FC -> Name ->
@@ -28,6 +29,7 @@ getNameType rigc env fc x
            Just (MkIsDefined rigb lv) => 
               do rigSafe rigb rigc
                  let bty = binderType (getBinder lv env)
+                 addNameType fc x env bty
                  pure (Local fc (Just rigb) _ lv, gnf env bty)
            Nothing => 
               do defs <- get Ctxt
@@ -39,6 +41,7 @@ getNameType rigc env fc x
                                DCon t a => DataCon t a
                                TCon t a _ _ _ _ => TyCon t a
                                _ => Func
+                 addNameType fc x env (embed (type def))
                  pure (Ref fc nt (Resolved i), gnf env (embed (type def)))
   where
     rigSafe : RigCount -> RigCount -> Core ()
@@ -50,6 +53,7 @@ getNameType rigc env fc x
 -- Get the type of a variable, looking it up in the nested names first.
 getVarType : {vars : _} ->
              {auto c : Ref Ctxt Defs} ->
+             {auto m : Ref MD Metadata} ->
              {auto e : Ref EST (EState vars)} ->
              RigCount -> NestedNames vars -> Env Term vars ->
              FC -> Name ->

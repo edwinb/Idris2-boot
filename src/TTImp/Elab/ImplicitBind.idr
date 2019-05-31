@@ -435,7 +435,7 @@ checkBindVar rig elabinfo nest env fc str topexp
                    est <- get EST
                    put EST (record { boundNames $= ((n, NameBinding rig tm exp) ::),
                                      toBind $= ((n, NameBinding rig tm bty) :: ) } est)
-                   -- addNameType loc (UN str) env exp
+                   addNameType fc (UN str) env exp
                    checkExp rig elabinfo env fc tm (gnf env exp) topexp
               Just bty =>
                 do -- TODO: for metadata addNameType loc (UN str) env ty
@@ -445,6 +445,7 @@ checkBindVar rig elabinfo nest env fc str topexp
                    let tm = bindingTerm bty
                    let ty = bindingType bty
                    defs <- get Ctxt
+                   addNameType fc (UN str) env ty
                    checkExp rig elabinfo env fc tm (gnf env ty) topexp
   where
     updateRig : Name -> RigCount -> List (Name, ImplBinding vars) -> 

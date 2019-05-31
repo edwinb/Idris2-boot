@@ -3,6 +3,7 @@ module TTImp.Elab.Hole
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Metadata
 import Core.Normalise
 import Core.Unify
 import Core.TT
@@ -16,6 +17,7 @@ import TTImp.TTImp
 export
 checkHole : {vars : _} ->
             {auto c : Ref Ctxt Defs} ->
+            {auto m : Ref MD Metadata} ->
             {auto u : Ref UST UState} ->
             {auto e : Ref EST (EState vars)} ->
             RigCount -> ElabInfo ->
@@ -26,10 +28,12 @@ checkHole rig elabinfo nest env fc n_in (Just gexpty)
     = do nm <- inCurrentNS (UN n_in)
          expty <- getTerm gexpty
          metaval <- metaVar fc rig env nm expty
+         withCurrentLHS nm
          pure (metaval, gexpty)
 checkHole rig elabinfo nest env fc n_in exp
     = do nmty <- genName "holeTy"
          ty <- metaVar fc Rig0 env nmty (TType fc)
          nm <- inCurrentNS (UN n_in)
          metaval <- metaVar fc rig env nm ty
+         withCurrentLHS nm
          pure (metaval, gnf env ty)

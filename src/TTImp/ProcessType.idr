@@ -3,6 +3,7 @@ module TTImp.ProcessType
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Hash
 import Core.Metadata
 import Core.Normalise
 import Core.TT
@@ -80,5 +81,10 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
          log 1 $ "Setting options for " ++ show n ++ ": " ++ show opts
          traverse (processFnOpt fc (Resolved idx)) opts
 
-         -- TODO: Interface hash and saving
-         pure ()
+         -- Add to the interactive editing metadata
+         addTyDecl fc (Resolved idx) env ty -- for definition generation
+         addNameType fc (Resolved idx) env ty -- for looking up types
+
+         when (vis /= Private) $
+              do addHash n
+                 addHash ty

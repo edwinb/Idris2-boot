@@ -1,12 +1,13 @@
 module Core.Context
 
-import Core.CaseTree
+import        Core.CaseTree
 import public Core.Core
-import Core.Env
+import        Core.Env
+import        Core.Hash
 import public Core.Name
-import Core.Options
+import        Core.Options
 import public Core.TT
-import Core.TTC
+import        Core.TTC
 
 import Utils.Binary
 
@@ -499,6 +500,20 @@ initDefs
 -- Label for context references
 export
 data Ctxt : Type where
+
+export
+addHash : {auto c : Ref Ctxt Defs} ->
+          Hashable a => a -> Core ()
+addHash x
+    = do defs <- get Ctxt
+         put Ctxt (record { ifaceHash = hashWithSalt (ifaceHash defs) x } defs)
+
+export
+initHash : {auto c : Ref Ctxt Defs} -> 
+           Core ()
+initHash
+    = do defs <- get Ctxt
+         put Ctxt (record { ifaceHash = 5381 } defs)
 
 export
 addDef : {auto c : Ref Ctxt Defs} -> 
