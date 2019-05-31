@@ -3,6 +3,7 @@ module TTImp.Elab.Ambiguity
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Metadata
 import Core.Normalise
 import Core.Unify
 import Core.TT
@@ -238,6 +239,7 @@ getName _ = Nothing
 export
 checkAlternative : {vars : _} ->
                    {auto c : Ref Ctxt Defs} ->
+                   {auto m : Ref MD Metadata} ->
                    {auto u : Ref UST UState} ->
                    {auto e : Ref EST (EState vars)} ->
                    RigCount -> ElabInfo -> 

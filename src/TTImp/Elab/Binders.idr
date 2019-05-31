@@ -3,6 +3,7 @@ module TTImp.Elab.Binders
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Metadata
 import Core.Normalise
 import Core.Unify
 import Core.TT
@@ -29,6 +30,7 @@ dropName n nest = record { names $= drop } nest
 export
 checkPi : {vars : _} ->
           {auto c : Ref Ctxt Defs} ->
+          {auto m : Ref MD Metadata} ->
           {auto u : Ref UST UState} ->
           {auto e : Ref EST (EState vars)} ->
           RigCount -> ElabInfo -> 
@@ -59,6 +61,7 @@ findLamRig (Just expty)
 
 inferLambda : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
+              {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
               {auto e : Ref EST (EState vars)} ->
               RigCount -> ElabInfo -> 
@@ -95,6 +98,7 @@ getTyNF env x
 export
 checkLambda : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
+              {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
               {auto e : Ref EST (EState vars)} ->
               RigCount -> ElabInfo -> 
@@ -140,16 +144,17 @@ weakenExp env (Just gtm)
 
 export
 checkLet : {vars : _} ->
-            {auto c : Ref Ctxt Defs} ->
-            {auto u : Ref UST UState} ->
-            {auto e : Ref EST (EState vars)} ->
-            RigCount -> ElabInfo -> 
-            NestedNames vars -> Env Term vars -> 
-            FC -> 
-            RigCount -> (n : Name) -> 
-            (nTy : RawImp) -> (nVal : RawImp) -> (scope : RawImp) ->
-            (expTy : Maybe (Glued vars)) ->
-            Core (Term vars, Glued vars)
+           {auto c : Ref Ctxt Defs} ->
+           {auto m : Ref MD Metadata} ->
+           {auto u : Ref UST UState} ->
+           {auto e : Ref EST (EState vars)} ->
+           RigCount -> ElabInfo -> 
+           NestedNames vars -> Env Term vars -> 
+           FC -> 
+           RigCount -> (n : Name) -> 
+           (nTy : RawImp) -> (nVal : RawImp) -> (scope : RawImp) ->
+           (expTy : Maybe (Glued vars)) ->
+           Core (Term vars, Glued vars)
 checkLet rigc_in elabinfo nest env fc rigl n nTy nVal scope expty
     = do let rigc = if rigc_in == Rig0 then Rig0 else Rig1
          (tyv, tyt) <- check Rig0 (nextLevel elabinfo) nest env nTy (Just (gType fc))

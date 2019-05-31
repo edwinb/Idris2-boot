@@ -3,6 +3,7 @@ module TTImp.ProcessDecls
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Metadata
 import Core.UnifyState
 
 import Parser.Support
@@ -18,6 +19,7 @@ import TTImp.TTImp
 -- Implements processDecl, declared in TTImp.Elab.Check
 process : {vars : _} ->
           {auto c : Ref Ctxt Defs} ->
+          {auto m : Ref MD Metadata} ->
           {auto u : Ref UST UState} ->
           List ElabOpt ->
           NestedNames vars -> Env Term vars -> ImpDecl -> Core ()
@@ -46,6 +48,7 @@ TTImp.Elab.Check.processDecl = process
 export
 processDecls : {vars : _} ->
                {auto c : Ref Ctxt Defs} ->
+               {auto m : Ref MD Metadata} ->
                {auto u : Ref UST UState} ->
                NestedNames vars -> Env Term vars -> List ImpDecl -> Core Bool
 processDecls nest env decls
@@ -54,6 +57,7 @@ processDecls nest env decls
 
 export
 processTTImpFile : {auto c : Ref Ctxt Defs} ->
+                   {auto m : Ref MD Metadata} ->
                    {auto u : Ref UST UState} ->
                    String -> Core Bool
 processTTImpFile fname

@@ -236,7 +236,9 @@ readFromTTC : TTC extra =>
               (fname : String) -> -- file containing the module
               (modNS : List String) -> -- module namespace
               (importAs : List String) -> -- namespace to import as
-              Core (Maybe (extra, Int, List (List String, Bool, List String)))
+              Core (Maybe (extra, Int, 
+                           List (List String, Bool, List String),
+                           NameRefs))
 readFromTTC loc reexp fname modNS importAs
   = logTime "Reading TTC" $
       do defs <- get Ctxt
@@ -269,7 +271,7 @@ readFromTTC loc reexp fname modNS importAs
          put UST (record { holes = fromList (holes ttc),
                            constraints = fromList (constraints ttc),
                            nextName = nextVar ttc } ust)
-         pure (Just (extraData ttc, ifaceHash ttc, imported ttc))
+         pure (Just (extraData ttc, ifaceHash ttc, imported ttc, r))
 
 getImportHashes : NameRefs -> Ref Bin Binary ->
                   Core (List (List String, Int))

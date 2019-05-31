@@ -3,6 +3,7 @@ module TTImp.Elab.As
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Metadata
 import Core.Normalise
 import Core.Unify
 import Core.TT
@@ -19,6 +20,7 @@ import Data.NameMap
 export
 checkAs : {vars : _} ->
           {auto c : Ref Ctxt Defs} ->
+          {auto m : Ref MD Metadata} ->
           {auto u : Ref UST UState} ->
           {auto e : Ref EST (EState vars)} ->
           RigCount -> ElabInfo -> 

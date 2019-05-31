@@ -8,6 +8,7 @@ import Core.Directory
 import Core.Env
 import Core.FC
 import Core.InitPrimitives
+import Core.Metadata
 import Core.Normalise
 import Core.Options
 import Core.TT
@@ -35,6 +36,7 @@ coreMain : String -> List String -> Core ()
 coreMain fname args
     = do defs <- initDefs 
          c <- newRef Ctxt defs
+         m <- newRef MD initMetadata
          u <- newRef UST initUState
          d <- getDirs
          t <- processArgs args

@@ -15,6 +15,7 @@ modules =
     Core.GetType,
     Core.Hash,
     Core.LinearCheck,
+    Core.Metadata,
     Core.Name,
     Core.Normalise,
     Core.Options,

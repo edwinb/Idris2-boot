@@ -5,6 +5,7 @@ import Core.Context
 import Core.Core
 import Core.Env
 import Core.FC
+import Core.Metadata
 import Core.Normalise
 import Core.TT
 import Core.Unify
@@ -28,6 +29,7 @@ showInfo (n, d) = coreLift $ putStrLn (show n ++ " ==> " ++ show d)
 
 -- Returns 'True' if the REPL should continue
 process : {auto c : Ref Ctxt Defs} ->
+          {auto m : Ref MD Metadata} ->
           {auto u : Ref UST UState} ->
           ImpREPL -> Core Bool
 process (Eval ttimp)
@@ -74,6 +76,7 @@ process Quit
          pure False
 
 processCatch : {auto c : Ref Ctxt Defs} ->
+               {auto m : Ref MD Metadata} ->
                {auto u : Ref UST UState} ->
                ImpREPL -> Core Bool
 processCatch cmd
@@ -83,6 +86,7 @@ processCatch cmd
 
 export
 repl : {auto c : Ref Ctxt Defs} ->
+       {auto m : Ref MD Metadata} ->
        {auto u : Ref UST UState} ->
        Core ()
 repl

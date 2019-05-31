@@ -3,6 +3,7 @@ module TTImp.Elab.Term
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Metadata
 import Core.Normalise
 import Core.Unify
 import Core.TT
@@ -77,6 +78,7 @@ insertImpLam env tm _ = pure tm
 -- Implements 'checkImp' in TTImp.Elab.Check
 checkTerm : {vars : _} ->
             {auto c : Ref Ctxt Defs} ->
+            {auto m : Ref MD Metadata} ->
             {auto u : Ref UST UState} ->
             {auto e : Ref EST (EState vars)} ->
             RigCount -> ElabInfo ->
@@ -177,6 +179,7 @@ checkTerm rig elabinfo nest env (Implicit fc b) Nothing
 -- Declared in TTImp.Elab.Check
 -- check : {vars : _} ->
 --         {auto c : Ref Ctxt Defs} ->
+--         {auto m : Ref MD Metadata} ->
 --         {auto u : Ref UST UState} ->
 --         {auto e : Ref EST (EState vars)} ->
 --         RigCount -> ElabInfo -> Env Term vars -> RawImp -> 
@@ -207,6 +210,7 @@ TTImp.Elab.Check.check rigc elabinfo nest env tm_in exp
 -- As above, but doesn't add any implicit lambdas, forces, delays, etc
 -- checkImp : {vars : _} ->
 --            {auto c : Ref Ctxt Defs} ->
+--            {auto m : Ref MD Metadata} ->
 --            {auto u : Ref UST UState} ->
 --            {auto e : Ref EST (EState vars)} ->
 --            RigCount -> ElabInfo -> Env Term vars -> RawImp -> Maybe (Glued vars) ->

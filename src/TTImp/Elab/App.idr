@@ -4,6 +4,7 @@ import Core.CaseTree
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Metadata
 import Core.Normalise
 import Core.Unify
 import Core.TT
@@ -99,6 +100,7 @@ concrete defs env _ = pure False
 mutual
   makeImplicit : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->
+                 {auto m : Ref MD Metadata} ->
                  {auto u : Ref UST UState} ->
                  {auto e : Ref EST (EState vars)} ->
                  RigCount -> RigCount -> ElabInfo -> 
@@ -126,6 +128,7 @@ mutual
 
   makeAutoImplicit : {vars : _} ->
                      {auto c : Ref Ctxt Defs} ->
+                     {auto m : Ref MD Metadata} ->
                      {auto u : Ref UST UState} ->
                      {auto e : Ref EST (EState vars)} ->
                      RigCount -> RigCount -> ElabInfo -> 
@@ -195,6 +198,7 @@ mutual
   -- disambiguation when elaborating the argument.
   checkRestApp : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->
+                 {auto m : Ref MD Metadata} ->
                  {auto u : Ref UST UState} ->
                  {auto e : Ref EST (EState vars)} ->
                  RigCount -> RigCount -> ElabInfo -> 
@@ -272,6 +276,7 @@ mutual
   -- Returns the checked term and its (weakly) normalised type
   checkAppWith : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->
+                 {auto m : Ref MD Metadata} ->
                  {auto u : Ref UST UState} ->
                  {auto e : Ref EST (EState vars)} ->
                  RigCount -> ElabInfo -> 
@@ -392,6 +397,7 @@ mutual
 export
 checkApp : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
+           {auto m : Ref MD Metadata} ->
            {auto u : Ref UST UState} ->
            {auto e : Ref EST (EState vars)} ->
            RigCount -> ElabInfo -> 

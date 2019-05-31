@@ -6,6 +6,7 @@ module TTImp.Elab.Check
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Metadata
 import Core.Normalise
 import Core.Unify
 import Core.UnifyState
@@ -305,24 +306,28 @@ bindingVars e
 export
 tryError : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
+           {auto m : Ref MD Metadata} ->
            {auto u : Ref UST UState} ->
            {auto e : Ref EST (EState vars)} ->
            Core a -> Core (Either Error a)
 tryError elab
     = do ust <- get UST
          est <- get EST
+         md <- get MD
          defs <- branch
          catch (do res <- elab
                    commit
                    pure (Right res))
                (\err => do put UST ust
                            put EST est
+                           put MD md
                            put Ctxt defs
                            pure (Left err))
 
 export
 try : {vars : _} ->
       {auto c : Ref Ctxt Defs} ->
+      {auto m : Ref MD Metadata} ->
       {auto u : Ref UST UState} ->
       {auto e : Ref EST (EState vars)} ->
       Core a -> Core a -> Core a
@@ -334,6 +339,7 @@ try elab1 elab2
 export
 handle : {vars : _} ->
          {auto c : Ref Ctxt Defs} ->
+         {auto m : Ref MD Metadata} ->
          {auto u : Ref UST UState} ->
          {auto e : Ref EST (EState vars)} ->
          Core a -> (Error -> Core a) -> Core a
@@ -344,6 +350,7 @@ handle elab1 elab2
 
 successful : {vars : _} ->
              {auto c : Ref Ctxt Defs} ->
+             {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
              {auto e : Ref EST (EState vars)} ->
              List (Maybe Name, Core a) ->
@@ -353,21 +360,26 @@ successful [] = pure []
 successful ((tm, elab) :: elabs)
     = do ust <- get UST
          est <- get EST
+         md <- get MD
          defs <- branch
          catch (do -- Run the elaborator 
                    res <- elab
                    -- Record post-elaborator state
                    ust' <- get UST
                    est' <- get EST
+                   md' <- get MD
                    defs' <- get Ctxt
                    -- Reset to previous state and try the rest
                    put UST ust
                    put EST est
+                   put MD md
                    put Ctxt defs
                    elabs' <- successful elabs
                    -- Record success, and the state we ended at
                    pure (Right (res, defs', ust', est') :: elabs'))
                (\err => do put UST ust
+                           put EST est
+                           put MD md
                            put Ctxt defs
                            elabs' <- successful elabs
                            pure (Left (tm, err) :: elabs'))
@@ -375,6 +387,7 @@ successful ((tm, elab) :: elabs)
 export
 exactlyOne : {vars : _} ->
              {auto c : Ref Ctxt Defs} ->
+             {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
              {auto e : Ref EST (EState vars)} ->
              FC -> Env Term vars -> 
@@ -406,6 +419,7 @@ exactlyOne {vars} fc env all
 export
 anyOne : {vars : _} ->
          {auto c : Ref Ctxt Defs} ->
+         {auto m : Ref MD Metadata} ->
          {auto u : Ref UST UState} ->
          {auto e : Ref EST (EState vars)} ->
          FC -> List (Maybe Name, Core (Term vars, Glued vars)) ->
@@ -419,6 +433,7 @@ anyOne fc ((tm, elab) :: es) = try elab (anyOne fc es)
 export
 check : {vars : _} ->
         {auto c : Ref Ctxt Defs} ->
+        {auto m : Ref MD Metadata} ->
         {auto u : Ref UST UState} ->
         {auto e : Ref EST (EState vars)} ->
         RigCount -> ElabInfo -> 
@@ -430,6 +445,7 @@ check : {vars : _} ->
 export
 checkImp : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
+           {auto m : Ref MD Metadata} ->
            {auto u : Ref UST UState} ->
            {auto e : Ref EST (EState vars)} ->
            RigCount -> ElabInfo -> 
@@ -440,6 +456,7 @@ checkImp : {vars : _} ->
 export
 processDecl : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
+              {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
               List ElabOpt -> NestedNames vars -> 
               Env Term vars -> ImpDecl -> Core ()

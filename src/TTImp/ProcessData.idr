@@ -3,6 +3,7 @@ module TTImp.ProcessData
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Metadata
 import Core.Normalise
 import Core.UnifyState
 import Core.Value
@@ -49,6 +50,7 @@ checkFamily loc cn tn env nf
 
 checkCon : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
+           {auto m : Ref MD Metadata} ->
            {auto u : Ref UST UState} ->
            List ElabOpt -> NestedNames vars -> 
            Env Term vars -> Visibility -> Name ->
@@ -81,6 +83,7 @@ conName (MkCon _ cn _ _) = cn
 export
 processData : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
+              {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
               List ElabOpt -> NestedNames vars -> 
               Env Term vars -> FC -> Visibility ->

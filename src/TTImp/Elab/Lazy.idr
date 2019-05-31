@@ -3,6 +3,7 @@ module TTImp.Elab.Lazy
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Metadata
 import Core.Normalise
 import Core.Unify
 import Core.TT
@@ -17,6 +18,7 @@ import TTImp.TTImp
 export
 checkDelayed : {vars : _} ->
                {auto c : Ref Ctxt Defs} ->
+               {auto m : Ref MD Metadata} ->
                {auto u : Ref UST UState} ->
                {auto e : Ref EST (EState vars)} ->
                RigCount -> ElabInfo ->
@@ -30,6 +32,7 @@ checkDelayed rig elabinfo nest env fc r tm exp
 export
 checkDelay : {vars : _} ->
              {auto c : Ref Ctxt Defs} ->
+             {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
              {auto e : Ref EST (EState vars)} ->
              RigCount -> ElabInfo ->
@@ -67,6 +70,7 @@ checkDelay rig elabinfo nest env fc tm mexpected
 export
 checkForce : {vars : _} ->
              {auto c : Ref Ctxt Defs} ->
+             {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
              {auto e : Ref EST (EState vars)} ->
              RigCount -> ElabInfo ->

@@ -4,6 +4,7 @@ import Core.Context
 import Core.Core
 import Core.Env
 import Core.LinearCheck
+import Core.Metadata
 import Core.Normalise
 import Core.UnifyState
 import Core.Unify
@@ -23,6 +24,7 @@ getRigNeeded _ = Rig1
 export
 elabTermSub : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
+              {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
               Int -> ElabMode -> List ElabOpt ->
               NestedNames vars -> Env Term vars ->
@@ -112,6 +114,7 @@ elabTermSub defining mode opts nest env env' sub tm ty
 export
 elabTerm : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
+           {auto m : Ref MD Metadata} ->
            {auto u : Ref UST UState} ->
            Int -> ElabMode -> List ElabOpt ->
            NestedNames vars -> Env Term vars ->
@@ -123,6 +126,7 @@ elabTerm defining mode opts nest env tm ty
 export
 checkTermSub : {vars : _} ->
                {auto c : Ref Ctxt Defs} ->
+               {auto m : Ref MD Metadata} ->
                {auto u : Ref UST UState} ->
                Int -> ElabMode -> List ElabOpt -> 
                NestedNames vars -> Env Term vars -> 
@@ -138,6 +142,7 @@ checkTermSub defining mode opts nest env env' sub tm ty
 export
 checkTerm : {vars : _} ->
             {auto c : Ref Ctxt Defs} ->
+            {auto m : Ref MD Metadata} ->
             {auto u : Ref UST UState} ->
             Int -> ElabMode -> List ElabOpt -> 
             NestedNames vars -> Env Term vars -> 

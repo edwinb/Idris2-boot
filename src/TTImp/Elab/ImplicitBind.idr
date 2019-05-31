@@ -5,6 +5,7 @@ module TTImp.Elab.ImplicitBind
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Metadata
 import Core.Normalise
 import Core.Unify
 import Core.TT
@@ -54,7 +55,7 @@ mutual
 export
 mkOuterHole : {auto e : Ref EST (EState vars)} ->
               {auto c : Ref Ctxt Defs} ->
-              {auto e : Ref UST UState} ->
+              {auto u : Ref UST UState} ->
               FC -> RigCount ->
               Name -> Env Term vars -> Maybe (Glued vars) ->
               Core (Term vars, Term vars)
@@ -88,7 +89,7 @@ mkOuterHole loc rig n topenv Nothing
 export
 mkPatternHole : {auto e : Ref EST (EState vars)} ->
                 {auto c : Ref Ctxt Defs} ->
-                {auto e : Ref UST UState} ->
+                {auto u : Ref UST UState} ->
                 FC -> RigCount -> Name -> Env Term vars -> BindMode ->
                 Maybe (Glued vars) ->
                 Core (Term vars, Term vars, Term vars)
@@ -403,6 +404,7 @@ getToBind {vars} fc elabmode impmode env excepts toptm
 export
 checkBindVar : {vars : _} ->
                {auto c : Ref Ctxt Defs} ->
+               {auto m : Ref MD Metadata} ->
                {auto u : Ref UST UState} ->
                {auto e : Ref EST (EState vars)} ->
                RigCount -> ElabInfo -> 
@@ -470,6 +472,7 @@ checkBindVar rig elabinfo nest env fc str topexp
 export
 checkBindHere : {vars : _} ->
                 {auto c : Ref Ctxt Defs} ->
+                {auto m : Ref MD Metadata} ->
                 {auto u : Ref UST UState} ->
                 {auto e : Ref EST (EState vars)} ->
                 RigCount -> ElabInfo -> 

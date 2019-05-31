@@ -3,6 +3,7 @@ module TTImp.ProcessType
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Metadata
 import Core.Normalise
 import Core.TT
 import Core.UnifyState
@@ -47,6 +48,7 @@ processFnOpt fc ndef PartialOK
 export
 processType : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
+              {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
               List ElabOpt -> NestedNames vars -> Env Term vars -> 
               FC -> RigCount -> Visibility ->

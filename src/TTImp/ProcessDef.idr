@@ -5,6 +5,7 @@ import Core.CaseTree
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Metadata
 import Core.Normalise
 import Core.Value
 import Core.UnifyState
@@ -137,6 +138,7 @@ combineLinear loc ((n, count) :: cs)
 export
 checkLHS : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
+           {auto m : Ref MD Metadata} ->
            {auto u : Ref UST UState} ->
            (mult : RigCount) -> (hashit : Bool) ->
            Int -> List ElabOpt -> NestedNames vars -> Env Term vars ->
@@ -217,6 +219,7 @@ getNotReq _ (KeepCons p) = getNotReq _ p
 export
 checkClause : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
+              {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
               (mult : RigCount) -> (hashit : Bool) ->
               Int -> List ElabOpt -> NestedNames vars -> Env Term vars ->
@@ -259,6 +262,8 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
              | Nothing => throw (InternalError "Impossible happened: With abstraction failure #1")
          let Just wvalTy = shrinkTerm wvalTy withSub
              | Nothing => throw (InternalError "Impossible happened: With abstraction failure #2")
+         -- Should the env be normalised too? If the following 'impossible'
+         -- error is ever thrown, that might be the cause!
          let Just wvalEnv = shrinkEnv env' withSub
              | Nothing => throw (InternalError "Impossible happened: With abstraction failure #3")
 
@@ -400,6 +405,7 @@ toPats (MkClause {vars} env lhs rhs)
 
 export
 processDef : {auto c : Ref Ctxt Defs} ->
+             {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
              List ElabOpt -> NestedNames vars -> Env Term vars -> FC ->
              Name -> List ImpClause -> Core ()

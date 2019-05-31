@@ -3,6 +3,7 @@ module TTImp.Elab.Case
 import Core.Context
 import Core.Core
 import Core.Env
+import Core.Metadata
 import Core.Normalise
 import Core.Unify
 import Core.TT
@@ -228,6 +229,7 @@ findScrutinee _ _ _ = Nothing
 export
 caseBlock : {vars : _} ->
             {auto c : Ref Ctxt Defs} -> 
+            {auto m : Ref MD Metadata} ->
             {auto u : Ref UST UState} ->
             {auto e : Ref EST (EState vars)} ->
             RigCount -> 
@@ -402,6 +404,7 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
 export
 checkCase : {vars : _} ->
             {auto c : Ref Ctxt Defs} ->
+            {auto m : Ref MD Metadata} ->
             {auto u : Ref UST UState} ->
             {auto e : Ref EST (EState vars)} ->
             RigCount -> ElabInfo ->
