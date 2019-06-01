@@ -113,7 +113,7 @@ processData {vars} eopts nest env fc vis (MkImpLater dfc n_in ty_raw)
          arity <- getArity defs [] fullty
 
          -- Add the type constructor as a placeholder
-         tidx <- addDef n (newDef fc n Rig1 fullty vis
+         tidx <- addDef n (newDef fc n Rig1 vars fullty vis
                           (TCon 0 arity [] [] [] []))
          case vis of
               Private => pure ()
@@ -153,7 +153,7 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
 
          -- Add the type constructor as a placeholder while checking
          -- data constructors
-         tidx <- addDef n (newDef fc n Rig1 fullty vis
+         tidx <- addDef n (newDef fc n Rig1 vars fullty vis
                           (TCon 0 arity [] [] [] []))
          case vis of
               Private => pure ()
@@ -166,7 +166,7 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
          cons <- traverse (checkCon eopts nest env cvis (Resolved tidx)) cons_raw
 
          let ddef = MkData (MkCon dfc n arity fullty) cons
-         addData vis ddef
+         addData vars vis ddef
 
          traverse_ (processDataOpt fc (Resolved tidx)) opts
          when (not (NoHints `elem` opts)) $

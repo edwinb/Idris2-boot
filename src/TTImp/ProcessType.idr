@@ -71,7 +71,7 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
          -- TODO: Check name visibility
          let def = None -- TODO: External definitions
 
-         addDef (Resolved idx) (newDef fc n rig (abstractEnvType tfc env ty) vis def)
+         addDef (Resolved idx) (newDef fc n rig vars (abstractEnvType tfc env ty) vis def)
          -- Flag it as checked, because we're going to check the clauses 
          -- from the top level.
          -- But, if it's a case block, it'll be checked as part of the top

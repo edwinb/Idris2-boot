@@ -309,7 +309,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
          log 5 $ "Argument names " ++ show wargNames
 
          wname <- genWithName n
-         widx <- addDef wname (newDef fc wname mult wtype Private None)
+         widx <- addDef wname (newDef fc wname mult vars wtype Private None)
          let rhs_in = apply (IVar fc wname)
                         (map (maybe wval_raw (IVar fc)) wargNames)
 

@@ -348,7 +348,7 @@ newMeta : {auto c : Ref Ctxt Defs} ->
 newMeta {vars} fc rig env n ty nocyc
     = do let hty = abstractEnvType fc env ty
          let hole = record { noCycles = nocyc }
-                           (newDef fc n rig hty Public (Hole False))
+                           (newDef fc n rig [] hty Public (Hole False))
          log 5 $ "Adding new meta " ++ show (n, fc, rig)
          logTerm 10 ("New meta type " ++ show n) hty
          idx <- addDef n hole 
@@ -381,7 +381,7 @@ newConstant {vars} fc rig env tm ty constrs
     = do let def = mkConstant fc env tm
          let defty = abstractEnvType fc env ty
          cn <- genName "postpone"
-         let guess = newDef fc cn rig defty Public (Guess def constrs)
+         let guess = newDef fc cn rig [] defty Public (Guess def constrs)
          idx <- addDef cn guess
          addGuessName fc cn idx
          pure (Meta fc cn idx envArgs)
@@ -400,7 +400,7 @@ newSearch : {auto c : Ref Ctxt Defs} ->
             Env Term vars -> Name -> Term vars -> Core (Int, Term vars)
 newSearch {vars} fc rig depth def env n ty
     = do let hty = abstractEnvType fc env ty
-         let hole = newDef fc n rig hty Public (BySearch rig depth def)
+         let hole = newDef fc n rig [] hty Public (BySearch rig depth def)
          log 10 $ "Adding new search " ++ show n
          idx <- addDef n hole 
          addGuessName fc n idx
@@ -419,7 +419,7 @@ newDelayed : {auto u : Ref UST UState} ->
              (ty : Term vars) -> Core (Int, Term vars)
 newDelayed {vars} fc rig env n ty
     = do let hty = abstractEnvType fc env ty
-         let hole = newDef fc n rig hty Public Delayed
+         let hole = newDef fc n rig [] hty Public Delayed
          idx <- addDef n hole
          log 10 $ "Added delayed elaborator " ++ show (n, idx)
          addHoleName fc n idx

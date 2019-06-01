@@ -102,6 +102,7 @@ mutual
   appExpr : FileName -> IndentInfo -> Rule PTerm
   appExpr fname indents
       = case_ fname indents
+    <|> lazy fname indents
     <|> if_ fname indents
     <|> doBlock fname indents
     <|> do start <- location
@@ -613,6 +614,29 @@ mutual
   patAlt fname indents
       = do symbol "|"
            caseAlt fname indents
+  
+  lazy : FileName -> IndentInfo -> Rule PTerm
+  lazy fname indents
+      = do start <- location
+           keyword "Lazy"
+           tm <- simpleExpr fname indents
+           end <- location
+           pure (PDelayed (MkFC fname start end) LLazy tm)
+    <|> do start <- location
+           keyword "Inf"
+           tm <- simpleExpr fname indents
+           end <- location
+           pure (PDelayed (MkFC fname start end) LInf tm)
+    <|> do start <- location
+           keyword "Delay"
+           tm <- simpleExpr fname indents
+           end <- location
+           pure (PDelay (MkFC fname start end) tm)
+    <|> do start <- location
+           keyword "Force"
+           tm <- simpleExpr fname indents
+           end <- location
+           pure (PForce (MkFC fname start end) tm)
 
   binder : FileName -> IndentInfo -> Rule PTerm
   binder fname indents

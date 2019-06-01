@@ -137,6 +137,12 @@ mutual
       = pure $ IApp fc !(desugar side ps x) !(desugar side ps y)
   desugar side ps (PImplicitApp fc x argn y) 
       = pure $ IImplicitApp fc !(desugar side ps x) argn !(desugar side ps y)
+  desugar side ps (PDelayed fc r ty)
+      = pure $ IDelayed fc r !(desugar side ps ty)
+  desugar side ps (PDelay fc tm)
+      = pure $ IDelay fc !(desugar side ps tm)
+  desugar side ps (PForce fc tm)
+      = pure $ IForce fc !(desugar side ps tm)
   desugar side ps (PEq fc l r)
       = do l' <- desugar side ps l
            r' <- desugar side ps r

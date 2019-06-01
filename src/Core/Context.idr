@@ -397,6 +397,7 @@ record GlobalDef where
   fullname : Name -- original unresolved name
   type : ClosedTerm
   multiplicity : RigCount
+  vars : List Name -- environment name is defined in
   visibility : Visibility
   totality : Totality
   flags : List DefFlag
@@ -420,6 +421,7 @@ TTC GlobalDef where
               do toBuf b (location gdef)
                  toBuf b (type gdef)
                  toBuf b (multiplicity gdef)
+                 toBuf b (vars gdef)
                  toBuf b (visibility gdef)
                  toBuf b (totality gdef)
                  toBuf b (flags gdef)
@@ -432,22 +434,24 @@ TTC GlobalDef where
            if isUserName name
               then do loc <- fromBuf r b; 
                       ty <- fromBuf r b; mul <- fromBuf r b
+                      vars <- fromBuf r b
                       vis <- fromBuf r b; tot <- fromBuf r b
                       fl <- fromBuf r b
                       refsList <- fromBuf r b; 
                       let refs = fromList (map (\x => (x, ())) refsList)
                       c <- fromBuf r b
-                      pure (MkGlobalDef loc name ty mul vis 
+                      pure (MkGlobalDef loc name ty mul vars vis 
                                         tot fl refs c True def)
               else do let fc = emptyFC
                       pure (MkGlobalDef fc name (Erased fc)
-                                        RigW Public unchecked [] empty
+                                        RigW [] Public unchecked [] empty
                                         False True def)
 
 export
-newDef : FC -> Name -> RigCount -> ClosedTerm -> Visibility -> Def -> GlobalDef
-newDef fc n rig ty vis def 
-    = MkGlobalDef fc n ty rig vis unchecked [] empty False False def
+newDef : FC -> Name -> RigCount -> List Name -> 
+         ClosedTerm -> Visibility -> Def -> GlobalDef
+newDef fc n rig vars ty vis def 
+    = MkGlobalDef fc n ty rig vars vis unchecked [] empty False False def
 
 public export
 record Defs where
@@ -532,7 +536,7 @@ addBuiltin : {auto x : Ref Ctxt Defs} ->
              Name -> ClosedTerm -> Totality ->
              PrimFn arity -> Core ()
 addBuiltin n ty tot op 
-    = do addDef n (MkGlobalDef emptyFC n ty RigW Public tot 
+    = do addDef n (MkGlobalDef emptyFC n ty RigW [] Public tot 
                                [Inline] empty False True (Builtin op)) 
          pure ()
 
@@ -948,11 +952,11 @@ paramPos _ _ = [] -- TODO
 
 export
 addData : {auto c : Ref Ctxt Defs} ->
-					Visibility -> DataDef -> Core Int
-addData vis (MkData (MkCon dfc tyn arity tycon) datacons)
+					List Name -> Visibility -> DataDef -> Core Int
+addData vars vis (MkData (MkCon dfc tyn arity tycon) datacons)
     = do defs <- get Ctxt 
          tag <- getNextTypeTag 
-         let tydef = newDef dfc tyn RigW tycon vis 
+         let tydef = newDef dfc tyn RigW vars tycon vis 
                             (TCon tag arity 
                                   (paramPos tyn (map type datacons))
                                   (allDet arity)
@@ -974,7 +978,7 @@ addData vis (MkData (MkCon dfc tyn arity tycon) datacons)
                           Context GlobalDef -> Core (Context GlobalDef)
     addDataConstructors tag [] gam = pure gam
     addDataConstructors tag (MkCon fc n a ty :: cs) gam
-        = do let condef = newDef fc n RigW ty (conVisibility vis) (DCon tag a)
+        = do let condef = newDef fc n RigW vars ty (conVisibility vis) (DCon tag a)
              (idx, gam') <- addCtxt n condef gam
              addDataConstructors (tag + 1) cs gam'
 

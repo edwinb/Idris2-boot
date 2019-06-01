@@ -45,6 +45,11 @@ mutual
        PUpdate : FC -> List PFieldUpdate -> PTerm
        PApp : FC -> PTerm -> PTerm -> PTerm
        PImplicitApp : FC -> PTerm -> (argn : Maybe Name) -> PTerm -> PTerm
+
+       PDelayed : FC -> LazyReason -> PTerm -> PTerm
+       PDelay : FC -> PTerm -> PTerm
+       PForce : FC -> PTerm -> PTerm
+
        PSearch : FC -> (depth : Nat) -> PTerm
        PPrimVal : FC -> Constant -> PTerm
        PQuote : FC -> PTerm -> PTerm
@@ -360,6 +365,14 @@ mutual
     show (PApp _ f a) = show f ++ " " ++ show a
     show (PImplicitApp _ f Nothing a) 
         = show f ++ " @{" ++ show a ++ "}"
+    show (PDelayed _ LInf ty)
+        = "Inf " ++ show ty
+    show (PDelayed _ _ ty)
+        = "Lazy " ++ show ty
+    show (PDelay _ tm)
+        = "Delay " ++ show tm
+    show (PForce _ tm)
+        = "Force " ++ show tm
     show (PImplicitApp _ f (Just n) (PRef _ a)) 
         = if n == a
              then show f ++ " {" ++ show n ++ "}"

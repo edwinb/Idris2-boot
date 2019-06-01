@@ -32,7 +32,12 @@ modules =
     Data.StringMap,
 
     Idris.Desugar,
+    Idris.Error,
+    Idris.IDEMode.Commands,
     Idris.Parser,
+    Idris.REPLCommon,
+    Idris.REPLOpts,
+    Idris.Resugar,
     Idris.Socket,
     Idris.Socket.Data,
     Idris.Socket.Raw,

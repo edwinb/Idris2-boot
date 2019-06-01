@@ -298,7 +298,7 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
          -- the alternative of fixing up the environment
          when (not (isNil fullImps)) $ findImpsIn fc [] [] casefnty
 
-         cidx <- addDef casen (newDef fc casen rigc casefnty Private None)
+         cidx <- addDef casen (newDef fc casen rigc [] casefnty Private None)
          let caseRef = Ref fc Func (Resolved cidx)
          setFlag fc casen Inline
 
