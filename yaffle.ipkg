@@ -33,6 +33,9 @@ modules =
 
     Idris.Desugar,
     Idris.Parser,
+    Idris.Socket,
+    Idris.Socket.Data,
+    Idris.Socket.Raw,
     Idris.Syntax,
 
     Parser.Lexer,
