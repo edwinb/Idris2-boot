@@ -17,13 +17,48 @@ import TTImp.Elab.Check
 import TTImp.TTImp
 import TTImp.Utils
 
+anyM : (a -> Core Bool) -> List a -> Core Bool
+anyM f [] = pure False
+anyM f (x :: xs)
+    = if !(f x)
+         then pure True
+         else anyM f xs
+
+mutual
+  mismatchNF : Defs -> NF vars -> NF vars -> Core Bool
+  mismatchNF defs (NTCon _ _ xt _ xargs) (NTCon _ _ yt _ yargs) 
+      = if xt /= yt 
+           then pure True
+           else anyM (mismatch defs) (zip (map snd xargs) (map snd yargs)) 
+  mismatchNF defs (NDCon _ _ xt _ xargs) (NDCon _ _ yt _ yargs) 
+      = if xt /= yt
+           then pure True
+           else anyM (mismatch defs) (zip (map snd xargs) (map snd yargs)) 
+  mismatchNF defs (NPrimVal _ xc) (NPrimVal _ yc) = pure (xc /= yc)
+  mismatchNF defs (NDelayed _ _ x) (NDelayed _ _ y) = mismatchNF defs x y
+  mismatchNF defs (NDelay _ _ _ x) (NDelay _ _ _ y) 
+      = mismatchNF defs !(evalClosure defs x) !(evalClosure defs y)
+  mismatchNF _ _ _ = pure False
+
+  mismatch : Defs -> (Closure vars, Closure vars) -> Core Bool
+  mismatch defs (x, y) 
+      = mismatchNF defs !(evalClosure defs x) !(evalClosure defs y)
+
+-- If the terms have the same type constructor at the head, and one of
+-- the argument positions has different constructors at its head, then this
+-- is an impossible case, so return True
+export
+impossibleOK : Defs -> NF vars -> NF vars -> Core Bool
+impossibleOK defs (NTCon _ xn xt xa xargs) (NTCon _ tn yt ya yargs)
+    = anyM (mismatch defs) (zip (map snd xargs) (map snd yargs))
+impossibleOK _ _ _ = pure False
+
 -- Given a type checked LHS and its type, return the environment in which we
 -- should check the RHS, the LHS and its type in that environment,
 -- and a function which turns a checked RHS into a
 -- pattern clause
 -- The 'SubVars' proof contains a proof that refers to the *inner* environment,
 -- so all the outer things are marked as 'DropCons'
-
 extendEnv : Env Term vars -> SubVars inner vars ->
             NestedNames vars ->
             Term vars -> Term vars -> 
