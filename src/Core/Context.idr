@@ -879,6 +879,12 @@ addOpenHint hintn_in
          put Ctxt (record { openHints $= insert hintn () } defs)
 
 export
+setOpenHints : {auto c : Ref Ctxt Defs} -> NameMap () -> Core ()
+setOpenHints hs
+    = do d <- get Ctxt
+         put Ctxt (record { openHints = hs } d)
+
+export
 clearSavedHints : {auto c : Ref Ctxt Defs} -> Core ()
 clearSavedHints
     = do defs <- get Ctxt

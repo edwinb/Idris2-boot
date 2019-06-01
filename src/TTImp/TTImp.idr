@@ -323,6 +323,51 @@ lhsInCurrentNS nest (IVar loc n)
 lhsInCurrentNS nest tm = pure tm
 
 export
+findIBinds : RawImp -> List String
+findIBinds (IPi fc rig p mn aty retty)
+    = findIBinds aty ++ findIBinds retty
+findIBinds (ILam fc rig p n aty sc)
+    = findIBinds aty ++ findIBinds sc
+findIBinds (IApp fc fn av)
+    = findIBinds fn ++ findIBinds av
+findIBinds (IImplicitApp fc fn n av)
+    = findIBinds fn ++ findIBinds av
+findIBinds (IAs fc _ n pat)
+    = findIBinds pat
+findIBinds (IMustUnify fc r pat)
+    = findIBinds pat
+findIBinds (IAlternative fc u alts)
+    = concatMap findIBinds alts
+findIBinds (IDelayed fc _ ty) = findIBinds ty
+findIBinds (IDelay fc tm) = findIBinds tm
+findIBinds (IForce fc tm) = findIBinds tm
+findIBinds (IBindVar _ n) = [n]
+-- We've skipped lambda, case, let and local - rather than guess where the
+-- name should be bound, leave it to the programmer
+findIBinds tm = []
+
+export
+findImplicits : RawImp -> List String
+findImplicits (IPi fc rig p (Just (UN mn)) aty retty)
+    = mn :: findImplicits aty ++ findImplicits retty
+findImplicits (IPi fc rig p mn aty retty)
+    = findImplicits aty ++ findImplicits retty
+findImplicits (ILam fc rig p n aty sc)
+    = findImplicits aty ++ findImplicits sc
+findImplicits (IApp fc fn av)
+    = findImplicits fn ++ findImplicits av
+findImplicits (IImplicitApp fc fn n av)
+    = findImplicits fn ++ findImplicits av
+findImplicits (IAs fc _ n pat)
+    = findImplicits pat
+findImplicits (IMustUnify fc r pat)
+    = findImplicits pat
+findImplicits (IAlternative fc u alts)
+    = concatMap findImplicits alts
+findImplicits (IBindVar _ n) = [n]
+findImplicits tm = []
+         
+export
 definedInBlock : List ImpDecl -> List Name
 definedInBlock = concatMap defName
   where

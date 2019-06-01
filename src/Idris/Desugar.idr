@@ -13,8 +13,8 @@ import Data.StringMap
 
 import Idris.Syntax
 
--- import Idris.Elab.Implementation
--- import Idris.Elab.Interface
+import Idris.Elab.Implementation
+import Idris.Elab.Interface
 
 import Parser.Lexer
 
@@ -501,46 +501,44 @@ mutual
       = throw (GenericMsg fc "Reflection not implemented yet")
 --       pure [IReflect fc !(desugar AnyExpr ps tm)]
   desugarDecl ps (PInterface fc vis cons tn params det conname body)
-      = throw (GenericMsg fc "Interfaces not implemented yet")
---       = do cons' <- traverse (\ ntm => do tm' <- desugar AnyExpr (ps ++ map fst params)
---                                                          (snd ntm)
---                                           pure (fst ntm, tm')) cons
---            params' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
---                                             pure (fst ntm, tm')) params
---            -- Look for bindable names in all the constraints and parameters
---            let mnames = map dropNS (definedIn body)
---            let bnames = concatMap (findBindableNames True 
---                                       (ps ++ mnames ++ map fst params) []) 
---                                   (map snd cons') ++
---                         concatMap (findBindableNames True 
---                                       (ps ++ mnames ++ map fst params) []) 
---                                   (map snd params')
---            let paramsb = map (\ (n, tm) => (n, doBind bnames tm)) params'
---            let consb = map (\ (n, tm) => (n, doBind bnames tm)) cons'
--- 
---            body' <- traverse (desugarDecl (ps ++ mnames ++ map fst params)) body
---            pure [IPragma (\env, nest => 
---                              elabInterface fc vis env nest consb
---                                            tn paramsb det conname 
---                                            (concat body'))]
+      = do cons' <- traverse (\ ntm => do tm' <- desugar AnyExpr (ps ++ map fst params)
+                                                         (snd ntm)
+                                          pure (fst ntm, tm')) cons
+           params' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
+                                            pure (fst ntm, tm')) params
+           -- Look for bindable names in all the constraints and parameters
+           let mnames = map dropNS (definedIn body)
+           let bnames = concatMap (findBindableNames True 
+                                      (ps ++ mnames ++ map fst params) []) 
+                                  (map snd cons') ++
+                        concatMap (findBindableNames True 
+                                      (ps ++ mnames ++ map fst params) []) 
+                                  (map snd params')
+           let paramsb = map (\ (n, tm) => (n, doBind bnames tm)) params'
+           let consb = map (\ (n, tm) => (n, doBind bnames tm)) cons'
+
+           body' <- traverse (desugarDecl (ps ++ mnames ++ map fst params)) body
+           pure [IPragma (\c, nest, env => 
+                             elabInterface fc vis env nest consb
+                                           tn paramsb det conname 
+                                           (concat body'))]
   desugarDecl ps (PImplementation fc vis pass cons tn params impname body)
-      = throw (GenericMsg fc "Interfaces not implemented yet")
---       = do cons' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
---                                           pure (fst ntm, tm')) cons
---            params' <- traverse (desugar AnyExpr ps) params
---            -- Look for bindable names in all the constraints and parameters
---            let bnames = concatMap (findBindableNames True ps []) (map snd cons') ++
---                         concatMap (findBindableNames True ps []) params'
---            let paramsb = map (doBind bnames) params'
---            let consb = map (\ (n, tm) => (n, doBind bnames tm)) cons'
--- 
---            body' <- maybe (pure Nothing)
---                           (\b => do b' <- traverse (desugarDecl ps) b
---                                     pure (Just (concat b'))) body
---            pure [IPragma (\env, nest =>
---                              elabImplementation fc vis pass env nest consb
---                                                 tn paramsb impname 
---                                                 body')]
+      = do cons' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
+                                          pure (fst ntm, tm')) cons
+           params' <- traverse (desugar AnyExpr ps) params
+           -- Look for bindable names in all the constraints and parameters
+           let bnames = concatMap (findBindableNames True ps []) (map snd cons') ++
+                        concatMap (findBindableNames True ps []) params'
+           let paramsb = map (doBind bnames) params'
+           let consb = map (\ (n, tm) => (n, doBind bnames tm)) cons'
+
+           body' <- maybe (pure Nothing)
+                          (\b => do b' <- traverse (desugarDecl ps) b
+                                    pure (Just (concat b'))) body
+           pure [IPragma (\c, nest, env =>
+                             elabImplementation fc vis pass env nest consb
+                                                tn paramsb impname 
+                                                body')]
   desugarDecl ps (PRecord fc vis tn params conname fields)
       = do params' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
                                             pure (fst ntm, tm')) params

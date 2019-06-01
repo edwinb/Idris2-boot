@@ -11,6 +11,7 @@ import public Core.TT
 
 import TTImp.TTImp
 
+import Data.ANameMap
 import Data.StringMap
 
 %default covering
@@ -458,9 +459,7 @@ record SyntaxInfo where
   -- (most obviously, -)
   infixes : StringMap (Fixity, Nat)
   prefixes : StringMap Nat
-  ifaceNames : List Name -- list of interface names, which we use for
-                         -- writing to TTC
-  ifaces : Context IFaceInfo
+  ifaces : ANameMap IFaceInfo
   bracketholes : List Name -- hole names in argument position (so need
                            -- to be bracketed when solved)
   startExpr : RawImp
@@ -480,53 +479,32 @@ TTC Fixity where
              3 => pure Prefix
              _ => corrupt "Fixity"
 
-getSaveIFaces : Context IFaceInfo ->
-                List Name -> Core (List (Name, IFaceInfo))
-getSaveIFaces ctxt [] = pure []
-getSaveIFaces ctxt (n :: ns)
-    = do Just i <- lookupCtxtExact n ctxt
-              | Nothing => throw (InternalError ("Unknown interface " ++ show n))
-         is <- getSaveIFaces ctxt ns
-         pure ((n, i) :: is)
-
-addSavedIFaces : Context IFaceInfo -> List (Name, IFaceInfo) ->
-                 Core (Context IFaceInfo)
-addSavedIFaces ctxt [] = pure ctxt
-addSavedIFaces ctxt ((n, i) :: ns)
-    = do (_, ctxt') <- addCtxt n i ctxt
-         addSavedIFaces ctxt' ns
-
 export
 TTC SyntaxInfo where
   toBuf b syn 
       = do toBuf b (toList (infixes syn))
            toBuf b (toList (prefixes syn))
-           ilist <- getSaveIFaces (ifaces syn) (ifaceNames syn)
-           toBuf b ilist
+           toBuf b (toList (ifaces syn))
            toBuf b (bracketholes syn)
            toBuf b (startExpr syn)
 
   fromBuf r b 
       = do inf <- fromBuf r b
            pre <- fromBuf r b
-           ilist <- fromBuf r b
-           ifctx <- initCtxt
-           ifctx <- addSavedIFaces ifctx ilist
+           ifs <- fromBuf r b
            bhs <- fromBuf r b
            start <- fromBuf r b
-           pure (MkSyntax (fromList inf) (fromList pre) [] ifctx bhs start)
+           pure (MkSyntax (fromList inf) (fromList pre) (fromList ifs) 
+                          bhs start)
 
 export
-initSyntax : Core SyntaxInfo
+initSyntax : SyntaxInfo
 initSyntax
-    = do ifctx <- initCtxt
-         pure $ MkSyntax 
-                  (insert "=" (Infix, 0) empty) 
-                  (insert "-" 10 empty)
-                  []
-                  ifctx
-                  []
-                  (IVar (MkFC "(default)" (0, 0) (0, 0)) (UN "main"))
+    = MkSyntax (insert "=" (Infix, 0) empty) 
+               (insert "-" 10 empty)
+               empty
+               []
+               (IVar (MkFC "(default)" (0, 0) (0, 0)) (UN "main"))
 
 -- A label for Syntax info in the global state
 export

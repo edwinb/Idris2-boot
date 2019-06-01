@@ -25,6 +25,7 @@ modules =
     Core.UnifyState,
     Core.Value,
 
+    Data.ANameMap,
     Data.Bool.Extra,
     Data.IntMap,
     Data.IOArray,
