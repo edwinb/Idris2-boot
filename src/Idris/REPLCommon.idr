@@ -54,7 +54,7 @@ export
 emitError : {auto c : Ref Ctxt Defs} ->
             {auto o : Ref ROpts REPLOpts} ->
             {auto s : Ref Syn SyntaxInfo} ->
-            Error FC -> Core FC ()
+            Error -> Core ()
 emitError err
     = do opts <- get ROpts
          case idemode opts of
@@ -63,7 +63,7 @@ emitError err
                      coreLift $ putStrLn msg
               IDEMode i _ f =>
                   do msg <- perror err
-                     case getAnnot err of
+                     case getErrorLoc err of
                           Nothing => iputStrLn msg
                           Just fc =>
                             send f (SExpList [SymbolAtom "warning", 
@@ -83,26 +83,26 @@ getFCLine fc = fst (startPos fc)
 
 export
 updateErrorLine : {auto o : Ref ROpts REPLOpts} ->
-                  List (Error FC) -> Core FC ()
+                  List Error -> Core ()
 updateErrorLine []
     = do opts <- get ROpts
          put ROpts (record { errorLine = Nothing } opts)
 updateErrorLine (e :: es)
     = do opts <- get ROpts
-         put ROpts (record { errorLine = map getFCLine (getAnnot e) } opts)
+         put ROpts (record { errorLine = map getFCLine (getErrorLoc e) } opts)
 
 export
 resetContext : {auto u : Ref Ctxt Defs} ->
-               {auto u : Ref UST (UState FC)} ->
+               {auto u : Ref UST UState} ->
                {auto s : Ref Syn SyntaxInfo} ->
-               {auto m : Ref Meta (Metadata FC)} ->
-               Core FC ()
+               {auto m : Ref MD Metadata} ->
+               Core ()
 resetContext
     = do defs <- get Ctxt
-         put Ctxt (record { options = clearNames (options defs) } initCtxt)
+         put Ctxt (record { options = clearNames (options defs) } !initDefs)
          addPrimitives
          put UST initUState
-         put Syn initSyntax
-         put Meta initMetadata
+         put Syn !initSyntax
+         put MD initMetadata
 
 

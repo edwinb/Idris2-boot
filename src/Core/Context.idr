@@ -1114,6 +1114,13 @@ getPPrint
          pure (printing (options defs))
 
 export
+setPPrint : {auto c : Ref Ctxt Defs} ->
+            PPrinter -> Core ()
+setPPrint ppopts
+    = do defs <- get Ctxt
+         put Ctxt (record { options->printing = ppopts } defs)
+
+export
 getDirs : {auto c : Ref Ctxt Defs} -> Core Dirs
 getDirs
     = do defs <- get Ctxt

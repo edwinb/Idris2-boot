@@ -37,8 +37,8 @@ data Error
     | InvisibleName FC Name
     | BadTypeConType FC Name 
     | BadDataConType FC Name Name
---    | NotCovering FC Name Covering
---    | NotTotal FC Name PartialReason
+    | NotCovering FC Name Covering
+    | NotTotal FC Name PartialReason
     | LinearUsed FC Nat Name
     | LinearMisuse FC Name RigCount RigCount
     | BorrowPartial FC (Env Term vars) (Term vars) (Term vars)
@@ -120,19 +120,19 @@ Show Error where
        = show fc ++ ":Return type of " ++ show n ++ " must be Type"
   show (BadDataConType fc n fam) 
        = show fc ++ ":Return type of " ++ show n ++ " must be in " ++ show fam
---   show (NotCovering fc n cov)
---        = show fc ++ ":" ++ show n ++ " is not covering:\n\t" ++
---             case cov of
---                  IsCovering => "Oh yes it is (Internal error!)"
---                  MissingCases cs => "Missing cases:\n\t" ++
---                                            showSep "\n\t" (map show cs)
---                  NonCoveringCall ns => "Calls non covering function" 
---                                            ++ (case ns of
---                                                    [fn] => " " ++ show fn
---                                                    _ => "s: " ++ showSep ", " (map show ns))
--- 
---   show (NotTotal fc n r)
---        = show fc ++ ":" ++ show n ++ " is not total"
+  show (NotCovering fc n cov)
+       = show fc ++ ":" ++ show n ++ " is not covering:\n\t" ++
+            case cov of
+                 IsCovering => "Oh yes it is (Internal error!)"
+                 MissingCases cs => "Missing cases:\n\t" ++
+                                           showSep "\n\t" (map show cs)
+                 NonCoveringCall ns => "Calls non covering function" 
+                                           ++ (case ns of
+                                                   [fn] => " " ++ show fn
+                                                   _ => "s: " ++ showSep ", " (map show ns))
+
+  show (NotTotal fc n r)
+       = show fc ++ ":" ++ show n ++ " is not total"
   show (LinearUsed fc count n)
       = show fc ++ ":There are " ++ show count ++ " uses of linear name " ++ show n
   show (LinearMisuse fc n exp ctx)
@@ -251,8 +251,8 @@ getErrorLoc (UndefinedName loc y) = Just loc
 getErrorLoc (InvisibleName loc y) = Just loc
 getErrorLoc (BadTypeConType loc y) = Just loc
 getErrorLoc (BadDataConType loc y z) = Just loc
--- getErrorLoc (NotCovering loc _ _) = Just loc
--- getErrorLoc (NotTotal loc _ _) = Just loc
+getErrorLoc (NotCovering loc _ _) = Just loc
+getErrorLoc (NotTotal loc _ _) = Just loc
 getErrorLoc (LinearUsed loc k y) = Just loc
 getErrorLoc (LinearMisuse loc y z w) = Just loc
 getErrorLoc (BorrowPartial loc _ _ _) = Just loc

@@ -3,6 +3,7 @@ module Idris.Error
 import Core.CaseTree
 import Core.Core
 import Core.Context
+import Core.Env
 import Core.Options
 
 import Idris.Resugar
@@ -14,15 +15,15 @@ import Parser.Support
 
 pshow : {auto c : Ref Ctxt Defs} ->
         {auto s : Ref Syn SyntaxInfo} ->
-        Env Term vars -> Term vars -> Core FC String
+        Env Term vars -> Term vars -> Core String
 pshow env tm 
     = do defs <- get Ctxt
-         itm <- resugar env (normaliseHoles defs env tm)
+         itm <- resugar env !(normaliseHoles defs env tm)
          pure (show itm)
 
 pshowNoNorm : {auto c : Ref Ctxt Defs} ->
         {auto s : Ref Syn SyntaxInfo} ->
-        Env Term vars -> Term vars -> Core FC String
+        Env Term vars -> Term vars -> Core String
 pshowNoNorm env tm 
     = do defs <- get Ctxt
          itm <- resugar env tm
@@ -31,17 +32,18 @@ pshowNoNorm env tm
 export
 perror : {auto c : Ref Ctxt Defs} ->
          {auto s : Ref Syn SyntaxInfo} ->
-         Error FC -> Core FC String
-{-
+         Error -> Core String
 perror (Fatal err) = perror err
 perror (CantConvert _ env l r)
     = pure $ "Mismatch between:\n\t" ++ !(pshow env l) ++ "\nand\n\t" ++ !(pshow env r)
 perror (CantSolveEq _ env l r)
     = pure $ "Can't solve constraint between:\n\t" ++ !(pshow env l) ++ 
       "\nand\n\t" ++ !(pshow env r)
-perror (Cycle _ env l r)
-    = pure $ "Solving constraint between:\n\t" ++ !(pshow env l) ++ 
-      "\nand\n\t" ++ !(pshow env r) ++ "\nwould lead to infinite value"
+perror (PatternVariableUnifies _ env n tm)
+    = pure $ "Pattern variable " ++ show n ++ 
+      "unifies with:\n\t" ++ !(pshow env tm)
+perror (CyclicMeta _ n)
+    = pure $ "Cycle detected in solution of metavariable " ++ show n
 perror (WhenUnifying _ env x y err)
     = pure $ "When unifying " ++ !(pshow env x) ++ " and " ++ !(pshow env y) ++ "\n"
        ++ !(perror err)
@@ -80,14 +82,12 @@ perror (LinearMisuse fc n exp ctx)
   where
     showRig : RigCount -> String
     showRig Rig0 = "irrelevant"
-    showRig (Rig1 False) = "linear"
-    showRig (Rig1 True) = "borrowed"
+    showRig Rig1 = "linear"
     showRig RigW = "unrestricted"
 
     showRel : RigCount -> String
     showRel Rig0 = "irrelevant"
-    showRel (Rig1 False) = "relevant"
-    showRel (Rig1 True) = "borrowed"
+    showRel Rig1 = "relevant"
     showRel RigW = "non-linear"
 perror (BorrowPartial fc env tm arg)
     = pure $ !(pshow env tm) ++ 
@@ -113,13 +113,13 @@ perror (AllFailed ts)
            _ => pure $ "Sorry, I can't find any elaboration which works. All errors:\n" ++
                      showSep "\n" !(traverse pAlterror ts)
   where
-    pAlterror : (Maybe Name, Error FC) -> Core FC String
+    pAlterror : (Maybe Name, Error) -> Core String
     pAlterror (Just n, err)
        = pure $ "If " ++ show n ++ ": " ++ !(perror err) ++ "\n"
     pAlterror (Nothing, err)
        = pure $ "Possible error:\n\t" ++ !(perror err)
 
-    allUndefined : List (Maybe Name, Error FC) -> Maybe (Error FC)
+    allUndefined : List (Maybe Name, Error) -> Maybe Error
     allUndefined [] = Nothing
     allUndefined [(_, UndefinedName loc e)] = Just (UndefinedName loc e)
     allUndefined ((_, UndefinedName _ e) :: es) = allUndefined es
@@ -135,26 +135,29 @@ perror (NotRecordType fc ty)
 perror (IncompatibleFieldUpdate fc flds)
     = pure $ "Field update " ++ showSep "->" flds ++ 
              " not compatible with other updates"
-perror (InvalidImplicit _ env n tm)
+perror (InvalidImplicits _ env [n] tm)
     = pure $ show n ++ " is not a valid implicit argument in " ++ !(pshow env tm)
+perror (InvalidImplicits _ env ns tm)
+    = pure $ showSep ", " (map show ns) ++ 
+             " are not valid implicit arguments in " ++ !(pshow env tm)
 perror (TryWithImplicits _ env imps)
     = pure $ "Need to bind implicits "
              ++ showSep ", " !(traverse (tshow env) imps)
   where
-    tshow : Env Term vars -> (Name, Term vars) -> Core FC String
+    tshow : Env Term vars -> (Name, Term vars) -> Core String
     tshow env (n, ty) = pure $ show n ++ " : " ++ !(pshow env ty)
-perror (CantSolveGoal _ g)
-    = let (_ ** (env', g')) = dropPis [] g in
+perror (CantSolveGoal _ env g)
+    = let (_ ** (env', g')) = dropPis env g in
           pure $ "Can't find an implementation for " ++ !(pshow env' g')
   where
     -- For display, we don't want to see the full top level type; just the
     -- return type
     dropPis : Env Term vars -> Term vars -> 
               (ns ** (Env Term ns, Term ns))
-    dropPis env (Bind n b@(Pi _ _ _) sc) = dropPis (b :: env) sc 
+    dropPis env (Bind _ n b@(Pi _ _ _) sc) = dropPis (b :: env) sc 
     dropPis env tm = (_ ** (env, tm))
 
-perror (DeterminingArg _ n env g)
+perror (DeterminingArg _ n i env g)
     = pure $ "Can't find an implementation for " ++ !(pshow env g) ++ "\n" ++
              "since I can't infer a value for argument " ++ show n
 perror (UnsolvedHoles hs) 
@@ -229,11 +232,11 @@ perror (InLHS fc n err)
 perror (InRHS fc n err)
     = pure $ "While processing right hand side of " ++ show (sugarName n) ++ 
              " at " ++ show fc ++ ":\n" ++ !(perror err)
-             -}
 
 export
 display : {auto c : Ref Ctxt Defs} ->
           {auto s : Ref Syn SyntaxInfo} ->
-          Error FC -> Core FC String
-display err = pure $ maybe "" (\f => show f ++ ":") (getAnnot err) ++
-                     !(perror err)
+          Error -> Core String
+display err 
+    = pure $ maybe "" (\f => show f ++ ":") (getErrorLoc err) ++
+                   !(perror err)

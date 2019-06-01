@@ -172,6 +172,16 @@ defaults = MkOptions defaultDirs defaultPPrint defaultSession
                      (MkPrimNs Nothing Nothing Nothing)
                      [] []
 
+-- Reset the options which are set by source files
+export
+clearNames : Options -> Options
+clearNames = record { pairnames = Nothing,
+                      rewritenames = Nothing,
+                      primnames = MkPrimNs Nothing Nothing Nothing,
+                      namedirectives = [],
+                      extensions = []
+                    }
+
 export
 setPair : (pairType : Name) -> (fstn : Name) -> (sndn : Name) ->
           Options -> Options
