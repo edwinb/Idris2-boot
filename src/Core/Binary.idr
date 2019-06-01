@@ -59,6 +59,7 @@ record TTCFile extra where
   rewritenames : Maybe RewriteNames
   primnames : PrimNames
   namedirectives : List (Name, List String)
+  cgdirectives : List (CG, String)
   extraData : extra
 
 asName : List String -> Maybe (List String) -> Name -> Name
@@ -118,6 +119,7 @@ writeTTCFile b file
            toBuf b (rewritenames file)
            toBuf b (primnames file)
            toBuf b (namedirectives file)
+           toBuf b (cgdirectives file)
            toBuf b (extraData file)
 
 readTTCFile : TTC extra => 
@@ -154,11 +156,12 @@ readTTCFile modns as r b
            rws <- fromBuf r b
            prims <- fromBuf r b
            nds <- fromBuf r b
+           cgds <- fromBuf r b
            ex <- fromBuf r b
            pure (MkTTCFile ver ifaceHash importHashes r
                            holes guesses constraints defs 
                            autohs typehs imp nextv cns 
-                           pns rws prims nds ex)
+                           pns rws prims nds cgds ex)
 
 -- Pull out the list of GlobalDefs that we want to save
 getSaveDefs : List Name -> List GlobalDef -> Defs -> Core (List GlobalDef)
@@ -202,6 +205,7 @@ writeToTTC extradata fname
                               (rewritenames (options defs)) 
                               (primnames (options defs)) 
                               (namedirectives (options defs)) 
+                              (cgdirectives defs)
                               extradata)
          Right ok <- coreLift $ writeToFile fname !(get Bin)
                | Left err => throw (InternalError (fname ++ ": " ++ show err))

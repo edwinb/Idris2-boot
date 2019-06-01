@@ -483,6 +483,9 @@ record Defs where
      -- ^ all imported filenames/namespaces, just to avoid loading something
      -- twice unnecessarily (this is a record of all the things we've
      -- called 'readFromTTC' with, in practice)
+  cgdirectives : List (CG, String)
+     -- ^ Code generator directives, which are free form text and thus to 
+     -- be interpreted however the specific code generator requires
 
 export
 clearDefs : Defs -> Core Defs
@@ -495,7 +498,7 @@ initDefs : Core Defs
 initDefs 
     = do gam <- initCtxt
          pure (MkDefs gam ["Main"] defaults empty 100 
-                      empty empty [] [] 5381 [] [] [])
+                      empty empty [] [] 5381 [] [] [] [])
       
 -- Label for context references
 export
@@ -726,6 +729,37 @@ hasFlag fc n fl
               | Nothing => throw (UndefinedName fc n)
          pure (fl `elem` flags def)
 
+export
+setVisibility : {auto c : Ref Ctxt Defs} ->
+                FC -> Name -> Visibility -> Core ()
+setVisibility fc n vis
+    = do defs <- get Ctxt
+         Just def <- lookupCtxtExact n (gamma defs)
+              | Nothing => throw (UndefinedName fc n)
+         addDef n (record { visibility = vis } def)
+         pure ()
+
+-- Set a name as Private that was previously visible (and, if 'everywhere' is
+-- set, hide in any modules imported by this one)
+export
+hide : {auto c : Ref Ctxt Defs} ->
+       FC -> Name -> Core ()
+hide fc n
+    = do defs <- get Ctxt
+         [(nsn, _)] <- lookupCtxtName n (gamma defs)
+              | [] => throw (UndefinedName fc n)
+              | res => throw (AmbiguousName fc (map fst res))
+         setVisibility fc nsn Private
+
+export
+getVisibility : {auto c : Ref Ctxt Defs} ->
+                FC -> Name -> Core Visibility
+getVisibility fc n
+    = do defs <- get Ctxt
+         Just def <- lookupCtxtExact n (gamma defs)
+              | Nothing => throw (UndefinedName fc n)
+         pure $ visibility def
+
 public export
 record SearchData where
   constructor MkSearchData
@@ -862,6 +896,45 @@ getNS : {auto c : Ref Ctxt Defs} ->
 getNS
     = do defs <- get Ctxt
          pure (currentNS defs)
+
+-- Add the module name, and namespace, of an imported module
+-- (i.e. for "import X as Y", it's (X, Y)
+-- "import public X" is, when rexported, the same as
+-- "import X as [current namespace]")
+export
+addImported : {auto c : Ref Ctxt Defs} ->
+              (List String, Bool, List String) -> Core ()
+addImported mod
+    = do defs <- get Ctxt
+         put Ctxt (record { imported $= (mod ::) } defs)
+
+export
+getImported : {auto c : Ref Ctxt Defs} ->
+              Core (List (List String, Bool, List String))
+getImported
+    = do defs <- get Ctxt
+         pure (imported defs)
+
+export
+addDirective : {auto c : Ref Ctxt Defs} ->
+               String -> String -> Core ()
+addDirective c str
+    = do defs <- get Ctxt
+         case getCG c of
+              Nothing => -- warn, rather than fail, because the CG may exist
+                         -- but be unknown to this particular instance
+                         coreLift $ putStrLn $ "Unknown code generator " ++ c
+              Just cg => put Ctxt (record { cgdirectives $= ((cg, str) ::) } defs)
+
+export
+getDirectives : {auto c : Ref Ctxt Defs} ->
+                CG -> Core (List String)
+getDirectives cg
+    = do defs <- get Ctxt
+         pure (mapMaybe getDir (cgdirectives defs))
+  where
+    getDir : (CG, String) -> Maybe String
+    getDir (x', str) = if cg == x' then Just str else Nothing
 
 getNextTypeTag : {auto c : Ref Ctxt Defs} ->
                  Core Int
@@ -1163,6 +1236,14 @@ setFromChar : {auto c : Ref Ctxt Defs} ->
 setFromChar n
     = do defs <- get Ctxt
          put Ctxt (record { options $= setFromChar n } defs)
+
+export
+addNameDirective : {auto c : Ref Ctxt Defs} ->
+                   FC -> Name -> List String -> Core ()
+addNameDirective fc n ns
+    = do defs <- get Ctxt
+         n' <- checkUnambig fc n
+         put Ctxt (record { options $= addNameDirective (n', ns) } defs)
 
 -- Checking special names from Options
 

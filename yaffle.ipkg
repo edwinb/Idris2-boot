@@ -31,6 +31,7 @@ modules =
     Data.NameMap,
     Data.StringMap,
 
+    Idris.Desugar,
     Idris.Parser,
     Idris.Syntax,
 
@@ -72,6 +73,7 @@ modules =
     TTImp.Utils,
 
     Utils.Binary,
+    Utils.Shunting,
 
     Yaffle.REPL
 
