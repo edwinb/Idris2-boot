@@ -72,6 +72,7 @@ modules =
     TTImp.Elab.Rewrite,
     TTImp.Elab.Term,
     TTImp.Interactive.CaseSplit,
+    TTImp.Interactive.ExprSearch,
     TTImp.Parser,
     TTImp.ProcessData,
     TTImp.ProcessDecls,

@@ -20,6 +20,7 @@ searchType : {auto c : Ref Ctxt Defs} ->
              (defining : Name) -> (topTy : ClosedTerm) ->
              Env Term vars -> (target : Term vars) -> Core (Term vars)
 
+public export
 record ArgInfo (vars : List Name) where
   constructor MkArgInfo
   holeID : Int
@@ -28,6 +29,7 @@ record ArgInfo (vars : List Name) where
   metaApp : Term vars
   argType : Term vars
 
+export
 mkArgs : {auto c : Ref Ctxt Defs} ->
          {auto u : Ref UST UState} ->
          FC -> RigCount ->

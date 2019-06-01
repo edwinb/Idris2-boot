@@ -13,6 +13,7 @@ import Core.Value
 
 import TTImp.Elab
 import TTImp.Elab.Check
+import TTImp.Interactive.ExprSearch
 import TTImp.Parser
 import TTImp.ProcessDecls
 import TTImp.TTImp
@@ -66,6 +67,16 @@ process (ProofSearch n_in)
          defs <- get Ctxt
          defnf <- normaliseHoles defs [] def
          coreLift (printLn !(toFullNames defnf))
+         pure True
+process (ExprSearch n_in)
+    = do defs <- get Ctxt
+         [(n, i, ty)] <- lookupTyName n_in (gamma defs)
+              | [] => throw (UndefinedName toplevelFC n_in)
+              | ns => throw (AmbiguousName toplevelFC (map fst ns))
+         results <- exprSearch toplevelFC n []
+         defs <- get Ctxt
+         defnfs <- traverse (normaliseHoles defs []) results
+         traverse_ (\d => coreLift (printLn !(toFullNames d))) defnfs
          pure True
 process (DebugInfo n)
     = do defs <- get Ctxt

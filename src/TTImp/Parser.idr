@@ -691,6 +691,9 @@ command
   <|> do symbol ":"; exactIdent "s"
          n <- name
          pure (ProofSearch n)
+  <|> do symbol ":"; exactIdent "es"
+         n <- name
+         pure (ExprSearch n)
   <|> do symbol ":"; exactIdent "di"
          n <- name
          pure (DebugInfo n)

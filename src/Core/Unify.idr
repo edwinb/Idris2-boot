@@ -668,7 +668,8 @@ mutual
   -- If they're both holes, solve the one with the bigger context
   doUnifyBothApps mode loc env xfc (NMeta xn xi xargs) xargs' yfc (NMeta yn yi yargs) yargs'
       = do invx <- isDefInvertible xi
-           if xi == yi && invx -- Invertible, (from auto implicit search)
+           if xi == yi && (invx || mode == InSearch)
+                               -- Invertible, (from auto implicit search)
                                -- so we can also unify the arguments.
               then unifyArgs mode loc env (map snd (xargs ++ xargs'))
                                           (map snd (yargs ++ yargs'))
@@ -681,6 +682,10 @@ mutual
       pv : Name -> Bool
       pv (PV _ _) = True
       pv _ = False
+  doUnifyBothApps InSearch loc env xfc fx@(NRef xt hdx) xargs yfc fy@(NRef yt hdy) yargs
+      = if hdx == hdy
+           then unifyArgs InSearch loc env (map snd xargs) (map snd yargs)
+           else unifyApp False InSearch loc env xfc fx xargs (NApp yfc fy yargs)
   doUnifyBothApps mode loc env xfc fx ax yfc fy ay
       = unifyApp False mode loc env xfc fx ax (NApp yfc fy ay)
 
