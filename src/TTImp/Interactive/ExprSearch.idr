@@ -87,12 +87,15 @@ searchIfHole fc opts defining topty env arg
                  defs <- get Ctxt
                  Just gdef <- lookupCtxtExact (Resolved hole) (gamma defs)
                       | Nothing => pure []
-                 let Hole inv = definition gdef
+                 let Hole _ inv = definition gdef
                       | _ => pure [(appInf arg, 
                                    !(normaliseHoles defs env (metaApp arg)))]
                                 -- already solved
                  tms <- search fc rig (record { depth = k} opts)
                                defining topty (Resolved hole)
+                 -- When we solve an argument, we're also building a lambda
+                 -- expression for its environment, so we need to apply it to
+                 -- the current environment to use it as an argument.
                  traverse (\tm => pure (appInf arg, 
                                         !(normaliseHoles defs env
                                            (applyTo fc (embed tm) env)))) tms
@@ -368,22 +371,22 @@ searchType : {auto c : Ref Ctxt Defs} ->
              FC -> RigCount -> SearchOpts -> Env Term vars -> Maybe RecData ->
              ClosedTerm ->
              Nat -> Term vars -> Core (List (Term vars))
-searchType fc rig opts env defining topty k (Bind bfc n (Pi c info ty) sc)
+searchType fc rig opts env defining topty (S k) (Bind bfc n (Pi c info ty) sc)
     = do let env' : Env Term (n :: _) = Pi c info ty :: env
          log 10 $ "Introduced lambda, search for " ++ show sc
          scVal <- searchType fc rig opts env' defining topty k sc
          pure (map (Bind bfc n (Lam c info ty)) scVal)
 searchType {vars} fc rig opts env defining topty Z (Bind bfc n (Pi c info ty) sc)
     = -- try a local before creating a lambda...
-      tryUnify 
-           (searchLocal fc rig opts env (Bind bfc n (Pi c info ty) sc) topty defining)
-           (do defs <- get Ctxt
-               let n' = UN (getArgName defs n vars !(nf defs env ty))
-               let env' : Env Term (n' :: _) = Pi c info ty :: env
-               let sc' = renameTop n' sc
-               log 10 $ "Introduced lambda, search for " ++ show sc'
-               scVal <- searchType fc rig opts env' defining topty Z sc'
-               pure (map (Bind bfc n' (Lam c info ty)) scVal))
+      getSuccessful fc rig opts False env ty topty defining
+           [searchLocal fc rig opts env (Bind bfc n (Pi c info ty) sc) topty defining,
+            (do defs <- get Ctxt
+                let n' = UN (getArgName defs n vars !(nf defs env ty))
+                let env' : Env Term (n' :: _) = Pi c info ty :: env
+                let sc' = renameTop n' sc
+                log 10 $ "Introduced lambda, search for " ++ show sc'
+                scVal <- searchType fc rig opts env' defining topty Z sc'
+                pure (map (Bind bfc n' (Lam c info ty)) scVal))]
 searchType fc rig opts env defining topty _ ty
     = case getFnArgs ty of
            (Ref rfc (TyCon t ar) n, args) =>
@@ -431,7 +434,7 @@ search fc rig opts defining topty n_in
                    -- The definition should be 'BySearch' at this stage,
                    -- if it's arising from an auto implicit
                    case definition gdef of
-                        Hole _ => searchHole fc rig opts defining n Z topty defs gdef
+                        Hole locs _ => searchHole fc rig opts defining n locs topty defs gdef
                         BySearch _ _ _ => searchHole fc rig opts defining n 
                                                    !(getArity defs [] (type gdef)) 
                                                    topty defs gdef

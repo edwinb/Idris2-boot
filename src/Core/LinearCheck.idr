@@ -139,7 +139,7 @@ mutual
                 | Nothing => updateHoleUsageArgs useInHole var args
            -- only update for holes with no definition yet
            case definition gdef of
-                Hole _ =>
+                Hole _ _ =>
                    do let ty = type gdef
                       ty' <- updateHoleType useInHole var ty args
                       updateTy i ty'
@@ -216,14 +216,14 @@ mutual
            Just gdef <- lookupCtxtExact (Resolved idx) (gamma defs)
                 | _ => throw (UndefinedName fc n)
            let expand = case (definition gdef, rig) of
-                             (Hole _, _) => False
+                             (Hole _ _, _) => False
                              (_, Rig0) => False
                              _ => True
            if expand
               then expandMeta rig erase env n idx (definition gdef) args
               else do let ty : ClosedTerm
                              = case definition gdef of
-                                    Hole _ => unusedHoleArgs args (type gdef)
+                                    Hole _ _ => unusedHoleArgs args (type gdef)
                                     _ => type gdef
                       nty <- nf defs env (embed ty)
                       lcheckMeta rig erase env fc n idx args [] nty

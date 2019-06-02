@@ -179,7 +179,7 @@ mutual
                      Env Term vars -> Term vars -> Term vars -> Core Bool
   solveIfUndefined env (Meta fc mname idx args) soln
       = do defs <- get Ctxt
-           Just (Hole _) <- lookupDefExact (Resolved idx) (gamma defs)
+           Just (Hole _ _) <- lookupDefExact (Resolved idx) (gamma defs)
                 | pure False
            case !(patternEnvTm env args) of
                 Nothing => pure False
@@ -253,7 +253,7 @@ mutual
                    pure ()
              case elabMode elabinfo of
                   InLHS _ => -- reset hole and redo it with the unexpanded definition
-                     do updateDef (Resolved idx) (const (Just (Hole False)))
+                     do updateDef (Resolved idx) (const (Just (Hole 0 False)))
                         solveIfUndefined env metaval argv
                         pure ()
                   _ => pure ()

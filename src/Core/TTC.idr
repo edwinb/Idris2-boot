@@ -202,9 +202,10 @@ mutual
   TTC (Term vars) where
     toBuf b (Local {name} fc c idx y) 
         = if idx < 244
-             then toBuf b (prim__truncBigInt_B8 (12 + cast idx))
-             else do tag 0;
-                     toBuf b fc -- toBuf b name
+             then do toBuf b (prim__truncBigInt_B8 (12 + cast idx))
+                     toBuf b name
+             else do tag 0
+                     toBuf b name
                      toBuf b idx
     toBuf b (Ref fc nt name) 
         = do tag 1;
@@ -246,9 +247,9 @@ mutual
 
     fromBuf r b 
         = case !getTag of
-               0 => do fc <- fromBuf r b; -- name <- fromBuf r b
+               0 => do fc <- fromBuf r b; name <- fromBuf r b
                        idx <- fromBuf r b
-                       pure (Local {name=UN "_"} fc Nothing idx (mkPrf idx))
+                       pure (Local {name} fc Nothing idx (mkPrf idx))
                1 => do fc <- fromBuf r b; nt <- fromBuf r b; name <- fromBuf r b
                        pure (Ref fc nt name)
                2 => do fc <- fromBuf {a = FC} r b; -- n <- fromBuf r b
@@ -280,10 +281,10 @@ mutual
                        pure (PrimVal fc c)
                10 => do fc <- fromBuf r b; pure (Erased fc)
                11 => do fc <- fromBuf r b; pure (TType fc)
-               idxp => do -- fc <- fromBuf r b; -- name <- fromBuf r b
+               idxp => do -- fc <- fromBuf r b; 
+                          name <- fromBuf r b
                           let idx = fromInteger (prim__sextB8_BigInt idxp - 12)
-                          pure (Local {name=UN "_"} 
-                                      emptyFC Nothing idx (mkPrf idx))
+                          pure (Local {name} emptyFC Nothing idx (mkPrf idx))
 
 export
 TTC Pat where

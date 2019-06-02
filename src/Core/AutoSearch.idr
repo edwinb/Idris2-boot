@@ -64,7 +64,7 @@ searchIfHole fc defaults ispair (S depth) def top env arg
          defs <- get Ctxt
          Just gdef <- lookupCtxtExact (Resolved hole) (gamma defs)
               | Nothing => throw (CantSolveGoal fc [] top)
-         let Hole inv = definition gdef
+         let Hole _ inv = definition gdef
               | _ => pure () -- already solved
          let top' = if ispair 
                        then type gdef

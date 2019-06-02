@@ -300,7 +300,7 @@ instantiate : {auto c : Ref Ctxt Defs} ->
               Core ()
 instantiate {newvars} loc env mname mref mdef locs otm tm
     = do log 5 $ "Instantiating " ++ show tm ++ " in " ++ show newvars 
-         let Hole _ = definition mdef
+         let Hole _ _ = definition mdef
              | def => ufail {a=()} loc (show mname ++ " already resolved as " ++ show def)
          case fullname mdef of
               PV pv pi => throw (PatternVariableUnifies loc env (PV pv pi) otm)
@@ -374,7 +374,7 @@ isDefInvertible : {auto c : Ref Ctxt Defs} ->
                   Int -> Core Bool
 isDefInvertible i
     = do defs <- get Ctxt
-         Just (Hole t) <- lookupDefExact (Resolved i) (gamma defs)
+         Just (Hole _ t) <- lookupDefExact (Resolved i) (gamma defs)
               | _ => pure False
          pure t
 
@@ -490,7 +490,7 @@ mutual
            Just mdef <- lookupCtxtExact (Resolved i) (gamma defs)
                 | Nothing => throw (UndefinedName nfc mname)
            let inv = case definition mdef of
-                          Hole i => i
+                          Hole _ i => i
                           _ => isPatName n
            if inv
               then unifyInvertible mode loc env mname mref margs margs' Nothing
@@ -578,7 +578,7 @@ mutual
                               " with " ++ show qtm)
            case !(patternEnv env args) of
                 Nothing => 
-                  do Just (Hole inv) <- lookupDefExact (Resolved mref) (gamma defs)
+                  do Just (Hole _ inv) <- lookupDefExact (Resolved mref) (gamma defs)
                         | _ => unifyPatVar mode loc env mname mref args tmnf
                      if inv
                         then unifyHoleApp mode loc env mname mref margs margs' tmnf
@@ -940,7 +940,7 @@ setInvertible : {auto c : Ref Ctxt Defs} ->
 setInvertible loc i
     = updateDef (Resolved i)
            (\old => case old of
-                         Hole _ => Just (Hole True)
+                         Hole locs _ => Just (Hole locs True)
                          _ => Nothing)
 
 public export
@@ -1056,7 +1056,7 @@ checkDots
                    Just ndef <- lookupDefExact n (gamma defs)
                         | Nothing => throw (UndefinedName fc n)
                    let h = case ndef of
-                                Hole _ => True
+                                Hole _ _ => True
                                 _ => False
                    
                    when (not (isNil (constraints cs)) || h) $

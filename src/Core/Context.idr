@@ -238,7 +238,7 @@ data Def : Type where
            (datacons : List Name) ->
            (typehints : List (Name, Bool)) ->
            Def
-    Hole : (invertible : Bool) -> Def
+    Hole : (numlocs : Nat) -> (invertible : Bool) -> Def
     BySearch : RigCount -> (maxdepth : Nat) -> (defining : Name) -> Def
     -- Constraints are integer references into the current map of
     -- constraints in the UnifyState (see Core.UnifyState)
@@ -258,7 +258,7 @@ Show Def where
       = "TyCon " ++ show t ++ " " ++ show a ++ " " ++ show cons
   show (ExternDef arity) = "<external def with arith " ++ show arity ++ ">"
   show (Builtin {arity} _) = "<builtin with arith " ++ show arity ++ ">"
-  show (Hole inv) = "Hole"
+  show (Hole _ inv) = "Hole"
   show (BySearch c depth def) = "Search in " ++ show def
   show (Guess tm cs) = "Guess " ++ show tm ++ " when " ++ show cs
   show ImpBind = "Bound name"
@@ -277,7 +277,7 @@ TTC Def where
   toBuf b (TCon t arity parampos detpos datacons _) 
       = do tag 4; toBuf b t; toBuf b arity; toBuf b parampos
            toBuf b detpos; toBuf b datacons
-  toBuf b (Hole invertible) = do tag 5; toBuf b invertible
+  toBuf b (Hole locs invertible) = do tag 5; toBuf b locs; toBuf b invertible
   toBuf b (BySearch c depth def) 
       = do tag 6; toBuf b c; toBuf b depth; toBuf b def
   toBuf b (Guess guess constraints) = do tag 7; toBuf b guess; toBuf b constraints
@@ -299,8 +299,9 @@ TTC Def where
              4 => do t <- fromBuf r b; a <- fromBuf r b
                      ps <- fromBuf r b; dets <- fromBuf r b; cs <- fromBuf r b
                      pure (TCon t a ps dets cs [])
-             5 => do i <- fromBuf r b
-                     pure (Hole i)
+             5 => do l <- fromBuf r b
+                     i <- fromBuf r b
+                     pure (Hole l i)
              6 => do c <- fromBuf r b; depth <- fromBuf r b
                      def <- fromBuf r b
                      pure (BySearch c depth def)
