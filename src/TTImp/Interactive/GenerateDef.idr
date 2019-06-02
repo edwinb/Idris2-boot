@@ -32,12 +32,6 @@ fnName lhs (NS _ n) = fnName lhs n
 fnName lhs (DN s _) = s
 fnName lhs n = show n
 
-getEnvArgNames : Defs -> Nat -> NF [] -> Core (List String)
-getEnvArgNames defs Z sc = getArgNames defs [] [] sc
-getEnvArgNames defs (S k) (NBind fc n _ sc)
-    = getEnvArgNames defs k !(sc defs (toClosure defaultOpts [] (Erased fc)))
-getEnvArgNames defs n ty = pure []
-
 expandClause : {auto c : Ref Ctxt Defs} ->
                {auto m : Ref MD Metadata} ->
                {auto u : Ref UST UState} ->

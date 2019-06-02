@@ -34,7 +34,10 @@ modules =
 
     Idris.Desugar,
     Idris.Error,
+    Idris.IDEMode.CaseSplit,
     Idris.IDEMode.Commands,
+    Idris.IDEMode.Parser,
+    Idris.IDEMode.TokenLine,
     Idris.Parser,
     Idris.REPLCommon,
     Idris.REPLOpts,
