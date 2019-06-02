@@ -52,6 +52,11 @@ showSep sep [] = ""
 showSep sep [x] = x
 showSep sep (x :: xs) = x ++ sep ++ showSep sep xs
 
+||| Check whether a given character is a valid identifier character
+export
+identChar : Char -> Bool
+identChar x = isAlphaNum x || x == '_' || x == '\''
+
 export Show Name where
   show (NS ns n) = showSep "." (reverse ns) ++ "." ++ show n
   show (UN x) = x

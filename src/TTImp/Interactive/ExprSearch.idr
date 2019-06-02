@@ -482,8 +482,11 @@ exprSearch : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              FC -> Name -> List Name -> Core (List ClosedTerm)
 exprSearch fc n hints
-    = do lhs <- findHoleLHS n
-         defs <- get Ctxt
+    = do defs <- get Ctxt
+         let Just idx = getNameID n (gamma defs)
+             | Nothing => throw (UndefinedName fc n)
+         lhs <- findHoleLHS (Resolved idx)
+         log 10 $ "LHS hole data " ++ show (n, lhs)
          Just gdef <- lookupCtxtExact n (gamma defs)
               | Nothing => throw (UndefinedName fc n)
          rs <- search fc (multiplicity gdef) (MkSearchOpts False True 5)

@@ -2,4 +2,6 @@ Processing as TTImp
 Written TTC
 Yaffle> \0 {m:31} : Main.Nat => \0 {a:30} : Type => \ys : (Main.Vect {m:31}[1] {a:30}[0]) => ys[0]
 Yaffle> \0 {m:43} : Main.Nat => \0 {a:42} : Type => \0 {k:41} : Main.Nat => \x : {a:42}[1] => \xs : (Main.Vect {k:41}[1] {a:42}[2]) => \ys : (Main.Vect {m:43}[4] {a:42}[3]) => (Main.Cons (Main.plus {k:41}[3] {m:43}[5]) {a:42}[4] x[2] (Main.append {m:43}[5] {a:42}[4] {k:41}[3] xs[1] ys[0]))
+Yaffle> [((Main.app2 (Main.Nil [Just a = _])) $y) = y, ((Main.app2 ((((Main.Cons [Just k = _]) [Just a = _]) $x) $z)) $y) = ((((Main.Cons [Just k = ((Main.plus {_:220}) {m:222})]) [Just a = {_:221}]) x) (((((Main.app2 [Just m = {m:222}]) [Just a = {_:221}]) [Just n = {_:220}]) z) y))]
+Yaffle> [((Main.zip (Main.Nil [Just a = _])) $y) = (Main.Nil [Just a = ((Main.Pair {_:197}) {b:198})]), ((Main.zip ((((Main.Cons [Just k = _]) [Just a = _]) $x) $z)) ((((Main.Cons [Just k = _]) [Just a = _]) $y) $w)) = ((((Main.Cons [Just k = {_:343}]) [Just a = ((Main.Pair {_:344}) {_:345})]) ((((Main.MkPair [Just b = {_:345}]) [Just a = {_:344}]) x) y)) (((((Main.zip [Just b = {_:345}]) [Just a = {_:344}]) [Just n = {_:343}]) z) w))]
 Yaffle> Bye for now!

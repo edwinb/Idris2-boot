@@ -264,6 +264,14 @@ metaVar fc rig env n ty
          pure tm
 
 export
+metaVarI : {auto c : Ref Ctxt Defs} ->
+          {auto u : Ref UST UState} ->
+          FC -> RigCount ->
+          Env Term vars -> Name -> Term vars -> Core (Int, Term vars)
+metaVarI fc rig env n ty
+    = newMeta fc rig env n ty True
+
+export
 argVar : {auto c : Ref Ctxt Defs} ->
          {auto u : Ref UST UState} ->
          FC -> RigCount ->

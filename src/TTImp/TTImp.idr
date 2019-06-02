@@ -299,6 +299,7 @@ data ImpREPL : Type where
      Check : RawImp -> ImpREPL
      ProofSearch : Name -> ImpREPL
      ExprSearch : Name -> ImpREPL
+     GenerateDef : Int -> Name -> ImpREPL
      DebugInfo : Name -> ImpREPL
      Quit : ImpREPL
 

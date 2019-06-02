@@ -694,6 +694,10 @@ command
   <|> do symbol ":"; exactIdent "es"
          n <- name
          pure (ExprSearch n)
+  <|> do symbol ":"; exactIdent "gd"
+         l <- intLit
+         n <- name
+         pure (GenerateDef (fromInteger l) n)
   <|> do symbol ":"; exactIdent "di"
          n <- name
          pure (DebugInfo n)

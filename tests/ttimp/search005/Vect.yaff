@@ -22,5 +22,11 @@ append : Vect n a -> Vect m a -> Vect (plus n m) a
 append Nil ys = ?appNil
 append (Cons x xs) ys = ?appCons
 
+app2 : Vect n a -> Vect m a -> Vect (plus n m) a
+
+data Pair : Type -> Type -> Type where
+     MkPair : a -> b -> Pair a b
+
+zip : Vect n a -> Vect n b -> Vect n (Pair a b)
 
 

@@ -27,13 +27,13 @@ checkHole : {vars : _} ->
 checkHole rig elabinfo nest env fc n_in (Just gexpty)
     = do nm <- inCurrentNS (UN n_in)
          expty <- getTerm gexpty
-         metaval <- metaVar fc rig env nm expty
-         withCurrentLHS nm
+         (idx, metaval) <- metaVarI fc rig env nm expty
+         withCurrentLHS (Resolved idx)
          pure (metaval, gexpty)
 checkHole rig elabinfo nest env fc n_in exp
     = do nmty <- genName "holeTy"
          ty <- metaVar fc Rig0 env nmty (TType fc)
          nm <- inCurrentNS (UN n_in)
-         metaval <- metaVar fc rig env nm ty
-         withCurrentLHS nm
+         (idx, metaval) <- metaVarI fc rig env nm ty
+         withCurrentLHS (Resolved idx)
          pure (metaval, gnf env ty)

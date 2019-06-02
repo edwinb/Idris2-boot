@@ -73,6 +73,7 @@ modules =
     TTImp.Elab.Term,
     TTImp.Interactive.CaseSplit,
     TTImp.Interactive.ExprSearch,
+    TTImp.Interactive.GenerateDef,
     TTImp.Parser,
     TTImp.ProcessData,
     TTImp.ProcessDecls,

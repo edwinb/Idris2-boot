@@ -14,6 +14,7 @@ import Core.Value
 import TTImp.Elab
 import TTImp.Elab.Check
 import TTImp.Interactive.ExprSearch
+import TTImp.Interactive.GenerateDef
 import TTImp.Parser
 import TTImp.ProcessDecls
 import TTImp.TTImp
@@ -77,6 +78,22 @@ process (ExprSearch n_in)
          defs <- get Ctxt
          defnfs <- traverse (normaliseHoles defs []) results
          traverse_ (\d => coreLift (printLn !(toFullNames d))) defnfs
+         pure True
+process (GenerateDef line name)
+    = do defs <- get Ctxt
+         Just (_, n', _, _) <- findTyDeclAt (\p, n => onLine line p)
+              | Nothing => do coreLift (putStrLn ("Can't find declaration for " ++ show name))
+                              pure True
+         case !(lookupDefExact n' (gamma defs)) of
+              Just None =>
+                  catch 
+                    (do Just (fc, cs) <- logTime "Generation" $ 
+                                makeDef (\p, n => onLine line p) n'
+                           | Nothing => coreLift (putStrLn "Failed")
+                        coreLift $ putStrLn (show cs))
+                    (\err => coreLift $ putStrLn $ "Can't find a definition for " ++ show n')
+              Just _ => coreLift $ putStrLn "Already defined"
+              Nothing => coreLift $ putStrLn $ "Can't find declaration for " ++ show name
          pure True
 process (DebugInfo n)
     = do defs <- get Ctxt
