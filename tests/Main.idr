@@ -8,7 +8,7 @@ ttimpTests : List String
 ttimpTests 
     = ["basic001", "basic002", "basic003", "basic004", "basic005",
        "basic006",
-       "coverage001",
+       "coverage001", "coverage002",
        "dot001",
        "eta001", "eta002",
        "lazy001",

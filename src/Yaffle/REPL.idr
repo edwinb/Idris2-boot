@@ -95,6 +95,25 @@ process (GenerateDef line name)
               Just _ => coreLift $ putStrLn "Already defined"
               Nothing => coreLift $ putStrLn $ "Can't find declaration for " ++ show name
          pure True
+process (Missing n_in) 
+    = do defs <- get Ctxt
+         case !(lookupCtxtName n_in (gamma defs)) of
+              [] => throw (UndefinedName emptyFC n_in)
+              ts => do traverse_ (\fn => 
+                          do tot <- getTotality emptyFC fn
+                             the (Core ()) $ case isCovering tot of
+                                  MissingCases cs => 
+                                     coreLift (putStrLn (show fn ++ ":\n" ++
+                                                 showSep "\n" (map show cs)))
+                                  NonCoveringCall ns =>
+                                     coreLift (putStrLn 
+                                         (show fn ++ ": Calls non covering function" 
+                                           ++ case ns of
+                                                   [fn] => " " ++ show fn
+                                                   _ => "s: " ++ showSep ", " (map show ns)))
+                                  _ => coreLift $ putStrLn (show fn ++ ": All cases covered")) 
+                        (map fst ts)
+                       pure True
 process (DebugInfo n)
     = do defs <- get Ctxt
          traverse showInfo !(lookupDefName n (gamma defs))

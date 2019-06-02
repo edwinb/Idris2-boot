@@ -1,0 +1,7 @@
+Processing as TTImp
+Written TTC
+Yaffle> Main.lookup: All cases covered
+Yaffle> Main.lookup':
+($resolved132 {arg:0} {arg:1} (Main.FZ {m:0}) {arg:3})
+Yaffle> Main.lookup'': Calls non covering function $resolved132
+Yaffle> Bye for now!

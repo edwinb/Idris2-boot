@@ -1,6 +1,7 @@
 module Core.CaseTree
 
 import Core.TT
+import Data.NameMap
 
 %default covering
 
@@ -111,6 +112,36 @@ thinTree n Impossible = Impossible
 export
 Weaken CaseTree where
   weakenNs ns t = insertCaseNames {outer = []} ns t 
+
+getNames : ({vs : _} -> NameMap () -> Term vs -> NameMap ()) ->
+           CaseTree vars -> NameMap ()
+getNames add sc = getSet empty sc
+  where
+    mutual
+      getAltSet : NameMap () -> CaseAlt vs -> NameMap ()
+      getAltSet ns (ConCase n t args sc) = getSet (insert n () ns) sc
+      getAltSet ns (DelayCase t a sc) = getSet ns sc
+      getAltSet ns (ConstCase i sc) = getSet ns sc
+      getAltSet ns (DefaultCase sc) = getSet ns sc
+
+      getAltSets : NameMap () -> List (CaseAlt vs) -> NameMap ()
+      getAltSets ns [] = ns
+      getAltSets ns (a :: as) 
+          = assert_total $ getAltSets (getAltSet ns a) as
+
+      getSet : NameMap () -> CaseTree vs -> NameMap ()
+      getSet ns (Case _ x ty xs) = getAltSets ns xs
+      getSet ns (STerm tm) = add ns tm
+      getSet ns (Unmatched msg) = ns
+      getSet ns Impossible = ns
+
+export
+getRefs : CaseTree vars -> NameMap ()
+getRefs = getNames addRefs
+
+export
+getMetas : CaseTree vars -> NameMap ()
+getMetas = getNames addMetas
 
 export
 mkPat' : List Pat -> ClosedTerm -> ClosedTerm -> Pat

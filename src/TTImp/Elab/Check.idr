@@ -502,6 +502,9 @@ convert fc elabinfo env x y
                             -- resolving any more constraints
                             catch (solveConstraints umode Normal)
                                   (\err => pure ())
+                            -- We need to normalise the known holes before
+                            -- throwing because they may no longer be known
+                            -- by the time we look at the error
                             throw (WhenUnifying fc env 
                                       !(normaliseHoles defs env xtm)
                                       !(normaliseHoles defs env ytm) err))

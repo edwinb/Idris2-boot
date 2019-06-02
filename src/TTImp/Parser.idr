@@ -698,6 +698,9 @@ command
          l <- intLit
          n <- name
          pure (GenerateDef (fromInteger l) n)
+  <|> do symbol ":"; exactIdent "missing"
+         n <- name
+         pure (Missing n)
   <|> do symbol ":"; exactIdent "di"
          n <- name
          pure (DebugInfo n)

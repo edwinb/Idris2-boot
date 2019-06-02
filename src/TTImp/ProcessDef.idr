@@ -16,7 +16,10 @@ import TTImp.BindImplicits
 import TTImp.Elab
 import TTImp.Elab.Check
 import TTImp.TTImp
+import TTImp.Unelab
 import TTImp.Utils
+
+import Data.NameMap
 
 mutual
   mismatchNF : Defs -> NF vars -> NF vars -> Core Bool
@@ -494,7 +497,7 @@ processDef : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              List ElabOpt -> NestedNames vars -> Env Term vars -> FC ->
              Name -> List ImpClause -> Core ()
-processDef {vars} opts nest env fc n_in cs_in
+processDef opts nest env fc n_in cs_in
     = do n <- inCurrentNS n_in
          defs <- get Ctxt
          Just gdef <- lookupCtxtExact n (gamma defs)
@@ -518,6 +521,62 @@ processDef {vars} opts nest env fc n_in cs_in
                  | Nothing => throw (InternalError "WAT")
         
          log 5 $ "Case tree for " ++ show n ++ ": " ++ show tree_ct
-         addDef n (record { definition = PMDef cargs tree_ct tree_rt pats } gdef)
-         pure ()
-         
+         addDef n (record { definition = PMDef cargs tree_ct tree_rt pats,
+                            refersTo = getRefs tree_ct } gdef)
+
+         cov <- checkCoverage nidx mult cs tree_ct
+         setCovering fc n cov
+  where
+    simplePat : Term vars -> Bool
+    simplePat (Local _ _ _ _) = True
+    simplePat (Erased _) = True
+    simplePat _ = False
+
+    -- Is the clause returned from 'checkClause' a catch all clause, i.e.
+    -- one where all the arguments are variables? If so, no need to do the
+    -- (potentially expensive) coverage check
+    catchAll : Maybe (Clause, Clause) -> Bool
+    catchAll Nothing = False
+    catchAll (Just (MkClause env lhs _, _))
+       = all simplePat (map snd (getArgs lhs))
+   
+    -- Return 'Nothing' if the clause is impossible, otherwise return the
+    -- original
+    checkImpossible : Int -> RigCount -> ClosedTerm -> 
+                      Core (Maybe ClosedTerm)
+    checkImpossible n mult tm
+        = do itm <- unelabNoPatvars [] tm
+             handleUnify
+               (do ctxt <- get Ctxt
+                   log 3 $ "Checking for impossibility: " ++ show itm
+                   ok <- checkClause mult False n [] (MkNested []) []
+                                     (ImpossibleClause fc itm)
+                   put Ctxt ctxt
+                   maybe (pure Nothing) (\chktm => pure (Just tm)) ok)
+               (\err => case err of
+                             WhenUnifying _ env l r err
+                               => do defs <- get Ctxt
+                                     if !(impossibleOK defs !(nf defs env l) 
+                                                            !(nf defs env r))
+                                        then pure Nothing
+                                        else pure (Just tm)
+                             _ => pure (Just tm))
+
+    checkCoverage : Int -> RigCount -> List (Maybe (Clause, Clause)) ->
+                    CaseTree vs -> Core Covering
+    checkCoverage n mult cs ctree
+        = do missCase <- if any catchAll cs
+                            then do log 3 $ "Catch all case in " ++ show n
+                                    pure []
+                            else getMissing fc (Resolved n) ctree
+             log 3 ("Initially missing in " ++ show n ++ ":\n" ++ 
+                               showSep "\n" (map show missCase))
+             missImp <- traverse (checkImpossible n mult) missCase
+             let miss = mapMaybe id missImp
+             if isNil miss
+                then do [] <- getNonCoveringRefs fc (Resolved n)
+                           | ns => pure (NonCoveringCall ns)
+                        pure IsCovering
+                else pure (MissingCases miss)
+
+    

@@ -300,6 +300,7 @@ data ImpREPL : Type where
      ProofSearch : Name -> ImpREPL
      ExprSearch : Name -> ImpREPL
      GenerateDef : Int -> Name -> ImpREPL
+     Missing : Name -> ImpREPL
      DebugInfo : Name -> ImpREPL
      Quit : ImpREPL
 
