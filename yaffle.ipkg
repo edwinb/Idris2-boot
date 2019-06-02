@@ -10,6 +10,7 @@ modules =
     Core.Context,
     Core.CompileExpr,
     Core.Core,
+    Core.Coverage,
     Core.Directory,
     Core.Env,
     Core.FC,

@@ -4,6 +4,7 @@ import Core.CaseBuilder
 import Core.CaseTree
 import Core.Context
 import Core.Core
+import Core.Coverage
 import Core.Env
 import Core.Hash
 import Core.Metadata
@@ -16,13 +17,6 @@ import TTImp.Elab
 import TTImp.Elab.Check
 import TTImp.TTImp
 import TTImp.Utils
-
-anyM : (a -> Core Bool) -> List a -> Core Bool
-anyM f [] = pure False
-anyM f (x :: xs)
-    = if !(f x)
-         then pure True
-         else anyM f xs
 
 mutual
   mismatchNF : Defs -> NF vars -> NF vars -> Core Bool

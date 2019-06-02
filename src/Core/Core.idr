@@ -402,6 +402,30 @@ namespace Binder
   traverse f (PVTy c ty) = pure $ PVTy c !(f ty)
 
 export
+anyM : (a -> Core Bool) -> List a -> Core Bool
+anyM f [] = pure False
+anyM f (x :: xs)
+    = if !(f x)
+         then pure True
+         else anyM f xs
+
+export
+allM : (a -> Core Bool) -> List a -> Core Bool
+allM f [] = pure True
+allM f (x :: xs)
+    = if !(f x)
+         then allM f xs
+         else pure False
+
+export
+filterM : (a -> Core Bool) -> List a -> Core (List a)
+filterM p [] = pure []
+filterM p (x :: xs)
+    = if !(p x)
+         then pure (x :: !(filterM p xs))
+         else filterM p xs
+
+export
 data Ref : label -> Type -> Type where
 	   MkRef : IORef a -> Ref x a
 

@@ -793,6 +793,64 @@ hasFlag fc n fl
          pure (fl `elem` flags def)
 
 export
+setSizeChange : {auto c : Ref Ctxt Defs} ->
+                FC -> Name -> List SCCall -> Core ()
+setSizeChange loc n sc
+    = do defs <- get Ctxt
+         Just def <- lookupCtxtExact n (gamma defs)
+              | Nothing => throw (UndefinedName loc n)
+         addDef n (record { sizeChange = sc } def)
+         pure ()
+
+export
+setTotality : {auto c : Ref Ctxt Defs} ->
+              FC -> Name -> Totality -> Core ()
+setTotality loc n tot
+    = do defs <- get Ctxt
+         Just def <- lookupCtxtExact n (gamma defs)
+              | Nothing => throw (UndefinedName loc n)
+         addDef n (record { totality = tot } def)
+         pure ()
+
+export
+setCovering : {auto c : Ref Ctxt Defs} ->
+              FC -> Name -> Covering -> Core ()
+setCovering loc n tot
+    = do defs <- get Ctxt
+         Just def <- lookupCtxtExact n (gamma defs)
+              | Nothing => throw (UndefinedName loc n)
+         addDef n (record { totality->isCovering = tot } def)
+         pure ()
+
+export
+setTerminating : {auto c : Ref Ctxt Defs} ->
+                 FC -> Name -> Terminating -> Core ()
+setTerminating loc n tot
+    = do defs <- get Ctxt
+         Just def <- lookupCtxtExact n (gamma defs)
+              | Nothing => throw (UndefinedName loc n)
+         addDef n (record { totality->isTerminating = tot } def)
+         pure ()
+
+export
+getTotality : {auto c : Ref Ctxt Defs} ->
+              FC -> Name -> Core Totality
+getTotality loc n
+    = do defs <- get Ctxt
+         Just def <- lookupCtxtExact n (gamma defs)
+              | Nothing => throw (UndefinedName loc n)
+         pure $ totality def
+
+export
+getSizeChange : {auto c : Ref Ctxt Defs} ->
+                FC -> Name -> Core (List SCCall)
+getSizeChange loc n
+    = do defs <- get Ctxt
+         Just def <- lookupCtxtExact n (gamma defs)
+              | Nothing => throw (UndefinedName loc n)
+         pure $ sizeChange def
+
+export
 setVisibility : {auto c : Ref Ctxt Defs} ->
                 FC -> Name -> Visibility -> Core ()
 setVisibility fc n vis
