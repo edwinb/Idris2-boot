@@ -29,4 +29,5 @@ data Pair : Type -> Type -> Type where
 
 zip : Vect n a -> Vect n b -> Vect n (Pair a b)
 
+zipWith : (a -> b -> c) -> Vect n a -> Vect n b -> Vect n c
 

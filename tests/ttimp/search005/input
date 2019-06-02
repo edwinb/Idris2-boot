@@ -2,4 +2,5 @@
 :es appCons
 :gd 25 app2
 :gd 30 zip
+:gd 32 zipWith
 :q
