@@ -1,4 +1,4 @@
 Processing as TTImp
-Eta.yaff:16:10--17:1:When unifying: ($resolved84 ?Main.{{b:15}:25}_[] ?Main.{{b:15}:25}_[] ?Main.{x:26}_[] ?Main.{x:26}_[]) and ($resolved84 ((x : Char) -> ((y : ?Main.{_:20}_[x[0]]) -> $resolved92)) (({arg:16} : Integer) -> (({arg:17} : Integer) -> $resolved92)) $resolved93 \x : Char => \y : ?Main.{_:20}_[x[0]] => ($resolved93 ?Main.{_:24}_[x[1], y[0]] ?Main.{_:23}_[x[1], y[0]]))
+Eta.yaff:16:10--17:1:When unifying: ($resolved84 ((x : Char) -> ((y : ?Main.{_:20}_[x[0]]) -> $resolved92)) ((x : Char) -> ((y : ?Main.{_:20}_[x[0]]) -> $resolved92)) ?Main.{x:26}_[] ?Main.{x:26}_[]) and ($resolved84 ((x : Char) -> ((y : ?Main.{_:20}_[x[0]]) -> $resolved92)) (({arg:16} : Integer) -> (({arg:17} : Integer) -> $resolved92)) $resolved93 \x : Char => \y : ?Main.{_:20}_[x[0]] => ($resolved93 ?Main.{_:24}_[x[1], y[0]] ?Main.{_:23}_[x[1], y[0]]))
 	Eta.yaff:16:10--17:1:Type mismatch: Char and Integer
 Yaffle> Bye for now!

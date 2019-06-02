@@ -1,0 +1,10 @@
+Processing as TTImp
+Written TTC
+Yaffle> Bye for now!
+Processing as TTImp
+Vect2.yaff:25:1--26:1:pat 0 {b:34} : Type => pat 0 {a:33} : Type => ($resolved102 {b:34}[1] {a:33}[0] $resolved77 ($resolved92 {a:33}[0]) ($resolved92 {b:34}[1])) is not a valid impossible pattern because it typechecks
+Yaffle> Bye for now!
+Processing as TTImp
+Vect3.yaff:25:1--26:1:Not a valid impossible pattern:
+	Vect3.yaff:25:9--25:11:Type mismatch: $resolved76 and ($resolved90 ?Main.{n:28}_[] ?Main.{b:26}_[])
+Yaffle> Bye for now!

@@ -495,13 +495,16 @@ convert fc elabinfo env x y
                     when (holesSolved vs) $
                         solveConstraints umode Normal
                     pure vs)
-                (\err => do xtm <- getTerm x
+                (\err => do defs <- get Ctxt
+                            xtm <- getTerm x
                             ytm <- getTerm y
                             -- See if we can improve the error message by
                             -- resolving any more constraints
                             catch (solveConstraints umode Normal)
                                   (\err => pure ())
-                            throw (WhenUnifying fc env xtm ytm err))
+                            throw (WhenUnifying fc env 
+                                      !(normaliseHoles defs env xtm)
+                                      !(normaliseHoles defs env ytm) err))
 
 -- Check whether the type we got for the given type matches the expected
 -- type.

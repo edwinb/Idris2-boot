@@ -245,6 +245,17 @@ getNotReq vs SubRefl = []
 getNotReq (v :: vs) (DropCons p) = v :: getNotReq _ p
 getNotReq _ (KeepCons p) = getNotReq _ p
 
+-- Return whether any of the pattern variables are in a trivially empty
+-- type, where trivally empty means one of:
+--  * No constructors
+--  * Every constructor of the family has a return type which conflicts with 
+--    the given constructor's type
+hasEmptyPat : Defs -> Env Term vars -> Term vars -> Core Bool
+hasEmptyPat defs env (Bind fc x (PVar c ty) sc)
+   = pure $ !(isEmpty defs !(nf defs env ty)) 
+            || !(hasEmptyPat defs (PVar c ty :: env) sc)
+hasEmptyPat defs env _ = pure False
+
 -- Check a pattern clause, returning the component of the 'Case' expression it
 -- represents, or Nothing if it's an impossible clause
 export
@@ -256,7 +267,35 @@ checkClause : {vars : _} ->
               Int -> List ElabOpt -> NestedNames vars -> Env Term vars ->
               ImpClause -> Core (Maybe (Clause, Clause))
 checkClause mult hashit n opts nest env (ImpossibleClause fc lhs)
-    = throw (InternalError "impossible not implemented yet")
+    = handleUnify
+         (do lhs_raw <- lhsInCurrentNS nest lhs
+             autoimp <- isAutoImplicits
+             autoImplicits True
+             (_, lhs) <- bindNames False lhs_raw
+             autoImplicits autoimp
+
+             log 5 $ "Checking " ++ show lhs
+             logEnv 5 "In env" env
+             (lhstm, _, lhstyg) <- 
+                         elabTerm n (InLHS mult) opts nest env 
+                                    (IBindHere fc PATTERN lhs) Nothing
+             defs <- get Ctxt
+             lhs <- normaliseHoles defs env lhstm
+             if !(hasEmptyPat defs env lhs)
+                then pure Nothing
+                else throw (ValidCase fc env (Left lhs)))
+         (\err => 
+            case err of
+                 ValidCase _ _ _ => throw err
+                 WhenUnifying _ env l r err
+                     => do defs <- get Ctxt
+                           logTerm 10 "Impossible" !(normalise defs env l)
+                           logTerm 10 "    ...and" !(normalise defs env r)
+                           if !(impossibleOK defs !(nf defs env l)
+                                                  !(nf defs env r))
+                              then pure Nothing
+                              else throw (ValidCase fc env (Right err))
+                 _ => throw (ValidCase fc env (Right err)))
 checkClause {vars} mult hashit n opts nest env (PatClause fc lhs_in rhs)
     = do (vars'  ** (sub', env', nest', lhstm', lhsty')) <- 
              checkLHS mult hashit n opts nest env fc lhs_in

@@ -1,0 +1,5 @@
+echo ':q' | $1 Vect.yaff
+echo ':q' | $1 Vect2.yaff
+echo ':q' | $1 Vect3.yaff
+
+rm -rf build
