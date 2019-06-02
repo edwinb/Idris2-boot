@@ -74,6 +74,7 @@ modules =
     TTImp.Interactive.CaseSplit,
     TTImp.Interactive.ExprSearch,
     TTImp.Interactive.GenerateDef,
+    TTImp.Interactive.MakeLemma,
     TTImp.Parser,
     TTImp.ProcessData,
     TTImp.ProcessDecls,
