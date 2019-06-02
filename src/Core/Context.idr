@@ -1,6 +1,7 @@
 module Core.Context
 
 import        Core.CaseTree
+import        Core.CompileExpr
 import public Core.Core
 import        Core.Env
 import        Core.Hash
@@ -392,6 +393,47 @@ TTC DefFlag where
              _ => corrupt "DefFlag"
 
 public export
+data SizeChange = Smaller | Same | Unknown
+
+export
+Show SizeChange where
+  show Smaller = "Smaller"
+  show Same = "Same"
+  show Unknown = "Unknown"
+
+public export
+record SCCall where
+     constructor MkSCCall
+     fnCall : Name -- Function called
+     fnArgs : List (Maybe (Nat, SizeChange))
+        -- relationship to arguments of calling function; argument position
+        -- (in the calling function), and how its size changed in the call.
+        -- 'Nothing' if it's not related to any of the calling function's
+        -- arguments
+
+export
+TTC SizeChange where
+  toBuf b Smaller = tag 0
+  toBuf b Same = tag 1
+  toBuf b Unknown = tag 2
+
+  fromBuf s b
+      = case !getTag of
+             0 => pure Smaller
+             1 => pure Same
+             2 => pure Unknown
+             _ => corrupt "SizeChange"
+
+export
+TTC SCCall where
+  toBuf b c = do toBuf b (fnCall c); toBuf b (fnArgs c)
+  fromBuf s b
+      = do fn <- fromBuf s b
+           args <- fromBuf s b
+           pure (MkSCCall fn args)
+
+
+public export
 record GlobalDef where
   constructor MkGlobalDef
   location : FC
@@ -410,6 +452,8 @@ record GlobalDef where
                   -- occurs check)
   linearChecked : Bool -- Flag whether we've already checked its linearity
   definition : Def
+  compexpr : Maybe CDef
+  sizeChange : List SCCall
 
 export
 TTC GlobalDef where
@@ -418,6 +462,7 @@ TTC GlobalDef where
         -- be holes where all we will ever need after loading is the definition
         do toBuf b (fullname gdef)
            toBuf b (definition gdef)
+           toBuf b (compexpr gdef)
            when (isUserName (fullname gdef)) $
               do toBuf b (location gdef)
                  toBuf b (type gdef)
@@ -428,10 +473,12 @@ TTC GlobalDef where
                  toBuf b (flags gdef)
                  toBuf b (map fst (toList (refersTo gdef)))
                  toBuf b (noCycles gdef)
+                 toBuf b (sizeChange gdef)
 
   fromBuf r b 
       = do name <- fromBuf r b
            def <- fromBuf r b
+           cdef <- fromBuf r b
            if isUserName name
               then do loc <- fromBuf r b; 
                       ty <- fromBuf r b; mul <- fromBuf r b
@@ -441,18 +488,20 @@ TTC GlobalDef where
                       refsList <- fromBuf r b; 
                       let refs = fromList (map (\x => (x, ())) refsList)
                       c <- fromBuf r b
+                      sc <- fromBuf r b
                       pure (MkGlobalDef loc name ty mul vars vis 
-                                        tot fl refs c True def)
+                                        tot fl refs c True def cdef sc)
               else do let fc = emptyFC
                       pure (MkGlobalDef fc name (Erased fc)
                                         RigW [] Public unchecked [] empty
-                                        False True def)
+                                        False True def cdef [])
 
 export
 newDef : FC -> Name -> RigCount -> List Name -> 
          ClosedTerm -> Visibility -> Def -> GlobalDef
 newDef fc n rig vars ty vis def 
     = MkGlobalDef fc n ty rig vars vis unchecked [] empty False False def
+                  Nothing []
 
 public export
 record Defs where
@@ -546,7 +595,8 @@ addBuiltin : {auto x : Ref Ctxt Defs} ->
              PrimFn arity -> Core ()
 addBuiltin n ty tot op 
     = do addDef n (MkGlobalDef emptyFC n ty RigW [] Public tot 
-                               [Inline] empty False True (Builtin op)) 
+                               [Inline] empty False True (Builtin op)
+                               Nothing []) 
          pure ()
 
 export

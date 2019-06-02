@@ -1,12 +1,14 @@
 module Core.TTC
 
 import Core.CaseTree
+import Core.CompileExpr
 import Core.Core
 import Core.Env
 import Core.FC
 import Core.Name
 import Core.TT
 
+import Data.Vect
 import Utils.Binary
 
 %default covering
@@ -532,4 +534,89 @@ TTC (PrimFn n) where
                  20 => pure BelieveMe
                  _ => corrupt "PrimFn 3"
              
+mutual
+  export
+  TTC (CExp vars) where
+    toBuf b (CLocal {x} {idx} h) = do tag 0; toBuf b x; toBuf b idx
+    toBuf b (CRef n) = do tag 1; toBuf b n
+    toBuf b (CLam x sc) = do tag 2; toBuf b x; toBuf b sc
+    toBuf b (CLet x val sc) = do tag 3; toBuf b x; toBuf b val; toBuf b sc
+    toBuf b (CApp f as) = assert_total $ do tag 4; toBuf b f; toBuf b as
+    toBuf b (CCon t n as) = assert_total $ do tag 5; toBuf b t; toBuf b n; toBuf b as
+    toBuf b (COp {arity} op as) = assert_total $ do tag 6; toBuf b arity; toBuf b op; toBuf b as
+    toBuf b (CExtPrim f as) = assert_total $ do tag 7; toBuf b f; toBuf b as
+    toBuf b (CForce x) = assert_total $ do tag 8; toBuf b x
+    toBuf b (CDelay x) = assert_total $ do tag 9; toBuf b x
+    toBuf b (CConCase sc alts def) = assert_total $ do tag 10; toBuf b sc; toBuf b alts; toBuf b def
+    toBuf b (CConstCase sc alts def) = assert_total $ do tag 11; toBuf b sc; toBuf b alts; toBuf b def
+    toBuf b (CPrimVal c) = do tag 12; toBuf b c
+    toBuf b CErased = do tag 13
+    toBuf b (CCrash msg) = do tag 14; toBuf b msg
+
+    fromBuf s b
+        = assert_total $ case !getTag of
+               0 => do x <- fromBuf s b; idx <- fromBuf s b
+                       pure (CLocal {x} (mkPrf idx))
+               1 => do n <- fromBuf s b
+                       pure (CRef n)
+               2 => do x <- fromBuf s b; sc <- fromBuf s b
+                       pure (CLam x sc)
+               3 => do x <- fromBuf s b; val <- fromBuf s b; sc <- fromBuf s b
+                       pure (CLet x val sc)
+               4 => do f <- fromBuf s b; as <- fromBuf s b
+                       pure (CApp f as)
+               5 => do t <- fromBuf s b; n <- fromBuf s b; as <- fromBuf s b
+                       pure (CCon t n as)
+               6 => do arity <- fromBuf s b; op <- fromBuf s b; args <- fromBuf s b
+                       pure (COp {arity} op args)
+               7 => do p <- fromBuf s b; as <- fromBuf s b
+                       pure (CExtPrim p as)
+               8 => do x <- fromBuf s b
+                       pure (CForce x)
+               9 => do x <- fromBuf s b
+                       pure (CDelay x)
+               10 => do sc <- fromBuf s b; alts <- fromBuf s b; def <- fromBuf s b
+                        pure (CConCase sc alts def)
+               11 => do sc <- fromBuf s b; alts <- fromBuf s b; def <- fromBuf s b
+                        pure (CConstCase sc alts def)
+               12 => do c <- fromBuf s b
+                        pure (CPrimVal c)
+               13 => pure CErased
+               14 => do msg <- fromBuf s b
+                        pure (CCrash msg)
+               _ => corrupt "CExp"
+
+  export
+  TTC (CConAlt vars) where
+    toBuf b (MkConAlt n t as sc) = do toBuf b n; toBuf b t; toBuf b as; toBuf b sc
+
+    fromBuf s b
+        = do n <- fromBuf s b; t <- fromBuf s b
+             as <- fromBuf s b; sc <- fromBuf s b
+             pure (MkConAlt n t as sc)
+
+  export
+  TTC (CConstAlt vars) where
+    toBuf b (MkConstAlt c sc) = do toBuf b c; toBuf b sc
+
+    fromBuf s b
+        = do c <- fromBuf s b; sc <- fromBuf s b
+             pure (MkConstAlt c sc)
+
+export
+  TTC CDef where
+    toBuf b (MkFun args cexpr) = do tag 0; toBuf b args; toBuf b cexpr
+    toBuf b (MkCon t arity) = do tag 1; toBuf b t; toBuf b arity
+    toBuf b (MkError cexpr) = do tag 2; toBuf b cexpr
+
+    fromBuf s b 
+        = case !getTag of
+               0 => do args <- fromBuf s b; cexpr <- fromBuf s b
+                       pure (MkFun args cexpr)
+               1 => do t <- fromBuf s b; arity <- fromBuf s b
+                       pure (MkCon t arity)
+               2 => do cexpr <- fromBuf s b
+                       pure (MkError cexpr)
+               _ => corrupt "CDef"
+
 

@@ -8,6 +8,7 @@ modules =
     Core.CaseBuilder,
     Core.CaseTree,
     Core.Context,
+    Core.CompileExpr,
     Core.Core,
     Core.Directory,
     Core.Env,
