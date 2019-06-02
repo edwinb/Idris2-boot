@@ -102,7 +102,7 @@ resetContext
          put Ctxt (record { options = clearNames (options defs) } !initDefs)
          addPrimitives
          put UST initUState
-         put Syn !initSyntax
+         put Syn initSyntax
          put MD initMetadata
 
 

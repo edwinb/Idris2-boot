@@ -509,6 +509,14 @@ initDefs
 export
 data Ctxt : Type where
 
+-- Reset the context, except for the options
+export
+clearCtxt : {auto c : Ref Ctxt Defs} ->
+            Core ()
+clearCtxt
+    = do defs <- get Ctxt
+         put Ctxt (record { options = options defs } !initDefs)
+
 export
 addHash : {auto c : Ref Ctxt Defs} ->
           Hashable a => a -> Core ()

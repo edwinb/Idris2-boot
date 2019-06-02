@@ -10,6 +10,7 @@ import Core.TT
 import Core.Unify
 
 import Data.StringMap
+import Data.ANameMap
 
 import Idris.Syntax
 
@@ -50,16 +51,16 @@ import Control.Monad.State
 public export
 data Side = LHS | AnyExpr
 
--- export
--- extendAs : {auto s : Ref Syn SyntaxInfo} ->
---            List String -> List String -> SyntaxInfo -> Core ()
--- extendAs old as newsyn
---     = do syn <- get Syn
---          put Syn (record { infixes $= mergeLeft (infixes newsyn),
---                            prefixes $= mergeLeft (prefixes newsyn),
---                            ifaces $= ?halp, -- mergeContextAs old as (ifaces newsyn),
---                            bracketholes $= ((bracketholes newsyn) ++) } 
---                   syn)
+export
+extendAs : {auto s : Ref Syn SyntaxInfo} ->
+           List String -> List String -> SyntaxInfo -> Core ()
+extendAs old as newsyn
+    = do syn <- get Syn
+         put Syn (record { infixes $= mergeLeft (infixes newsyn),
+                           prefixes $= mergeLeft (prefixes newsyn),
+                           ifaces $= mergeAs old as (ifaces newsyn),
+                           bracketholes $= ((bracketholes newsyn) ++) } 
+                  syn)
 
 mkPrec : Fixity -> Nat -> OpPrec
 mkPrec InfixL p = AssocL p
