@@ -31,6 +31,10 @@ withArgHoles : EvalOpts
 withArgHoles = MkEvalOpts False True False empty True False Nothing
 
 export
+tcOnly : EvalOpts
+tcOnly = record { tcInline = True } withArgHoles
+
+export
 onLHS : EvalOpts
 onLHS = record { removeAs = False } defaultOpts
 

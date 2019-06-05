@@ -9,6 +9,7 @@ import Core.Env
 import Core.Hash
 import Core.Metadata
 import Core.Normalise
+import Core.Termination
 import Core.Value
 import Core.UnifyState
 
@@ -523,6 +524,9 @@ processDef opts nest env fc n_in cs_in
          log 5 $ "Case tree for " ++ show n ++ ": " ++ show tree_ct
          addDef n (record { definition = PMDef cargs tree_ct tree_rt pats,
                             refersTo = getRefs tree_ct } gdef)
+
+         sc <- calculateSizeChange fc n
+         setSizeChange fc n sc
 
          cov <- checkCoverage nidx mult cs tree_ct
          setCovering fc n cov

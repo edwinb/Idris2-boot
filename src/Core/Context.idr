@@ -412,6 +412,10 @@ record SCCall where
         -- arguments
 
 export
+Show SCCall where
+  show c = show (fnCall c) ++ ": " ++ show (fnArgs c)
+
+export
 TTC SizeChange where
   toBuf b Smaller = tag 0
   toBuf b Same = tag 1

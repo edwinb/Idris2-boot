@@ -189,6 +189,8 @@ mutual
                          Just stm =>
                             do Just hdef <- lookupCtxtExact (Resolved idx) (gamma defs)
                                     | Nothing => throw (InternalError "Can't happen: no definition")
+                               logTerm 0 ("Instantiating " ++ show mname) stm
+                               logTerm 0 "Type" (type hdef)
                                instantiate fc env mname idx hdef locs soln stm
                                pure True
   solveIfUndefined env metavar soln 

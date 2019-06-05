@@ -26,8 +26,11 @@ import Control.Catchable
 
 %default covering
 
-showInfo : (Name, Int, Def) -> Core ()
-showInfo (n, d) = coreLift $ putStrLn (show n ++ " ==> " ++ show d)
+showInfo : (Name, Int, GlobalDef) -> Core ()
+showInfo (n, _, d) 
+    = coreLift $ putStrLn (show n ++ " ==>\n" ++ 
+                   "\t" ++ show (definition d) ++ "\n" ++
+                   "\t" ++ show (sizeChange d) ++ "\n")
 
 -- Returns 'True' if the REPL should continue
 process : {auto c : Ref Ctxt Defs} ->
@@ -116,7 +119,7 @@ process (Missing n_in)
                        pure True
 process (DebugInfo n)
     = do defs <- get Ctxt
-         traverse showInfo !(lookupDefName n (gamma defs))
+         traverse showInfo !(lookupCtxtName n (gamma defs))
          pure True
 process Quit 
     = do coreLift $ putStrLn "Bye for now!"

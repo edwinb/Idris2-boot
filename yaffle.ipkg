@@ -21,6 +21,7 @@ modules =
     Core.Name,
     Core.Normalise,
     Core.Options,
+    Core.Termination,
     Core.TT,
     Core.TTC,
     Core.Unify,

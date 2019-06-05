@@ -691,6 +691,12 @@ export
 getArgs : Term vars -> (List (AppInfo, Term vars))
 getArgs = snd . getFnArgs
 
+export
+getFnArgsOnly : Term vars -> (Term vars, List (Term vars))
+getFnArgsOnly tm
+    = case getFnArgs tm of
+           (f, args) => (f, map snd args)
+
 public export
 data CompatibleVars : List Name -> List Name -> Type where
      CompatPre : CompatibleVars xs xs

@@ -573,6 +573,11 @@ normalise : Defs -> Env Term free -> Term free -> Core (Term free)
 normalise defs env tm = quote defs env !(nf defs env tm)
 
 export
+normaliseOpts : EvalOpts -> Defs -> Env Term free -> Term free -> Core (Term free)
+normaliseOpts opts defs env tm 
+    = quote defs env !(nfOpts opts defs env tm)
+
+export
 normaliseHoles : Defs -> Env Term free -> Term free -> Core (Term free)
 normaliseHoles defs env tm 
     = quote defs env !(nfOpts withHoles defs env tm)
