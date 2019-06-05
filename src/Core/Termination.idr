@@ -445,7 +445,7 @@ posArg : Defs -> List Name -> NF [] -> Core Terminating
 posArg defs tyns (NTCon _ tc _ _ args) 
     = let testargs : List (Closure [])
              = case !(lookupDefExact tc (gamma defs)) of
-                    Just (TCon _ _ params _ _ _) => 
+                    Just (TCon _ _ params _ _ _ _) => 
                          dropParams 0 params (map snd args)
                     _ => map snd args in
           if !(anyM (nameIn defs tyns)
@@ -502,11 +502,10 @@ calcPositive : {auto c : Ref Ctxt Defs} ->
 calcPositive loc n 
     = do defs <- get Ctxt
          case !(lookupDefTyExact n (gamma defs)) of
-              Just (TCon _ _ _ _ dcons _, ty) => 
+              Just (TCon _ _ _ _ tns dcons _, ty) => 
                   case !(totRefsIn defs ty) of
                        IsTerminating => 
-                            do let tns = []
-                               t <- checkData defs (n :: tns) dcons
+                            do t <- checkData defs (n :: tns) dcons
                                pure (t , dcons)
                        bad => pure (bad, dcons)
               Just _ => throw (GenericMsg loc (show n ++ " not a data type"))
@@ -532,13 +531,17 @@ checkPositive loc n
 export
 checkTotal : {auto c : Ref Ctxt Defs} ->
              FC -> Name -> Core Terminating
-checkTotal loc n
-    = do tot <- getTotality loc n
+checkTotal loc n_in
+    = do defs <- get Ctxt
+         let Just nidx = getNameID n_in (gamma defs)
+             | Nothing => throw (UndefinedName loc n_in)
+         let n = Resolved nidx
+         tot <- getTotality loc n
          defs <- get Ctxt
          case isTerminating tot of
               Unchecked =>
                   case !(lookupDefExact n (gamma defs)) of
-                       Just (TCon _ _ _ _ _ _)
+                       Just (TCon _ _ _ _ _ _ _)
                            => checkPositive loc n
                        _ => checkTerminating loc n
               t => pure t

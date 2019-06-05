@@ -7,6 +7,7 @@ import Core.Env
 import Core.FC
 import Core.Metadata
 import Core.Normalise
+import Core.Termination
 import Core.TT
 import Core.Unify
 import Core.Value
@@ -116,6 +117,16 @@ process (Missing n_in)
                                                    _ => "s: " ++ showSep ", " (map show ns)))
                                   _ => coreLift $ putStrLn (show fn ++ ": All cases covered")) 
                         (map fst ts)
+                       pure True
+process (CheckTotal n)
+    = do defs <- get Ctxt
+         case !(lookupCtxtName n (gamma defs)) of
+              [] => throw (UndefinedName emptyFC n)
+              ts => do traverse_ (\fn =>
+                          do checkTotal emptyFC fn
+                             tot <- getTotality emptyFC fn
+                             coreLift (putStrLn (show fn ++ " is " ++ show tot)))
+                               (map fst ts)
                        pure True
 process (DebugInfo n)
     = do defs <- get Ctxt

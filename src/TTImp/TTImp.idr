@@ -301,6 +301,7 @@ data ImpREPL : Type where
      ExprSearch : Name -> ImpREPL
      GenerateDef : Int -> Name -> ImpREPL
      Missing : Name -> ImpREPL
+     CheckTotal : Name -> ImpREPL
      DebugInfo : Name -> ImpREPL
      Quit : ImpREPL
 

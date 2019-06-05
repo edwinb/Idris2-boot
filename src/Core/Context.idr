@@ -236,6 +236,7 @@ data Def : Type where
     TCon : (tag : Int) -> (arity : Nat) ->
            (parampos : List Nat) -> -- parameters
            (detpos : List Nat) -> -- determining arguments
+           (mutwith : List Name) ->
            (datacons : List Name) ->
            (typehints : List (Name, Bool)) ->
            Def
@@ -255,7 +256,7 @@ Show Def where
   show (PMDef args ct rt pats) 
       = show args ++ "; " ++ show ct
   show (DCon t a) = "DataCon " ++ show t ++ " " ++ show a
-  show (TCon t a ps ds cons hints) 
+  show (TCon t a ps ds ms cons hints) 
       = "TyCon " ++ show t ++ " " ++ show a ++ " " ++ show cons
   show (ExternDef arity) = "<external def with arith " ++ show arity ++ ">"
   show (Builtin {arity} _) = "<builtin with arith " ++ show arity ++ ">"
@@ -275,9 +276,9 @@ TTC Def where
   toBuf b (Builtin a)
       = throw (InternalError "Trying to serialise a Builtin")
   toBuf b (DCon t arity) = do tag 3; toBuf b t; toBuf b arity
-  toBuf b (TCon t arity parampos detpos datacons _) 
+  toBuf b (TCon t arity parampos detpos ms datacons _) 
       = do tag 4; toBuf b t; toBuf b arity; toBuf b parampos
-           toBuf b detpos; toBuf b datacons
+           toBuf b detpos; toBuf b ms; toBuf b datacons
   toBuf b (Hole locs invertible) = do tag 5; toBuf b locs; toBuf b invertible
   toBuf b (BySearch c depth def) 
       = do tag 6; toBuf b c; toBuf b depth; toBuf b def
@@ -298,8 +299,9 @@ TTC Def where
              3 => do t <- fromBuf r b; a <- fromBuf r b
                      pure (DCon t a)
              4 => do t <- fromBuf r b; a <- fromBuf r b
-                     ps <- fromBuf r b; dets <- fromBuf r b; cs <- fromBuf r b
-                     pure (TCon t a ps dets cs [])
+                     ps <- fromBuf r b; dets <- fromBuf r b; 
+                     ms <- fromBuf r b; cs <- fromBuf r b
+                     pure (TCon t a ps dets ms cs [])
              5 => do l <- fromBuf r b
                      i <- fromBuf r b
                      pure (Hole l i)
@@ -511,6 +513,7 @@ public export
 record Defs where
   constructor MkDefs
   gamma : Context GlobalDef
+  mutData : List Name -- Currently declared but undefined data types
   currentNS : List String -- namespace for current definitions
   options : Options
   toSave : NameMap ()
@@ -555,7 +558,7 @@ export
 initDefs : Core Defs
 initDefs 
     = do gam <- initCtxt
-         pure (MkDefs gam ["Main"] defaults empty 100 
+         pure (MkDefs gam [] ["Main"] defaults empty 100 
                       empty empty [] [] 5381 [] [] [] [])
       
 -- Label for context references
@@ -910,7 +913,7 @@ getSearchData : {auto c : Ref Ctxt Defs} ->
                 Core SearchData
 getSearchData fc defaults target
     = do defs <- get Ctxt
-         Just (TCon _ _ _ dets cons hs) <- lookupDefExact target (gamma defs)
+         Just (TCon _ _ _ dets _ cons hs) <- lookupDefExact target (gamma defs)
               | _ => throw (UndefinedName fc target)
          if defaults
             then let defaults = map fst (filter isDefault
@@ -931,16 +934,41 @@ getSearchData fc defaults target
     direct = snd
 
 export
+setMutWith : {auto c : Ref Ctxt Defs} ->
+             FC -> Name -> List Name -> Core ()
+setMutWith fc tn tns
+    = do defs <- get Ctxt
+         Just g <- lookupCtxtExact tn (gamma defs) 
+              | _ => throw (UndefinedName fc tn)
+         let TCon t a ps dets _ cons hs = definition g
+              | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor"))
+         updateDef tn (const (Just (TCon t a ps dets tns cons hs)))
+
+export
+addMutData : {auto c : Ref Ctxt Defs} ->
+             Name -> Core ()
+addMutData n
+    = do defs <- get Ctxt
+         put Ctxt (record { mutData $= (n ::) } defs)
+
+export
+dropMutData : {auto c : Ref Ctxt Defs} ->
+              Name -> Core ()
+dropMutData n
+    = do defs <- get Ctxt
+         put Ctxt (record { mutData $= filter (/= n) } defs)
+
+export
 setDetermining : {auto c : Ref Ctxt Defs} ->
                  FC -> Name -> List Name -> Core ()
 setDetermining fc tyn args
     = do defs <- get Ctxt
          Just g <- lookupCtxtExact tyn (gamma defs) 
               | _ => throw (UndefinedName fc tyn)
-         let TCon t a ps _ cons hs = definition g
+         let TCon t a ps _ cons ms hs = definition g
               | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor"))
          apos <- getPos 0 args (type g)
-         updateDef tyn (const (Just (TCon t a ps apos cons hs)))
+         updateDef tyn (const (Just (TCon t a ps apos cons ms hs)))
   where
     -- Type isn't normalised, but the argument names refer to those given
     -- explicitly in the type, so there's no need.
@@ -966,9 +994,9 @@ addHintFor fc tyn hintn_in direct
                     _ => case getNameID hintn_in (gamma defs) of
                               Nothing => hintn_in
                               Just idx => Resolved idx
-         Just (TCon t a ps dets cons hs) <- lookupDefExact tyn (gamma defs)
+         Just (TCon t a ps dets cons ms hs) <- lookupDefExact tyn (gamma defs)
               | _ => throw (GenericMsg fc (show tyn ++ " is not a type constructor"))
-         updateDef tyn (const (Just (TCon t a ps dets cons ((hintn, direct) :: hs))))
+         updateDef tyn (const (Just (TCon t a ps dets cons ms ((hintn, direct) :: hs))))
          defs <- get Ctxt
          put Ctxt (record { saveTypeHints $= ((tyn, hintn, direct) :: )
                           } defs)
@@ -1087,7 +1115,7 @@ addData vars vis (MkData (MkCon dfc tyn arity tycon) datacons)
                             (TCon tag arity 
                                   (paramPos tyn (map type datacons))
                                   (allDet arity)
-                                  (map name datacons) [])
+                                  [] (map name datacons) [])
          (idx, gam') <- addCtxt tyn tydef (gamma defs)
          gam'' <- addDataConstructors 0 datacons gam'
          put Ctxt (record { gamma = gam'' } defs)

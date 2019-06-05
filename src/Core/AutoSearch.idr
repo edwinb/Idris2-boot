@@ -284,7 +284,7 @@ searchName fc rigc defaults depth def top env target (n, ndef)
          let namety : NameType
                  = case definition ndef of
                         DCon tag arity => DataCon tag arity
-                        TCon tag arity _ _ _ _ => TyCon tag arity
+                        TCon tag arity _ _ _ _ _ => TyCon tag arity
                         _ => Func
          nty <- nf defs env (embed ty)
          (args, appTy) <- mkArgs fc rigc env nty

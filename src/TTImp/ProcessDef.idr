@@ -24,8 +24,8 @@ import Data.NameMap
 
 mutual
   mismatchNF : Defs -> NF vars -> NF vars -> Core Bool
-  mismatchNF defs (NTCon _ _ xt _ xargs) (NTCon _ _ yt _ yargs) 
-      = if xt /= yt 
+  mismatchNF defs (NTCon _ xn xt _ xargs) (NTCon _ yn yt _ yargs) 
+      = if xn /= yn
            then pure True
            else anyM (mismatch defs) (zip (map snd xargs) (map snd yargs)) 
   mismatchNF defs (NDCon _ _ xt _ xargs) (NDCon _ _ yt _ yargs) 
@@ -47,9 +47,16 @@ mutual
 -- is an impossible case, so return True
 export
 impossibleOK : Defs -> NF vars -> NF vars -> Core Bool
-impossibleOK defs (NTCon _ xn xt xa xargs) (NTCon _ tn yt ya yargs)
-    = anyM (mismatch defs) (zip (map snd xargs) (map snd yargs))
-impossibleOK _ _ _ = pure False
+impossibleOK defs (NTCon _ xn xt xa xargs) (NTCon _ yn yt ya yargs)
+    = if xn == yn
+         then anyM (mismatch defs) (zip (map snd xargs) (map snd yargs))
+         else pure False
+-- If it's a data constructor, any mismatch will do
+impossibleOK defs (NDCon _ _ xt _ xargs) (NDCon _ _ yt _ yargs)
+    = if xt /= yt
+         then pure True
+         else anyM (mismatch defs) (zip (map snd xargs) (map snd yargs))
+impossibleOK defs x y = pure False
 
 -- Given a type checked LHS and its type, return the environment in which we
 -- should check the RHS, the LHS and its type in that environment,

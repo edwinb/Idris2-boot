@@ -701,6 +701,9 @@ command
   <|> do symbol ":"; exactIdent "missing"
          n <- name
          pure (Missing n)
+  <|> do symbol ":"; keyword "total"
+         n <- name
+         pure (CheckTotal n)
   <|> do symbol ":"; exactIdent "di"
          n <- name
          pure (DebugInfo n)

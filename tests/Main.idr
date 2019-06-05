@@ -18,6 +18,7 @@ ttimpTests
        "rewrite001",
        "qtt001", "qtt002", "qtt003",
        "search001", "search002", "search003", "search004", "search005",
+       "total001", "total002", "total003",
        "with001"]
 
 chdir : String -> IO Bool

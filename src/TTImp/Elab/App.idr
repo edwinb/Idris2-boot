@@ -39,7 +39,7 @@ getNameType rigc env fc x
                  let nt = case definition def of
                                PMDef _ _ _ _ => Func
                                DCon t a => DataCon t a
-                               TCon t a _ _ _ _ => TyCon t a
+                               TCon t a _ _ _ _ _ => TyCon t a
                                _ => Func
                  addNameType fc x env (embed (type def))
                  pure (Ref fc nt (Resolved i), gnf env (embed (type def)))
@@ -70,7 +70,7 @@ getVarType rigc nest env fc x
                          let nt = case definition ndef of
                                        PMDef _ _ _ _ => Func
                                        DCon t a => DataCon t a
-                                       TCon t a _ _ _ _ => TyCon t a
+                                       TCon t a _ _ _ _ _ => TyCon t a
                                        _ => Func
                              tm = tmf fc nt
                              tyenv = useVars (map snd (getArgs tm))
@@ -189,8 +189,6 @@ mutual
                          Just stm =>
                             do Just hdef <- lookupCtxtExact (Resolved idx) (gamma defs)
                                     | Nothing => throw (InternalError "Can't happen: no definition")
-                               logTerm 0 ("Instantiating " ++ show mname) stm
-                               logTerm 0 "Type" (type hdef)
                                instantiate fc env mname idx hdef locs soln stm
                                pure True
   solveIfUndefined env metavar soln 
