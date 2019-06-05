@@ -628,6 +628,16 @@ updateTy i ty
          addDef (Resolved i) (record { type = ty } gdef)
          pure ()
 
+export
+setCompiled : {auto c : Ref Ctxt Defs} ->
+              Name -> CDef -> Core ()
+setCompiled n cexp
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact n (gamma defs)
+              | Nothing => pure ()
+         addDef n (record { compexpr = Just cexp } gdef)
+         pure ()
+
 -- Record that the name has been linearity checked so we don't need to do
 -- it again
 export

@@ -537,53 +537,68 @@ TTC (PrimFn n) where
 mutual
   export
   TTC (CExp vars) where
-    toBuf b (CLocal {x} {idx} h) = do tag 0; toBuf b x; toBuf b idx
-    toBuf b (CRef n) = do tag 1; toBuf b n
-    toBuf b (CLam x sc) = do tag 2; toBuf b x; toBuf b sc
-    toBuf b (CLet x val sc) = do tag 3; toBuf b x; toBuf b val; toBuf b sc
-    toBuf b (CApp f as) = assert_total $ do tag 4; toBuf b f; toBuf b as
-    toBuf b (CCon t n as) = assert_total $ do tag 5; toBuf b t; toBuf b n; toBuf b as
-    toBuf b (COp {arity} op as) = assert_total $ do tag 6; toBuf b arity; toBuf b op; toBuf b as
-    toBuf b (CExtPrim f as) = assert_total $ do tag 7; toBuf b f; toBuf b as
-    toBuf b (CForce x) = assert_total $ do tag 8; toBuf b x
-    toBuf b (CDelay x) = assert_total $ do tag 9; toBuf b x
-    toBuf b (CConCase sc alts def) = assert_total $ do tag 10; toBuf b sc; toBuf b alts; toBuf b def
-    toBuf b (CConstCase sc alts def) = assert_total $ do tag 11; toBuf b sc; toBuf b alts; toBuf b def
-    toBuf b (CPrimVal c) = do tag 12; toBuf b c
-    toBuf b CErased = do tag 13
-    toBuf b (CCrash msg) = do tag 14; toBuf b msg
+    toBuf b (CLocal fc {x} {idx} h) = do tag 0; toBuf b fc; toBuf b x; toBuf b idx
+    toBuf b (CRef fc n) = do tag 1; toBuf b fc; toBuf b n
+    toBuf b (CLam fc x sc) = do tag 2; toBuf b fc; toBuf b x; toBuf b sc
+    toBuf b (CLet fc x val sc) = do tag 3; toBuf b fc; toBuf b x; toBuf b val; toBuf b sc
+    toBuf b (CApp fc f as) = assert_total $ do tag 4; toBuf b fc; toBuf b f; toBuf b as
+    toBuf b (CCon fc t n as) = assert_total $ do tag 5; toBuf b fc; toBuf b t; toBuf b n; toBuf b as
+    toBuf b (COp {arity} fc op as) = assert_total $ do tag 6; toBuf b fc; toBuf b arity; toBuf b op; toBuf b as
+    toBuf b (CExtPrim fc f as) = assert_total $ do tag 7; toBuf b fc; toBuf b f; toBuf b as
+    toBuf b (CForce fc x) = assert_total $ do tag 8; toBuf b fc; toBuf b x
+    toBuf b (CDelay fc x) = assert_total $ do tag 9; toBuf b fc; toBuf b x
+    toBuf b (CConCase fc sc alts def) = assert_total $ do tag 10; toBuf b fc; toBuf b sc; toBuf b alts; toBuf b def
+    toBuf b (CConstCase fc sc alts def) = assert_total $ do tag 11; toBuf b fc; toBuf b sc; toBuf b alts; toBuf b def
+    toBuf b (CPrimVal fc c) = do tag 12; toBuf b fc; toBuf b c
+    toBuf b (CErased fc) = do tag 13; toBuf b fc
+    toBuf b (CCrash fc msg) = do tag 14; toBuf b fc; toBuf b msg
 
     fromBuf s b
         = assert_total $ case !getTag of
-               0 => do x <- fromBuf s b; idx <- fromBuf s b
-                       pure (CLocal {x} (mkPrf idx))
-               1 => do n <- fromBuf s b
-                       pure (CRef n)
-               2 => do x <- fromBuf s b; sc <- fromBuf s b
-                       pure (CLam x sc)
-               3 => do x <- fromBuf s b; val <- fromBuf s b; sc <- fromBuf s b
-                       pure (CLet x val sc)
-               4 => do f <- fromBuf s b; as <- fromBuf s b
-                       pure (CApp f as)
-               5 => do t <- fromBuf s b; n <- fromBuf s b; as <- fromBuf s b
-                       pure (CCon t n as)
-               6 => do arity <- fromBuf s b; op <- fromBuf s b; args <- fromBuf s b
-                       pure (COp {arity} op args)
-               7 => do p <- fromBuf s b; as <- fromBuf s b
-                       pure (CExtPrim p as)
-               8 => do x <- fromBuf s b
-                       pure (CForce x)
-               9 => do x <- fromBuf s b
-                       pure (CDelay x)
-               10 => do sc <- fromBuf s b; alts <- fromBuf s b; def <- fromBuf s b
-                        pure (CConCase sc alts def)
-               11 => do sc <- fromBuf s b; alts <- fromBuf s b; def <- fromBuf s b
-                        pure (CConstCase sc alts def)
-               12 => do c <- fromBuf s b
-                        pure (CPrimVal c)
-               13 => pure CErased
-               14 => do msg <- fromBuf s b
-                        pure (CCrash msg)
+               0 => do fc <- fromBuf s b
+                       x <- fromBuf s b; idx <- fromBuf s b
+                       pure (CLocal {x} fc (mkPrf idx))
+               1 => do fc <- fromBuf s b
+                       n <- fromBuf s b
+                       pure (CRef fc n)
+               2 => do fc <- fromBuf s b
+                       x <- fromBuf s b; sc <- fromBuf s b
+                       pure (CLam fc x sc)
+               3 => do fc <- fromBuf s b
+                       x <- fromBuf s b; val <- fromBuf s b; sc <- fromBuf s b
+                       pure (CLet fc x val sc)
+               4 => do fc <- fromBuf s b
+                       f <- fromBuf s b; as <- fromBuf s b
+                       pure (CApp fc f as)
+               5 => do fc <- fromBuf s b
+                       t <- fromBuf s b; n <- fromBuf s b; as <- fromBuf s b
+                       pure (CCon fc t n as)
+               6 => do fc <- fromBuf s b
+                       arity <- fromBuf s b; op <- fromBuf s b; args <- fromBuf s b
+                       pure (COp {arity} fc op args)
+               7 => do fc <- fromBuf s b
+                       p <- fromBuf s b; as <- fromBuf s b
+                       pure (CExtPrim fc p as)
+               8 => do fc <- fromBuf s b
+                       x <- fromBuf s b
+                       pure (CForce fc x)
+               9 => do fc <- fromBuf s b
+                       x <- fromBuf s b
+                       pure (CDelay fc x)
+               10 => do fc <- fromBuf s b
+                        sc <- fromBuf s b; alts <- fromBuf s b; def <- fromBuf s b
+                        pure (CConCase fc sc alts def)
+               11 => do fc <- fromBuf s b
+                        sc <- fromBuf s b; alts <- fromBuf s b; def <- fromBuf s b
+                        pure (CConstCase fc sc alts def)
+               12 => do fc <- fromBuf s b
+                        c <- fromBuf s b
+                        pure (CPrimVal fc c)
+               13 => do fc <- fromBuf s b
+                        pure (CErased fc)
+               14 => do fc <- fromBuf s b
+                        msg <- fromBuf s b
+                        pure (CCrash fc msg)
                _ => corrupt "CExp"
 
   export
