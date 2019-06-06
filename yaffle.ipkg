@@ -2,6 +2,7 @@ package yaffle
 
 modules = 
     Compiler.CompileExpr,
+    Compiler.Inline,
 
     Control.Delayed,
 
