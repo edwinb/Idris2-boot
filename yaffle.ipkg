@@ -4,6 +4,10 @@ modules =
     Compiler.Common,
     Compiler.CompileExpr,
     Compiler.Inline,
+    Compiler.Scheme.Chez,
+    Compiler.Scheme.Chicken,
+    Compiler.Scheme.Racket,
+    Compiler.Scheme.Common,
 
     Control.Delayed,
 
