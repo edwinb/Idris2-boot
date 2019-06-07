@@ -20,15 +20,19 @@ record EvalOpts where
 
 export
 defaultOpts : EvalOpts
-defaultOpts = MkEvalOpts False False True empty True False Nothing
+defaultOpts = MkEvalOpts False False True empty False False Nothing
 
 export
 withHoles : EvalOpts
-withHoles = MkEvalOpts True True False empty True False Nothing
+withHoles = MkEvalOpts True True False empty False False Nothing
+
+export
+withAll : EvalOpts
+withAll = MkEvalOpts False False True empty True False Nothing
 
 export
 withArgHoles : EvalOpts
-withArgHoles = MkEvalOpts False True False empty True False Nothing
+withArgHoles = MkEvalOpts False True False empty False False Nothing
 
 export
 tcOnly : EvalOpts

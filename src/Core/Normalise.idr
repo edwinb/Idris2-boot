@@ -180,11 +180,18 @@ parameters (defs : Defs, topopts : EvalOpts)
     evalRef env locs meta fc nt n stk def 
         = do Just res <- lookupCtxtExact n (gamma defs)
                   | Nothing => pure def 
-             opts' <- if noCycles res
-                         then useMeta fc n defs topopts
-                         else pure topopts
-             evalDef env locs opts' meta fc 
-                     (multiplicity res) (definition res) (flags res) stk def
+             let redok = evalAll topopts ||
+                         reducibleIn (currentNS defs) 
+                                     (fullname res) 
+                                     (visibility res)
+             if redok
+                then do
+                   opts' <- if noCycles res
+                               then useMeta fc n defs topopts
+                               else pure topopts
+                   evalDef env locs opts' meta fc 
+                           (multiplicity res) (definition res) (flags res) stk def
+                else pure def
 
     getCaseBound : List (AppInfo, Closure free) ->
                    (args : List Name) ->
@@ -591,6 +598,11 @@ export
 normaliseArgHoles : Defs -> Env Term free -> Term free -> Core (Term free)
 normaliseArgHoles defs env tm 
     = quote defs env !(nfOpts withArgHoles defs env tm)
+
+export
+normaliseAll : Defs -> Env Term free -> Term free -> Core (Term free)
+normaliseAll defs env tm 
+    = quote defs env !(nfOpts withAll defs env tm)
 
 -- Normalise, but without normalising the types of binders. Dealing with
 -- binders is the slow part of normalisation so whenever we can avoid it, it's

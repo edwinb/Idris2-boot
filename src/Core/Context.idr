@@ -767,6 +767,12 @@ visibleIn nspace (NS ns n) Private = isSuffixOf ns nspace
 visibleIn nspace n _ = True
 
 export
+reducibleIn : (nspace : List String) -> Name -> Visibility -> Bool
+reducibleIn nspace (NS ns n) Export = isSuffixOf ns nspace
+reducibleIn nspace (NS ns n) Private = isSuffixOf ns nspace
+reducibleIn nspace n _ = True
+
+export
 setFlag : {auto c : Ref Ctxt Defs} ->
 					FC -> Name -> DefFlag -> Core ()
 setFlag fc n fl
@@ -1286,6 +1292,13 @@ setPPrint ppopts
          put Ctxt (record { options->printing = ppopts } defs)
 
 export
+setCG : {auto c : Ref Ctxt Defs} ->
+        CG -> Core ()
+setCG cg
+    = do defs <- get Ctxt
+         put Ctxt (record { options->session->codegen = cg } defs)
+
+export
 getDirs : {auto c : Ref Ctxt Defs} -> Core Dirs
 getDirs
     = do defs <- get Ctxt
@@ -1490,6 +1503,13 @@ getSession : {auto c : Ref Ctxt Defs} ->
 getSession
     = do defs <- get Ctxt
          pure (session (options defs))
+
+export
+setSession : {auto c : Ref Ctxt Defs} ->
+             Session -> Core ()
+setSession sopts
+    = do defs <- get Ctxt
+         put Ctxt (record { options->session = sopts } defs)
 
 -- Log message with a term, translating back to human readable names first
 export
