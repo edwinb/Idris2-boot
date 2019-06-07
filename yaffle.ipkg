@@ -1,4 +1,4 @@
-package yaffle
+package idris2
 
 modules = 
     Compiler.Common,
@@ -52,6 +52,7 @@ modules =
     Idris.IDEMode.Commands,
     Idris.IDEMode.MakeClause,
     Idris.IDEMode.Parser,
+    Idris.IDEMode.REPL,
     Idris.IDEMode.TokenLine,
     Idris.ModTree,
     Idris.Package,
@@ -111,12 +112,13 @@ modules =
     Utils.Binary,
     Utils.Shunting,
 
+    Yaffle.Main,
     Yaffle.REPL
 
 sourcedir = src
-executable = yaffle
+executable = idris2
 -- opts = "--cg-opt -O2 --partial-eval"
 opts = "--partial-eval"
 
-main = Yaffle.Main
+main = Idris.Main
 

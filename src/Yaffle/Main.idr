@@ -1,4 +1,4 @@
-module Main
+module Yaffle.Main
 
 import Parser.Support
 
@@ -32,8 +32,9 @@ processArgs _
     = coreLift $ do putStrLn usage
                     exitWith (ExitFailure 1)
 
-coreMain : String -> List String -> Core ()
-coreMain fname args
+export
+yaffleMain : String -> List String -> Core ()
+yaffleMain fname args
     = do defs <- initDefs 
          c <- newRef Ctxt defs
          m <- newRef MD initMetadata
@@ -59,6 +60,6 @@ main
     = do (_ :: fname :: rest) <- getArgs
              | _ => do putStrLn usage
                        exitWith (ExitFailure 1)
-         coreRun (coreMain fname rest)
+         coreRun (yaffleMain fname rest)
                (\err : Error => putStrLn ("Uncaught error: " ++ show err))
                (\res => pure ())
