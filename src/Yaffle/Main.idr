@@ -55,6 +55,7 @@ yaffleMain fname args
                             coreLift $ putStrLn "Written TTC"
          repl {c} {u}
 
+{-
 main : IO ()
 main
     = do (_ :: fname :: rest) <- getArgs
@@ -63,3 +64,4 @@ main
          coreRun (yaffleMain fname rest)
                (\err : Error => putStrLn ("Uncaught error: " ++ show err))
                (\res => pure ())
+-}

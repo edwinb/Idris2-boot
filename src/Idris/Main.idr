@@ -26,6 +26,7 @@ import Idris.Socket.Data
 import Data.Vect
 import System
 
+import Yaffle.Main
 import YafflePaths
 
 %default covering
@@ -81,9 +82,17 @@ showInfo (BlodwenPaths :: _)
          pure True
 showInfo (_::rest) = showInfo rest
 
+tryYaffle : List CLOpt -> Core Bool
+tryYaffle [] = pure False
+tryYaffle (Yaffle f :: _) = do yaffleMain f []
+                               pure True
+tryYaffle (c :: cs) = tryYaffle cs
+
 stMain : List CLOpt -> Core ()
 stMain opts
-    = do defs <- initDefs
+    = do False <- tryYaffle opts
+            | True => pure ()
+         defs <- initDefs
          c <- newRef Ctxt defs
          s <- newRef Syn initSyntax
          m <- newRef MD initMetadata
@@ -133,7 +142,8 @@ stMain opts
                            setOutput (IDEMode 0 file file)
                            replIDE {c} {u} {m}                               
                    else do 
-                       iputStrLn "Welcome to Blodwen. Good luck."
+                       iputStrLn $ "Welcome to Idris2 version " ++ version
+                                    ++ ". What could possibly go wrong?"
                        repl {c} {u} {m}
                  else
                       -- exit with an error code if there was an error, otherwise

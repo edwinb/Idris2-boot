@@ -45,6 +45,8 @@ data CLOpt
   IdeMode |
    ||| Whether or not to run IdeMode (using a socket instead of stdin/stdout)
   IdeModeSocket | 
+   ||| Run as a checker for the core language TTImp
+  Yaffle String |
   BlodwenPaths
 
 
@@ -91,7 +93,9 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
            MkOpt ["--version", "-v"] [] [Version]
               (Just "Display version string"),
            MkOpt ["--help", "-h", "-?"] [] [Help]
-              (Just "Display help text")
+              (Just "Display help text"),
+           MkOpt ["--yaffle", "--ttimp"] ["ttimp file"] (\f => [Yaffle f])
+              Nothing
            ]
 
 optUsage : OptDesc -> String
@@ -111,16 +115,16 @@ optUsage d
 
 export
 version : String
-version = "0.1"
+version = "0.0"
 
 export
 versionMsg : String
-versionMsg = "Blodwen, a prototype successor to Idris, version " ++ version
+versionMsg = "Idris 2, version " ++ version
 
 export
 usage : String
 usage = versionMsg ++ "\n" ++
-        "Usage: blodwen [options] [input file]\n\n" ++
+        "Usage: idris2 [options] [input file]\n\n" ++
         "Available options:\n" ++
         concatMap (\u => "  " ++ optUsage u) options
 

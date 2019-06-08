@@ -221,16 +221,16 @@ perror ForceNeeded = pure "Internal error when resolving implicit laziness"
 perror (InternalError str) = pure $ "INTERNAL ERROR: " ++ str
 
 perror (InType fc n err)
-    = pure $ "While processing type of " ++ show (sugarName n) ++ 
+    = pure $ "While processing type of " ++ show (sugarName !(getFullName n)) ++ 
              " at " ++ show fc ++ ":\n" ++ !(perror err)
 perror (InCon fc n err)
-    = pure $ "While processing constructor " ++ show (sugarName n) ++ 
+    = pure $ "While processing constructor " ++ show (sugarName !(getFullName n)) ++ 
              " at " ++ show fc ++ ":\n" ++ !(perror err)
 perror (InLHS fc n err)
-    = pure $ "While processing left hand side of " ++ show (sugarName n) ++ 
+    = pure $ "While processing left hand side of " ++ show (sugarName !(getFullName n)) ++ 
              " at " ++ show fc ++ ":\n" ++ !(perror err)
 perror (InRHS fc n err)
-    = pure $ "While processing right hand side of " ++ show (sugarName n) ++ 
+    = pure $ "While processing right hand side of " ++ show (sugarName !(getFullName n)) ++ 
              " at " ++ show fc ++ ":\n" ++ !(perror err)
 
 export
