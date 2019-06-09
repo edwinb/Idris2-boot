@@ -5,9 +5,6 @@ Yaffle> ((((Main.Cons [Just k = (Main.S (Main.S Main.Z))]) [Just a = Integer]) 1
 Yaffle> (Main.S (Main.S (Main.S Main.Z)))
 Yaffle> Bye for now!
 Processing as TTC
-Read 0 holes
-Read 0 guesses
-Read 0 constraints
 Read TTC
 Yaffle> (Main.S (Main.S (Main.S Main.Z)))
 Yaffle> ((((Main.Cons [Just k = (Main.S (Main.S Main.Z))]) [Just a = Integer]) 1) ((((Main.Cons [Just k = (Main.S Main.Z)]) [Just a = Integer]) 2) ((((Main.Cons [Just k = Main.Z]) [Just a = Integer]) 3) (Main.Nil [Just a = Integer]))))

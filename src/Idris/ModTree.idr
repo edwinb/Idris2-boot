@@ -191,9 +191,11 @@ buildDeps fname
                        clearCtxt; addPrimitives
                        put MD initMetadata
                        mainttc <- getTTCFileName fname ".ttc"
+                       log 10 $ "Reloading " ++ show mainttc
                        refs <- readAsMain mainttc
                        -- Load the associated metadata for interactive editing
                        mainttm <- getTTCFileName fname ".ttm"
+                       log 10 $ "Reloading " ++ show mainttm
                        readFromTTM refs mainttm
                        pure []
               errs => pure errs -- Error happened, give up

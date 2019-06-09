@@ -80,13 +80,13 @@ parameters (defs : Defs, topopts : EvalOpts)
         = eval env (thunk :: locs) scope stk
     eval env locs (Bind fc x b@(Let r val ty) scope) stk
         = if holesOnly topopts || argHolesOnly topopts
-             then do b' <- traverse (\tm => eval env locs tm stk) b
+             then do b' <- traverse (\tm => eval env locs tm []) b
                      pure $ NBind fc x b'
                         (\defs', arg => evalWithOpts defs' topopts 
                                                 env (arg :: locs) scope stk)
              else eval env (MkClosure topopts locs env val :: locs) scope stk
     eval env locs (Bind fc x b scope) stk 
-        = do b' <- traverse (\tm => eval env locs tm stk) b
+        = do b' <- traverse (\tm => eval env locs tm []) b
              pure $ NBind fc x b'
                       (\defs', arg => evalWithOpts defs' topopts 
                                               env (arg :: locs) scope stk)
@@ -180,10 +180,10 @@ parameters (defs : Defs, topopts : EvalOpts)
     evalRef env locs meta fc nt n stk def 
         = do Just res <- lookupCtxtExact n (gamma defs)
                   | Nothing => pure def 
-             let redok = evalAll topopts ||
-                         reducibleIn (currentNS defs) 
-                                     (fullname res) 
-                                     (visibility res)
+             let redok = True -- evalAll topopts ||
+--                          reducibleIn (currentNS defs) 
+--                                      (fullname res) 
+--                                      (visibility res)
              if redok
                 then do
                    opts' <- if noCycles res

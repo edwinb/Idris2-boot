@@ -222,7 +222,7 @@ insert k v (M _ t) =
     Right t' => (M _ t')
 
 export
-insertFrom : Foldable f => f (String, v) -> StringMap v -> StringMap v
+insertFrom : List (String, v) -> StringMap v -> StringMap v
 insertFrom = flip $ foldl $ flip $ uncurry insert
 
 export
@@ -287,7 +287,7 @@ merge = mergeWith (<+>)
 ||| Left-biased merge, also keeps the ordering specified  by the left map.
 export
 mergeLeft : StringMap v -> StringMap v -> StringMap v
-mergeLeft = mergeWith const
+mergeLeft x y = mergeWith const x y
 
 -- TODO: is this the right variant of merge to use for this? I think it is, but
 -- I could also see the advantages of using `mergeLeft`. The current approach is

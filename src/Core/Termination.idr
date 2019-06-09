@@ -492,9 +492,6 @@ checkData defs tyns (c :: cs)
            IsTerminating => checkData defs tyns cs
            bad => pure bad
 
-lookupDefTyExact : Name -> Context GlobalDef -> Core (Maybe (Def, ClosedTerm))
-lookupDefTyExact = lookupExactBy (\g => (definition g, type g))
-
 -- Calculate whether a type satisfies the strict positivity condition, and
 -- return whether it's terminating, along with its data constructors
 calcPositive : {auto c : Ref Ctxt Defs} ->

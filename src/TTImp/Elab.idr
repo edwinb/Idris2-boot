@@ -72,6 +72,8 @@ elabTermSub defining mode opts nest env env' sub tm ty
               -- helpful errors.
               solveConstraints solvemode LastChance
 
+         dumpConstraints 4 False
+
          -- Linearity and hole checking.
          -- on the LHS, all holes need to have been solved
          chktm <- case mode of

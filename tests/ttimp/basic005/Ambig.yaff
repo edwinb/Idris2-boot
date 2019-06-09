@@ -9,7 +9,6 @@ namespace List
   data List : Type -> Type where
        Nil : List $a
        Cons : $a -> List $a -> List $a
-
   length : List $a -> Nat
   length Nil = Z
   length (Cons $x $xs) = S (length xs)

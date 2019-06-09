@@ -673,15 +673,32 @@ mutual
                                -- so we can also unify the arguments.
               then unifyArgs mode loc env (map snd (xargs ++ xargs'))
                                           (map snd (yargs ++ yargs'))
-              else if length xargs >= length yargs && not (pv xn)
-                      then unifyApp False mode loc env xfc (NMeta xn xi xargs) xargs'
-                                          (NApp yfc (NMeta yn yi yargs) yargs')
-                      else unifyApp False mode loc env yfc (NMeta yn yi yargs) yargs'
-                                          (NApp xfc (NMeta xn xi xargs) xargs')
+              else do xlocs <- localsIn xargs
+                      ylocs <- localsIn yargs
+                      if xlocs >= ylocs && not (pv xn)
+                        then unifyApp False mode loc env xfc (NMeta xn xi xargs) xargs'
+                                            (NApp yfc (NMeta yn yi yargs) yargs')
+                        else unifyApp True mode loc env yfc (NMeta yn yi yargs) yargs'
+                                           (NApp xfc (NMeta xn xi xargs) xargs')
     where
       pv : Name -> Bool
       pv (PV _ _) = True
       pv _ = False
+
+      localsIn : List (AppInfo, Closure vars) -> Core Nat
+      localsIn [] = pure 0
+      localsIn ((p, c) :: cs)
+          = do defs <- get Ctxt
+               case !(evalClosure defs c) of
+                 NApp _ (NLocal _ _ _) _ => pure $ S !(localsIn cs)
+                 _ => localsIn cs
+      
+  doUnifyBothApps mode loc env xfc (NMeta xn xi xargs) xargs' yfc fy yargs'
+      = unifyApp False mode loc env xfc (NMeta xn xi xargs) xargs'
+                                        (NApp yfc fy yargs')
+  doUnifyBothApps mode loc env xfc fx xargs' yfc (NMeta yn yi yargs) yargs'
+      = unifyApp True mode loc env xfc (NMeta yn yi yargs) yargs'
+                                       (NApp xfc fx xargs')
   doUnifyBothApps InSearch loc env xfc fx@(NRef xt hdx) xargs yfc fy@(NRef yt hdy) yargs
       = if hdx == hdy
            then unifyArgs InSearch loc env (map snd xargs) (map snd yargs)
@@ -963,7 +980,8 @@ retry mode c
               Nothing => pure success
               Just Resolved => pure success
               Just (MkConstraint loc env x y)
-                  => catch (do log 5 $ "Retrying " ++ show x ++ " and " ++ show y
+                  => catch (do logTerm 5 "Retrying" x 
+                               logTerm 5 "....with" y
                                cs <- unify mode loc env x y 
                                case constraints cs of
                                  [] => do deleteConstraint c

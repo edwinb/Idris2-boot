@@ -5,9 +5,6 @@ Yaffle> "True"
 Yaffle> ((((Main.MkPair [Just b = Main.Bool]) [Just a = String]) "Z") Main.False)
 Yaffle> Bye for now!
 Processing as TTC
-Read 0 holes
-Read 0 guesses
-Read 0 constraints
 Read TTC
 Yaffle> Main.True
 Yaffle> "True"

@@ -3,8 +3,10 @@ module TTImp.TTImp
 import Core.Binary
 import Core.Context
 import Core.Env
+import Core.Normalise
 import Core.TT
 import Core.TTC
+import Core.Value
 
 %default covering
 
@@ -370,7 +372,45 @@ findImplicits (IAlternative fc u alts)
     = concatMap findImplicits alts
 findImplicits (IBindVar _ n) = [n]
 findImplicits tm = []
-         
+        
+-- Update the lhs of a clause so that any implicits named in the type are
+-- bound as @-patterns (unless they're already explicitly bound or appear as
+-- IBindVar anywhere else in the pattern) so that they will be available on the
+-- rhs
+export
+implicitsAs : Defs -> List Name -> RawImp -> Core RawImp
+implicitsAs defs ns tm = setAs (ns ++ map UN (findIBinds tm)) tm
+  where
+    setAs : List Name -> RawImp -> Core RawImp
+    setAs is (IApp loc f a)
+        = do f' <- setAs is f
+             pure $ IApp loc f' a
+    setAs is (IImplicitApp loc f n a)
+        = do let is' = maybe is (\n' => n' :: is) n
+             f' <- setAs is' f
+             pure $ IImplicitApp loc f' n a
+    setAs is (IVar loc n)
+        = case !(lookupTyExact n (gamma defs)) of
+               Nothing => pure $ IVar loc n
+               Just ty => pure $ impAs loc (filter (\x => not (x `elem` is))
+                                    !(findImps !(nf defs [] ty))) (IVar loc n)
+      where
+        findImps : NF [] -> Core (List Name)
+        findImps (NBind fc x (Pi _ Implicit _) sc) 
+            = pure $ 
+                x :: !(findImps !(sc defs (toClosure defaultOpts [] (Erased fc))))
+        findImps (NBind fc x (Pi _ _ _) sc) 
+            = findImps !(sc defs (toClosure defaultOpts [] (Erased fc)))
+        findImps _ = pure []
+
+        impAs : FC -> List Name -> RawImp -> RawImp
+        impAs loc' [] tm = tm
+        impAs loc' (n :: ns) tm 
+            = impAs loc' ns $
+                 IImplicitApp loc' tm (Just n) 
+                     (IAs loc' UseLeft n (Implicit loc' True))
+    setAs is tm = pure tm
+
 export
 definedInBlock : List ImpDecl -> List Name
 definedInBlock = concatMap defName

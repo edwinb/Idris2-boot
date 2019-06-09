@@ -226,7 +226,7 @@ insert k v (M _ t) =
     Right t' => (M _ t')
 
 export
-insertFrom : Foldable f => f (Name, v) -> NameMap v -> NameMap v
+insertFrom : List (Name, v) -> NameMap v -> NameMap v
 insertFrom = flip $ foldl $ flip $ uncurry insert
 
 export

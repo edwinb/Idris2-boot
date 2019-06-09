@@ -139,11 +139,11 @@ readTTCFile modns as r b
            gam' <- updateEntries (gamma defs) modns as 0 (max r) r
            setCtxt gam' 
            holes <- fromBuf r b
-           coreLift $ putStrLn $ "Read " ++ show (length holes) ++ " holes"
+--            coreLift $ putStrLn $ "Read " ++ show (length holes) ++ " holes"
            guesses <- fromBuf r b
-           coreLift $ putStrLn $ "Read " ++ show (length guesses) ++ " guesses"
+--            coreLift $ putStrLn $ "Read " ++ show (length guesses) ++ " guesses"
            constraints <- the (Core (List (Int, Constraint))) $ fromBuf r b
-           coreLift $ putStrLn $ "Read " ++ show (length constraints) ++ " constraints"
+--            coreLift $ putStrLn $ "Read " ++ show (length constraints) ++ " constraints"
            defs <- fromBuf r b
            autohs <- fromBuf r b
            typehs <- fromBuf r b
@@ -275,7 +275,7 @@ readFromTTC loc reexp fname modNS importAs
          put UST (record { holes = fromList (holes ttc),
                            constraints = fromList (constraints ttc),
                            nextName = nextVar ttc } ust)
-         pure (Just (extraData ttc, ifaceHash ttc, imported ttc, r))
+         pure (Just (extraData ttc, ifaceHash ttc, imported ttc, nameMap ttc))
 
 getImportHashes : NameRefs -> Ref Bin Binary ->
                   Core (List (List String, Int))

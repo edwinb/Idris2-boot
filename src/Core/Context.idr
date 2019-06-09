@@ -756,6 +756,10 @@ export
 lookupTyName : Name -> Context GlobalDef -> Core (List (Name, Int, ClosedTerm))
 lookupTyName = lookupNameBy type 
 
+export
+lookupDefTyExact : Name -> Context GlobalDef -> Core (Maybe (Def, ClosedTerm))
+lookupDefTyExact = lookupExactBy (\g => (definition g, type g))
+
 -- private names are only visible in this namespace if their namespace
 -- is the current namespace (or an outer one)
 -- that is: given that most recent namespace is first in the list,

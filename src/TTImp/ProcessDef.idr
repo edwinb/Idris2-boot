@@ -187,8 +187,10 @@ checkLHS : {vars : _} ->
            Core (vars' ** (SubVars vars vars',
                            Env Term vars', NestedNames vars', 
                            Term vars', Term vars'))
-checkLHS mult hashit n opts nest env fc lhs_in
-    = do lhs_raw <- lhsInCurrentNS nest lhs_in 
+checkLHS {vars} mult hashit n opts nest env fc lhs_in
+    = do defs <- get Ctxt
+         lhs_raw <- lhsInCurrentNS nest lhs_in 
+--          lhs_raw <- implicitsAs defs vars lhs_raw_in
          autoimp <- isAutoImplicits
          autoImplicits True
          (_, lhs) <- bindNames False lhs_raw

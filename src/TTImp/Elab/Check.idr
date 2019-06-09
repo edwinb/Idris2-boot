@@ -485,7 +485,9 @@ convert fc elabinfo env x y
                 = case elabMode elabinfo of
                        InLHS _ => InLHS
                        _ => InTerm in
-          catch (do vs <- if isFromTerm x && isFromTerm y
+          catch (do logGlueNF 5 "Unifying" env x
+                    logGlueNF 5 "....with" env y
+                    vs <- if isFromTerm x && isFromTerm y
                              then do xtm <- getTerm x
                                      ytm <- getTerm y
                                      unifyWithLazy umode fc env xtm ytm
@@ -535,5 +537,6 @@ checkExp rig elabinfo env fc tm got (Just exp)
                        empty <- clearDefs defs
                        cty <- getTerm exp
                        ctm <- newConstant fc rig env tm cty cs
-                       pure (ctm, exp)
+                       dumpConstraints 1 False
+                       pure (ctm, got)
 checkExp rig elabinfo env fc tm got Nothing = pure (tm, got)

@@ -4,9 +4,6 @@ Yaffle> (((Main.Cons [Just a = Main.Nat]) (Main.S (Main.S (Main.S Main.Z)))) (((
 Yaffle> ((((Main.Vect.Cons [Just k = (Main.S Main.Z)]) [Just a = Main.Nat]) (Main.S (Main.S (Main.S Main.Z)))) ((((Main.Vect.Cons [Just k = Main.Z]) [Just a = Main.Nat]) (Main.S (Main.S (Main.S (Main.S Main.Z))))) (Main.Vect.Nil [Just a = Main.Nat])))
 Yaffle> Bye for now!
 Processing as TTC
-Read 0 holes
-Read 0 guesses
-Read 0 constraints
 Read TTC
 Yaffle> (((Main.Cons [Just a = Main.Nat]) (Main.S (Main.S (Main.S Main.Z)))) (((Main.Cons [Just a = Main.Nat]) (Main.S (Main.S (Main.S (Main.S Main.Z))))) (Main.Nil [Just a = Main.Nat])))
 Yaffle> ((((Main.Vect.Cons [Just k = (Main.S Main.Z)]) [Just a = Main.Nat]) (Main.S (Main.S (Main.S Main.Z)))) ((((Main.Vect.Cons [Just k = Main.Z]) [Just a = Main.Nat]) (Main.S (Main.S (Main.S (Main.S Main.Z))))) (Main.Vect.Nil [Just a = Main.Nat])))

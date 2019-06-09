@@ -1,10 +1,12 @@
 module Core.UnifyState
 
+import Core.CaseTree
 import Core.Context
 import Core.Core
 import Core.Env
 import Core.FC
 import Core.Normalise
+import Core.Options
 import Core.TT
 import Core.TTC
 import Utils.Binary
@@ -491,6 +493,7 @@ checkValidHole : {auto c : Ref Ctxt Defs} ->
                  (Int, (FC, Name)) -> Core ()
 checkValidHole (idx, (fc, n))
     = do defs <- get Ctxt
+         ust <- get UST
          Just gdef <- lookupCtxtExact (Resolved idx) (gamma defs)
               | Nothing => pure ()
          case definition gdef of
@@ -500,9 +503,11 @@ checkValidHole (idx, (fc, n))
                           | Nothing => pure ()
                      case c of
                           MkConstraint fc env x y =>
-                             throw (CantSolveEq fc env x y)
+                             do put UST (record { guesses = empty } ust) 
+                                throw (CantSolveEq fc env x y)
                           MkSeqConstraint fc env (x :: _) (y :: _) =>
-                             throw (CantSolveEq fc env x y)
+                             do put UST (record { guesses = empty } ust) 
+                                throw (CantSolveEq fc env x y)
                           _ => pure ()
               _ => traverse_ checkRef (map fst (toList (getRefs (type gdef))))
   where
@@ -543,4 +548,78 @@ checkNoGuards : {auto u : Ref UST UState} ->
                 {auto c : Ref Ctxt Defs} ->
                 Core ()
 checkNoGuards = checkUserHoles False
+
+export
+dumpHole : {auto u : Ref UST UState} ->
+           {auto c : Ref Ctxt Defs} ->
+           (loglevel : Nat) -> (hole : Int) -> Core ()
+dumpHole lvl hole
+    = do ust <- get UST
+         defs <- get Ctxt
+         if logLevel (session (options defs)) < lvl
+            then pure ()
+            else do
+               defs <- get Ctxt
+               case !(lookupCtxtExact (Resolved hole) (gamma defs)) of
+                 Nothing => pure ()
+                 Just gdef => case (definition gdef, type gdef) of
+                    (Guess tm constraints, ty) => 
+                         do log lvl $ "!" ++ show hole ++ " : " ++ 
+                                              show !(normaliseHoles defs [] ty)
+                            log lvl $ "\t  = " ++ show !(normaliseHoles defs [] tm)
+                                            ++ "\n\twhen"
+                            traverse dumpConstraint constraints 
+                            pure ()
+                    (Hole _ inj, ty) =>
+                         log lvl $ "?" ++ show (fullname gdef) ++ " : " ++ 
+                                           show !(normaliseHoles defs [] ty)
+                                           ++ if inj then " (Invertible)" else ""
+                    (BySearch _ _ _, ty) =>
+                         log lvl $ "Search " ++ show hole ++ " : " ++ 
+                                           show !(normaliseHoles defs [] ty)
+                    (PMDef args t _ _, ty) =>
+                         log 4 $ "Solved: " ++ show hole ++ " : " ++ 
+                                       show !(normalise defs [] ty) ++
+                                       " = " ++ show !(normalise defs [] (Ref emptyFC Func (Resolved hole)))
+                    (ImpBind, ty) =>
+                         log 4 $ "Bound: " ++ show hole ++ " : " ++ 
+                                       show !(normalise defs [] ty)
+                    (Delayed, ty) =>
+                         log 4 $ "Delayed elaborator : " ++ 
+                                       show !(normalise defs [] ty)
+                    _ => pure ()
+  where
+    dumpConstraint : Int -> Core ()
+    dumpConstraint n
+        = do ust <- get UST
+             defs <- get Ctxt
+             case lookup n (constraints ust) of
+                  Nothing => pure ()
+                  Just Resolved => log lvl "\tResolved"
+                  Just (MkConstraint _ env x y) =>
+                    do log lvl $ "\t  " ++ show !(normalise defs env x) 
+                                      ++ " =?= " ++ show !(normalise defs env y)
+                       log 5 $ "\t    from " ++ show x 
+                                      ++ " =?= " ++ show y
+                  Just (MkSeqConstraint _ _ xs ys) =>
+                       log lvl $ "\t\t" ++ show xs ++ " =?= " ++ show ys
+
+export
+dumpConstraints : {auto u : Ref UST UState} -> 
+                  {auto c : Ref Ctxt Defs} ->
+                  (loglevel : Nat) ->
+                  (all : Bool) ->
+                  Core ()
+dumpConstraints loglevel all
+    = do ust <- get UST
+         defs <- get Ctxt
+         if logLevel (session (options defs)) >= loglevel then
+            do let hs = toList (guesses ust) ++
+                        toList (if all then holes ust else currentHoles ust)
+               case hs of
+                    [] => pure ()
+                    _ => do log loglevel "--- CONSTRAINTS AND HOLES ---"
+                            traverse (dumpHole loglevel) (map fst hs)
+                            pure ()
+            else pure ()
 

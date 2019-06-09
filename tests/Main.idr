@@ -21,6 +21,10 @@ ttimpTests
        "total001", "total002", "total003",
        "with001"]
 
+idrisTests : List String
+idrisTests
+    = ["basic001"]
+
 chdir : String -> IO Bool
 chdir dir 
     = do ok <- foreign FFI_C "chdir" (String -> IO Int) dir

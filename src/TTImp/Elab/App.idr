@@ -269,6 +269,7 @@ mutual
                          pure ("Overall expected type: " ++ show ety))
              (argv, argt) <- check argRig (nextLevel elabinfo)
                                    nest env arg (Just (glueBack defs env aty))
+             logGlueNF 10 "Got arg type" env argt
              defs <- get Ctxt
              let fntm = App fc tm appinf argv
              fnty <- sc defs (toClosure defaultOpts env argv)

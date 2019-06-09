@@ -1,7 +1,7 @@
-YAFFLE = ../../../yaffle
+IDRIS2 = ../../../idris2
 
 test:
-	../runtests $(YAFFLE)
+	../runtests $(IDRIS2)
 
 clean:
 	find . -name '*.ibc' | xargs rm -f
