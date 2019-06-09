@@ -156,6 +156,8 @@ mkPat' args orig (App fc fn p arg)
                  mkPat' (parg :: args) orig fn
 mkPat' args orig (As fc (Ref _ Bound n) ptm) 
     = PAs fc n (mkPat' [] ptm ptm)
+mkPat' args orig (As fc _ ptm) 
+    = mkPat' [] orig ptm
 mkPat' args orig (TDelay fc r ty p) 
     = PDelay fc r (mkPat' [] orig ty) (mkPat' [] orig p)
 mkPat' args orig (PrimVal fc c) = PConst fc c

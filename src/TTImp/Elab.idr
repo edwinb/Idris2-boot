@@ -16,6 +16,26 @@ import TTImp.TTImp
 
 import Data.IntMap
 
+findPLetRenames : Term vars -> List (Name, (RigCount, Name))
+findPLetRenames (Bind fc n (PLet c (Local {name = x@(MN _ _)} _ _ _ p) ty) sc)
+    = (x, (c, n)) :: findPLetRenames sc
+findPLetRenames (Bind fc n _ sc) = findPLetRenames sc
+findPLetRenames tm = []
+
+doPLetRenames : List (Name, (RigCount, Name)) -> 
+                List Name -> Term vars -> Term vars
+doPLetRenames ns drops (Bind fc n b@(PLet _ _ _) sc)
+    = if n `elem` drops
+         then subst (Erased fc) (doPLetRenames ns drops sc)
+         else Bind fc n b (doPLetRenames ns drops sc)
+doPLetRenames ns drops (Bind fc n b sc)
+    = case lookup n ns of
+           Just (c, n') => 
+              Bind fc n' (setMultiplicity b c)
+                   (doPLetRenames ns (n' :: drops) (renameTop n' sc))
+           Nothing => Bind fc n b (doPLetRenames ns drops sc)
+doPLetRenames ns drops sc = sc
+
 getRigNeeded : ElabMode -> RigCount
 getRigNeeded InType = Rig0 -- unrestricted usage in types
 getRigNeeded (InLHS Rig0) = Rig0
@@ -31,7 +51,7 @@ elabTermSub : {vars : _} ->
               Env Term inner -> SubVars inner vars ->
               RawImp -> Maybe (Glued vars) ->
               Core (Term vars, Term vars, Glued vars)
-elabTermSub defining mode opts nest env env' sub tm ty
+elabTermSub {vars} defining mode opts nest env env' sub tm ty
     = do let incase = elem InCase opts
          let holesokay = elem HolesOkay opts
 
@@ -76,7 +96,7 @@ elabTermSub defining mode opts nest env env' sub tm ty
 
          -- Linearity and hole checking.
          -- on the LHS, all holes need to have been solved
-         chktm <- case mode of
+         chktm <- the (Core (Term vars)) $ case mode of
               InLHS _ => do when (not incase) $ checkUserHoles True
                             pure chktm
               -- elsewhere, all unification problems must be
@@ -95,13 +115,22 @@ elabTermSub defining mode opts nest env env' sub tm ty
            do hs <- getHoles
               restoreHoles (addHoles empty hs (toList oldhs))
 
-         -- On the RHS, erase everything in a 0-multiplicity position
-         -- (This doesn't do a full linearity check, just erases by
-         -- type)
-         chkErase <- case mode of
-              InExpr => linearCheck (getFC tm) rigc True env chktm
-              _ => pure chktm
-         pure (chktm, chkErase, chkty)
+         -- On the LHS, finish by tidying up the plets (changing things that
+         -- were of the form x@_, where the _ is inferred to be a variable,
+         -- to just x)
+         case mode of
+              InLHS _ => 
+                 do let vs = findPLetRenames chktm
+                    let ret = doPLetRenames vs [] chktm
+                    pure (ret, ret,
+                          gnf env (doPLetRenames vs [] !(getTerm chkty)))
+              InExpr =>
+                   -- On the RHS, erase everything in a 0-multiplicity position
+                   -- (This doesn't do a full linearity check, just erases by
+                   -- type)
+                  do chkErase <- linearCheck (getFC tm) rigc True env chktm
+                     pure (chktm, chkErase, chkty)
+              _ => pure (chktm, chktm, chkty)
   where
     addHoles : (acc : IntMap (FC, Name)) -> 
                (allHoles : IntMap (FC, Name)) -> 

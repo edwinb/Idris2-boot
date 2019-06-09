@@ -190,11 +190,11 @@ checkLHS : {vars : _} ->
 checkLHS {vars} mult hashit n opts nest env fc lhs_in
     = do defs <- get Ctxt
          lhs_raw <- lhsInCurrentNS nest lhs_in 
---          lhs_raw <- implicitsAs defs vars lhs_raw_in
          autoimp <- isAutoImplicits
          autoImplicits True
-         (_, lhs) <- bindNames False lhs_raw
+         (_, lhs_bound) <- bindNames False lhs_raw
          autoImplicits autoimp
+         lhs <- implicitsAs defs vars lhs_bound
 
          log 5 $ "Checking " ++ show lhs
          logEnv 5 "In env" env
@@ -592,4 +592,3 @@ processDef opts nest env fc n_in cs_in
                         pure IsCovering
                 else pure (MissingCases miss)
 
-    

@@ -347,6 +347,7 @@ findIBinds (IAlternative fc u alts)
 findIBinds (IDelayed fc _ ty) = findIBinds ty
 findIBinds (IDelay fc tm) = findIBinds tm
 findIBinds (IForce fc tm) = findIBinds tm
+findIBinds (IBindHere _ _ tm) = findIBinds tm
 findIBinds (IBindVar _ n) = [n]
 -- We've skipped lambda, case, let and local - rather than guess where the
 -- name should be bound, leave it to the programmer

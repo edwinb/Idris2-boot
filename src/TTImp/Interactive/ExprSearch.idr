@@ -59,18 +59,6 @@ getAllEnv {vars = v :: vs} fc done (b :: env)
               weakenNs (done ++ [v]) (binderType b)) :: 
                    rewrite appendAssociative done [v] vs in rest
 
--- nameIsHole : {auto c : Ref Ctxt Defs} ->
---              {auto m : Ref MD Metadata} ->
---              FC -> Name -> Core Bool
--- nameIsHole fc n
---     = do defs <- get Ctxt
---          case !(lookupDefExact n (gamma defs)) of
---               Nothing => throw (InternalError "Can't happen, name has mysteriously vanished")
---               Just def =>
---                    case def of
---                         Hole locs False _ => pure True
---                         _ => pure False
-
 -- Search recursively, but only if the given name wasn't solved by unification
 searchIfHole : {auto c : Ref Ctxt Defs} ->
                {auto m : Ref MD Metadata} ->
@@ -249,6 +237,8 @@ tryRecursive fc rig opts env ty topty (Just rdata)
       argDiff (Erased _) _ = False
       argDiff _ (Erased _) = False
       argDiff (TType _) (TType _) = False
+      argDiff (As _ _ x) y = argDiff x y
+      argDiff x (As _ _ y) = argDiff x y
       argDiff _ _ = True
       
       appsDiff : Term vs -> Term vs' -> List (Term vs) -> List (Term vs') ->
@@ -423,7 +413,7 @@ searchHole : {auto c : Ref Ctxt Defs} ->
              Nat -> ClosedTerm ->
              Defs -> GlobalDef -> Core (List ClosedTerm)
 searchHole fc rig opts defining n locs topty defs glob
-    = do searchty <- normaliseScope defs [] (type glob)
+    = do searchty <- normalise defs [] (type glob)
          logTerm 10 "Normalised type" searchty
          searchType fc rig opts [] defining topty locs searchty
 

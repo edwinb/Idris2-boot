@@ -358,6 +358,10 @@ searchType fc rigc defaults depth def top env (Bind nfc x (Pi c p ty) sc)
     = pure (Bind nfc x (Lam c p ty)
              !(searchType fc rigc defaults depth def top
                           (Pi c p ty :: env) sc))
+searchType fc rigc defaults depth def top env (Bind nfc x (Let c val ty) sc)
+    = pure (Bind nfc x (Let c val ty)
+             !(searchType fc rigc defaults depth def top
+                          (Let c val ty :: env) sc))
 searchType {vars} fc rigc defaults depth def top env target
     = do defs <- get Ctxt
          nty <- nf defs env target

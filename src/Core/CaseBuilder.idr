@@ -33,6 +33,9 @@ record PatInfo (pvar : Name) (vars : List Name) where
   argType : ArgType vars -- Type of the argument being inspected (i.e. 
                          -- *not* refined by this particular pattern)
 
+Show (PatInfo n vars) where
+  show pi = show (pat pi) ++ " : " ++ show (argType pi)
+
 {-
 NamedPats is a list of patterns on the LHS of a clause. Each entry in
 the list gives a pattern, and a proof that there is a variable we can
@@ -175,7 +178,7 @@ getNPs (MkPatClause _ lhs rhs) = lhs
 
 Show (PatClause vars todo) where
   show (MkPatClause _ ps rhs) 
-     = show (getPatInfo ps) ++ " => " ++ show rhs
+     = show ps ++ " => " ++ show rhs
 
 substInClause : {auto c : Ref Ctxt Defs} -> 
                 FC -> PatClause vars (a :: todo) -> 
@@ -240,8 +243,8 @@ clauseType phase (MkPatClause pvars (MkInfo arg _ ty :: rest) rhs)
         = if all (namesIn (pvars ++ concatMap namesFrom (getPatInfo rest))) xs
              then VarClause
              else ConClause
-    getClauseType phase _ (Known Rig0 t) = VarClause
     getClauseType phase (PAs _ _ p) t = getClauseType phase p t
+    getClauseType phase _ (Known Rig0 t) = VarClause
     getClauseType phase (PCon _ _ _ _ xs) _ = ConClause
     getClauseType phase (PTyCon _ _ _ xs) _ = ConClause
     getClauseType phase (PConst _ x) _ = ConClause
@@ -591,11 +594,15 @@ sameType {ns} fc fn env (p :: xs)
 -- If so, we'll match it to refine later types and move on
 samePat : List (NamedPats ns (p :: ps)) -> Bool
 samePat [] = True
-samePat (pi :: xs) = samePatAs (getFirstPat pi) (map getFirstPat xs)
+samePat (pi :: xs) 
+    = samePatAs (dropAs (getFirstPat pi)) (map (dropAs . getFirstPat) xs)
   where
+    dropAs : Pat -> Pat
+    dropAs (PAs _ _ p) = p
+    dropAs p = p
+
     samePatAs : Pat -> List Pat -> Bool
     samePatAs p [] = True
-    samePatAs (PAs _ _ p) ps = samePatAs p ps
     samePatAs (PTyCon fc n a args) (PTyCon _ n' _ _ :: ps)
         = if n == n'
              then samePatAs (PTyCon fc n a args) ps
@@ -781,7 +788,7 @@ mutual
       -- If it's an as pattern, replace the name with the relevant variable on
       -- the rhs then continue with the inner pattern
       updateVar (MkPatClause pvars (MkInfo (PAs pfc n pat) prf fty :: pats) rhs)
-          = do pats' <- substInPats fc a (Local pfc Nothing _ prf) pats
+          = do pats' <- substInPats fc a (mkTerm _ pat) pats
                let rhs' = substName n (Local pfc Nothing _ prf) rhs
                updateVar (MkPatClause pvars (MkInfo pat prf fty :: pats') rhs')
       -- match anything, name won't appear in rhs but need to update
@@ -855,6 +862,7 @@ patCompile fc fn phase ty [] def
 patCompile fc fn phase ty (p :: ps) def 
     = do let ns = getNames 0 (fst p)
          pats <- traverse (mkPatClause fc fn ns ty) (p :: ps)
+         log 5 $ "Pattern clauses " ++ show pats
          i <- newRef PName (the Int 0)
          cases <- match fc fn phase pats 
                         (rewrite sym (appendNilRightNeutral ns) in

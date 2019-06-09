@@ -76,16 +76,8 @@ mutual
            else do scty <- updateHoleType useInHole var sc as
                    pure (Bind bfc nm (Pi c e ty) scty)
   updateHoleType useInHole var (Bind bfc nm (Let c val ty) sc) as
-      = case val of
-             Local _ r v _
-                => if varIdx var == v
-                      then do scty <- updateHoleType False var sc as
-                              let c' = if useInHole then c else Rig0
-                              pure (Bind bfc nm (Let c' val ty) scty)
-                      else do scty <- updateHoleType False var sc as
-                              pure (Bind bfc nm (Let c val ty) scty)
-             _ => do scty <- updateHoleType False var sc as
-                     pure (Bind bfc nm (Let c val ty) scty)
+      = do scty <- updateHoleType useInHole var sc as
+           pure (Bind bfc nm (Let c val ty) scty)
   updateHoleType useInHole var (Bind bfc nm (Pi c e ty) sc) (a :: as)
       = do updateHoleUsage False var a
            scty <- updateHoleType useInHole var sc as
@@ -231,6 +223,8 @@ mutual
       unusedHoleArgs : List a -> Term vs -> Term vs
       unusedHoleArgs (_ :: args) (Bind bfc n (Pi _ e ty) sc)
           = Bind bfc n (Pi Rig0 e ty) (unusedHoleArgs args sc)
+      unusedHoleArgs args (Bind bfc n (Let c e ty) sc)
+          = Bind bfc n (Let c e ty) (unusedHoleArgs args sc)
       unusedHoleArgs _ ty = ty
 
   lcheck rig_in erase env (Bind fc nm b sc)
@@ -649,7 +643,9 @@ linearCheck : {auto c : Ref Ctxt Defs} ->
               Core (Term vars)
 linearCheck fc rig erase env tm
     = do logTerm 5 "Linearity check on " tm
+         logEnv 5 "In env" env
          (tm', _, used) <- lcheck rig erase env tm
+         log 5 $ "Used: " ++ show used
          when (not erase) $ checkEnvUsage {done = []} fc rig env used tm'
          pure tm'
 
