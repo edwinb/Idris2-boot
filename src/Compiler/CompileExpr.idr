@@ -296,7 +296,7 @@ toCDef tags n (DCon tag arity)
     = case lookup n tags of
            Just t => pure $ MkCon t arity
            _ => pure $ MkCon tag arity
-toCDef tags n (TCon tag arity _ _ _ _ _)
+toCDef tags n (TCon tag arity _ _ _ _)
     = case lookup n tags of
            Just t => pure $ MkCon t arity
            _ => pure $ MkCon tag arity

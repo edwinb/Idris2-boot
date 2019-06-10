@@ -238,7 +238,6 @@ data Def : Type where
            (detpos : List Nat) -> -- determining arguments
            (mutwith : List Name) ->
            (datacons : List Name) ->
-           (typehints : List (Name, Bool)) ->
            Def
     Hole : (numlocs : Nat) -> (invertible : Bool) -> Def
     BySearch : RigCount -> (maxdepth : Nat) -> (defining : Name) -> Def
@@ -256,7 +255,7 @@ Show Def where
   show (PMDef args ct rt pats) 
       = show args ++ "; " ++ show ct
   show (DCon t a) = "DataCon " ++ show t ++ " " ++ show a
-  show (TCon t a ps ds ms cons hints) 
+  show (TCon t a ps ds ms cons) 
       = "TyCon " ++ show t ++ " " ++ show a ++ " " ++ show cons
   show (ExternDef arity) = "<external def with arith " ++ show arity ++ ">"
   show (Builtin {arity} _) = "<builtin with arith " ++ show arity ++ ">"
@@ -276,7 +275,7 @@ TTC Def where
   toBuf b (Builtin a)
       = throw (InternalError "Trying to serialise a Builtin")
   toBuf b (DCon t arity) = do tag 3; toBuf b t; toBuf b arity
-  toBuf b (TCon t arity parampos detpos ms datacons _) 
+  toBuf b (TCon t arity parampos detpos ms datacons) 
       = do tag 4; toBuf b t; toBuf b arity; toBuf b parampos
            toBuf b detpos; toBuf b ms; toBuf b datacons
   toBuf b (Hole locs invertible) = do tag 5; toBuf b locs; toBuf b invertible
@@ -301,7 +300,7 @@ TTC Def where
              4 => do t <- fromBuf r b; a <- fromBuf r b
                      ps <- fromBuf r b; dets <- fromBuf r b; 
                      ms <- fromBuf r b; cs <- fromBuf r b
-                     pure (TCon t a ps dets ms cs [])
+                     pure (TCon t a ps dets ms cs)
              5 => do l <- fromBuf r b
                      i <- fromBuf r b
                      pure (Hole l i)
@@ -518,6 +517,12 @@ record Defs where
   options : Options
   toSave : NameMap ()
   nextTag : Int
+  typeHints : NameMap (List (Name, Bool))
+     -- ^ a mapping from type names to hints (and a flag setting whether it's 
+     -- a "direct" hint). Direct hints are searched first (as part of a group)
+     -- the indirect hints. Indirect hints, in practice, are used to find
+     -- instances of parent interfaces, and we don't search these until we've
+     -- tried to find a direct result via a constructor or a top level hint.
   autoHints : NameMap Bool
      -- ^ global search hints. A mapping from the hint name, to whether it is
      -- a "default hint". A default hint is used only if all other attempts 
@@ -527,11 +532,6 @@ record Defs where
      -- ^ currently open global hints; just for the rest of this module (not exported)
      -- and prioritised
   saveTypeHints : List (Name, Name, Bool)
-     -- ^ a mapping from type names to hints (and a flag setting whether it's 
-     -- a "direct" hint). Direct hints are searched first (as part of a group)
-     -- the indirect hints. Indirect hints, in practice, are used to find
-     -- instances of parent interfaces, and we don't search these until we've
-     -- tried to find a direct result via a constructor or a top level hint.
      -- We don't look up anything in here, it's merely for saving out to TTC.
      -- We save the hints in the 'GlobalDef' itself for faster lookup.
   saveAutoHints : List (Name, Bool)
@@ -559,7 +559,7 @@ initDefs : Core Defs
 initDefs 
     = do gam <- initCtxt
          pure (MkDefs gam [] ["Main"] defaults empty 100 
-                      empty empty [] [] 5381 [] [] [] [])
+                      empty empty empty [] [] 5381 [] [] [] [])
       
 -- Label for context references
 export
@@ -933,8 +933,11 @@ getSearchData : {auto c : Ref Ctxt Defs} ->
                 Core SearchData
 getSearchData fc defaults target
     = do defs <- get Ctxt
-         Just (TCon _ _ _ dets _ cons hs) <- lookupDefExact target (gamma defs)
+         Just (TCon _ _ _ dets _ _) <- lookupDefExact target (gamma defs)
               | _ => throw (UndefinedName fc target)
+         let hs = case lookup target (typeHints defs) of
+                       Just hs => hs
+                       Nothing => []
          if defaults
             then let defaults = map fst (filter isDefault
                                              (toList (autoHints defs))) in
@@ -960,9 +963,9 @@ setMutWith fc tn tns
     = do defs <- get Ctxt
          Just g <- lookupCtxtExact tn (gamma defs) 
               | _ => throw (UndefinedName fc tn)
-         let TCon t a ps dets _ cons hs = definition g
-              | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor"))
-         updateDef tn (const (Just (TCon t a ps dets tns cons hs)))
+         let TCon t a ps dets _ cons = definition g
+              | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setMutWith]"))
+         updateDef tn (const (Just (TCon t a ps dets tns cons)))
 
 export
 addMutData : {auto c : Ref Ctxt Defs} ->
@@ -985,10 +988,10 @@ setDetermining fc tyn args
     = do defs <- get Ctxt
          Just g <- lookupCtxtExact tyn (gamma defs) 
               | _ => throw (UndefinedName fc tyn)
-         let TCon t a ps _ cons ms hs = definition g
-              | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor"))
+         let TCon t a ps _ cons ms = definition g
+              | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setDetermining]"))
          apos <- getPos 0 args (type g)
-         updateDef tyn (const (Just (TCon t a ps apos cons ms hs)))
+         updateDef tyn (const (Just (TCon t a ps apos cons ms)))
   where
     -- Type isn't normalised, but the argument names refer to those given
     -- explicitly in the type, so there's no need.
@@ -1005,8 +1008,8 @@ setDetermining fc tyn args
 
 export
 addHintFor : {auto c : Ref Ctxt Defs} ->
-					   FC -> Name -> Name -> Bool -> Core ()
-addHintFor fc tyn hintn_in direct
+					   FC -> Name -> Name -> Bool -> Bool -> Core ()
+addHintFor fc tyn hintn_in direct loading
     = do defs <- get Ctxt
          let hintn : Name
              = case hintn_in of
@@ -1014,12 +1017,14 @@ addHintFor fc tyn hintn_in direct
                     _ => case getNameID hintn_in (gamma defs) of
                               Nothing => hintn_in
                               Just idx => Resolved idx
-         Just (TCon t a ps dets cons ms hs) <- lookupDefExact tyn (gamma defs)
-              | _ => throw (GenericMsg fc (show tyn ++ " is not a type constructor"))
-         updateDef tyn (const (Just (TCon t a ps dets cons ms ((hintn, direct) :: hs))))
-         defs <- get Ctxt
-         put Ctxt (record { saveTypeHints $= ((tyn, hintn, direct) :: )
-                          } defs)
+         let hs = case lookup tyn (typeHints defs) of
+                       Just hs => hs
+                       Nothing => []
+         let defs' = record { typeHints $= insert tyn ((hintn, direct) :: hs) }
+                            defs
+         when True $ -- (not loading) $
+            put Ctxt (record { saveTypeHints $= ((tyn, hintn, direct) :: )
+                             } defs')
 
 export
 addGlobalHint : {auto c : Ref Ctxt Defs} ->
@@ -1135,7 +1140,7 @@ addData vars vis (MkData (MkCon dfc tyn arity tycon) datacons)
                             (TCon tag arity 
                                   (paramPos tyn (map type datacons))
                                   (allDet arity)
-                                  [] (map name datacons) [])
+                                  [] (map name datacons))
          (idx, gam') <- addCtxt tyn tydef (gamma defs)
          gam'' <- addDataConstructors 0 datacons gam'
          put Ctxt (record { gamma = gam'' } defs)

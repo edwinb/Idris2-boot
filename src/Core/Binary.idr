@@ -69,10 +69,18 @@ asName mod (Just ns) (NS oldns n)
          else NS oldns n
 asName _ _ n = n
 
-readNameMap : NameRefs -> Ref Bin Binary -> Core NameRefs
+readNameMap : {auto c : Ref Ctxt Defs} ->
+              NameRefs -> Ref Bin Binary -> Core NameRefs
 readNameMap r b
     = do ns <- fromBuf r b
+         log 10 $ "Name map:\n" ++ dumpMap 0 ns
          coreLift $ fromList ns
+  where
+    dumpMap : Int -> List (Maybe (Name, Maybe Int)) -> String
+    dumpMap i [] = ""
+    dumpMap i (Just (n, _) :: ns) 
+        = show i ++ ": " ++ show n ++ "\n" ++ dumpMap (i+1) ns
+    dumpMap i (_ :: ns) = dumpMap (i + 1) ns
 
 -- For every name we're going to read from the file, work out what it's
 -- new resolved name is going to be in the context and update the name
@@ -221,7 +229,7 @@ addGlobalDef modns as def
 
 addTypeHint : {auto c : Ref Ctxt Defs} ->
               FC -> (Name, Name, Bool) -> Core ()
-addTypeHint fc (tyn, hintn, d) = addHintFor fc tyn hintn d
+addTypeHint fc (tyn, hintn, d) = addHintFor fc tyn hintn d True
 
 addAutoHint : {auto c : Ref Ctxt Defs} ->
               (Name, Bool) -> Core ()

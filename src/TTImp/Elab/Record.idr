@@ -37,7 +37,7 @@ toRHS loc (Constr con args)
 findConName : Defs -> Name -> Core (Maybe Name)
 findConName defs tyn
     = case !(lookupDefExact tyn (gamma defs)) of
-           Just (TCon _ _ _ _ _ [con] _) => pure (Just con)
+           Just (TCon _ _ _ _ _ [con]) => pure (Just con)
            _ => pure Nothing
 
 findFields : Defs -> Name -> Core (Maybe (List (String, Maybe Name)))

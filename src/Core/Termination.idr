@@ -445,7 +445,7 @@ posArg : Defs -> List Name -> NF [] -> Core Terminating
 posArg defs tyns (NTCon _ tc _ _ args) 
     = let testargs : List (Closure [])
              = case !(lookupDefExact tc (gamma defs)) of
-                    Just (TCon _ _ params _ _ _ _) => 
+                    Just (TCon _ _ params _ _ _) => 
                          dropParams 0 params (map snd args)
                     _ => map snd args in
           if !(anyM (nameIn defs tyns)
@@ -499,7 +499,7 @@ calcPositive : {auto c : Ref Ctxt Defs} ->
 calcPositive loc n 
     = do defs <- get Ctxt
          case !(lookupDefTyExact n (gamma defs)) of
-              Just (TCon _ _ _ _ tns dcons _, ty) => 
+              Just (TCon _ _ _ _ tns dcons, ty) => 
                   case !(totRefsIn defs ty) of
                        IsTerminating => 
                             do t <- checkData defs (n :: tns) dcons
@@ -538,7 +538,7 @@ checkTotal loc n_in
          case isTerminating tot of
               Unchecked =>
                   case !(lookupDefExact n (gamma defs)) of
-                       Just (TCon _ _ _ _ _ _ _)
+                       Just (TCon _ _ _ _ _ _)
                            => checkPositive loc n
                        _ => checkTerminating loc n
               t => pure t

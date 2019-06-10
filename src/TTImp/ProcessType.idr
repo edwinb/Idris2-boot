@@ -32,7 +32,7 @@ processFnOpt fc ndef (Hint d)
          Just ty <- lookupTyExact ndef (gamma defs)
               | Nothing => throw (UndefinedName fc ndef)
          target <- getRetTy defs !(nf defs [] ty)
-         addHintFor fc target ndef d
+         addHintFor fc target ndef d False
 processFnOpt fc ndef (GlobalHint a)
     = addGlobalHint ndef a
 processFnOpt fc ndef ExternFn

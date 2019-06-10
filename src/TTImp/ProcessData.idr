@@ -114,7 +114,7 @@ processData {vars} eopts nest env fc vis (MkImpLater dfc n_in ty_raw)
 
          -- Add the type constructor as a placeholder
          tidx <- addDef n (newDef fc n Rig1 vars fullty vis
-                          (TCon 0 arity [] [] [] [] []))
+                          (TCon 0 arity [] [] [] []))
          addMutData (Resolved tidx)
          defs <- get Ctxt
          traverse_ (\n => setMutWith fc n (mutData defs)) (mutData defs)
@@ -146,7 +146,7 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
                   Nothing => pure []
                   Just ndef =>
                     case definition ndef of
-                         TCon _ _ _ _ mw _ _ =>
+                         TCon _ _ _ _ mw _ =>
                             do ok <- convert defs [] fullty (type ndef)
                                if ok then pure mw
                                      else throw (AlreadyDefined fc n)
@@ -160,7 +160,7 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
          -- Add the type constructor as a placeholder while checking
          -- data constructors
          tidx <- addDef n (newDef fc n Rig1 vars fullty vis
-                          (TCon 0 arity [] [] [] [] []))
+                          (TCon 0 arity [] [] [] []))
          case vis of
               Private => pure ()
               _ => do addHash n
@@ -185,7 +185,7 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
          dropMutData (Resolved tidx)
 
          when (not (NoHints `elem` opts)) $
-              traverse_ (\x => addHintFor fc (Resolved tidx) x True) (map conName cons)
+              traverse_ (\x => addHintFor fc (Resolved tidx) x True False) (map conName cons)
 
          pure ()
 
