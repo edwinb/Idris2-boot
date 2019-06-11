@@ -547,7 +547,7 @@ processCatch cmd
                            put UST u'
                            put Syn s'
                            put ROpts o'
-                           coreLift (putStrLn !(perror err))
+                           coreLift (putStrLn !(display err))
                            pure True)
 
 parseRepl : String -> Either ParseError REPLCmd

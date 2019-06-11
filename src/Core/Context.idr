@@ -65,7 +65,6 @@ getNameRefs gam
     addToMap arr (n, i)
         = coreLift $ writeArray arr i (n, Nothing)
 
-
 initSize : Int
 initSize = 10000
 
@@ -208,7 +207,7 @@ commitCtxt ctxt
                      arr <- get Arr
                      coreLift $ commitStaged (toList (staging ctxt)) arr
                      pure (record { staging = empty,
-                                 branchDepth = Z } ctxt)
+                                    branchDepth = Z } ctxt)
            S k => pure (record { branchDepth = k } ctxt)
   where
     -- We know the array must be big enough, because it will have been resized
@@ -686,10 +685,16 @@ export
 commit : {auto c : Ref Ctxt Defs} ->
          Core ()
 commit
-    = do ctxt <- get Ctxt
-         gam' <- commitCtxt (gamma ctxt)
+    = do defs <- get Ctxt
+         gam' <- commitCtxt (gamma defs)
          setCtxt gam'
 
+export
+depth : {auto c : Ref Ctxt Defs} ->
+        Core Nat
+depth
+    = do defs <- get Ctxt
+         pure (branchDepth (gamma defs))
 
 -- Get the names to save. These are the ones explicitly noted, and the
 -- ones between firstEntry and nextEntry (which are the names introduced in

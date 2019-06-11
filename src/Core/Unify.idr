@@ -126,6 +126,7 @@ convertErrorS s loc env x y
     = if s then convertError loc env y x
            else convertError loc env x y
 
+export
 postpone : {auto c : Ref Ctxt Defs} ->
            {auto u : Ref UST UState} ->
            FC -> String -> Env Term vars -> NF vars -> NF vars -> Core UnifyResult

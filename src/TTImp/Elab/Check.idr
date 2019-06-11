@@ -485,31 +485,34 @@ convert fc elabinfo env x y
                 = case elabMode elabinfo of
                        InLHS _ => InLHS
                        _ => InTerm in
-          catch (do logGlueNF 5 "Unifying" env x
-                    logGlueNF 5 "....with" env y
-                    vs <- if isFromTerm x && isFromTerm y
-                             then do xtm <- getTerm x
-                                     ytm <- getTerm y
-                                     unifyWithLazy umode fc env xtm ytm
-                             else do xnf <- getNF x
-                                     ynf <- getNF y
-                                     unifyWithLazy umode fc env xnf ynf
-                    when (holesSolved vs) $
-                        solveConstraints umode Normal
-                    pure vs)
-                (\err => do defs <- get Ctxt
-                            xtm <- getTerm x
-                            ytm <- getTerm y
-                            -- See if we can improve the error message by
-                            -- resolving any more constraints
-                            catch (solveConstraints umode Normal)
-                                  (\err => pure ())
-                            -- We need to normalise the known holes before
-                            -- throwing because they may no longer be known
-                            -- by the time we look at the error
-                            throw (WhenUnifying fc env 
-                                      !(normaliseHoles defs env xtm)
-                                      !(normaliseHoles defs env ytm) err))
+          catch 
+            (do logGlueNF 5 "Unifying" env x
+                logGlueNF 5 "....with" env y
+                vs <- if isFromTerm x && isFromTerm y
+                         then do xtm <- getTerm x
+                                 ytm <- getTerm y
+                                 unifyWithLazy umode fc env xtm ytm
+                         else do xnf <- getNF x
+                                 ynf <- getNF y
+                                 unifyWithLazy umode fc env xnf ynf
+                when (holesSolved vs) $
+                    solveConstraints umode Normal
+                pure vs)
+            (\err => 
+               do defs <- get Ctxt
+                  xtm <- getTerm x
+                  ytm <- getTerm y
+                  -- See if we can improve the error message by
+                  -- resolving any more constraints
+                  catch (solveConstraints umode Normal)
+                        (\err => pure ())
+                  -- We need to normalise the known holes before
+                  -- throwing because they may no longer be known
+                  -- by the time we look at the error
+                  defs <- get Ctxt
+                  throw (WhenUnifying fc env 
+                            !(normaliseHoles defs env xtm)
+                            !(normaliseHoles defs env ytm) err))
 
 -- Check whether the type we got for the given type matches the expected
 -- type.

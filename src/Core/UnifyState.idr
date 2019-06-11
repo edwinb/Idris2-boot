@@ -504,10 +504,14 @@ checkValidHole (idx, (fc, n))
                      case c of
                           MkConstraint fc env x y =>
                              do put UST (record { guesses = empty } ust) 
-                                throw (CantSolveEq fc env x y)
+                                xnf <- normaliseHoles defs env x
+                                ynf <- normaliseHoles defs env y
+                                throw (CantSolveEq fc env xnf ynf)
                           MkSeqConstraint fc env (x :: _) (y :: _) =>
                              do put UST (record { guesses = empty } ust) 
-                                throw (CantSolveEq fc env x y)
+                                xnf <- normaliseHoles defs env x
+                                ynf <- normaliseHoles defs env y
+                                throw (CantSolveEq fc env xnf ynf)
                           _ => pure ()
               _ => traverse_ checkRef (map fst (toList (getRefs (type gdef))))
   where

@@ -23,7 +23,8 @@ ttimpTests
 
 idrisTests : List String
 idrisTests
-    = ["basic001"]
+    = ["basic001",
+       "import001"]
 
 chdir : String -> IO Bool
 chdir dir 
@@ -54,11 +55,11 @@ runTest dir prog test
 
 main : IO ()
 main
-    = do [_, ttimp] <- getArgs
+    = do [_, idris2] <- getArgs
               | _ => do putStrLn "Usage: runtests [ttimp path]"
-         ttimps <- traverse (runTest "ttimp" ttimp) ttimpTests
---          blods <- traverse (runTest "blodwen" blodwen) blodwenTests
-         if (any not ttimps)
+         ttimps <- traverse (runTest "ttimp" idris2) ttimpTests
+         idrs <- traverse (runTest "idris2" idris2) idrisTests
+         if (any not (ttimps ++ idrs))
             then exitWith (ExitFailure 1)
             else exitWith ExitSuccess
 

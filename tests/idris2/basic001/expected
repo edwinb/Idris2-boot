@@ -1,0 +1,9 @@
+1/1: Building Vect (Vect.idr)
+Welcome to Idris 2 version 0.0. Fingers crossed!
+Main> Main> Cons (S Z) (Cons (S (S Z)) []) : Vect (S (S Z)) Nat
+Main> (interactive):1:22--1:25:When unifying Vect Z ?a and Vect (S Z) ?a
+Mismatch between:
+	Z
+and
+	S Z
+Main> Bye for now!
