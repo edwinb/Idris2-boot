@@ -247,7 +247,31 @@ checkAlternative : {vars : _} ->
                    FC -> AltType -> List RawImp -> Maybe (Glued vars) ->
                    Core (Term vars, Glued vars)
 checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
-    = throw (InternalError "default alternatives not implemented")
+    = do expected <- maybe (do nm <- genName "altTy"
+                               ty <- metaVar fc Rig0 env nm (TType fc)
+                               pure (gnf env ty))
+                           pure mexpected
+         let solvemode = case elabMode elabinfo of
+                              InLHS c => InLHS
+                              _ => InTerm
+         solveConstraints solvemode Normal
+         delayOnFailure fc rig env expected ambiguous $ 
+            (\delayed => 
+               do defs <- get Ctxt
+                  alts' <- pruneByType !(getNF expected) alts
+                  if delayed -- use the default if there's still ambiguity
+                     then try 
+                            (exactlyOne fc env 
+                                (map (\t => 
+                                   (getName t, 
+                                    checkImp rig elabinfo nest env t 
+                                             (Just expected))) alts'))
+                            (checkImp rig elabinfo nest env def (Just expected))
+                     else exactlyOne fc env
+                           (map (\t => 
+                             (getName t, 
+                              checkImp rig elabinfo nest env t (Just expected)))
+                              alts'))
 checkAlternative rig elabinfo nest env fc uniq alts mexpected
     = do expected <- maybe (do nm <- genName "altTy"
                                ty <- metaVar fc Rig0 env nm (TType fc)

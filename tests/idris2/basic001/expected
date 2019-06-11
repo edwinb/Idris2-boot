@@ -5,5 +5,5 @@ Main> (interactive):1:22--1:25:When unifying Vect Z ?a and Vect (S Z) ?a
 Mismatch between:
 	Z
 and
-	S Z
+	S ?k
 Main> Bye for now!
