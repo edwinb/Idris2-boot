@@ -220,7 +220,7 @@ install pkg
                                (mainmod pkg)
          srcdir <- coreLift currentDir
          -- Make the package installation directory
-         let installPrefix = dir_prefix (dirs (options defs)) ++ dirSep ++ "blodwen"
+         let installPrefix = dir_prefix (dirs (options defs)) ++ dirSep ++ "idris2"
          True <- coreLift $ changeDir installPrefix
              | False => throw (FileErr (name pkg) FileReadError)
          Right _ <- coreLift $ mkdirs [name pkg]

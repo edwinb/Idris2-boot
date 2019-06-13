@@ -45,14 +45,16 @@ import System
 
 %default covering
 
-showInfo : (Name, Int, GlobalDef) -> Core ()
+showInfo : {auto c : Ref Ctxt Defs} ->
+           (Name, Int, GlobalDef) -> Core ()
 showInfo (n, idx, d) 
     = do coreLift $ putStrLn (show (fullname d) ++ " ==> " ++ 
                               show (definition d))
          case compexpr d of
               Nothing => pure ()
               Just expr => coreLift $ putStrLn ("Compiled: " ++ show expr)
-         coreLift $ putStrLn ("Refers to: " ++ show (keys (refersTo d)))
+         coreLift $ putStrLn ("Refers to: " ++ 
+                               show !(traverse getFullName (keys (refersTo d))))
          when (not (isNil (sizeChange d))) $ 
             let scinfo = map (\s => show (fnCall s) ++ ": " ++ 
                                     show (fnArgs s)) (sizeChange d) in
@@ -223,7 +225,7 @@ execExp : {auto c : Ref Ctxt Defs} ->
 execExp ctm
     = do ttimp <- desugar AnyExpr [] (PApp replFC (PRef replFC (UN "unsafePerformIO")) ctm)
          inidx <- resolveName (UN "[input]")
-         (tm, _, ty) <- elabTerm inidx InExpr [] (MkNested [])
+         (_, tm, ty) <- elabTerm inidx InExpr [] (MkNested [])
                                  [] ttimp Nothing
          execute !findCG tm
          

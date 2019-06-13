@@ -76,7 +76,7 @@ nsToSource loc ns
     = do d <- getDirs
          let fnameBase = showSep (cast sep) (reverse ns)
          let fs = map (\ext => fnameBase ++ ext)
-                      [".blod", ".idr", ".lidr"]
+                      [".yaff", ".idr", ".lidr"]
          Just f <- firstAvailable fs
             | Nothing => throw (ModuleNotFound loc ns)
          pure f

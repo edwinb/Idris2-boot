@@ -314,19 +314,21 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
   schArglist [x] = x
   schArglist (x :: xs) = x ++ " " ++ schArglist xs
 
-  schDef : Name -> CDef -> Core String
+  schDef : {auto c : Ref Ctxt Defs} ->
+           Name -> CDef -> Core String
   schDef n (MkFun args exp)
      = let vs = initSVars args in
-           pure $ "(define " ++ schName n ++ " (lambda (" ++ schArglist vs ++ ") "
+           pure $ "(define " ++ schName !(getFullName n) ++ " (lambda (" ++ schArglist vs ++ ") "
                       ++ !(schExp 0 vs exp) ++ "))\n"
   schDef n (MkError exp)
-     = pure $ "(define (" ++ schName n ++ " . any-args) " ++ !(schExp 0 [] exp) ++ ")\n"
+     = pure $ "(define (" ++ schName !(getFullName n) ++ " . any-args) " ++ !(schExp 0 [] exp) ++ ")\n"
   schDef n (MkCon t a) = pure "" -- Nothing to compile here
   
 -- Convert the name to scheme code
 -- (There may be no code generated, for example if it's a constructor)
 export
-getScheme : (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String) ->
+getScheme : {auto c : Ref Ctxt Defs} ->
+            (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String) ->
             Defs -> Name -> Core String
 getScheme schExtPrim defs n
     = case !(lookupCtxtExact n (gamma defs)) of

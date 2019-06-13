@@ -23,10 +23,11 @@ userNameRoot _ = Nothing
 
 export
 isUserName : Name -> Bool
-isUserName (UN _) = True
+isUserName (PV _ _) = False
+isUserName (MN _ _) = False
 isUserName (NS _ n) = isUserName n
 isUserName (DN _ n) = isUserName n
-isUserName _ = False
+isUserName _ = True
 
 export
 nameRoot : Name -> String

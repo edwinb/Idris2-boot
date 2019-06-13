@@ -43,12 +43,12 @@ updatePaths : {auto c : Ref Ctxt Defs} ->
 updatePaths
     = do setPrefix yprefix
          defs <- get Ctxt
-         bpath <- coreLift $ getEnv "BLODWEN_PATH"
+         bpath <- coreLift $ getEnv "IDRIS2_PATH"
          case bpath of
               Just path => do traverse addExtraDir (map trim (split (==':') path))
                               pure ()
               Nothing => pure ()
-         bdata <- coreLift $ getEnv "BLODWEN_DATA"
+         bdata <- coreLift $ getEnv "IDRIS2_DATA"
          case bdata of
               Just path => do traverse addDataDir (map trim (split (==':') path))
                               pure ()
@@ -60,7 +60,7 @@ updatePaths
          addPkgDir "prelude"
          addPkgDir "base"
          addDataDir (dir_prefix (dirs (options defs)) ++ dirSep ++
-                        "blodwen" ++ dirSep ++ "support")
+                        "idris2" ++ dirSep ++ "support")
 
 updateREPLOpts : {auto o : Ref ROpts REPLOpts} ->
                  Core ()

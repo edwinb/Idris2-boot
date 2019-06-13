@@ -269,12 +269,12 @@ toCDef : {auto c : Ref Ctxt Defs} ->
          NameTags -> Name -> Def -> 
          Core CDef
 toCDef tags n None
-    = pure $ MkError $ CCrash emptyFC ("Encountered undefined name " ++ show n)
+    = pure $ MkError $ CCrash emptyFC ("Encountered undefined name " ++ show !(getFullName n))
 toCDef tags n (PMDef args _ tree _)
     = pure $ MkFun _ !(toCExpTree tags n tree)
 toCDef tags n (ExternDef arity)
     = let (ns ** args) = mkArgList 0 arity in
-          pure $ MkFun _ (CExtPrim emptyFC n (map toArgExp (getVars args)))
+          pure $ MkFun _ (CExtPrim emptyFC !(getFullName n) (map toArgExp (getVars args)))
   where
     toArgExp : (Var ns) -> CExp ns
     toArgExp (MkVar p) = CLocal emptyFC p

@@ -19,7 +19,7 @@ addPkgDir : {auto c : Ref Ctxt Defs} ->
 addPkgDir p
     = do defs <- get Ctxt
          addExtraDir (dir_prefix (dirs (options defs)) ++ dirSep ++ 
-                             "blodwen" ++ dirSep ++ p)
+                             "idris2" ++ dirSep ++ p)
 
 -- Options to be processed before type checking
 export

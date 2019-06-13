@@ -69,7 +69,14 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
                              (Just (gType fc))
          logTermNF 5 (show n) [] (abstractEnvType tfc env ty)
          -- TODO: Check name visibility
-         let def = None -- TODO: External definitions
+         -- If it's declared as externally defined, set the definition to
+         -- ExternFn <arity>, where the arity is assumed to be fixed (i.e.
+         -- not dependent on any of the arguments)
+         def <- if ExternFn `elem` opts
+                   then do defs <- get Ctxt
+                           a <- getArity defs env ty
+                           pure (ExternDef a)
+                   else pure None
 
          addDef (Resolved idx) (newDef fc n rig vars (abstractEnvType tfc env ty) vis def)
          -- Flag it as checked, because we're going to check the clauses 
