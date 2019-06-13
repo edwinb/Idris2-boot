@@ -1025,11 +1025,14 @@ addHintFor fc tyn hintn_in direct loading
          let hs = case lookup tyn (typeHints defs) of
                        Just hs => hs
                        Nothing => []
-         let defs' = record { typeHints $= insert tyn ((hintn, direct) :: hs) }
-                            defs
-         when True $ -- (not loading) $
-            put Ctxt (record { saveTypeHints $= ((tyn, hintn, direct) :: )
-                             } defs')
+         if loading
+            then put Ctxt
+                     (record { typeHints $= insert tyn ((hintn, direct) :: hs)
+                             } defs)
+            else put Ctxt
+                     (record { typeHints $= insert tyn ((hintn, direct) :: hs),
+                               saveTypeHints $= ((tyn, hintn, direct) :: )
+                             } defs)
 
 export
 addGlobalHint : {auto c : Ref Ctxt Defs} ->

@@ -67,7 +67,7 @@ namespace Vect
 tryMap : Nat -> Nat -> List Nat
 tryMap $x $y = map (plus x) (Cons y (Cons (S y) Nil))
 
-tryVMap : Nat -> Nat -> Vect ? Nat
+tryVMap : Nat -> Nat -> Vect (S (S Z)) Nat
 tryVMap $x $y = map (plus x) (Cons y (Cons (S y) Nil))
 
 

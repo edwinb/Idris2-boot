@@ -371,6 +371,9 @@ findImplicits (IMustUnify fc r pat)
     = findImplicits pat
 findImplicits (IAlternative fc u alts)
     = concatMap findImplicits alts
+findImplicits (IDelayed fc _ ty) = findImplicits ty
+findImplicits (IDelay fc tm) = findImplicits tm
+findImplicits (IForce fc tm) = findImplicits tm
 findImplicits (IBindVar _ n) = [n]
 findImplicits tm = []
         

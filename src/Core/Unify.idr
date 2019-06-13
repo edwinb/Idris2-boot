@@ -32,6 +32,12 @@ Eq UnifyMode where
 public export
 data AddLazy = NoLazy | AddForce | AddDelay LazyReason
 
+export
+Show AddLazy where
+  show NoLazy = "NoLazy"
+  show AddForce = "AddForce"
+  show (AddDelay _) = "AddDelay"
+
 public export
 record UnifyResult where
   constructor MkUnifyResult
@@ -301,8 +307,8 @@ instantiate : {auto c : Ref Ctxt Defs} ->
               Core ()
 instantiate {newvars} loc env mname mref mdef locs otm tm
     = do log 5 $ "Instantiating " ++ show tm ++ " in " ++ show newvars 
-         let Hole _ _ = definition mdef
-             | def => ufail {a=()} loc (show mname ++ " already resolved as " ++ show def)
+--          let Hole _ _ = definition mdef
+--              | def => ufail {a=()} loc (show mname ++ " already resolved as " ++ show def)
          case fullname mdef of
               PV pv pi => throw (PatternVariableUnifies loc env (PV pv pi) otm)
               _ => pure ()
@@ -512,15 +518,16 @@ mutual
                 {vars : _} ->
                 UnifyMode -> FC -> Env Term vars ->
                 (metaname : Name) -> (metaref : Int) ->
-                (args : List (AppInfo, Closure vars)) ->
+                (margs : List (AppInfo, Closure vars)) ->
+                (margs' : List (AppInfo, Closure vars)) ->
                 (soln : NF vars) ->
                 Core UnifyResult
   -- TODO: if either side is a pattern variable application, and we're in a term,
   -- (which will be a type) we can proceed because the pattern variable
   -- has to end up pi bound. Unify the right most variables, and continue.
-  unifyPatVar mode loc env mname mref args tm
+  unifyPatVar mode loc env mname mref margs margs' tm
       = postpone loc "Not in pattern fragment" env 
-                 (NApp loc (NMeta mname mref args) []) tm
+                 (NApp loc (NMeta mname mref margs) margs') tm
 
   solveHole : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
@@ -580,10 +587,10 @@ mutual
            case !(patternEnv env args) of
                 Nothing => 
                   do Just (Hole _ inv) <- lookupDefExact (Resolved mref) (gamma defs)
-                        | _ => unifyPatVar mode loc env mname mref args tmnf
+                        | _ => unifyPatVar mode loc env mname mref margs margs' tmnf
                      if inv
                         then unifyHoleApp mode loc env mname mref margs margs' tmnf
-                        else unifyPatVar mode loc env mname mref args tmnf
+                        else unifyPatVar mode loc env mname mref margs margs' tmnf
                 Just (newvars ** (locs, submv)) => 
                   do tm <- quote empty env tmnf
                      case shrinkTerm tm submv of
@@ -931,7 +938,7 @@ mutual
     unifyD _ _ mode loc env x y 
           = do defs <- get Ctxt
                if x == y
-                  then do log 10 $ "S§kipped unification (equal already): "
+                  then do log 10 $ "Skipped unification (equal already): "
                                  ++ show x ++ " and " ++ show y
                           pure success
                   else unify mode loc env !(nf defs env x) !(nf defs env y)
@@ -946,11 +953,8 @@ mutual
   export
   Unify Closure where
     unifyD _ _ mode loc env x y 
-        = do gam <- get Ctxt
-             empty <- clearDefs gam
-             -- 'quote' using an empty global context, because then function
-             -- names won't reduce until they have to
-             unify mode loc env !(quote empty env x) !(quote empty env y)
+        = do defs <- get Ctxt
+             unify mode loc env !(evalClosure defs x) !(evalClosure defs y)
 
 export
 setInvertible : {auto c : Ref Ctxt Defs} ->

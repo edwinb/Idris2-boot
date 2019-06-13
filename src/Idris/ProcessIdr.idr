@@ -18,6 +18,8 @@ import Idris.REPLCommon
 import Idris.REPLOpts
 import Idris.Syntax
 
+import Data.NameMap
+
 import Control.Catchable
 
 processDecl : {auto c : Ref Ctxt Defs} ->
@@ -204,7 +206,7 @@ processMod srcf ttcf msg mod sourcecode
                         -- a phase before this which builds the dependency graph
                         -- (also that we only build child dependencies if rebuilding
                         -- changes the interface - will need to store a hash in .ttc!)
-                        traverse readImport imps
+                        traverse_ readImport imps
 
                         -- Before we process the source, make sure the "hide_everywhere"
                         -- names are set to private (TODO, maybe if we want this?)
@@ -228,7 +230,9 @@ process : {auto c : Ref Ctxt Defs} ->
 process buildmsg file
     = do Right res <- coreLift (readFile file)
                | Left err => pure [FileErr file err]
-         case runParser res (do p <- prog file; eoi; pure p) of
+         parseRes <- logTime ("Parsing " ++ file) $
+                    pure (runParser res (do p <- prog file; eoi; pure p))
+         case parseRes of
               Left err => pure [ParseFail (getParseErrorLoc file err) err]
               Right mod =>
                 -- Processing returns a list of errors across a whole module,
@@ -236,16 +240,18 @@ process buildmsg file
                 -- other possible errors
                     catch (do initHash
                               fn <- getTTCFileName file ".ttc"
-                              Just errs <- processMod file fn buildmsg mod res
+                              Just errs <- logTime ("Elaborating " ++ file) $
+                                              processMod file fn buildmsg mod res
                                    | Nothing => pure [] -- skipped it
                               if isNil errs
                                  then
-                                   do defs <- get Ctxt
-                                      d <- getDirs
-                                      makeBuildDirectory (pathToNS (working_dir d) file)
-                                      writeToTTC !(get Syn) fn
-                                      mfn <- getTTCFileName file ".ttm"
-                                      writeToTTM mfn
-                                      pure []
+                                   logTime ("Writing TTC/TTM for " ++ file) $
+                                     do defs <- get Ctxt
+                                        d <- getDirs
+                                        makeBuildDirectory (pathToNS (working_dir d) file)
+                                        writeToTTC !(get Syn) fn
+                                        mfn <- getTTCFileName file ".ttm"
+                                        writeToTTM mfn
+                                        pure []
                                  else pure errs)
                           (\err => pure [err])

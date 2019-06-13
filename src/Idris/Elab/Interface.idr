@@ -293,7 +293,7 @@ elabInterface {vars} fc vis env nest constraints iname params dets mcon body
                   (FC, List FnOpt, Name, List ImpClause) -> 
                   Core (Name, List ImpClause)
     elabDefault tydecls (fc, opts, n, cs) 
-        = do orig <- branch
+        = do -- orig <- branch
              let dn_in = UN ("Default implementation of " ++ show n)
              dn <- inCurrentNS dn_in
 
@@ -310,7 +310,8 @@ elabInterface {vars} fc vis env nest constraints iname params dets mcon body
              let cs' = map (changeName dn) cs
              processDecl [] nest env (IDef fc dn cs')
              -- Reset the original context, we don't need to keep the definition
-             put Ctxt orig
+             -- Actually we do for the metadata and name map!
+--              put Ctxt orig
              pure (n, cs)
       where
         changeNameTerm : Name -> RawImp -> RawImp

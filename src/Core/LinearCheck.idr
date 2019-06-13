@@ -289,7 +289,7 @@ mutual
                             glueBack defs env sc', 
                             fused ++ aused)
                 _ => do tfty <- getTerm gfty
-                        throw (InternalError ("Linearity checking failed on " ++ show f' ++ 
+                        throw (GenericMsg fc ("Linearity checking failed on " ++ show f' ++ 
                               " (" ++ show tfty ++ " not a function type)"))
 
   lcheck rig erase env (As fc as pat) 
@@ -529,13 +529,15 @@ mutual
                 | Nothing => throw (InternalError ("Linearity checking failed on " ++ show n))
            if linearChecked def 
               then pure (type def)
-              else case definition def of
+              else do case definition def of
                         PMDef _ _ _ pats => 
                             do u <- getArgUsage (getLoc (type def))
                                                 rig (type def) pats
                                let ty' = updateUsage u (type def)
                                updateTy idx ty'
                                setLinearCheck idx True
+                               logTerm 5 ("New type of " ++ 
+                                          show (fullname def)) ty'
                                pure ty'
                         _ => pure (type def)
     where
@@ -565,9 +567,9 @@ mutual
       substMeta (Bind bfc n (Lam c e ty) sc) (a :: as) env
           = substMeta sc as (a :: env)
       substMeta rhs [] env = pure (substs env rhs)
-      substMeta _ _ _ = throw (InternalError ("Badly formed metavar solution " ++ show n))
-  expandMeta rig erase env n idx _ _
-      = throw (InternalError ("Badly formed metavar solution " ++ show n))
+      substMeta rhs _ _ = throw (InternalError ("Badly formed metavar solution " ++ show n ++ " " ++ show rhs))
+  expandMeta rig erase env n idx def _
+      = throw (InternalError ("Badly formed metavar solution " ++ show n ++ " " ++ show def))
 
   lcheckMeta : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
@@ -590,7 +592,7 @@ mutual
       = do defs <- get Ctxt
            empty <- clearDefs defs
            ty <- quote empty env nty
-           throw (InternalError ("Linearity checking failed on metavar 
+           throw (GenericMsg fc ("Linearity checking failed on metavar 
                       " ++ show n ++ " (" ++ show ty ++ 
                       " not a function type)"))
   lcheckMeta rig erase env fc n idx [] chk nty 

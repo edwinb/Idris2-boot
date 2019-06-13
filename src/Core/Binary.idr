@@ -229,11 +229,35 @@ addGlobalDef modns as def
 
 addTypeHint : {auto c : Ref Ctxt Defs} ->
               FC -> (Name, Name, Bool) -> Core ()
-addTypeHint fc (tyn, hintn, d) = addHintFor fc tyn hintn d True
+addTypeHint fc (tyn, hintn, d) 
+   = do logC 10 (pure (show !(getFullName hintn) ++ " for " ++ 
+                       show !(getFullName tyn)))
+        addHintFor fc tyn hintn d True
 
 addAutoHint : {auto c : Ref Ctxt Defs} ->
               (Name, Bool) -> Core ()
 addAutoHint (hintn, d) = addGlobalHint hintn d
+
+export
+updatePair : {auto c : Ref Ctxt Defs} -> 
+             Maybe PairNames -> Core ()
+updatePair p
+    = do defs <- get Ctxt
+         put Ctxt (record { options->pairnames $= (p <+>) } defs)
+
+export
+updateRewrite : {auto c : Ref Ctxt Defs} -> 
+                Maybe RewriteNames -> Core ()
+updateRewrite r
+    = do defs <- get Ctxt
+         put Ctxt (record { options->rewritenames $= (r <+>) } defs)
+
+export
+updatePrims : {auto c : Ref Ctxt Defs} -> 
+              PrimNames -> Core ()
+updatePrims p
+    = do defs <- get Ctxt
+         put Ctxt (record { options->primnames = p } defs)
 
 -- Add definitions from a binary file to the current context
 -- Returns the "extra" section of the file (user defined data), the interface
@@ -272,8 +296,14 @@ readFromTTC loc reexp fname modNS importAs
          setNS (currentNS ttc)
          -- Set up typeHints and autoHints based on the loaded data
          traverse_ (addTypeHint loc) (typeHints ttc)
+         defs <- get Ctxt
          traverse_ addAutoHint (autoHints ttc)
-         -- TODO: Set up pair/rewrite etc names, name directives
+         -- Set up pair/rewrite etc names
+         updatePair (pairnames ttc)
+         updateRewrite (rewritenames ttc)
+         updatePrims (primnames ttc)
+         -- TODO: Name directives
+
          when (not reexp) clearSavedHints
          resetFirstEntry
 

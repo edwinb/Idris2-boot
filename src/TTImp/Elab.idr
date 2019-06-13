@@ -31,7 +31,7 @@ doPLetRenames ns drops (Bind fc n b@(PLet _ _ _) sc)
 doPLetRenames ns drops (Bind fc n b sc)
     = case lookup n ns of
            Just (c, n') => 
-              Bind fc n' (setMultiplicity b c)
+              Bind fc n' (setMultiplicity b (max c (multiplicity b)))
                    (doPLetRenames ns (n' :: drops) (renameTop n' sc))
            Nothing => Bind fc n b (doPLetRenames ns drops sc)
 doPLetRenames ns drops sc = sc
@@ -107,7 +107,8 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
                               linearCheck (getFC tm) rigc False env chktm
                           -- Linearity checking looks in case blocks, so no
                           -- need to check here.
-                      else pure chktm
+                      else do checkNoGuards
+                              pure chktm
 
          -- Put the current hole state back to what it was (minus anything 
          -- which has been solved in the meantime)
@@ -128,7 +129,8 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
                    -- On the RHS, erase everything in a 0-multiplicity position
                    -- (This doesn't do a full linearity check, just erases by
                    -- type)
-                  do chkErase <- linearCheck (getFC tm) rigc True env chktm
+                  do dumpConstraints 2 False
+                     chkErase <- linearCheck (getFC tm) rigc True env chktm
                      pure (chktm, chkErase, chkty)
               _ => pure (chktm, chktm, chkty)
   where

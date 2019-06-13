@@ -259,7 +259,7 @@ mutual
                        Just (n, Just idx) <- coreLift $ readArray r x
                           | Just (n, Nothing) => 
                                 corrupt ("Metavar name index " ++ show x)
-                          | Nothing => corrupt ("Metavar name index " ++ show x)
+                          | Nothing => corrupt ("Metavar name index " ++ show x ++ " (not in array)")
                        xs <- fromBuf r b
                        pure (Meta fc (UN "metavar") idx xs)
                3 => do fc <- fromBuf r b; x <- fromBuf r b

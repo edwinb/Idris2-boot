@@ -113,9 +113,19 @@ toRig1 First (b :: bs)
          else b :: bs
 toRig1 (Later p) (b :: bs) = b :: toRig1 p bs
 
+toRig0 : {idx : Nat} -> .(IsVar name idx vs) -> Env Term vs -> Env Term vs
+toRig0 First (b :: bs) = setMultiplicity b Rig0 :: bs
+toRig0 (Later p) (b :: bs) = b :: toRig0 p bs
+
 allow : Maybe (Var vs) -> Env Term vs -> Env Term vs
 allow Nothing env = env
 allow (Just (MkVar p)) env = toRig1 p env
+
+-- If the name is used elsewhere, update its multiplicity so it's
+-- not required to be used in the case block
+updateMults : List (Var vs) -> Env Term vs -> Env Term vs
+updateMults [] env = env
+updateMults (MkVar p :: us) env = updateMults us (toRig0 p env)
 
 shrinkImp : SubVars outer vars -> 
             (Name, ImplBinding vars) -> Maybe (Name, ImplBinding outer)
@@ -255,6 +265,10 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
          
          scrn <- genVarName "scr"
          casen <- genCaseName (defining est)
+
+         -- Update environment so that linear bindings which were used
+         -- (esp. in the scrutinee!) are set to 0 in the case type
+         let env = updateMults (linearUsed est) env
 
          -- The 'pre_env' is the environment we apply any local (nested)
          -- names to. Here *all* the names have multiplicity 0 (we're

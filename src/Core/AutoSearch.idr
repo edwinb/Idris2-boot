@@ -353,6 +353,29 @@ concreteDets {vars} fc defaults env top pos dets ((p, arg) :: args)
         = throw (CantSolveGoal fc [] top)
     concrete defs tm top = pure ()
 
+checkConcreteDets : {auto c : Ref Ctxt Defs} ->
+                    {auto u : Ref UST UState} ->
+                    FC -> Bool ->
+                    Env Term vars -> (top : ClosedTerm) -> 
+                    NF vars ->
+                    Core ()
+checkConcreteDets fc defaults env top (NTCon tfc tyn t a args) 
+    = do defs <- get Ctxt
+         if isPairType tyn defs
+            then case args of
+                      [(_, aty), (_, bty)] => 
+                          do anf <- evalClosure defs aty
+                             bnf <- evalClosure defs bty
+                             checkConcreteDets fc defaults env top anf
+                             checkConcreteDets fc defaults env top bnf
+                      _ => do sd <- getSearchData fc defaults tyn
+                              concreteDets fc defaults env top 0 (detArgs sd) args
+            else 
+              do sd <- getSearchData fc defaults tyn
+                 concreteDets fc defaults env top 0 (detArgs sd) args
+checkConcreteDets fc defaults env top _
+    = pure ()
+
 -- Declared at the top
 searchType fc rigc defaults depth def top env (Bind nfc x (Pi c p ty) sc)
     = pure (Bind nfc x (Lam c p ty)
@@ -371,7 +394,8 @@ searchType {vars} fc rigc defaults depth def top env target
                      then do logNF 10 "Next target: " env nty
                              sd <- getSearchData fc defaults tyn
                              -- Check determining arguments are okay for 'args' 
-                             concreteDets fc defaults env top 0 (detArgs sd) args
+                             checkConcreteDets fc defaults env top
+                                               (NTCon tfc tyn t a args)
                              tryUnify
                                (searchLocal fc rigc defaults depth def top env nty)
                                (tryGroups nty (hintGroups sd))

@@ -105,9 +105,10 @@ parameters (defs : Defs, topopts : EvalOpts)
         = pure (NDelay fc r (MkClosure topopts locs env ty)
                             (MkClosure topopts locs env tm))
     eval env locs (TForce fc tm) stk 
-        = do tm' <- eval env locs tm stk
+        = do tm' <- eval env locs tm []
              case tm' of
-                  NDelay fc r _ arg => evalClosure defs arg
+                  NDelay fc r _ arg => 
+                      eval env (arg :: locs) (Local {name = UN "fvar"} fc Nothing _ First) stk
                   _ => pure (NForce fc tm')
     eval env locs (PrimVal fc c) stk = pure $ NPrimVal fc c
     eval env locs (Erased fc) stk = pure $ NErased fc

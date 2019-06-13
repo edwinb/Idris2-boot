@@ -160,7 +160,7 @@ defaultPPrint : PPrinter
 defaultPPrint = MkPPOpts False True False
 
 defaultSession : Session
-defaultSession = MkSessionOpts True Chez 0 False
+defaultSession = MkSessionOpts False Chez 0 False
 
 defaultElab : ElabDirectives
 defaultElab = MkElabDirectives True True

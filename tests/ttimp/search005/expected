@@ -1,8 +1,8 @@
 Processing as TTImp
 Written TTC
-Yaffle> \0 a : Type => \0 m : Main.Nat => \ys : (Main.Vect m[0] a[1]) => ys[0]
-Yaffle> \0 {k:49} : Main.Nat => \0 a : Type => \0 m : Main.Nat => \x : a[1] => \xs : (Main.Vect {k:49}[3] a[2]) => \ys : (Main.Vect m[2] a[3]) => (Main.Cons (Main.plus {k:49}[5] m[3]) a[4] x[2] (Main.append m[3] a[4] {k:49}[5] xs[1] ys[0]))
-Yaffle> [((Main.app2 (Main.Nil [Just a = _])) $y) = y, ((Main.app2 ((((Main.Cons [Just k = _]) [Just a = _]) $x) $z)) $y) = ((((Main.Cons [Just k = ((Main.plus {_:242}) m)]) [Just a = a]) x) (((((Main.app2 [Just m = m]) [Just a = a]) [Just n = {_:242}]) z) y))]
-Yaffle> [((Main.zip (Main.Nil [Just a = _])) $y) = (Main.Nil [Just a = ((Main.Pair a) b)]), ((Main.zip ((((Main.Cons [Just k = _]) [Just a = _]) $x) $z)) ((((Main.Cons [Just k = _]) [Just a = _]) $y) $w)) = ((((Main.Cons [Just k = {_:368}]) [Just a = ((Main.Pair a) b)]) ((((Main.MkPair [Just b = b]) [Just a = a]) x) y)) (((((Main.zip [Just b = b]) [Just a = a]) [Just n = {_:368}]) z) w))]
-Yaffle> [(((Main.zipWith $f) (Main.Nil [Just a = _])) $y) = (Main.Nil [Just a = c]), (((Main.zipWith $f) ((((Main.Cons [Just k = _]) [Just a = _]) $x) $z)) ((((Main.Cons [Just k = _]) [Just a = _]) $y) $w)) = ((((Main.Cons [Just k = {_:497}]) [Just a = c]) ((f x) y)) (((((((Main.zipWith [Just n = {_:497}]) [Just c = c]) [Just b = b]) [Just a = a]) f) z) w))]
+Yaffle> \0 m : Main.Nat => \0 a : Type => \ys : (Main.Vect m[1] a[0]) => ys[0]
+Yaffle> \0 m : Main.Nat => \0 a : Type => \0 {k:22} : Main.Nat => \ys : (Main.Vect m[2] a[1]) => \xs : (Main.Vect {k:22}[1] a[2]) => \x : a[3] => (Main.Cons (Main.plus {k:22}[3] m[5]) a[4] x[0] (Main.append m[5] a[4] {k:22}[3] xs[1] ys[2]))
+Yaffle> [((Main.app2 (Main.Nil [Just a = _])) $y) = y, ((Main.app2 ((((Main.Cons [Just k = _]) [Just a = _]) $x) $z)) $y) = ((((Main.Cons [Just k = ((Main.plus {_:191}) m)]) [Just a = a]) x) (((((Main.app2 [Just m = m]) [Just a = a]) [Just n = {_:191}]) z) y))]
+Yaffle> [((Main.zip (Main.Nil [Just a = _])) $y) = (Main.Nil [Just a = ((Main.Pair a) b)]), ((Main.zip ((((Main.Cons [Just k = _]) [Just a = _]) $x) $z)) ((((Main.Cons [Just k = _]) [Just a = _]) $y) $w)) = ((((Main.Cons [Just k = {_:298}]) [Just a = ((Main.Pair a) b)]) ((((Main.MkPair [Just b = b]) [Just a = a]) x) y)) (((((Main.zip [Just b = b]) [Just a = a]) [Just n = {_:298}]) z) w))]
+Yaffle> [(((Main.zipWith $f) (Main.Nil [Just a = _])) $y) = (Main.Nil [Just a = c]), (((Main.zipWith $f) ((((Main.Cons [Just k = _]) [Just a = _]) $x) $z)) ((((Main.Cons [Just k = _]) [Just a = _]) $y) $w)) = ((((Main.Cons [Just k = {_:448}]) [Just a = c]) ((f x) y)) (((((((Main.zipWith [Just n = {_:448}]) [Just c = c]) [Just b = b]) [Just a = a]) f) z) w))]
 Yaffle> Bye for now!

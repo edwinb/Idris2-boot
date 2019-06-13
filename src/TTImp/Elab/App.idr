@@ -30,6 +30,10 @@ getNameType rigc env fc x
               do rigSafe rigb rigc
                  let bty = binderType (getBinder lv env)
                  addNameType fc x env bty
+                 when (isLinear rigb) $
+                      do est <- get EST
+                         put EST 
+                            (record { linearUsed $= ((MkVar lv) :: ) } est)
                  pure (Local fc (Just rigb) _ lv, gnf env bty)
            Nothing => 
               do defs <- get Ctxt
@@ -194,6 +198,27 @@ mutual
   solveIfUndefined env metavar soln 
       = pure False
 
+  -- Defer elaborating anything which will be easier given a known target
+  -- type (ambiguity, cases, etc)
+  needsDelay : {auto c : Ref Ctxt Defs} ->
+               (knownRet : Bool) -> RawImp ->
+               Core Bool
+  needsDelay False _ = pure False
+  needsDelay True (IVar fc n)
+      = do defs <- get Ctxt
+           case !(lookupCtxtName n (gamma defs)) of
+                [] => pure False
+                [x] => pure False
+                _ => pure True
+  needsDelay True (IApp _ f _) = needsDelay True f
+  needsDelay True (IImplicitApp _ f _ _) = needsDelay True f
+  needsDelay True (ICase _ _ _ _) = pure True
+  needsDelay True (ILocal _ _ _) = pure True
+  needsDelay True (IUpdate _ _ _) = pure True
+  needsDelay True (IAlternative _ _ _) = pure True
+  needsDelay True (ISearch _ _) = pure True
+  needsDelay True _ = pure False
+
   -- Check the rest of an application given the argument type and the
   -- raw argument. We choose elaboration order depending on whether we know
   -- the return type now. If we know it, elaborate the rest of the
@@ -222,7 +247,7 @@ mutual
                    then pure True
                    else do sc' <- sc defs (toClosure defaultOpts env (Erased fc))
                            concrete defs env sc'
-          if kr then do
+          if !(needsDelay kr arg) then do
              nm <- genMVName x
              empty <- clearDefs defs
              metaty <- quote empty env aty
@@ -300,6 +325,9 @@ mutual
       = do let argRig = rigMult rig rigb
            checkRestApp rig argRig elabinfo nest env fc (explApp (Just x))
                         tm x aty sc arg expargs impargs kr expty
+  -- Function type is delayed, so force the term and continue
+  checkAppWith rig elabinfo nest env fc tm (NDelayed dfc r ty) expargs impargs kr expty
+      = checkAppWith rig elabinfo nest env fc (TForce dfc tm) ty expargs impargs kr expty
   -- If there's no more arguments given, and the plicities of the type and
   -- the expected type line up, stop
   checkAppWith rig elabinfo nest env fc tm ty@(NBind tfc x (Pi rigb Implicit aty) sc)

@@ -51,7 +51,7 @@ checkLocal {vars} rig elabinfo nest env fc nestdecls scope expty
       applyEnv outer inner 
             = do n' <- resolveName (Nested outer inner)
                  pure (inner, (Just (Resolved n'), 
-                          \fc, nt => applyToFull fc 
+                          \fc, nt => applyTo fc 
                                  (Ref fc nt (Resolved n')) env))
 
       -- Update the names in the declarations to the new 'nested' names.

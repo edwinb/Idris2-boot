@@ -105,13 +105,14 @@ record EState (vars : List Name) where
                   -- Holes standing for pattern variables, which we'll delete
                   -- once we're done elaborating
   allowDelay : Bool -- Delaying elaborators is okay. We can't nest delays.
+  linearUsed : List (Var vars)
 
 export
 data EST : Type where
 
 export
 initEStateSub : Int -> Env Term outer -> SubVars outer vars -> EState vars
-initEStateSub n env sub = MkEState n env sub [] [] [] [] [] True
+initEStateSub n env sub = MkEState n env sub [] [] [] [] [] True []
 
 export
 initEState : Int -> Env Term vars -> EState vars
@@ -130,7 +131,8 @@ weakenedEState {e}
                               (bindIfUnsolved est) 
                               (lhsPatVars est)
                               (allPatVars est)
-                              (allowDelay est))
+                              (allowDelay est)
+                              (map weaken (linearUsed est)))
          pure eref
   where
     wknTms : (Name, ImplBinding vs) -> 
@@ -158,7 +160,8 @@ strengthenedEState {n} {vars} c e fc env
                         (bindIfUnsolved est) 
                         (lhsPatVars est)
                         (allPatVars est)
-                        (allowDelay est))
+                        (allowDelay est)
+                        (mapMaybe dropTop (linearUsed est)))
   where
     dropSub : SubVars xs (y :: ys) -> Core (SubVars xs ys)
     dropSub (DropCons sub) = pure sub
@@ -185,6 +188,10 @@ strengthenedEState {n} {vars} c e fc env
                _ => throw (GenericMsg fc ("Invalid as binding " ++ 
                                show f ++ " " ++ show xnf ++ " : " ++ show ynf))
 
+    dropTop : (Var (n :: vs)) -> Maybe (Var vs)
+    dropTop (MkVar First) = Nothing
+    dropTop (MkVar (Later p)) = Just (MkVar p)
+
 export
 inScope : {auto c : Ref Ctxt Defs} ->
           {auto e : Ref EST (EState vars)} ->
@@ -208,6 +215,7 @@ updateEnv env sub bif st
                (lhsPatVars st)
                (allPatVars st)
                (allowDelay st)
+               (linearUsed st)
 
 export
 addBindIfUnsolved : Name -> RigCount -> Env Term vars -> Term vars -> Term vars ->
@@ -220,6 +228,7 @@ addBindIfUnsolved hn r env tm ty st
                (lhsPatVars st)
                (allPatVars st)
                (allowDelay st)
+               (linearUsed st)
 
 clearBindIfUnsolved : EState vars -> EState vars
 clearBindIfUnsolved st
@@ -229,6 +238,7 @@ clearBindIfUnsolved st
                (lhsPatVars st)
                (allPatVars st)
                (allowDelay st)
+               (linearUsed st)
 
 -- Clear the 'toBind' list, except for the names given
 export
@@ -473,14 +483,15 @@ processDecl : {vars : _} ->
 -- in doing so.
 -- Returns a list of constraints which need to be solved for the conversion
 -- to work; if this is empty, the terms are convertible.
-export
-convert : {vars : _} ->
+convertWithLazy
+        : {vars : _} ->
           {auto c : Ref Ctxt Defs} ->
           {auto u : Ref UST UState} ->
           {auto e : Ref EST (EState vars)} ->
+          (withLazy : Bool) ->
           FC -> ElabInfo -> Env Term vars -> Glued vars -> Glued vars ->
           Core UnifyResult
-convert fc elabinfo env x y
+convertWithLazy withLazy fc elabinfo env x y
     = let umode : UnifyMode
                 = case elabMode elabinfo of
                        InLHS _ => InLHS
@@ -491,10 +502,14 @@ convert fc elabinfo env x y
                 vs <- if isFromTerm x && isFromTerm y
                          then do xtm <- getTerm x
                                  ytm <- getTerm y
-                                 unifyWithLazy umode fc env xtm ytm
+                                 if withLazy
+                                    then unifyWithLazy umode fc env xtm ytm
+                                    else unify umode fc env xtm ytm
                          else do xnf <- getNF x
                                  ynf <- getNF y
-                                 unifyWithLazy umode fc env xnf ynf
+                                 if withLazy
+                                    then unifyWithLazy umode fc env xnf ynf
+                                    else unify umode fc env xnf ynf
                 when (holesSolved vs) $
                     solveConstraints umode Normal
                 pure vs)
@@ -514,6 +529,15 @@ convert fc elabinfo env x y
                             !(normaliseHoles defs env xtm)
                             !(normaliseHoles defs env ytm) err))
 
+export
+convert : {vars : _} ->
+          {auto c : Ref Ctxt Defs} ->
+          {auto u : Ref UST UState} ->
+          {auto e : Ref EST (EState vars)} ->
+          FC -> ElabInfo -> Env Term vars -> Glued vars -> Glued vars ->
+          Core UnifyResult
+convert = convertWithLazy False
+
 -- Check whether the type we got for the given type matches the expected
 -- type.
 -- Returns the term and its type.
@@ -529,11 +553,14 @@ checkExp : {vars : _} ->
            (got : Glued vars) -> (expected : Maybe (Glued vars)) -> 
            Core (Term vars, Glued vars)
 checkExp rig elabinfo env fc tm got (Just exp) 
-    = do vs <- convert fc elabinfo env got exp
+    = do vs <- convertWithLazy True fc elabinfo env got exp
          case (constraints vs) of
               [] => case addLazy vs of
                          NoLazy => pure (tm, got)
-                         AddForce => pure (TForce fc tm, exp)
+                         AddForce => do logTerm 0 "Force" tm
+                                        logGlue 0 "Got" env got
+                                        logGlue 0 "Exp" env exp
+                                        pure (TForce fc tm, exp)
                          AddDelay r => do ty <- getTerm got
                                           pure (TDelay fc r ty tm, exp)
               cs => do defs <- get Ctxt

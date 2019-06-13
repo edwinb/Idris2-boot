@@ -2,14 +2,14 @@ Processing as TTImp
 Written TTC
 Yaffle> Bye for now!
 Processing as TTImp
-Dot2.yaff:15:1--16:1:When elaborating left hand side of $resolved92:
-Dot2.yaff:15:10--15:15:Can't match on ($resolved73 ?{P:n:92}_[] ?{P:m:92}_[]) (Not a constructor application or primitive) - it elaborates to ($resolved73 ?{P:n:92}_[] ?{P:n:92}_[])
+Dot2.yaff:15:1--16:1:When elaborating left hand side of $resolved79:
+Dot2.yaff:15:10--15:15:Can't match on ($resolved73 ?{P:n:79}_[] ?{P:m:79}_[]) (Not a constructor application or primitive) - it elaborates to ($resolved73 ?{P:n:79}_[] ?{P:n:79}_[])
 Yaffle> Bye for now!
 Processing as TTImp
-Dot3.yaff:18:1--20:1:When elaborating left hand side of $resolved100:
-Dot3.yaff:18:10--18:15:Can't match on ($resolved73 ?{P:x:100}_[] ?{P:y:100}_[]) (Not a constructor application or primitive) - it elaborates to ($resolved73 ?Main.{_:30}_[] ?Main.{_:29}_[])
+Dot3.yaff:18:1--20:1:When elaborating left hand side of $resolved82:
+Dot3.yaff:18:10--18:15:Can't match on ($resolved73 ?{P:x:82}_[] ?{P:y:82}_[]) (Not a constructor application or primitive) - it elaborates to ($resolved73 ?Main.{_:8}_[] ?Main.{_:9}_[])
 Yaffle> Bye for now!
 Processing as TTImp
-Dot4.yaff:17:1--19:1:When elaborating left hand side of $resolved100:
-Dot4.yaff:17:10--17:15:Can't match on ($resolved73 ?Main.{_:32}_[] ?Main.{_:31}_[]) (Not a constructor application or primitive) - it elaborates to ($resolved73 ?{P:x:100}_[] ?{P:y:100}_[])
+Dot4.yaff:17:1--19:1:When elaborating left hand side of $resolved82:
+Dot4.yaff:17:10--17:15:Can't match on ($resolved73 ?Main.{_:7}_[] ?Main.{_:8}_[]) (Not a constructor application or primitive) - it elaborates to ($resolved73 ?{P:x:82}_[] ?{P:y:82}_[])
 Yaffle> Bye for now!

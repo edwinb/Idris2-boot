@@ -651,6 +651,10 @@ Weaken Term where
   weakenNs ns tm = insertNames {outer = []} ns tm
 
 export
+Weaken Var where
+  weaken (MkVar p) = MkVar (Later p)
+
+export
 varExtend : IsVar x idx xs -> IsVar x idx (xs ++ ys)
 -- What Could Possibly Go Wrong?
 -- This relies on the runtime representation of the term being the same

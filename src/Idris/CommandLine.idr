@@ -47,6 +47,7 @@ data CLOpt
   IdeModeSocket | 
    ||| Run as a checker for the core language TTImp
   Yaffle String |
+  Timing |
   BlodwenPaths
 
 
@@ -95,7 +96,9 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
            MkOpt ["--help", "-h", "-?"] [] [Help]
               (Just "Display help text"),
            MkOpt ["--yaffle", "--ttimp"] ["ttimp file"] (\f => [Yaffle f])
-              Nothing
+              Nothing,
+           MkOpt ["--timing"] [] [Timing]
+              (Just "Display timing logs")
            ]
 
 optUsage : OptDesc -> String

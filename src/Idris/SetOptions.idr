@@ -45,6 +45,8 @@ preOptions (SetCG e :: opts)
 preOptions (PkgPath p :: opts)
     = do addPkgDir p
          preOptions opts
+preOptions (Timing :: opts)
+    = setLogTimings True
 preOptions (_ :: opts) = preOptions opts
 
 -- Options to be processed after type checking. Returns whether execution
