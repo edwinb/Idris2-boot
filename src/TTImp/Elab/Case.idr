@@ -28,8 +28,8 @@ changeVar old new (Meta fc nm i args)
 changeVar (MkVar old) (MkVar new) (Bind fc x b sc) 
     = Bind fc x (assert_total (map (changeVar (MkVar old) (MkVar new)) b)) 
 		            (changeVar (MkVar (Later old)) (MkVar (Later new)) sc)
-changeVar old new (App fc fn p arg) 
-    = App fc (changeVar old new fn) p (changeVar old new arg)
+changeVar old new (App fc fn arg) 
+    = App fc (changeVar old new fn) (changeVar old new arg)
 changeVar old new (As fc nm p)
     = As fc (changeVar old new nm) (changeVar old new p)
 changeVar old new (TDelayed fc r p)
@@ -324,7 +324,7 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
          processDecl [InCase] nest' pre_env (IDef fc casen alts')
 
          let applyEnv = applyToOthers fc (applyToFull fc caseRef env) env smaller
-         pure (maybe (App fc applyEnv (explApp Nothing) scrtm) 
+         pure (maybe (App fc applyEnv scrtm) 
                      (const applyEnv) splitOn, 
                gnf env caseretty)
 

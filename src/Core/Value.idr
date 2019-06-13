@@ -62,7 +62,7 @@ mutual
        NLocal : Maybe RigCount -> (idx : Nat) -> IsVar name idx vars ->
                 NHead vars
        NRef   : NameType -> Name -> NHead vars
-       NMeta  : Name -> Int -> List (AppInfo, Closure vars) -> NHead vars
+       NMeta  : Name -> Int -> List (Closure vars) -> NHead vars
 
   -- Values themselves. 'Closure' is an unevaluated thunk, which means 
   -- we can wait until necessary to reduce constructor arguments
@@ -70,11 +70,11 @@ mutual
   data NF : List Name -> Type where
        NBind    : FC -> (x : Name) -> Binder (NF vars) ->
                   (Defs -> Closure vars -> Core (NF vars)) -> NF vars
-       NApp     : FC -> NHead vars -> List (AppInfo, Closure vars) -> NF vars
+       NApp     : FC -> NHead vars -> List (Closure vars) -> NF vars
        NDCon    : FC -> Name -> (tag : Int) -> (arity : Nat) -> 
-                  List (AppInfo, Closure vars) -> NF vars
+                  List (Closure vars) -> NF vars
        NTCon    : FC -> Name -> (tag : Int) -> (arity : Nat) -> 
-                  List (AppInfo, Closure vars) -> NF vars
+                  List (Closure vars) -> NF vars
        NAs      : FC -> NF vars -> NF vars -> NF vars
        NDelayed : FC -> LazyReason -> NF vars -> NF vars
        NDelay   : FC -> LazyReason -> Closure vars -> Closure vars -> NF vars

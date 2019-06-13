@@ -36,11 +36,11 @@ conflict defs nfty n
           = conflictNF t !(sc defs (toClosure defaultOpts [] (Erased fc)))
       conflictNF (NDCon _ n t a args) (NDCon _ n' t' a' args')
           = if t == t'
-               then conflictArgs (map snd args) (map snd args')
+               then conflictArgs args args'
                else pure True
       conflictNF (NTCon _ n t a args) (NTCon _ n' t' a' args')
           = if n == n'
-               then conflictArgs (map snd args) (map snd args')
+               then conflictArgs args args'
                else pure True
       conflictNF (NPrimVal _ c) (NPrimVal _ c') = pure (c /= c')
       conflictNF _ _ = pure False
@@ -96,11 +96,11 @@ mutual
      = matchNF defs t !(sc defs (toClosure defaultOpts [] (Erased fc)))
   matchNF defs (NDCon _ n t a args) (NDCon _ n' t' a' args')
      = if t == t'
-          then matchArgs defs (map snd args) (map snd args')
+          then matchArgs defs args args'
           else pure False
   matchNF defs (NTCon _ n t a args) (NTCon _ n' t' a' args')
      = if n == n'
-          then matchArgs defs (map snd args) (map snd args')
+          then matchArgs defs args args'
           else pure False
   matchNF defs (NPrimVal _ c) (NPrimVal _ c') = pure (c == c')
   matchNF _ _ _ = pure True
@@ -264,7 +264,7 @@ buildArgs fc defs known not ps cs@(Case {name = var} idx el ty altsIn)
     buildArgAlt not' (ConCase n t args sc) 
         = do let con = Ref fc (DataCon t (length args)) n
              let ps' = map (substName var 
-                             (apply fc (explApp Nothing)
+                             (apply fc
                                     con (map (Ref fc Bound) args))) ps
              buildArgs fc defs (weakenNs args ((MkVar el, t) :: known)) 
                                (weakenNs args not') ps' sc
@@ -308,7 +308,7 @@ getMissing fc n ctree
    = do defs <- get Ctxt
         let psIn = map (Ref fc Bound) vars
         pats <- buildArgs fc defs [] [] psIn ctree
-        pure (map (apply fc (explApp Nothing) (Ref fc Func n)) pats)
+        pure (map (apply fc (Ref fc Func n)) pats)
 
 -- For the given name, get the names it refers to which are not themselves
 -- covering

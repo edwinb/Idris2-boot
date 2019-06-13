@@ -160,7 +160,7 @@ mutual
                                     CLam fc x !(toCExp tags n sc)]
   toCExpTm tags n (Bind fc x b tm) = pure $ CErased fc
   -- We'd expect this to have been dealt with in toCExp, but for completeness...
-  toCExpTm tags n (App fc tm p arg) 
+  toCExpTm tags n (App fc tm arg) 
       = pure $ CApp fc !(toCExp tags n tm) [!(toCExp tags n arg)]
   -- This shouldn't be in terms any more, but here for completeness
   toCExpTm tags n (As _ _ p) = toCExpTm tags n p
@@ -181,7 +181,7 @@ mutual
   toCExp : {auto c : Ref Ctxt Defs} ->
            NameTags -> Name -> Term vars -> Core (CExp vars)
   toCExp tags n tm
-      = case getFnArgsOnly tm of
+      = case getFnArgs tm of
              (f, args) =>
                 do args' <- traverse (toCExp tags n) args
                    defs <- get Ctxt

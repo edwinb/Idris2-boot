@@ -55,7 +55,7 @@ mutual
   findSC defs env Guarded pats (TDelay _ _ _ tm)
       = findSC defs env InDelay pats tm
   findSC defs env g pats tm
-      = case (g, getFnArgsOnly tm) of
+      = case (g, getFnArgs tm) of
     -- If we're InDelay and find a constructor (or a function call which is
     -- guaranteed to return a constructor; AllGuarded set), continue as InDelay
              (InDelay, Ref fc (DataCon _ _) cn, args) =>
@@ -114,9 +114,9 @@ mutual
            then True
            else case getFnArgs tm of
                      (Ref _ (DataCon t a) cn, args) 
-                         => any (smaller True defs big s) (map snd args)
+                         => any (smaller True defs big s) args
                      _ => case s of
-                               App _ f _ _ => smaller inc defs big f tm 
+                               App _ f _ => smaller inc defs big f tm 
                                             -- Higher order recursive argument
                                _ => False
 
@@ -124,7 +124,7 @@ mutual
   asserted : Term vars -> Maybe (Term vars)
   asserted tm 
        = case getFnArgs tm of
-              (Ref _ nt fn, [_, _, (_, b), _]) 
+              (Ref _ nt fn, [_, _, b, _]) 
                    => if fn == NS ["Builtin"] (UN "assert_smaller")
                          then Just b
                          else Nothing
@@ -182,7 +182,7 @@ mutual
           urhs (Local fc _ _ _) = Erased fc
           urhs (Ref fc nt n) = Ref fc nt n
           urhs (Meta fc m i margs) = Meta fc m i (map (updateRHS ms) margs)
-          urhs (App fc f p a) = App fc (updateRHS ms f) p (updateRHS ms a)
+          urhs (App fc f a) = App fc (updateRHS ms f) (updateRHS ms a)
           urhs (As fc a p) = As fc (updateRHS ms a) (updateRHS ms p)
           urhs (TDelayed fc r ty) = TDelayed fc r (updateRHS ms ty)
           urhs (TDelay fc r ty tm) 
@@ -201,7 +201,7 @@ mutual
       matchArgs : (vs ** (Env Term vs, Term vs, Term vs)) -> 
                   (vs ** (Env Term vs, List (Nat, Term vs), Term vs))
       matchArgs (_ ** (env', lhs, rhs))
-         = let patMatch = reverse (zip args (map snd (getArgs lhs))) in
+         = let patMatch = reverse (zip args (getArgs lhs)) in
                (_ ** (env', map (updatePat patMatch) pats, rhs))
 
   caseFn : Name -> Bool
@@ -259,7 +259,7 @@ delazy defs (TDelay fc r ty tm)
 delazy defs (Meta fc n i args) = Meta fc n i (map (delazy defs) args)
 delazy defs (Bind fc x b sc) 
     = Bind fc x (map (delazy defs) b) (delazy defs sc)
-delazy defs (App fc f p a) = App fc (delazy defs f) p (delazy defs a)
+delazy defs (App fc f a) = App fc (delazy defs f) (delazy defs a)
 delazy defs (As fc a p) = As fc (delazy defs a) (delazy defs p)
 delazy defs tm = tm
 
@@ -267,7 +267,7 @@ findCalls : {auto c : Ref Ctxt Defs} ->
             Defs -> (vars ** (Env Term vars, Term vars, Term vars)) -> 
             Core (List SCCall)
 findCalls defs (_ ** (env, lhs, rhs_in))
-   = do let pargs = map snd (getArgs (delazy defs lhs))
+   = do let pargs = getArgs (delazy defs lhs)
         rhs <- normaliseOpts tcOnly defs env rhs_in
         findSC defs env Toplevel
                (zip (take (length pargs) [0..]) pargs) (delazy defs rhs)
@@ -426,15 +426,15 @@ nameIn defs tyns (NBind fc x b sc)
                  nameIn defs tyns sc'
 nameIn defs tyns (NApp _ _ args)
     = anyM (nameIn defs tyns) 
-           !(traverse (evalClosure defs) (map snd args))
+           !(traverse (evalClosure defs) args)
 nameIn defs tyns (NTCon _ n _ _ args)
     = if n `elem` tyns
          then pure True
          else anyM (nameIn defs tyns) 
-                   !(traverse (evalClosure defs) (map snd args))
+                   !(traverse (evalClosure defs) args)
 nameIn defs tyns (NDCon _ n _ _ args)
     = anyM (nameIn defs tyns) 
-           !(traverse (evalClosure defs) (map snd args))
+           !(traverse (evalClosure defs) args)
 nameIn defs tyns _ = pure False
 
 -- Check an argument type doesn't contain a negative occurrence of any of
@@ -446,8 +446,8 @@ posArg defs tyns (NTCon _ tc _ _ args)
     = let testargs : List (Closure [])
              = case !(lookupDefExact tc (gamma defs)) of
                     Just (TCon _ _ params _ _ _) => 
-                         dropParams 0 params (map snd args)
-                    _ => map snd args in
+                         dropParams 0 params args
+                    _ => args in
           if !(anyM (nameIn defs tyns)
                   !(traverse (evalClosure defs) testargs))
              then pure (NotTerminating NotStrictlyPositive)

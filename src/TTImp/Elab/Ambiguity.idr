@@ -113,15 +113,15 @@ mutual
       = mightMatch defs (stripDelay defs l) (stripDelay defs r)
 
   mightMatchArg : Defs -> 
-                  (AppInfo, Closure vars) -> (AppInfo, Closure []) -> 
+                  Closure vars -> Closure [] -> 
                   Core Bool
-  mightMatchArg defs (_, l) (_, r)
+  mightMatchArg defs l r
       = case !(mightMatchD defs !(evalClosure defs l) !(evalClosure defs r)) of
              NoMatch => pure False
              _ => pure True
 
   mightMatchArgs : Defs ->
-                   List (AppInfo, Closure vars) -> List (AppInfo, Closure []) ->
+                   List (Closure vars) -> List (Closure []) ->
                    Core Bool
   mightMatchArgs defs [] [] = pure True
   mightMatchArgs defs (x :: xs) (y :: ys)

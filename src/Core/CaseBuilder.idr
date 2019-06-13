@@ -883,7 +883,7 @@ toPatClause fc n (lhs, rhs)
                     (np, _) <- getPosition n (gamma defs)
                     (fnp, _) <- getPosition fn (gamma defs)
                     if np == fnp
-                       then pure (map argToPat (map snd args), rhs)
+                       then pure (map argToPat args, rhs)
                        else throw (GenericMsg ffc ("Wrong function name in pattern LHS " ++ show (n, fn)))
            (f, args) => throw (GenericMsg fc "Not a function name in pattern LHS")
 

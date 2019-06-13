@@ -140,7 +140,7 @@ mutual
           dropS (findUsed (b :: env)
                           (map S (findUsedInBinder env used b))
                           tm)
-  findUsed env used (App fc fn p arg) 
+  findUsed env used (App fc fn arg) 
       = findUsed env (findUsed env used fn) arg
   findUsed env used (As fc a p) 
       = findUsed env (findUsed env used a) p

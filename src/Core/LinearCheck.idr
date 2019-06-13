@@ -97,7 +97,7 @@ mutual
            let argpos = findArg Z args
            log 10 $ "At positions " ++ show argpos
            -- Find what it's position is in env by looking at the lhs args
-           let vars = mapMaybe (findLocal (map snd (getArgs lhs))) argpos
+           let vars = mapMaybe (findLocal (getArgs lhs)) argpos
            hs <- traverse (\vsel => updateHoleUsage useInHole vsel rhs)
                           vars
            pure (or (map Delay hs))
@@ -150,16 +150,16 @@ mutual
   updateHoleUsage useInHole var tm 
       = case getFnArgs tm of
              (Ref _ _ fn, args) => 
-                do aup <- updateHoleUsageArgs useInHole var (map snd args) 
+                do aup <- updateHoleUsageArgs useInHole var args
                    defs <- get Ctxt
                    Just (NS _ (CaseBlock _ _), PMDef _ _ _ pats) <- 
                          lookupExactBy (\d => (fullname d, definition d))
                                        fn (gamma defs)
                        | _ => pure aup
-                   hs <- traverse (updateHoleUsagePats useInHole var (map snd args)) pats
+                   hs <- traverse (updateHoleUsagePats useInHole var args) pats
                    pure (or (aup :: map Delay hs))
              (f, []) => pure False
-             (f, args) => updateHoleUsageArgs useInHole var (f :: map snd args)
+             (f, args) => updateHoleUsageArgs useInHole var (f :: args)
 
 -- Linearity checking of an already checked term. This serves two purposes:
 --  + Checking correct usage of linear bindings
@@ -263,7 +263,7 @@ mutual
                then pure ()
                else throw (LinearUsed fc used nm)
 
-  lcheck rig erase env (App fc f p a) 
+  lcheck rig erase env (App fc f a) 
       = do (f', gfty, fused) <- lcheck rig erase env f
            defs <- get Ctxt
            fty <- getNF gfty
@@ -285,7 +285,7 @@ mutual
 --                       when (not (convert gam env aty ty)) $
 --                          throw (CantConvert loc env (quote (noGam gam) env ty) 
 --                                                     (quote (noGam gam) env aty))
-                      pure (App fc f' p aerased, 
+                      pure (App fc f' aerased, 
                             glueBack defs env sc', 
                             fused ++ aused)
                 _ => do tfty <- getTerm gfty
@@ -477,7 +477,7 @@ mutual
                logTerm 10 "LHS" lhs
                logTerm 10 "RHS" rhs
                (rhs', _, used) <- lcheck rig False penv rhs
-               let args = map snd (getArgs lhs)
+               let args = getArgs lhs
                checkEnvUsage {done = []} rig penv used args rhs'
                getCaseUsage ty penv args used rhs
 

@@ -35,7 +35,7 @@ mutual
       = do bt <- chkBinder env b
            sct <- chk {vars = nm :: _} (b :: env) sc
            pure $ gnf env (discharge fc nm b !(getTerm bt) !(getTerm sct))
-  chk env (App fc f p a) 
+  chk env (App fc f a) 
       = do fty <- chk env f
            case !(getNF fty) of
                 NBind _ _ (Pi _ _ ty) scdone => 

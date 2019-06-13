@@ -153,14 +153,6 @@ TTC NameType where
              3 => do x <- fromBuf r b; y <- fromBuf r b; pure (TyCon x y)
              _ => corrupt "NameType"
 
-export
-TTC AppInfo where
-  toBuf b (MkAppInfo an p)
-      = do toBuf b an; toBuf b p
-  fromBuf r b
-      = do an <- fromBuf r b; p <- fromBuf r b
-           pure (MkAppInfo an p)
-
 -- Assumption is that it was type safe when we wrote it out, so believe_me
 -- to rebuild proofs is fine.
 -- We're just making up the implicit arguments - this is only fine at run
@@ -220,11 +212,11 @@ mutual
         = do tag 3;
              toBuf b fc; toBuf b x; 
              toBuf b bnd; toBuf b scope
-    toBuf b (App fc fn p arg) 
+    toBuf b (App fc fn arg) 
         = do tag 4;
-             let (fn, args) = getFnArgs (App fc fn p arg)
+             let (fn, args) = getFnArgs (App fc fn arg)
              toBuf b fc; toBuf b fn; -- toBuf b p; 
-             toBuf b (map snd args)
+             toBuf b args
     toBuf b (As fc as tm)
         = do tag 5;
              toBuf b fc; toBuf b as; toBuf b tm
@@ -268,7 +260,7 @@ mutual
                4 => do fc <- fromBuf r b; fn <- fromBuf r b
   --                      p <- fromBuf r b; 
                        args <- fromBuf r b
-                       pure (apply fc (explApp Nothing) fn args)
+                       pure (apply fc fn args)
                5 => do fc <- fromBuf r b
                        as <- fromBuf r b; tm <- fromBuf r b
                        pure (As fc as tm)

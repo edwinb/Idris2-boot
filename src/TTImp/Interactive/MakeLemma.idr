@@ -24,11 +24,11 @@ hiddenName _ = False
 bindable : Nat -> Term vars -> Bool
 bindable p tm
     = case getFnArgs tm of
-           (Ref _ (TyCon _ _) n, args) => any (bindable p) (map snd args)
-           (Ref _ (DataCon _ _) _, args) => any (bindable p) (map snd args)
-           (TDelayed _ _ t, args) => any (bindable p) (t :: map snd args)
-           (TDelay _ _ _ t, args) => any (bindable p) (t :: map snd args)
-           (TForce _ t, args) => any (bindable p) (t :: map snd args)
+           (Ref _ (TyCon _ _) n, args) => any (bindable p) args
+           (Ref _ (DataCon _ _) _, args) => any (bindable p) args
+           (TDelayed _ _ t, args) => any (bindable p) (t :: args)
+           (TDelay _ _ _ t, args) => any (bindable p) (t :: args)
+           (TForce _ t, args) => any (bindable p) (t :: args)
            (Local _ _ p' _, []) => p == p'
            _ => False
 

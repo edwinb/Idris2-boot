@@ -19,7 +19,7 @@ used {vars} idx (Bind _ x b sc) = usedBinder b || used (1 + idx) sc
     usedBinder (Let _ val ty) = used idx val || used idx ty
     usedBinder b = used idx (binderType b)
 used idx (Meta _ _ _ args) = any (used idx) args
-used idx (App _ f _ a) = used idx f || used idx a
+used idx (App _ f a) = used idx f || used idx a
 used idx (As _ _ pat) = used idx pat
 used idx (TDelayed _ _ tm) = used idx tm
 used idx (TDelay _ _ _ tm) = used idx tm
@@ -68,10 +68,10 @@ mutual
       getNth : Nat -> Term vars -> Term vars
       getNth n tm
           = case getFnArgs tm of
-                 (f, as) => idxOrDefault n f (map snd as)
+                 (f, as) => idxOrDefault n f as
 
       nthArg : FC -> Nat -> Term vars -> Term vars 
-      nthArg fc drop (App afc f p a) = getNth drop (App afc f p a)
+      nthArg fc drop (App afc f a) = getNth drop (App afc f a)
       nthArg fc drop tm = Erased fc
 
       mkClause : FC -> Nat ->
@@ -144,7 +144,7 @@ mutual
   unelabTy' umode env (Bind fc x b sc)
       = do (sc', scty) <- unelabTy umode (b :: env) sc
            unelabBinder umode fc env x b sc sc' scty
-  unelabTy' umode env (App fc fn p arg)
+  unelabTy' umode env (App fc fn arg)
       = do (fn', fnty) <- unelabTy umode env fn
            case fn' of
                IHole _ _ => pure (fn', Erased fc)

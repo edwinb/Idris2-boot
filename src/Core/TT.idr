@@ -335,28 +335,6 @@ export
 Show (Var ns) where
   show (MkVar {i} _) = show i
 
-public export
-record AppInfo where
-  constructor MkAppInfo
-  argname : Maybe Name
-  plicit : PiInfo
-
-export
-Show AppInfo where
-  show ap = "AppInfo: " ++ show (argname ap, plicit ap)
-
-export
-appInf : Maybe Name -> PiInfo -> AppInfo
-appInf n p = MkAppInfo n p
-
-export
-implApp : Maybe Name -> AppInfo
-implApp n = appInf n Implicit
-
-export
-explApp : Maybe Name -> AppInfo
-explApp n = appInf n Explicit
-
 namespace CList
   -- A list correspoding to another list
   public export
@@ -381,7 +359,7 @@ data Term : List Name -> Type where
      Bind : FC -> (x : Name) -> 
             (b : Binder (Term vars)) -> 
             (scope : Term (x :: vars)) -> Term vars
-     App : FC -> (fn : Term vars) -> (p : AppInfo) -> (arg : Term vars) -> Term vars
+     App : FC -> (fn : Term vars) -> (arg : Term vars) -> Term vars
      -- as patterns; since we check LHS patterns as terms before turning
      -- them into patterns, this helps us get it right. When normalising,
      -- we just reduce the inner term and ignore the 'as' part
@@ -404,7 +382,7 @@ getLoc (Local fc x idx y) = fc
 getLoc (Ref fc x name) = fc
 getLoc (Meta fc x y xs) = fc
 getLoc (Bind fc x b scope) = fc
-getLoc (App fc fn p arg) = fc
+getLoc (App fc fn arg) = fc
 getLoc (As fc x y) = fc
 getLoc (TDelayed fc x y) = fc
 getLoc (TDelay fc x t y) = fc
@@ -444,7 +422,7 @@ Eq (Term vars) where
       = assert_total (i == i' && args == args')
   (==) (Bind _ _ b sc) (Bind _ _ b' sc') 
       = assert_total (b == b' && sc == believe_me sc')
-  (==) (App _ f _ a) (App _ f' _ a') = f == f' && a == a'
+  (==) (App _ f a) (App _ f' a') = f == f' && a == a'
   (==) (As _ a p) (As _ a' p') = a == a' && p == p'
   (==) (TDelayed _ _ t) (TDelayed _ _ t') = t == t'
   (==) (TDelay _ _ t x) (TDelay _ _ t' x') = t == t' && x == x'
@@ -611,7 +589,7 @@ thin n (Meta fc name idx args) = Meta fc name idx (map (thin n) args)
 thin {outer} {inner} n (Bind fc x b scope) 
     = let sc' = thin {outer = x :: outer} {inner} n scope in
           Bind fc x (assert_total (map (thin n) b)) sc'
-thin n (App fc fn p arg) = App fc (thin n fn) p (thin n arg)
+thin n (App fc fn arg) = App fc (thin n fn) (thin n arg)
 thin n (As fc nm tm) = As fc (thin n nm) (thin n tm)
 thin n (TDelayed fc r ty) = TDelayed fc r (thin n ty)
 thin n (TDelay fc r ty tm) = TDelay fc r (thin n ty) (thin n tm)
@@ -633,8 +611,8 @@ insertNames ns (Meta fc name idx args)
 insertNames {outer} {inner} ns (Bind fc x b scope) 
     = Bind fc x (assert_total (map (insertNames ns) b)) 
            (insertNames {outer = x :: outer} {inner} ns scope)
-insertNames ns (App fc fn p arg) 
-    = App fc (insertNames ns fn) p (insertNames ns arg)
+insertNames ns (App fc fn arg) 
+    = App fc (insertNames ns fn) (insertNames ns arg)
 insertNames ns (As fc as tm) 
     = As fc (insertNames ns as) (insertNames ns tm)
 insertNames ns (TDelayed fc r ty) = TDelayed fc r (insertNames ns ty)
@@ -671,14 +649,9 @@ ClosedTerm : Type
 ClosedTerm = Term []
 
 export
-apply : FC -> AppInfo -> Term vars -> List (Term vars) -> Term vars
-apply loc p fn [] = fn
-apply loc p fn (a :: args) = apply loc p (App loc fn p a) args
-
-export
-applyInfo : FC -> Term vars -> List (AppInfo, Term vars) -> Term vars
-applyInfo loc fn [] = fn
-applyInfo loc fn ((p, a) :: args) = applyInfo loc (App loc fn p a) args
+apply : FC -> Term vars -> List (Term vars) -> Term vars
+apply loc fn [] = fn
+apply loc fn (a :: args) = apply loc (App loc fn a) args
 
 -- Build a simple function type
 export
@@ -690,28 +663,22 @@ linFnType : Term vars -> Term vars -> Term vars
 linFnType arg scope = Bind emptyFC (MN "_" 0) (Pi Rig1 Explicit arg) (weaken scope)
 
 export
-getFnArgs : Term vars -> (Term vars, List (AppInfo, Term vars))
+getFnArgs : Term vars -> (Term vars, List (Term vars))
 getFnArgs tm = getFA [] tm
   where
-    getFA : List (AppInfo, Term vars) -> Term vars -> 
-            (Term vars, List (AppInfo, Term vars))
-    getFA args (App _ f i a) = getFA ((i, a) :: args) f
+    getFA : List (Term vars) -> Term vars -> 
+            (Term vars, List (Term vars))
+    getFA args (App _ f a) = getFA (a :: args) f
     getFA args tm = (tm, args)
 
 export
 getFn : Term vars -> Term vars
-getFn (App _ f _ a) = getFn f
+getFn (App _ f a) = getFn f
 getFn tm = tm
 
 export
-getArgs : Term vars -> (List (AppInfo, Term vars))
+getArgs : Term vars -> (List (Term vars))
 getArgs = snd . getFnArgs
-
-export
-getFnArgsOnly : Term vars -> (Term vars, List (Term vars))
-getFnArgsOnly tm
-    = case getFnArgs tm of
-           (f, args) => (f, map snd args)
 
 public export
 data CompatibleVars : List Name -> List Name -> Type where
@@ -758,8 +725,8 @@ renameVars prf (Meta fc n i args)
     = Meta fc n i (map (renameVars prf) args)
 renameVars prf (Bind fc x b scope) 
     = Bind fc x (map (renameVars prf) b) (renameVars (CompatExt prf) scope)
-renameVars prf (App fc fn p arg) 
-    = App fc (renameVars prf fn) p (renameVars prf arg)
+renameVars prf (App fc fn arg) 
+    = App fc (renameVars prf fn) (renameVars prf arg)
 renameVars prf (As fc as tm)
     = As fc  (renameVars prf as) (renameVars prf tm)
 renameVars prf (TDelayed fc r ty) = TDelayed fc r (renameVars prf ty)
@@ -831,8 +798,8 @@ mutual
           Just (Meta fc x y xs')
   shrinkTerm (Bind fc x b scope) prf 
      = Just (Bind fc x !(shrinkBinder b prf) !(shrinkTerm scope (KeepCons prf)))
-  shrinkTerm (App fc fn p arg) prf 
-     = Just (App fc !(shrinkTerm fn prf) p !(shrinkTerm arg prf))
+  shrinkTerm (App fc fn arg) prf 
+     = Just (App fc !(shrinkTerm fn prf) !(shrinkTerm arg prf))
   shrinkTerm (As fc as tm) prf 
      = Just (As fc !(shrinkTerm as prf) !(shrinkTerm tm prf))
   shrinkTerm (TDelayed fc x y) prf 
@@ -888,8 +855,8 @@ mkLocals bs (Meta fc name y xs)
 mkLocals {later} bs (Bind fc x b scope) 
     = Bind fc x (map (mkLocals bs) b) 
            (mkLocals {later = x :: later} bs scope)
-mkLocals bs (App fc fn p arg) 
-    = App fc (mkLocals bs fn) p (mkLocals bs arg)
+mkLocals bs (App fc fn arg) 
+    = App fc (mkLocals bs fn) (mkLocals bs arg)
 mkLocals bs (As fc as tm) 
     = As fc (mkLocals bs as) (mkLocals bs tm)
 mkLocals bs (TDelayed fc x y) 
@@ -931,8 +898,8 @@ resolveNames vars (Meta fc n i xs)
     = Meta fc n i (map (resolveNames vars) xs)
 resolveNames vars (Bind fc x b scope) 
     = Bind fc x (map (resolveNames vars) b) (resolveNames (x :: vars) scope)
-resolveNames vars (App fc fn p arg) 
-    = App fc (resolveNames vars fn) p (resolveNames vars arg)
+resolveNames vars (App fc fn arg) 
+    = App fc (resolveNames vars fn) (resolveNames vars arg)
 resolveNames vars (As fc as pat) 
     = As fc (resolveNames vars as) (resolveNames vars pat)
 resolveNames vars (TDelayed fc x y) 
@@ -982,8 +949,8 @@ namespace SubstEnv
   substEnv {outer} env (Bind fc x b scope) 
       = Bind fc x (map (substEnv env) b) 
                   (substEnv {outer = x :: outer} env scope)
-  substEnv env (App fc fn p arg) 
-      = App fc (substEnv env fn) p (substEnv env arg)
+  substEnv env (App fc fn arg) 
+      = App fc (substEnv env fn) (substEnv env arg)
   substEnv env (As fc as pat) 
       = As fc (substEnv env as) (substEnv env pat)
   substEnv env (TDelayed fc x y) = TDelayed fc x (substEnv env y)
@@ -1015,8 +982,8 @@ substName x new (Meta fc n i xs)
 -- resolved to a Local, so no need to check that x isn't shadowing
 substName x new (Bind fc y b scope) 
     = Bind fc y (map (substName x new) b) (substName x (weaken new) scope)
-substName x new (App fc fn p arg) 
-    = App fc (substName x new fn) p (substName x new arg)
+substName x new (App fc fn arg) 
+    = App fc (substName x new fn) (substName x new arg)
 substName x new (As fc as pat) 
     = As fc as (substName x new pat)
 substName x new (TDelayed fc y z) 
@@ -1036,7 +1003,7 @@ addMetas ns (Bind fc x (Let c val ty) scope)
     = addMetas (addMetas (addMetas ns val) ty) scope
 addMetas ns (Bind fc x b scope) 
     = addMetas (addMetas ns (binderType b)) scope
-addMetas ns (App fc fn p arg) 
+addMetas ns (App fc fn arg) 
     = addMetas (addMetas ns fn) arg
 addMetas ns (As fc as tm) = addMetas ns tm
 addMetas ns (TDelayed fc x y) = addMetas ns y
@@ -1061,7 +1028,7 @@ addRefs ns (Bind fc x (Let c val ty) scope)
     = addRefs (addRefs (addRefs ns val) ty) scope
 addRefs ns (Bind fc x b scope) 
     = addRefs (addRefs ns (binderType b)) scope
-addRefs ns (App fc fn p arg) 
+addRefs ns (App fc fn arg) 
     = addRefs (addRefs ns fn) arg
 addRefs ns (As fc as tm) = addRefs ns tm
 addRefs ns (TDelayed fc x y) = addRefs ns y
@@ -1081,7 +1048,7 @@ getRefs tm = addRefs empty tm
 export Show (Term vars) where
   show tm = let (fn, args) = getFnArgs tm in showApp fn args
     where
-      showApp : Term vars -> List (AppInfo, Term vars) -> String
+      showApp : Term vars -> List (Term vars) -> String
       showApp (Local {name} _ _ idx _) [] = show name ++ "[" ++ show idx ++ "]"
       showApp (Ref _ _ n) [] = show n
       showApp (Meta _ n i args) [] 
@@ -1110,7 +1077,7 @@ export Show (Term vars) where
       showApp (Bind _ x (PVTy c ty) sc) [] 
           = "pty " ++ showCount c ++ show x ++ " : " ++ show ty ++ 
             " => " ++ show sc
-      showApp (App _ _ _ _) [] = "[can't happen]"
+      showApp (App _ _ _) [] = "[can't happen]"
       showApp (As _ n tm) [] = show n ++ "@" ++ show tm
       showApp (TDelayed _ _ tm) [] = "%Delayed " ++ show tm
       showApp (TDelay _ _ _ tm) [] = "%Delay " ++ show tm
@@ -1120,6 +1087,6 @@ export Show (Term vars) where
       showApp (TType _) [] = "Type"
       showApp _ [] = "???"
       showApp f args = "(" ++ assert_total (show f) ++ " " ++
-                        assert_total (showSep " " (map (show . snd) args))
+                        assert_total (showSep " " (map show args))
                      ++ ")"
 

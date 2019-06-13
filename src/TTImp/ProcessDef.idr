@@ -27,11 +27,11 @@ mutual
   mismatchNF defs (NTCon _ xn xt _ xargs) (NTCon _ yn yt _ yargs) 
       = if xn /= yn
            then pure True
-           else anyM (mismatch defs) (zip (map snd xargs) (map snd yargs)) 
+           else anyM (mismatch defs) (zip xargs yargs) 
   mismatchNF defs (NDCon _ _ xt _ xargs) (NDCon _ _ yt _ yargs) 
       = if xt /= yt
            then pure True
-           else anyM (mismatch defs) (zip (map snd xargs) (map snd yargs)) 
+           else anyM (mismatch defs) (zip xargs yargs) 
   mismatchNF defs (NPrimVal _ xc) (NPrimVal _ yc) = pure (xc /= yc)
   mismatchNF defs (NDelayed _ _ x) (NDelayed _ _ y) = mismatchNF defs x y
   mismatchNF defs (NDelay _ _ _ x) (NDelay _ _ _ y) 
@@ -49,13 +49,13 @@ export
 impossibleOK : Defs -> NF vars -> NF vars -> Core Bool
 impossibleOK defs (NTCon _ xn xt xa xargs) (NTCon _ yn yt ya yargs)
     = if xn == yn
-         then anyM (mismatch defs) (zip (map snd xargs) (map snd yargs))
+         then anyM (mismatch defs) (zip xargs yargs)
          else pure False
 -- If it's a data constructor, any mismatch will do
 impossibleOK defs (NDCon _ _ xt _ xargs) (NDCon _ _ yt _ yargs)
     = if xt /= yt
          then pure True
-         else anyM (mismatch defs) (zip (map snd xargs) (map snd yargs))
+         else anyM (mismatch defs) (zip xargs yargs)
 impossibleOK defs x y = pure False
 
 -- Given a type checked LHS and its type, return the environment in which we
@@ -99,9 +99,8 @@ findLinear top bound rig (Bind fc n b sc)
 findLinear top bound rig tm
     = case getFnArgs tm of
            (Ref _ _ n, []) => pure []
-           (Ref _ nt n, argsi)
-              => do let args = map snd argsi
-                    defs <- get Ctxt
+           (Ref _ nt n, args)
+              => do defs <- get Ctxt
                     Just nty <- lookupTyExact n (gamma defs)
                          | Nothing => pure []
                     findLinArg (accessible nt rig) !(nf defs [] nty) args
@@ -551,7 +550,7 @@ processDef opts nest env fc n_in cs_in
     catchAll : Maybe (Clause, Clause) -> Bool
     catchAll Nothing = False
     catchAll (Just (MkClause env lhs _, _))
-       = all simplePat (map snd (getArgs lhs))
+       = all simplePat (getArgs lhs)
    
     -- Return 'Nothing' if the clause is impossible, otherwise return the
     -- original

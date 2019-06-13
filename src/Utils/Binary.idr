@@ -382,8 +382,7 @@ export
 TTC a => TTC (List a) where
   toBuf b xs
       = do toBuf b (cast {to=Int} (length xs))
-           traverse (toBuf b) xs
-           pure ()
+           traverse_ (toBuf b) xs
   fromBuf r b 
       = do len <- fromBuf r b {a = Int}
            readElems [] (cast len)

@@ -39,8 +39,8 @@ mutual
       = Meta fc x y (map (embedSub sub) xs)
   embedSub sub (Bind fc x b scope) 
       = Bind fc x (map (embedSub sub) b) (embedSub (KeepCons sub) scope)
-  embedSub sub (App fc fn p arg) 
-      = App fc (embedSub sub fn) p (embedSub sub arg)
+  embedSub sub (App fc fn arg) 
+      = App fc (embedSub sub fn) (embedSub sub arg)
   embedSub sub (As fc nm pat) 
       = As fc (embedSub sub nm) (embedSub sub pat)
   embedSub sub (TDelayed fc x y) = TDelayed fc x (embedSub sub y)
@@ -105,8 +105,7 @@ mkPatternHole {vars} loc rig n topenv imode (Just expty_in)
               Nothing => mkPatternHole loc rig n topenv imode Nothing
               Just exp' =>
                   do tm <- metaVar loc rig env n exp'
-                     pure (apply loc (explApp Nothing)
-                                 (embedSub sub tm) (mkArgs sub), 
+                     pure (apply loc (embedSub sub tm) (mkArgs sub), 
                            expected,
                            embedSub sub exp')
   where
@@ -198,7 +197,7 @@ swapVars (Ref fc x name) = Ref fc x name
 swapVars (Meta fc n i xs) = Meta fc n i (map swapVars xs)
 swapVars {vs} (Bind fc x b scope) 
     = Bind fc x (map swapVars b) (swapVars {vs = x :: vs} scope)
-swapVars (App fc fn p arg) = App fc (swapVars fn) p (swapVars arg)
+swapVars (App fc fn arg) = App fc (swapVars fn) (swapVars arg)
 swapVars (As fc nm pat) = As fc (swapVars nm) (swapVars pat)
 swapVars (TDelayed fc x tm) = TDelayed fc x (swapVars tm)
 swapVars (TDelay fc x ty tm) = TDelay fc x (swapVars ty) (swapVars tm)

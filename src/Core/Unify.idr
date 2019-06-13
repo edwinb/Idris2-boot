@@ -228,7 +228,7 @@ toSubVars (n :: ns) xs
 patternEnv : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              {vars : _} ->
-             Env Term vars -> List (AppInfo, Closure vars) -> 
+             Env Term vars -> List (Closure vars) -> 
              Core (Maybe (newvars ** (Maybe (List (Var newvars)),
                                      SubVars newvars vars)))
 patternEnv {vars} env args
@@ -354,8 +354,8 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
         updateLocsB (PLet c v t) = Just (PLet c !(updateLocs locs v) !(updateLocs locs t))
         updateLocsB (PVTy c t) = Just (PVTy c !(updateLocs locs t))
 
-    updateLocs locs (App fc f i a)
-        = Just (App fc !(updateLocs locs f) i !(updateLocs locs a))
+    updateLocs locs (App fc f a)
+        = Just (App fc !(updateLocs locs f) !(updateLocs locs a))
     updateLocs locs tm = Just tm
 
     mkDef : (got : List Name) -> (vs : List Name) -> SnocList vs ->
@@ -400,9 +400,9 @@ mutual
                         then postpone loc "Postponing unifyIfEq" env x y
                         else convertError loc env x y
 
-  getArgTypes : Defs -> (fnType : NF vars) -> List (AppInfo, Closure vars) -> 
+  getArgTypes : Defs -> (fnType : NF vars) -> List (Closure vars) -> 
                 Core (Maybe (List (NF vars)))
-  getArgTypes defs (NBind _ n (Pi _ _ ty) sc) ((_, a) :: as)
+  getArgTypes defs (NBind _ n (Pi _ _ ty) sc) (a :: as)
      = do Just scTys <- getArgTypes defs !(sc defs a) as
                | Nothing => pure Nothing
           pure (Just (ty :: scTys))
@@ -430,11 +430,11 @@ mutual
                     {vars : _} ->
                     UnifyMode -> FC -> Env Term vars ->
                     (metaname : Name) -> (metaref : Int) ->
-                    (margs : List (AppInfo, Closure vars)) ->
-                    (margs' : List (AppInfo, Closure vars)) ->
+                    (margs : List (Closure vars)) ->
+                    (margs' : List (Closure vars)) ->
                     Maybe ClosedTerm ->
-                    (List (AppInfo, Closure vars) -> NF vars) ->
-                    List (AppInfo, Closure vars) ->
+                    (List (Closure vars) -> NF vars) ->
+                    List (Closure vars) ->
                     Core UnifyResult
   unifyInvertible mode fc env mname mref margs margs' nty con args'
       = do defs <- get Ctxt
@@ -453,7 +453,7 @@ mutual
                 -- Unify the rightmost arguments, with the goal of turning the
                 -- hole application into a pattern form
                 case (reverse margs', reverse args') of
-                     ((_, h) :: hargs, (_, f) :: fargs) =>
+                     (h :: hargs, f :: fargs) =>
                         tryUnify
                           (do unify mode fc env h f
                               unify mode fc env 
@@ -477,8 +477,8 @@ mutual
                  {vars : _} ->
                  UnifyMode -> FC -> Env Term vars ->
                  (metaname : Name) -> (metaref : Int) ->
-                 (margs : List (AppInfo, Closure vars)) ->
-                 (margs' : List (AppInfo, Closure vars)) ->
+                 (margs : List (Closure vars)) ->
+                 (margs' : List (Closure vars)) ->
                  NF vars ->
                  Core UnifyResult
   unifyHoleApp mode loc env mname mref margs margs' (NTCon nfc n t a args')
@@ -518,8 +518,8 @@ mutual
                 {vars : _} ->
                 UnifyMode -> FC -> Env Term vars ->
                 (metaname : Name) -> (metaref : Int) ->
-                (margs : List (AppInfo, Closure vars)) ->
-                (margs' : List (AppInfo, Closure vars)) ->
+                (margs : List (Closure vars)) ->
+                (margs' : List (Closure vars)) ->
                 (soln : NF vars) ->
                 Core UnifyResult
   -- TODO: if either side is a pattern variable application, and we're in a term,
@@ -534,8 +534,8 @@ mutual
               {vars : _} ->
               FC -> Env Term vars ->
               (metaname : Name) -> (metaref : Int) ->
-              (margs : List (AppInfo, Closure vars)) ->
-              (margs' : List (AppInfo, Closure vars)) ->
+              (margs : List (Closure vars)) ->
+              (margs' : List (Closure vars)) ->
               Maybe (List (Var newvars)) ->
               SubVars newvars vars ->
               (solfull : Term vars) -> -- Original solution
@@ -571,8 +571,8 @@ mutual
               {vars : _} ->
               UnifyMode -> FC -> Env Term vars ->
               FC -> (metaname : Name) -> (metaref : Int) ->
-              (args : List (AppInfo, Closure vars)) ->
-              (args' : List (AppInfo, Closure vars)) ->
+              (args : List (Closure vars)) ->
+              (args' : List (Closure vars)) ->
               (soln : NF vars) ->
               Core UnifyResult
   unifyHole mode loc env fc mname mref margs margs' tmnf
@@ -614,7 +614,7 @@ mutual
              (swaporder : Bool) -> -- swap the order when postponing
                                    -- (this is to preserve second arg being expected type)
              UnifyMode -> FC -> Env Term vars -> FC ->
-             NHead vars -> List (AppInfo, Closure vars) -> NF vars ->
+             NHead vars -> List (Closure vars) -> NF vars ->
              Core UnifyResult
   unifyApp swap mode loc env fc (NMeta n i margs) args tm
       = unifyHole mode loc env fc n i margs args tm
@@ -654,8 +654,8 @@ mutual
                     {auto u : Ref UST UState} ->
                     {vars : _} ->
                     UnifyMode -> FC -> Env Term vars ->
-                    FC -> NHead vars -> List (AppInfo, Closure vars) -> 
-                    FC -> NHead vars -> List (AppInfo, Closure vars) ->
+                    FC -> NHead vars -> List (Closure vars) -> 
+                    FC -> NHead vars -> List (Closure vars) ->
                     Core UnifyResult
   doUnifyBothApps mode loc env xfc (NLocal xr x xp) [] yfc (NLocal yr y yp) []
       = if x == y
@@ -666,7 +666,7 @@ mutual
   -- for *all* possible values, we can safely unify the arguments.
   doUnifyBothApps InTerm loc env xfc (NLocal xr x xp) xargs yfc (NLocal yr y yp) yargs
       = if x == y
-           then unifyArgs InTerm loc env (map snd xargs) (map snd yargs)
+           then unifyArgs InTerm loc env xargs yargs
            else postpone loc "Postponing local app"
                          env (NApp xfc (NLocal xr x xp) xargs)
                              (NApp yfc (NLocal yr y yp) yargs)
@@ -679,8 +679,8 @@ mutual
            if xi == yi && (invx || mode == InSearch)
                                -- Invertible, (from auto implicit search)
                                -- so we can also unify the arguments.
-              then unifyArgs mode loc env (map snd (xargs ++ xargs'))
-                                          (map snd (yargs ++ yargs'))
+              then unifyArgs mode loc env (xargs ++ xargs')
+                                          (yargs ++ yargs')
               else do xlocs <- localsIn xargs
                       ylocs <- localsIn yargs
                       if xlocs >= ylocs && not (pv xn)
@@ -693,9 +693,9 @@ mutual
       pv (PV _ _) = True
       pv _ = False
 
-      localsIn : List (AppInfo, Closure vars) -> Core Nat
+      localsIn : List (Closure vars) -> Core Nat
       localsIn [] = pure 0
-      localsIn ((p, c) :: cs)
+      localsIn (c :: cs)
           = do defs <- get Ctxt
                case !(evalClosure defs c) of
                  NApp _ (NLocal _ _ _) _ => pure $ S !(localsIn cs)
@@ -709,7 +709,7 @@ mutual
                                        (NApp xfc fx xargs')
   doUnifyBothApps InSearch loc env xfc fx@(NRef xt hdx) xargs yfc fy@(NRef yt hdy) yargs
       = if hdx == hdy
-           then unifyArgs InSearch loc env (map snd xargs) (map snd yargs)
+           then unifyArgs InSearch loc env xargs yargs
            else unifyApp False InSearch loc env xfc fx xargs (NApp yfc fy yargs)
   doUnifyBothApps mode loc env xfc fx ax yfc fy ay
       = unifyApp False mode loc env xfc fx ax (NApp yfc fy ay)
@@ -718,8 +718,8 @@ mutual
                   {auto u : Ref UST UState} ->
                   {vars : _} ->
                   UnifyMode -> FC -> Env Term vars ->
-                  FC -> NHead vars -> List (AppInfo, Closure vars) -> 
-                  FC -> NHead vars -> List (AppInfo, Closure vars) ->
+                  FC -> NHead vars -> List (Closure vars) -> 
+                  FC -> NHead vars -> List (Closure vars) ->
                   Core UnifyResult
   unifyBothApps mode loc env xfc hx ax yfc hy ay
       = do defs <- get Ctxt
@@ -772,7 +772,7 @@ mutual
                                    (Bind xfc x (Pi cx Explicit txtm)
                                        (weaken tytm)) cs
                             tscx <- scx defs (toClosure defaultOpts env (Ref loc Bound xn))
-                            tscy <- scy defs (toClosure defaultOpts env (App loc c (explApp Nothing) (Ref loc Bound xn)))
+                            tscy <- scy defs (toClosure defaultOpts env (App loc c (Ref loc Bound xn)))
                             tmx <- quote empty env tscx
                             tmy <- quote empty env tscy
                             cs' <- unify mode loc env' (refsToLocals (Add x xn None) tmx)
@@ -817,13 +817,13 @@ mutual
   unifyNoEta mode loc env (NDCon xfc x tagx ax xs) (NDCon yfc y tagy ay ys)
       = do gam <- get Ctxt
            if tagx == tagy
-             then unifyArgs mode loc env (map snd xs) (map snd ys)
+             then unifyArgs mode loc env xs ys
              else convertError loc env 
                        (NDCon xfc x tagx ax xs)
                        (NDCon yfc y tagy ay ys)
   unifyNoEta mode loc env (NTCon xfc x tagx ax xs) (NTCon yfc y tagy ay ys)
       = if x == y
-           then unifyArgs mode loc env (map snd xs) (map snd ys)
+           then unifyArgs mode loc env xs ys
              -- TODO: Type constructors are not necessarily injective.
              -- If we don't know it's injective, need to postpone the
              -- constraint. But before then, we need some way to decide
@@ -863,7 +863,7 @@ mutual
       = do Just ty <- getEtaType (b :: env) sc
                | Nothing => pure Nothing
            pure (shrinkTerm ty (DropCons SubRefl))
-  getEtaType env (App fc f p _)
+  getEtaType env (App fc f _)
       = do fty <- getType env f
            logGlue 10 "Function type" env fty
            case !(getNF fty) of
@@ -896,7 +896,6 @@ mutual
                                              (Bind xfc x (Lam cx ix argty)
                                                      (App xfc 
                                                           (weaken !(quote empty env tmy)) 
-                                                          (explApp Nothing)
                                                           (Local xfc Nothing 0 First)))
                                   logNF 10 "Expand" env etay
                                   unify mode loc env tmx etay
@@ -915,7 +914,6 @@ mutual
                                              (Bind yfc y (Lam cy iy argty)
                                                      (App yfc 
                                                           (weaken !(quote empty env tmx)) 
-                                                          (explApp Nothing)
                                                           (Local yfc Nothing 0 First)))
                                   logNF 10 "Expand" env etax
                                   unify mode loc env etax tmy

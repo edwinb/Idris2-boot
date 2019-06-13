@@ -106,7 +106,7 @@ mutual
         = h `hashWithSalt` 2 `hashWithSalt` y `hashWithSalt` xs
     hashWithSalt h (Bind fc x b scope) 
         = h `hashWithSalt` 3 `hashWithSalt` b `hashWithSalt` scope
-    hashWithSalt h (App fc fn p arg) 
+    hashWithSalt h (App fc fn arg) 
         = h `hashWithSalt` 4 `hashWithSalt` fn `hashWithSalt` arg
     hashWithSalt h (As fc nm pat)
         = h `hashWithSalt` 5 `hashWithSalt` nm `hashWithSalt` pat

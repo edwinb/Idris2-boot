@@ -65,7 +65,7 @@ searchIfHole : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
                FC -> SearchOpts -> Maybe RecData -> ClosedTerm -> 
                Env Term vars -> ArgInfo vars -> 
-               Core (List (AppInfo, Term vars))
+               Core (List (Term vars))
 searchIfHole fc opts defining topty env arg 
     = case depth opts of
            Z => pure []
@@ -76,27 +76,25 @@ searchIfHole fc opts defining topty env arg
                  Just gdef <- lookupCtxtExact (Resolved hole) (gamma defs)
                       | Nothing => pure []
                  let Hole _ inv = definition gdef
-                      | _ => pure [(appInf arg, 
-                                   !(normaliseHoles defs env (metaApp arg)))]
+                      | _ => pure [!(normaliseHoles defs env (metaApp arg))]
                                 -- already solved
                  tms <- search fc rig (record { depth = k} opts)
                                defining topty (Resolved hole)
                  -- When we solve an argument, we're also building a lambda
                  -- expression for its environment, so we need to apply it to
                  -- the current environment to use it as an argument.
-                 traverse (\tm => pure (appInf arg, 
-                                        !(normaliseHoles defs env
-                                           (applyTo fc (embed tm) env)))) tms
+                 traverse (\tm => pure !(normaliseHoles defs env
+                                         (applyTo fc (embed tm) env))) tms
 
-mkCandidates : FC -> Term vars -> List (List (AppInfo, Term vars)) -> 
+mkCandidates : FC -> Term vars -> List (List (Term vars)) -> 
                List (Term vars)
 mkCandidates fc f [] = pure f
 mkCandidates fc f (args :: argss)
-    = do (p, arg) <- args
-         mkCandidates fc (App fc f p arg) argss
+    = do arg <- args
+         mkCandidates fc (App fc f arg) argss
 
 explicit : ArgInfo vars -> Bool
-explicit ai = plicit (appInf ai) == Explicit
+explicit ai = plicit ai == Explicit
 
 -- Apply the name to arguments and see if the result unifies with the target
 -- type, then try to automatically solve any holes which were generated.
@@ -231,7 +229,7 @@ tryRecursive fc rig opts env ty topty (Just rdata)
       argDiff (Ref _ _ fn) (Ref _ _ fn') = fn /= fn'
       argDiff (Bind _ _ _ _) _ = False
       argDiff _ (Bind _ _ _ _) = False
-      argDiff (App _ f _ a) (App _ f' _ a') 
+      argDiff (App _ f a) (App _ f' a') 
          = structDiff f f' || structDiff a a'
       argDiff (PrimVal _ c) (PrimVal _ c') = c /= c'
       argDiff (Erased _) _ = False
@@ -263,7 +261,7 @@ tryRecursive fc rig opts env ty topty (Just rdata)
       structDiff tm tm'
          = let (f, args) = getFnArgs tm
                (f', args') = getFnArgs tm' in
-               appsDiff f f' (map snd args) (map snd args')
+               appsDiff f f' args args'
 
 -- A local is usable as long as its type isn't a hole
 usableLocal : FC -> Env Term vars -> NF vars -> Bool
@@ -314,7 +312,7 @@ searchLocalWith {vars} fc rig opts env ((p, pty) :: rest) ty topty defining
     findPos : Defs -> Term vars -> 
               (Term vars -> Term vars) ->
               NF vars -> NF vars -> Core (List (Term vars))
-    findPos defs prf f x@(NTCon pfc pn _ _ [(xp, xty), (yp, yty)]) target
+    findPos defs prf f x@(NTCon pfc pn _ _ [xty, yty]) target
         = getSuccessful fc rig opts False env ty topty defining
               [findDirect defs prf f x target,
                  (do fname <- maybe (throw (InternalError "No fst"))
@@ -330,17 +328,17 @@ searchLocalWith {vars} fc rig opts env ((p, pty) :: rest) ty topty defining
                                 getSuccessful fc rig opts False env ty topty defining
                                   [(do xtynf <- evalClosure defs xty
                                        findPos defs prf
-                                         (\arg => applyInfo fc (Ref fc Func fname)
-                                                    [(xp, xtytm),
-                                                     (yp, ytytm),
-                                                     (explApp Nothing, f arg)])
+                                         (\arg => apply fc (Ref fc Func fname)
+                                                          [xtytm,
+                                                           ytytm,
+                                                           f arg])
                                          xtynf target),
                                    (do ytynf <- evalClosure defs yty
                                        findPos defs prf 
-                                           (\arg => applyInfo fc (Ref fc Func sname)
-                                                      [(xp, xtytm),
-                                                       (yp, ytytm),
-                                                       (explApp Nothing, f arg)])
+                                           (\arg => apply fc (Ref fc Func sname)
+                                                          [xtytm,
+                                                           ytytm,
+                                                           f arg])
                                            ytynf target)]
                          else pure [])]
     findPos defs prf f nty target = findDirect defs prf f nty target

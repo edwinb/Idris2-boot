@@ -77,7 +77,7 @@ getVarType rigc nest env fc x
                                        TCon t a _ _ _ _ => TyCon t a
                                        _ => Func
                              tm = tmf fc nt
-                             tyenv = useVars (map snd (getArgs tm))
+                             tyenv = useVars (getArgs tm)
                                              (embed (type ndef)) in
                              do logTerm 10 ("Type of " ++ show n') tyenv
                                 logTerm 10 ("Expands to") tm
@@ -126,7 +126,7 @@ mutual
            empty <- clearDefs defs
            metaty <- quote empty env aty
            metaval <- metaVar fc argRig env nm metaty
-           let fntm = App fc tm (appInf (Just x) Implicit) metaval
+           let fntm = App fc tm metaval
            fnty <- sc defs (toClosure defaultOpts env metaval)
            when (bindingVars elabinfo) $
                 do est <- get EST
@@ -158,7 +158,7 @@ mutual
                    empty <- clearDefs defs
                    metaty <- quote empty env aty
                    metaval <- metaVar fc argRig env nm metaty
-                   let fntm = App fc tm (appInf (Just x) AutoImplicit) metaval
+                   let fntm = App fc tm metaval
                    fnty <- sc defs (toClosure defaultOpts env metaval)
                    est <- get EST
                    put EST (addBindIfUnsolved nm argRig env metaval metaty est)
@@ -172,7 +172,7 @@ mutual
                    est <- get EST
                    metaval <- searchVar fc argRig 500 (Resolved (defining est))
                                         env nm metaty
-                   let fntm = App fc tm (appInf (Just x) AutoImplicit) metaval
+                   let fntm = App fc tm metaval
                    fnty <- sc defs (toClosure defaultOpts env metaval)
                    checkAppWith rig elabinfo nest env fc
                                 fntm fnty expargs impargs kr expty
@@ -232,7 +232,7 @@ mutual
                  {auto e : Ref EST (EState vars)} ->
                  RigCount -> RigCount -> ElabInfo -> 
                  NestedNames vars -> Env Term vars -> 
-                 FC -> AppInfo -> (fntm : Term vars) -> Name ->
+                 FC -> (fntm : Term vars) -> Name ->
                  (aty : NF vars) -> (sc : Defs -> Closure vars -> Core (NF vars)) ->
                  (arg : RawImp) ->
                  (expargs : List RawImp) ->
@@ -240,7 +240,7 @@ mutual
                  (knownret : Bool) ->
                  (expected : Maybe (Glued vars)) ->
                  Core (Term vars, Glued vars)
-  checkRestApp rig argRig elabinfo nest env fc appinf tm x aty sc
+  checkRestApp rig argRig elabinfo nest env fc tm x aty sc
                arg expargs impargs knownret expty
      = do defs <- get Ctxt
           kr <- if knownret
@@ -252,7 +252,7 @@ mutual
              empty <- clearDefs defs
              metaty <- quote empty env aty
              (idx, metaval) <- argVar (getFC arg) argRig env nm metaty
-             let fntm = App fc tm appinf metaval
+             let fntm = App fc tm metaval
              logNF 10 ("Delaying " ++ show nm ++ " " ++ show arg) env aty
              logTerm 10 "...as" metaval
              fnty <- sc defs (toClosure defaultOpts env metaval)
@@ -296,7 +296,7 @@ mutual
                                    nest env arg (Just (glueBack defs env aty))
              logGlueNF 10 "Got arg type" env argt
              defs <- get Ctxt
-             let fntm = App fc tm appinf argv
+             let fntm = App fc tm argv
              fnty <- sc defs (toClosure defaultOpts env argv)
              checkAppWith rig elabinfo nest env fc
                           fntm fnty expargs impargs kr expty
@@ -323,7 +323,7 @@ mutual
   checkAppWith rig elabinfo nest env fc tm (NBind tfc x (Pi rigb Explicit aty) sc)
                (arg :: expargs) impargs kr expty 
       = do let argRig = rigMult rig rigb
-           checkRestApp rig argRig elabinfo nest env fc (explApp (Just x))
+           checkRestApp rig argRig elabinfo nest env fc 
                         tm x aty sc arg expargs impargs kr expty
   -- Function type is delayed, so force the term and continue
   checkAppWith rig elabinfo nest env fc tm (NDelayed dfc r ty) expargs impargs kr expty
@@ -358,7 +358,6 @@ mutual
                                            x aty sc expargs impargs kr expty
                Just (arg, impargs') =>
                      checkRestApp rig argRig elabinfo nest env fc 
-                                  (appInf (Just x) AutoImplicit)
                                   tm x aty sc arg expargs impargs' kr expty
     where
       useAutoImp : List (Maybe Name, RawImp) -> List (Maybe Name, RawImp) ->
@@ -381,7 +380,6 @@ mutual
                                        x aty sc expargs impargs kr expty
                Just (arg, impargs') =>
                      checkRestApp rig argRig elabinfo nest env fc 
-                                  (appInf (Just x) Implicit)
                                   tm x aty sc arg expargs impargs' kr expty
     where
       useImp : List (Maybe Name, RawImp) -> List (Maybe Name, RawImp) ->
@@ -413,7 +411,7 @@ mutual
                             retn (TType fc)
            (argv, argt) <- check rig (nextLevel elabinfo)
                                  nest env arg (Just argTyG)
-           let fntm = App fc tm (appInf Nothing Explicit) argv
+           let fntm = App fc tm argv
            defs <- get Ctxt
            fnty <- nf defs env retTy -- (Bind fc argn (Let RigW argv argTy) retTy)
            let expfnty = gnf env (Bind fc argn (Pi RigW Explicit argTy) (weaken retTy))

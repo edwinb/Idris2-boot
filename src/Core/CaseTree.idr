@@ -151,7 +151,7 @@ mkPat' args orig (Ref fc (TyCon t a) n) = PTyCon fc n a args
 mkPat' args orig (Bind fc x (Pi _ _ s) t)
     = let t' = subst (Erased fc) t in
           PArrow fc x (mkPat' [] s s) (mkPat' [] t' t')
-mkPat' args orig (App fc fn p arg) 
+mkPat' args orig (App fc fn arg) 
     = let parg = mkPat' [] arg arg in
                  mkPat' (parg :: args) orig fn
 mkPat' args orig (As fc (Ref _ Bound n) ptm) 
@@ -172,10 +172,10 @@ export
 mkTerm : (vars : List Name) -> Pat -> Term vars
 mkTerm vars (PAs fc x y) = mkTerm vars y
 mkTerm vars (PCon fc x tag arity xs) 
-    = apply fc (explApp Nothing) (Ref fc (DataCon tag arity) x)
+    = apply fc (Ref fc (DataCon tag arity) x)
                (map (mkTerm vars) xs)
 mkTerm vars (PTyCon fc x arity xs) 
-    = apply fc (explApp Nothing) (Ref fc (TyCon 0 arity) x)
+    = apply fc (Ref fc (TyCon 0 arity) x)
                (map (mkTerm vars) xs)
 mkTerm vars (PConst fc c) = PrimVal fc c
 mkTerm vars (PArrow fc x s t) 
