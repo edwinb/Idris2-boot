@@ -253,11 +253,18 @@ updateRewrite r
          put Ctxt (record { options->rewritenames $= (r <+>) } defs)
 
 export
+updatePrimNames : PrimNames -> PrimNames -> PrimNames
+updatePrimNames p
+    = record { fromIntegerName $= ((fromIntegerName p) <+>),
+               fromStringName $= ((fromStringName p) <+>),
+               fromCharName $= ((fromCharName p) <+>) } 
+
+export
 updatePrims : {auto c : Ref Ctxt Defs} -> 
               PrimNames -> Core ()
 updatePrims p
     = do defs <- get Ctxt
-         put Ctxt (record { options->primnames = p } defs)
+         put Ctxt (record { options->primnames $= updatePrimNames p } defs)
 
 -- Add definitions from a binary file to the current context
 -- Returns the "extra" section of the file (user defined data), the interface

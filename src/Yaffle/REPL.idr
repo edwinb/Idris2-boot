@@ -39,7 +39,7 @@ process : {auto c : Ref Ctxt Defs} ->
           {auto u : Ref UST UState} ->
           ImpREPL -> Core Bool
 process (Eval ttimp)
-    = do (tm, _, _) <- elabTerm 0 InExpr [] (MkNested []) [] ttimp Nothing
+    = do (tm, _) <- elabTerm 0 InExpr [] (MkNested []) [] ttimp Nothing
          defs <- get Ctxt
          tmnf <- normalise defs [] tm
          coreLift (printLn !(unelab [] tmnf))
@@ -57,7 +57,7 @@ process (Check (IVar _ n))
              coreLift $ putStrLn $ show n ++ " : " ++ 
                                    show !(unelab [] ty)
 process (Check ttimp)
-    = do (tm, _, gty) <- elabTerm 0 InExpr [] (MkNested []) [] ttimp Nothing
+    = do (tm, gty) <- elabTerm 0 InExpr [] (MkNested []) [] ttimp Nothing
          defs <- get Ctxt
          tyh <- getTerm gty
          ty <- normaliseHoles defs [] tyh

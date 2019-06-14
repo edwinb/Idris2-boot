@@ -7,6 +7,7 @@ import Core.Core
 import Core.Coverage
 import Core.Env
 import Core.Hash
+import Core.LinearCheck
 import Core.Metadata
 import Core.Normalise
 import Core.Termination
@@ -197,7 +198,7 @@ checkLHS {vars} mult hashit n opts nest env fc lhs_in
 
          log 5 $ "Checking " ++ show lhs
          logEnv 5 "In env" env
-         (lhstm, _, lhstyg) <- 
+         (lhstm, lhstyg) <- 
              wrapError (InLHS fc (Resolved n)) $
                      elabTerm n (InLHS mult) opts nest env 
                                 (IBindHere fc PATTERN lhs) Nothing
@@ -277,7 +278,7 @@ checkClause : {vars : _} ->
               {auto u : Ref UST UState} ->
               (mult : RigCount) -> (hashit : Bool) ->
               Int -> List ElabOpt -> NestedNames vars -> Env Term vars ->
-              ImpClause -> Core (Maybe (Clause, Clause))
+              ImpClause -> Core (Maybe Clause)
 checkClause mult hashit n opts nest env (ImpossibleClause fc lhs)
     = handleUnify
          (do lhs_raw <- lhsInCurrentNS nest lhs
@@ -288,7 +289,7 @@ checkClause mult hashit n opts nest env (ImpossibleClause fc lhs)
 
              log 5 $ "Checking " ++ show lhs
              logEnv 5 "In env" env
-             (lhstm, _, lhstyg) <- 
+             (lhstm, lhstyg) <- 
                          elabTerm n (InLHS mult) opts nest env 
                                     (IBindHere fc PATTERN lhs) Nothing
              defs <- get Ctxt
@@ -314,7 +315,8 @@ checkClause {vars} mult hashit n opts nest env (PatClause fc lhs_in rhs)
          let rhsMode = case mult of
                             Rig0 => InType
                             _ => InExpr
-         (rhstm, rhserased) <- checkTermSub n rhsMode opts nest' env' env sub' rhs (gnf env' lhsty')
+         log 5 $ "Checking RHS " ++ show rhs
+         rhstm <- checkTermSub n rhsMode opts nest' env' env sub' rhs (gnf env' lhsty')
          clearHoleLHS
 
          logTerm 5 "RHS term" rhstm
@@ -328,10 +330,8 @@ checkClause {vars} mult hashit n opts nest env (PatClause fc lhs_in rhs)
               Meta _ _ _ _ => 
                  addLHS (getFC lhs_in) (length env) env' lhstm'
               _ => pure ()
-                          
 
-         pure (Just (MkClause env' lhstm' rhstm,
-                     MkClause env' lhstm' rhserased))
+         pure (Just (MkClause env' lhstm' rhstm))
 checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs)
     = do (vars'  ** (sub', env', nest', lhspat, reqty)) <- 
              checkLHS mult hashit n opts nest env fc lhs_in
@@ -340,7 +340,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
                       Rig0 => InType -- treat as used in type only
                       _ => InExpr
 
-         (wval, wval_erased, gwvalTy) <- wrapError (InRHS fc (Resolved n)) $
+         (wval, gwvalTy) <- wrapError (InRHS fc (Resolved n)) $
                 elabTermSub n wmode opts nest' env' env sub' wval_raw Nothing
          clearHoleLHS
          
@@ -393,7 +393,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
          let rhs_in = apply (IVar fc wname)
                         (map (maybe wval_raw (IVar fc)) wargNames)
 
-         (rhs, rhs_erased) <- wrapError (InRHS fc (Resolved n)) $
+         rhs <- wrapError (InRHS fc (Resolved n)) $
              checkTermSub n wmode opts nest' env' env sub' rhs_in 
                           (gnf env' reqty)
 
@@ -404,8 +404,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
          let wdef = IDef fc wname cs'
          processDecl [] nest env wdef
 
-         pure (Just (MkClause env' lhspat rhs, 
-                     MkClause env' lhspat rhs_erased))
+         pure (Just (MkClause env' lhspat rhs))
   where
     -- If it's 'KeepCons/SubRefl' in 'outprf', that means it was in the outer
     -- environment so we need to keep it in the same place in the 'with'
@@ -496,6 +495,40 @@ nameListEq (x :: xs) (y :: ys) with (nameEq x y)
   nameListEq (x :: xs) (y :: ys) | Nothing = Nothing
 nameListEq _ _ = Nothing
 
+-- Compile run time case trees for the given name
+mkRunTime : {auto c : Ref Ctxt Defs} ->
+            {auto u : Ref UST UState} ->
+            Name -> Core ()
+mkRunTime n
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact n (gamma defs)
+              | _ => pure ()
+         let PMDef cargs tree_ct _ pats = definition gdef
+              | _ => pure () -- not a function definition
+         let ty = type gdef
+         (rargs ** tree_rt) <- getPMDef (location gdef) RunTime n ty 
+                                        !(traverse (toClause (location gdef)) pats)
+         let Just Refl = nameListEq cargs rargs
+                 | Nothing => throw (InternalError "WAT")
+         addDef n (record { definition = PMDef cargs tree_ct tree_rt pats 
+                          } gdef)
+         pure ()
+  where
+    toClause : FC -> (vars ** (Env Term vars, Term vars, Term vars)) ->
+               Core Clause
+    toClause fc (_ ** (env, lhs, rhs)) 
+        = do rhs_erased <- linearCheck fc Rig1 True env rhs
+             pure $ MkClause env lhs rhs_erased
+
+compileRunTime : {auto c : Ref Ctxt Defs} ->
+                 {auto u : Ref UST UState} ->
+                 Core ()
+compileRunTime
+    = do defs <- get Ctxt
+         traverse_ mkRunTime (toCompile defs)
+         defs <- get Ctxt
+         put Ctxt (record { toCompile = [] } defs)
+
 toPats : Clause -> (vs ** (Env Term vs, Term vs, Term vs))
 toPats (MkClause {vars} env lhs rhs) 
     = (_ ** (env, lhs, rhs))
@@ -520,17 +553,16 @@ processDef opts nest env fc n_in cs_in
                        else Rig1
          nidx <- resolveName n
          cs <- traverse (checkClause mult hashit nidx opts nest env) cs_in
-         let pats = map toPats (map fst (mapMaybe id cs))
+         let pats = map toPats (mapMaybe id cs)
 
          (cargs ** tree_ct) <- getPMDef fc CompileTime n ty 
-                                        (map fst (mapMaybe id cs))
-         (rargs ** tree_rt) <- getPMDef fc CompileTime n ty 
-                                        (map snd (mapMaybe id cs))
-         let Just Refl = nameListEq cargs rargs
-                 | Nothing => throw (InternalError "WAT")
+                                        (mapMaybe id cs)
         
          log 5 $ "Case tree for " ++ show n ++ ": " ++ show tree_ct
-         addDef n (record { definition = PMDef cargs tree_ct tree_rt pats,
+         -- Add compile time tree as a placeholder for the runtime tree,
+         -- but we'll rebuild that in a later pass once all the case
+         -- blocks etc are resolved
+         addDef n (record { definition = PMDef cargs tree_ct tree_ct pats,
                             refersTo = getRefs tree_ct } gdef)
 
          sc <- calculateSizeChange fc n
@@ -538,6 +570,15 @@ processDef opts nest env fc n_in cs_in
 
          cov <- checkCoverage nidx mult cs tree_ct
          setCovering fc n cov
+
+         -- Flag this name as one which needs compiling
+         defs <- get Ctxt
+         put Ctxt (record { toCompile $= (n ::) } defs)
+
+         -- Then if we're not in a case tree, do all the outstanding case
+         -- trees
+         when (not (elem InCase opts)) $
+           compileRunTime
   where
     simplePat : Term vars -> Bool
     simplePat (Local _ _ _ _) = True
@@ -547,9 +588,9 @@ processDef opts nest env fc n_in cs_in
     -- Is the clause returned from 'checkClause' a catch all clause, i.e.
     -- one where all the arguments are variables? If so, no need to do the
     -- (potentially expensive) coverage check
-    catchAll : Maybe (Clause, Clause) -> Bool
+    catchAll : Maybe Clause -> Bool
     catchAll Nothing = False
-    catchAll (Just (MkClause env lhs _, _))
+    catchAll (Just (MkClause env lhs _))
        = all simplePat (getArgs lhs)
    
     -- Return 'Nothing' if the clause is impossible, otherwise return the
@@ -574,7 +615,7 @@ processDef opts nest env fc n_in cs_in
                                         else pure (Just tm)
                              _ => pure (Just tm))
 
-    checkCoverage : Int -> RigCount -> List (Maybe (Clause, Clause)) ->
+    checkCoverage : Int -> RigCount -> List (Maybe Clause) ->
                     CaseTree vs -> Core Covering
     checkCoverage n mult cs ctree
         = do missCase <- if any catchAll cs

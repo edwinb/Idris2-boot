@@ -278,10 +278,10 @@ mkCase {c} {u} fn orig lhs_raw
          defs <- branch
          ust <- get UST
          handleUnify
-           (do (lhs, _, _) <- elabTerm {c} {m} {u}
-                                       fn (InLHS Rig1) [] (MkNested [])
-                                       [] (IBindHere (getFC lhs_raw) PATTERN lhs_raw)
-                                       Nothing
+           (do (lhs, _) <- elabTerm {c} {m} {u}
+                                    fn (InLHS Rig1) [] (MkNested [])
+                                    [] (IBindHere (getFC lhs_raw) PATTERN lhs_raw)
+                                    Nothing
                put Ctxt defs -- reset the context, we don't want any updates
                put UST ust
 

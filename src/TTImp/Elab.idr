@@ -50,7 +50,7 @@ elabTermSub : {vars : _} ->
               NestedNames vars -> Env Term vars ->
               Env Term inner -> SubVars inner vars ->
               RawImp -> Maybe (Glued vars) ->
-              Core (Term vars, Term vars, Glued vars)
+              Core (Term vars, Glued vars)
 elabTermSub {vars} defining mode opts nest env env' sub tm ty
     = do let incase = elem InCase opts
          let holesokay = elem HolesOkay opts
@@ -107,8 +107,7 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
                               linearCheck (getFC tm) rigc False env chktm
                           -- Linearity checking looks in case blocks, so no
                           -- need to check here.
-                      else do checkNoGuards
-                              pure chktm
+                      else pure chktm
 
          -- Put the current hole state back to what it was (minus anything 
          -- which has been solved in the meantime)
@@ -123,16 +122,14 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
               InLHS _ => 
                  do let vs = findPLetRenames chktm
                     let ret = doPLetRenames vs [] chktm
-                    pure (ret, ret,
-                          gnf env (doPLetRenames vs [] !(getTerm chkty)))
+                    pure (ret, gnf env (doPLetRenames vs [] !(getTerm chkty)))
               InExpr =>
                    -- On the RHS, erase everything in a 0-multiplicity position
                    -- (This doesn't do a full linearity check, just erases by
                    -- type)
                   do dumpConstraints 2 False
-                     chkErase <- linearCheck (getFC tm) rigc True env chktm
-                     pure (chktm, chkErase, chkty)
-              _ => pure (chktm, chktm, chkty)
+                     pure (chktm, chkty)
+              _ => pure (chktm, chkty)
   where
     addHoles : (acc : IntMap (FC, Name)) -> 
                (allHoles : IntMap (FC, Name)) -> 
@@ -152,7 +149,7 @@ elabTerm : {vars : _} ->
            Int -> ElabMode -> List ElabOpt ->
            NestedNames vars -> Env Term vars ->
            RawImp -> Maybe (Glued vars) ->
-           Core (Term vars, Term vars, Glued vars)
+           Core (Term vars, Glued vars)
 elabTerm defining mode opts nest env tm ty
     = elabTermSub defining mode opts nest env env SubRefl tm ty
 
@@ -165,12 +162,11 @@ checkTermSub : {vars : _} ->
                NestedNames vars -> Env Term vars -> 
                Env Term inner -> SubVars inner vars ->
                RawImp -> Glued vars ->
-               Core (Term vars, Term vars)
+               Core (Term vars)
 checkTermSub defining mode opts nest env env' sub tm ty
-    = do (tm_elab, tm_erase, _) <- 
-                    elabTermSub defining mode opts nest 
-                                env env' sub tm (Just ty)
-         pure (tm_elab, tm_erase)
+    = do (tm_elab, _) <- elabTermSub defining mode opts nest 
+                                     env env' sub tm (Just ty)
+         pure tm_elab
 
 export
 checkTerm : {vars : _} ->
@@ -180,6 +176,6 @@ checkTerm : {vars : _} ->
             Int -> ElabMode -> List ElabOpt -> 
             NestedNames vars -> Env Term vars -> 
             RawImp -> Glued vars ->
-            Core (Term vars, Term vars)
+            Core (Term vars)
 checkTerm defining mode opts nest env tm ty
     = checkTermSub defining mode opts nest env env SubRefl tm ty

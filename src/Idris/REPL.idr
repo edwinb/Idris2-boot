@@ -11,6 +11,7 @@ import Core.CompileExpr
 import Core.Context
 import Core.Env
 import Core.InitPrimitives
+import Core.LinearCheck
 import Core.Metadata
 import Core.Normalise
 import Core.Options
@@ -225,9 +226,10 @@ execExp : {auto c : Ref Ctxt Defs} ->
 execExp ctm
     = do ttimp <- desugar AnyExpr [] (PApp replFC (PRef replFC (UN "unsafePerformIO")) ctm)
          inidx <- resolveName (UN "[input]")
-         (_, tm, ty) <- elabTerm inidx InExpr [] (MkNested [])
+         (tm, ty) <- elabTerm inidx InExpr [] (MkNested [])
                                  [] ttimp Nothing
-         execute !findCG tm
+         tm_erased <- linearCheck replFC Rig1 True [] tm 
+         execute !findCG tm_erased
          
 anyAt : (FC -> Bool) -> FC -> a -> Bool
 anyAt p loc y = p loc
@@ -391,8 +393,8 @@ process (Eval itm)
             _ => 
               do ttimp <- desugar AnyExpr [] itm
                  inidx <- resolveName (UN "[input]")
-                 (tm, _, gty) <- elabTerm inidx InExpr [] (MkNested [])
-                                          [] ttimp Nothing
+                 (tm, gty) <- elabTerm inidx InExpr [] (MkNested [])
+                                       [] ttimp Nothing
                  defs <- get Ctxt
                  opts <- get ROpts
                  let norm = nfun (evalMode opts)
@@ -417,7 +419,7 @@ process (Check (PRef fc fn))
 process (Check itm)
     = do inidx <- resolveName (UN "[input]")
          ttimp <- desugar AnyExpr [] itm
-         (tm, _, gty) <- elabTerm inidx InExpr [] (MkNested [])
+         (tm, gty) <- elabTerm inidx InExpr [] (MkNested [])
                                   [] ttimp Nothing
          defs <- get Ctxt
          itm <- resugar [] !(normaliseHoles defs [] tm)
@@ -461,9 +463,10 @@ process Edit
 process (Compile ctm outfile)
     = do inidx <- resolveName (UN "[input]")
          ttimp <- desugar AnyExpr [] (PApp replFC (PRef replFC (UN "unsafePerformIO")) ctm)
-         (_, tm, gty) <- elabTerm inidx InExpr [] (MkNested [])
-                                  [] ttimp Nothing
-         ok <- compile !findCG tm outfile
+         (tm, gty) <- elabTerm inidx InExpr [] (MkNested [])
+                               [] ttimp Nothing
+         tm_erased <- linearCheck replFC Rig1 True [] tm 
+         ok <- compile !findCG tm_erased outfile
          maybe (pure ())
                (\fname => iputStrLn (outfile ++ " written"))
                ok

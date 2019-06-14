@@ -436,7 +436,6 @@ TTC SCCall where
            args <- fromBuf s b
            pure (MkSCCall fn args)
 
-
 public export
 record GlobalDef where
   constructor MkGlobalDef
@@ -546,6 +545,8 @@ record Defs where
   cgdirectives : List (CG, String)
      -- ^ Code generator directives, which are free form text and thus to 
      -- be interpreted however the specific code generator requires
+  toCompile : List Name
+     -- ^ Names which need to be compiled to run time case trees
 
 export
 clearDefs : Defs -> Core Defs
@@ -558,7 +559,7 @@ initDefs : Core Defs
 initDefs 
     = do gam <- initCtxt
          pure (MkDefs gam [] ["Main"] defaults empty 100 
-                      empty empty empty [] [] 5381 [] [] [] [])
+                      empty empty empty [] [] 5381 [] [] [] [] [])
       
 -- Label for context references
 export

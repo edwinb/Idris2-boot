@@ -39,7 +39,7 @@ expandClause : {auto c : Ref Ctxt Defs} ->
                Core (List ImpClause)
 expandClause loc n c
     = do log 10 $ "Trying clause " ++ show c 
-         Just (clause, _) <- checkClause Rig1 False n [] (MkNested []) [] c
+         Just clause <- checkClause Rig1 False n [] (MkNested []) [] c
             | Nothing => pure [] -- TODO: impossible clause, do something
                                  -- appropriate
          let MkClause {vars} env lhs rhs = clause
@@ -125,7 +125,7 @@ generateSplits : {auto m : Ref MD Metadata} ->
 generateSplits loc fn (ImpossibleClause fc lhs) = pure []
 generateSplits loc fn (WithClause fc lhs wval cs) = pure []
 generateSplits {c} {m} {u} loc fn (PatClause fc lhs rhs) 
-    = do (lhstm, _, _) <- 
+    = do (lhstm, _) <- 
                 elabTerm fn (InLHS Rig1) [] (MkNested []) []
                          (IBindHere loc PATTERN lhs) Nothing
          traverse (trySplit fc lhs lhstm rhs) (splittableNames lhs)

@@ -455,10 +455,13 @@ mutual
                 case (reverse margs', reverse args') of
                      (h :: hargs, f :: fargs) =>
                         tryUnify
-                          (do unify mode fc env h f
-                              unify mode fc env 
+                          (do log 10 "Unifying invertible"
+                              ures <- unify mode fc env h f
+                              log 10 $ "Constraints " ++ show (constraints ures)
+                              uargs <- unify mode fc env 
                                     (NApp fc (NMeta mname mref margs) (reverse hargs))
-                                    (con (reverse fargs)))
+                                    (con (reverse fargs))
+                              pure (union ures uargs))
                           (postpone fc "Postponing hole application [1]" env
                                 (NApp fc (NMeta mname mref margs) margs')
                                 (con args'))
