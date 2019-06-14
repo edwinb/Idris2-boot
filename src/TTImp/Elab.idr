@@ -123,13 +123,8 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
                  do let vs = findPLetRenames chktm
                     let ret = doPLetRenames vs [] chktm
                     pure (ret, gnf env (doPLetRenames vs [] !(getTerm chkty)))
-              InExpr =>
-                   -- On the RHS, erase everything in a 0-multiplicity position
-                   -- (This doesn't do a full linearity check, just erases by
-                   -- type)
-                  do dumpConstraints 2 False
-                     pure (chktm, chkty)
-              _ => pure (chktm, chkty)
+              _ => do dumpConstraints 2 False
+                      pure (chktm, chkty)
   where
     addHoles : (acc : IntMap (FC, Name)) -> 
                (allHoles : IntMap (FC, Name)) -> 

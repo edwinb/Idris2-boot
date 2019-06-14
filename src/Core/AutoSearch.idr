@@ -145,6 +145,9 @@ getAllEnv {vars = v :: vs} fc done (b :: env)
 usableLocal : {auto c : Ref Ctxt Defs} ->
               FC -> (defaults : Bool) -> 
               Env Term vars -> (locTy : NF vars) -> Core Bool
+-- pattern variables count as concrete things!
+usableLocal loc defaults env (NApp fc (NMeta (PV _ _) _ _) args)
+    = pure True
 usableLocal loc defaults env (NApp fc (NMeta _ _ _) args)
     = pure False
 usableLocal {vars} loc defaults env (NTCon _ n _ _ args)
