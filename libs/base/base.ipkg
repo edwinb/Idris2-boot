@@ -1,0 +1,14 @@
+package base
+
+modules = Control.WellFounded,
+
+          Data.Buffer,
+          Data.Nat,
+          Data.IORef,
+          Data.List,
+          Data.Strings,
+
+          System,
+          System.Concurrency.Raw,
+          System.File
+

@@ -15,10 +15,10 @@ src/YafflePaths.idr:
 prelude:
 	make -C libs/prelude IDRIS2=../../idris2
 
-#base: prelude
-#	make -C libs/base IDRIS2=../../idris2
+base: prelude
+	make -C libs/base IDRIS2=../../idris2
 
-#libs : prelude base
+libs : prelude base
 
 clean: lib_clean
 	make -C src clean
@@ -28,7 +28,7 @@ clean: lib_clean
 
 lib_clean:
 	make -C libs/prelude clean
-#	make -C libs/base clean
+	make -C libs/base clean
 
 test:
 	idris --build tests.ipkg
@@ -40,7 +40,7 @@ install:
 	mkdir -p ${PREFIX}/idris2/support/chicken
 	mkdir -p ${PREFIX}/idris2/support/racket
 	make -C libs/prelude install IDRIS2=../../idris2
-#	make -C libs/base install IDRIS2=../../idris2
+	make -C libs/base install IDRIS2=../../idris2
 
 	install idris2 ${PREFIX}/bin
 	install support/chez/* ${PREFIX}/idris2/support/chez
