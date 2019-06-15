@@ -316,7 +316,8 @@ checkClause {vars} mult hashit n opts nest env (PatClause fc lhs_in rhs)
                             Rig0 => InType
                             _ => InExpr
          log 5 $ "Checking RHS " ++ show rhs
-         rhstm <- checkTermSub n rhsMode opts nest' env' env sub' rhs (gnf env' lhsty')
+         rhstm <- logTime ("RHS of " ++ show n) $
+                    checkTermSub n rhsMode opts nest' env' env sub' rhs (gnf env' lhsty')
          clearHoleLHS
 
          logTerm 5 "RHS term" rhstm

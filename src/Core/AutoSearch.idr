@@ -205,13 +205,13 @@ searchLocalWith {vars} fc rigc defaults depth def top env ((prf, ty) :: rest) ta
                  Core (Term vars)
     findDirect defs prf f ty target
         = do (args, appTy) <- mkArgs fc rigc env ty
+             logNF 10 "Trying " env ty
+             ures <- unify InTerm fc env target appTy
+             let [] = constraints ures
+                 | _ => throw (CantSolveGoal fc [] top)
              -- We can only use the local if its type is not an unsolved hole
              if !(usableLocal fc defaults env ty)
-                then do
-                   logNF 10 "Trying " env ty
-                   ures <- unify InTerm fc env target appTy
-                   let [] = constraints ures
-                       | _ => throw (CantSolveGoal fc [] top)
+                then do      
                    let candidate = apply fc (f prf) (map metaApp args)
                    logTermNF 10 "Candidate " env candidate
                    traverse (searchIfHole fc defaults False depth def top env) args
@@ -413,7 +413,9 @@ searchType {vars} fc rigc defaults depth def top env target
     tryGroups nty (g :: gs)
         = handleUnify
              (do logC 5 (do gn <- traverse getFullName g
-                            pure ("Search: Trying names " ++ show gn))
+                            pure ("Search: Trying " ++ show (length gn) ++
+                                           " names " ++ show gn))
+                 logNF 5 "For target" env nty
                  searchNames fc rigc defaults depth def top env g nty)
              (\err => if ambig err || isNil gs
                          then throw err
@@ -426,9 +428,8 @@ searchType {vars} fc rigc defaults depth def top env target
 --          (defaults : Bool) -> (depth : Nat) ->
 --          (defining : Name) -> (topTy : Term vars) -> Env Term vars -> 
 --          Core (Term vars)
-Core.Unify.search fc rigc defaults depth def top_in env
+Core.Unify.search fc rigc defaults depth def top env
     = do defs <- get Ctxt
-         top <- normaliseScope defs env top_in
          logTerm 2 "Initial target: " top
          log 2 $ "Running search with defaults " ++ show defaults
          tm <- searchType fc rigc defaults depth def 

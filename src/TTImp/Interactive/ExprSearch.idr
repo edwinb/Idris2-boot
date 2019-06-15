@@ -470,15 +470,21 @@ exprSearch : {auto c : Ref Ctxt Defs} ->
              {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
              FC -> Name -> List Name -> Core (List ClosedTerm)
-exprSearch fc n hints
+exprSearch fc n_in hints
     = do defs <- get Ctxt
-         let Just idx = getNameID n (gamma defs)
-             | Nothing => throw (UndefinedName fc n)
+         Just (n, idx, gdef) <- lookupHoleName n_in defs
+             | Nothing => throw (UndefinedName fc n_in)
          lhs <- findHoleLHS (Resolved idx)
          log 10 $ "LHS hole data " ++ show (n, lhs)
-         Just gdef <- lookupCtxtExact n (gamma defs)
-              | Nothing => throw (UndefinedName fc n)
          rs <- search fc (multiplicity gdef) (MkSearchOpts False True 5)
                       !(getLHSData defs lhs) (type gdef) n
          dropLinearErrors fc rs
+  where
+    lookupHoleName : Name -> Defs -> Core (Maybe (Name, Int, GlobalDef))
+    lookupHoleName n defs
+        = case !(lookupCtxtExactI n (gamma defs)) of
+               Just (idx, res) => pure $ Just (n, idx, res)
+               Nothing => case !(lookupCtxtName n (gamma defs)) of
+                               [res] => pure $ Just res
+                               _ => pure Nothing
 

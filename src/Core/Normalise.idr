@@ -181,10 +181,10 @@ parameters (defs : Defs, topopts : EvalOpts)
     evalRef env locs meta fc nt n stk def 
         = do Just res <- lookupCtxtExact n (gamma defs)
                   | Nothing => pure def 
-             let redok = True -- evalAll topopts ||
---                          reducibleIn (currentNS defs) 
---                                      (fullname res) 
---                                      (visibility res)
+             let redok = evalAll topopts ||
+                         reducibleIn (currentNS defs) 
+                                     (fullname res) 
+                                     (visibility res)
              if redok
                 then do
                    opts' <- if noCycles res

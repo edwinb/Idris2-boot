@@ -567,6 +567,6 @@ checkExp rig elabinfo env fc tm got (Just exp)
                        empty <- clearDefs defs
                        cty <- getTerm exp
                        ctm <- newConstant fc rig env tm cty cs
-                       dumpConstraints 1 False
+                       dumpConstraints 5 False
                        pure (ctm, got)
 checkExp rig elabinfo env fc tm got Nothing = pure (tm, got)

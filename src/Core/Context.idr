@@ -778,8 +778,8 @@ visibleIn nspace n _ = True
 
 export
 reducibleIn : (nspace : List String) -> Name -> Visibility -> Bool
-reducibleIn nspace (NS ns n) Export = isSuffixOf ns nspace
-reducibleIn nspace (NS ns n) Private = isSuffixOf ns nspace
+reducibleIn nspace (NS ns (UN n)) Export = isSuffixOf ns nspace
+reducibleIn nspace (NS ns (UN n)) Private = isSuffixOf ns nspace
 reducibleIn nspace n _ = True
 
 export

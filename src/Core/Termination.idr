@@ -430,8 +430,8 @@ nameIn defs tyns (NApp _ _ args)
 nameIn defs tyns (NTCon _ n _ _ args)
     = if n `elem` tyns
          then pure True
-         else anyM (nameIn defs tyns) 
-                   !(traverse (evalClosure defs) args)
+         else do args' <- traverse (evalClosure defs) args
+                 anyM (nameIn defs tyns) args'
 nameIn defs tyns (NDCon _ n _ _ args)
     = anyM (nameIn defs tyns) 
            !(traverse (evalClosure defs) args)

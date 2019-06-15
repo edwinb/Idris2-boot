@@ -51,13 +51,16 @@ mapList $f (Cons $x $xs) = Cons (f x) (map f xs)
 ListFunctor = MkFunctor mapList
 
 namespace Vect
+    public export
     data Vect : ? -> Type -> Type where
          Nil : Vect Z $a
          Cons : $a -> Vect $k $a -> Vect (S $k) $a
 
     %hint
+    public export
     VectFunctor : Functor (Vect $n)
 
+    public export
     mapVect : ($a -> $b) -> Vect $n $a -> Vect $n $b
     mapVect $f Nil = Nil
     mapVect $f (Cons $x $xs) = Cons (f x) (map f xs)
