@@ -968,9 +968,9 @@ fnDirectOpt
     = do exactIdent "hint"
          pure (Hint True)
   <|> do exactIdent "globalhint"
-         pure (GlobalHint True)
-  <|> do exactIdent "defaulthint"
          pure (GlobalHint False)
+  <|> do exactIdent "defaulthint"
+         pure (GlobalHint True)
   <|> do exactIdent "inline"
          pure Inline
   <|> do exactIdent "extern"
@@ -1381,6 +1381,9 @@ command
   <|> do symbol ":"; keyword "total"
          n <- name
          pure (Total n)
+  <|> do symbol ":"; replCmd ["log", "logging"]
+         i <- intLit
+         pure (SetLog (fromInteger i))
   <|> do symbol ":"; cmd <- editCmd
          pure (Editing cmd)
   <|> do tm <- expr EqOK "(interactive)" init

@@ -40,7 +40,7 @@ Smaller x y = size x `LT` size y
 
 SizeAccessible : Sized a => a -> Type
 SizeAccessible = Accessible Smaller
-    
+
 sizeAccessible : Sized a => (x : a) -> SizeAccessible x
 sizeAccessible x = Access (acc $ size x)
   where

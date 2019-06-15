@@ -945,9 +945,9 @@ getSearchData fc defaults target
                        Just hs => hs
                        Nothing => []
          if defaults
-            then let defaults = map fst (filter isDefault
+            then let defns = map fst (filter isDefault
                                              (toList (autoHints defs))) in
-                     pure (MkSearchData [] [defaults])
+                     pure (MkSearchData [] [defns])
             else let opens = map fst (toList (openHints defs))
                      autos = map fst (filter (not . isDefault) 
                                              (toList (autoHints defs)))

@@ -156,8 +156,7 @@ mutual
        -- Flag means the hint is a direct hint, not a function which might
        -- find the result (e.g. chasing parent interface dictionaries)
        Hint : Bool -> FnOpt
-       -- flag means always use this in search. If not set, it is only
-       -- used as a hint if all else fails (i.e. a default)
+       -- Flag means to use as a default if all else fails
        GlobalHint : Bool -> FnOpt
        ExternFn : FnOpt
        -- assume safe to cancel arguments in unification

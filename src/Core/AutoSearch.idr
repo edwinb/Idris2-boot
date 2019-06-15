@@ -412,7 +412,9 @@ searchType {vars} fc rigc defaults depth def top env target
     tryGroups nty [] = throw (CantSolveGoal fc [] top)
     tryGroups nty (g :: gs)
         = handleUnify
-             (searchNames fc rigc defaults depth def top env g nty)
+             (do logC 5 (do gn <- traverse getFullName g
+                            pure ("Search: Trying names " ++ show gn))
+                 searchNames fc rigc defaults depth def top env g nty)
              (\err => if ambig err || isNil gs
                          then throw err
                          else tryGroups nty gs)
@@ -427,7 +429,8 @@ searchType {vars} fc rigc defaults depth def top env target
 Core.Unify.search fc rigc defaults depth def top_in env
     = do defs <- get Ctxt
          top <- normaliseScope defs env top_in
-         logTerm 10 "Initial target: " top
+         logTerm 2 "Initial target: " top
+         log 2 $ "Running search with defaults " ++ show defaults
          tm <- searchType fc rigc defaults depth def 
                           (abstractEnvType fc env top) env 
                           top

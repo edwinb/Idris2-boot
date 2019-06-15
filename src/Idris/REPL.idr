@@ -521,6 +521,10 @@ process (DebugInfo n)
 process (SetOpt opt)
     = do setOpt opt
          pure True
+process (SetLog lvl)
+    = do setLogLevel lvl
+         iputStrLn $ "Log level to set " ++ show lvl
+         pure True
 process (Editing cmd)
     = do ppopts <- getPPrint
          -- Since we're working in a local environment, don't do the usual

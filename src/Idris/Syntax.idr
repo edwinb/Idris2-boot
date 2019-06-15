@@ -271,6 +271,7 @@ data REPLCmd : Type where
      CD : String -> REPLCmd
      Missing : Name -> REPLCmd
      Total : Name -> REPLCmd
+     SetLog : Nat -> REPLCmd
      Editing : EditCmd -> REPLCmd
      Quit : REPLCmd
 
