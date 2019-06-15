@@ -206,14 +206,16 @@ processMod srcf ttcf msg mod sourcecode
                         -- a phase before this which builds the dependency graph
                         -- (also that we only build child dependencies if rebuilding
                         -- changes the interface - will need to store a hash in .ttc!)
-                        traverse_ readImport imps
+                        logTime "Reading imports" $
+                           traverse_ readImport imps
 
                         -- Before we process the source, make sure the "hide_everywhere"
                         -- names are set to private (TODO, maybe if we want this?)
 --                         defs <- get Ctxt
 --                         traverse (\x => setVisibility emptyFC x Private) (hiddenNames defs)
                         setNS ns
-                        errs <- processDecls (decls mod)
+                        errs <- logTime "Processing decls" $
+                                    processDecls (decls mod)
                         pure (Just errs))
           (\err => pure (Just [err]))
 

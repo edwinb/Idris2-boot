@@ -15,6 +15,8 @@ import TTImp.Elab.Check
 import TTImp.Elab
 import TTImp.TTImp
 
+import Data.NameMap
+
 getRetTy : Defs -> NF [] -> Core Name
 getRetTy defs (NBind fc _ (Pi _ _ _) sc)
     = getRetTy defs !(sc defs (toClosure defaultOpts [] (Erased fc)))
@@ -91,6 +93,9 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
          -- Add to the interactive editing metadata
          addTyDecl fc (Resolved idx) env ty -- for definition generation
          addNameType fc (Resolved idx) env ty -- for looking up types
+
+         traverse_ addToSave (keys (getMetas ty))
+         addToSave n
 
          when (vis /= Private) $
               do addHash n

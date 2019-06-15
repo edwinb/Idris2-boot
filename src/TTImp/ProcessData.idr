@@ -14,6 +14,8 @@ import TTImp.Elab.Check
 import TTImp.Elab
 import TTImp.TTImp
 
+import Data.NameMap
+
 processDataOpt : {auto c : Ref Ctxt Defs} ->
                  FC -> Name -> DataOpt -> Core ()
 processDataOpt fc n NoHints 
@@ -75,6 +77,9 @@ checkCon {vars} opts nest env vis tn (MkImpTy fc cn_in ty_raw)
          let fullty = abstractEnvType fc env ty
          logTermNF 5 (show cn) [] fullty
 
+         traverse_ addToSave (keys (getMetas ty))
+         addToSave cn
+
          case vis of
               Public => do addHash cn
                            addHash fullty
@@ -119,11 +124,15 @@ processData {vars} eopts nest env fc vis (MkImpLater dfc n_in ty_raw)
          defs <- get Ctxt
          traverse_ (\n => setMutWith fc n (mutData defs)) (mutData defs)
 
+         traverse_ addToSave (keys (getMetas ty))
+         addToSave n
+
          case vis of
               Private => pure ()
               _ => do addHash n
                       addHash fullty
          pure ()
+
 processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_raw)
     = do n <- inCurrentNS n_in
          ty_raw <- bindTypeNames vars ty_raw
@@ -183,6 +192,9 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
 
          traverse_ (processDataOpt fc (Resolved tidx)) opts
          dropMutData (Resolved tidx)
+
+         traverse_ addToSave (keys (getMetas ty))
+         addToSave n
 
          when (not (NoHints `elem` opts)) $
               traverse_ (\x => addHintFor fc (Resolved tidx) x True False) (map conName cons)

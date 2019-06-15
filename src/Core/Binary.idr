@@ -142,7 +142,7 @@ readTTCFile modns as r b
            ifaceHash <- fromBuf r b
            importHashes <- fromBuf r b
            -- Read in name map, update 'r'
-           r <- readNameMap r b
+           r <- logTime "Name map" $ readNameMap r b
            defs <- get Ctxt
            gam' <- updateEntries (gamma defs) modns as 0 (max r) r
            setCtxt gam' 
@@ -152,7 +152,7 @@ readTTCFile modns as r b
 --            coreLift $ putStrLn $ "Read " ++ show (length guesses) ++ " guesses"
            constraints <- the (Core (List (Int, Constraint))) $ fromBuf r b
 --            coreLift $ putStrLn $ "Read " ++ show (length constraints) ++ " constraints"
-           defs <- fromBuf r b
+           defs <- logTime "Definitions" $ fromBuf r b
            autohs <- fromBuf r b
            typehs <- fromBuf r b
 --            coreLift $ putStrLn ("Hints: " ++ show typehs)
@@ -193,7 +193,8 @@ writeToTTC extradata fname
     = do buf <- initBinary
          defs <- get Ctxt
          ust <- get UST
-         gdefs <- getSaveDefs !getSave [] defs
+         savens <- getSave
+         gdefs <- getSaveDefs savens [] defs
          log 5 $ "Writing " ++ fname ++ " with hash " ++ show (ifaceHash defs)
          r <- getNameRefs (gamma defs)
          writeTTCFile buf 

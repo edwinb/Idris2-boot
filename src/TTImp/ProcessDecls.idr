@@ -28,7 +28,7 @@ process eopts nest env (IClaim fc rig vis opts ty)
 process eopts nest env (IData fc vis ddef) 
     = processData eopts nest env fc vis ddef
 process eopts nest env (IDef fc fname def) 
-    = logTime (show fname) $ processDef eopts nest env fc fname def
+    = processDef eopts nest env fc fname def
 process eopts nest env (IParameters fc ps decls)
     = throw (InternalError "Parameters blocks not yet implemented")
 process eopts nest env (IRecord fc vis rec)

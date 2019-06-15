@@ -709,7 +709,9 @@ getSave
          let a = content gam
          arr <- get Arr
          ns' <- coreLift $ addAll (firstEntry gam) (nextEntry gam) ns arr
-         pure (map fst (toList ns'))
+--          coreLift $ putStrLn $ show (length (toList ns)) ++ " explicitly to save"
+--          coreLift $ putStrLn $ show (length (toList ns')) ++ " actually saving"
+         pure (map fst (toList ns))
   where
     addAll : Int -> Int -> NameMap () -> IOArray GlobalDef -> IO (NameMap ())
     addAll first last ns arr

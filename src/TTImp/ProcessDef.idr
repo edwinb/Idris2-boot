@@ -316,8 +316,7 @@ checkClause {vars} mult hashit n opts nest env (PatClause fc lhs_in rhs)
                             Rig0 => InType
                             _ => InExpr
          log 5 $ "Checking RHS " ++ show rhs
-         rhstm <- logTime ("RHS of " ++ show n) $
-                    checkTermSub n rhsMode opts nest' env' env sub' rhs (gnf env' lhsty')
+         rhstm <- checkTermSub n rhsMode opts nest' env' env sub' rhs (gnf env' lhsty')
          clearHoleLHS
 
          logTerm 5 "RHS term" rhstm
@@ -560,11 +559,18 @@ processDef opts nest env fc n_in cs_in
                                         (mapMaybe id cs)
         
          log 5 $ "Case tree for " ++ show n ++ ": " ++ show tree_ct
+
+         let refs = getRefs tree_ct
+         let rmetas = getMetas tree_ct
+
          -- Add compile time tree as a placeholder for the runtime tree,
          -- but we'll rebuild that in a later pass once all the case
          -- blocks etc are resolved
          addDef n (record { definition = PMDef cargs tree_ct tree_ct pats,
-                            refersTo = getRefs tree_ct } gdef)
+                            refersTo = refs } gdef)
+
+         traverse_ addToSave (keys rmetas)
+         addToSave n
 
          sc <- calculateSizeChange fc n
          setSizeChange fc n sc
