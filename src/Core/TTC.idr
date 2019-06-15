@@ -16,12 +16,11 @@ import Utils.Binary
 export
 TTC FC where
   toBuf b (MkFC file startPos endPos) 
-      = pure () -- do toBuf b file; toBuf b startPos; toBuf b endPos
+      = do toBuf b file; toBuf b startPos; toBuf b endPos
   fromBuf r b
-      = pure emptyFC
---       do f <- fromBuf r b; 
---            s <- fromBuf r b; e <- fromBuf r b
---            pure (MkFC f s e)
+      = do f <- fromBuf r b; 
+           s <- fromBuf r b; e <- fromBuf r b
+           pure (MkFC f s e)
 
 export
 TTC Name where
@@ -177,7 +176,7 @@ mutual
     toBuf b (Lam c x ty) = do tag 0; toBuf b c; toBuf b x; -- toBuf b ty
     toBuf b (Let c val ty) = do tag 1; toBuf b c; toBuf b val -- ; toBuf b ty
     toBuf b (Pi c x ty) = do tag 2; toBuf b c; toBuf b x; toBuf b ty
-    toBuf b (PVar c ty) = do tag 3; toBuf b c -- ; toBuf b ty
+    toBuf b (PVar c ty) = do tag 3; toBuf b c; toBuf b ty
     toBuf b (PLet c val ty) = do tag 4; toBuf b c; toBuf b val -- ; toBuf b ty
     toBuf b (PVTy c ty) = do tag 5; toBuf b c -- ; toBuf b ty
 
@@ -186,7 +185,7 @@ mutual
                0 => do c <- fromBuf r b; x <- fromBuf r b; pure (Lam c x (Erased emptyFC))
                1 => do c <- fromBuf r b; x <- fromBuf r b; pure (Let c x (Erased emptyFC))
                2 => do c <- fromBuf r b; x <- fromBuf r b; y <- fromBuf r b; pure (Pi c x y)
-               3 => do c <- fromBuf r b; pure (PVar c (Erased emptyFC))
+               3 => do c <- fromBuf r b; ty <- fromBuf r b; pure (PVar c ty)
                4 => do c <- fromBuf r b; x <- fromBuf r b; pure (PLet c x (Erased emptyFC))
                5 => do c <- fromBuf r b; pure (PVTy c (Erased emptyFC))
                _ => corrupt "Binder"
@@ -203,80 +202,74 @@ mutual
                      toBuf b idx
     toBuf b (Ref fc nt name) 
         = do tag 1;
-             toBuf b fc; toBuf b nt; toBuf b name
+             toBuf b nt; toBuf b name
     toBuf b (Meta fc n i xs) 
         = do tag 2;
-             toBuf b fc -- Name no longer needed -- toBuf b n; 
+             -- Name no longer needed
              toBuf b i; toBuf b xs
     toBuf b (Bind fc x bnd scope) 
         = do tag 3;
-             toBuf b fc; toBuf b x; 
+             toBuf b x; 
              toBuf b bnd; toBuf b scope
     toBuf b (App fc fn arg) 
         = do tag 4;
              let (fn, args) = getFnArgs (App fc fn arg)
-             toBuf b fc; toBuf b fn; -- toBuf b p; 
+             toBuf b fn; -- toBuf b p; 
              toBuf b args
     toBuf b (As fc as tm)
         = do tag 5;
-             toBuf b fc; toBuf b as; toBuf b tm
+             toBuf b as; toBuf b tm
     toBuf b (TDelayed fc r tm) 
         = do tag 6;
-             toBuf b fc; toBuf b r; toBuf b tm
+             toBuf b r; toBuf b tm
     toBuf b (TDelay fc r ty tm)
         = do tag 7;
-             toBuf b fc; toBuf b r; toBuf b ty; toBuf b tm
+             toBuf b r; toBuf b ty; toBuf b tm
     toBuf b (TForce fc tm)
         = do tag 8;
-             toBuf b fc; toBuf b tm
+             toBuf b tm
     toBuf b (PrimVal fc c) 
         = do tag 9;
-             toBuf b fc; toBuf b c
+             toBuf b c
     toBuf b (Erased fc) 
-        = do tag 10;
-             toBuf b fc
+        = tag 10
     toBuf b (TType fc)
-        = do tag 11;
-             toBuf b fc
+        = tag 11
 
     fromBuf r b 
         = case !getTag of
-               0 => do fc <- fromBuf r b; name <- fromBuf r b
+               0 => do name <- fromBuf r b
                        idx <- fromBuf r b
-                       pure (Local {name} fc Nothing idx (mkPrf idx))
-               1 => do fc <- fromBuf r b; nt <- fromBuf r b; name <- fromBuf r b
-                       pure (Ref fc nt name)
-               2 => do fc <- fromBuf {a = FC} r b; -- n <- fromBuf r b
-                       x <- fromBuf r b
+                       pure (Local {name} emptyFC Nothing idx (mkPrf idx))
+               1 => do nt <- fromBuf r b; name <- fromBuf r b
+                       pure (Ref emptyFC nt name)
+               2 => do x <- fromBuf r b
                        Just (n, Just idx) <- coreLift $ readArray r x
                           | Just (n, Nothing) => 
                                 corrupt ("Metavar name index " ++ show x)
                           | Nothing => corrupt ("Metavar name index " ++ show x ++ " (not in array)")
                        xs <- fromBuf r b
-                       pure (Meta fc (UN "metavar") idx xs)
-               3 => do fc <- fromBuf r b; x <- fromBuf r b
+                       pure (Meta emptyFC (UN "metavar") idx xs)
+               3 => do x <- fromBuf r b
                        bnd <- fromBuf r b; scope <- fromBuf r b
-                       pure (Bind fc x bnd scope)
-               4 => do fc <- fromBuf r b; fn <- fromBuf r b
-  --                      p <- fromBuf r b; 
+                       pure (Bind emptyFC x bnd scope)
+               4 => do fn <- fromBuf r b
                        args <- fromBuf r b
-                       pure (apply fc fn args)
-               5 => do fc <- fromBuf r b
-                       as <- fromBuf r b; tm <- fromBuf r b
-                       pure (As fc as tm)
-               6 => do fc <- fromBuf r b; lr <- fromBuf r b; tm <- fromBuf r b
-                       pure (TDelayed fc lr tm)
-               7 => do fc <- fromBuf r b; lr <- fromBuf r b; 
+                       pure (apply emptyFC fn args)
+               5 => do as <- fromBuf r b; tm <- fromBuf r b
+                       pure (As emptyFC as tm)
+               6 => do lr <- fromBuf r b; tm <- fromBuf r b
+                       pure (TDelayed emptyFC lr tm)
+               7 => do lr <- fromBuf r b; 
                        ty <- fromBuf r b; tm <- fromBuf r b
-                       pure (TDelay fc lr ty tm)
-               8 => do fc <- fromBuf r b; tm <- fromBuf r b
-                       pure (TForce fc tm)
-               9 => do fc <- fromBuf r b; c <- fromBuf r b
-                       pure (PrimVal fc c)
-               10 => do fc <- fromBuf r b; pure (Erased fc)
-               11 => do fc <- fromBuf r b; pure (TType fc)
-               idxp => do -- fc <- fromBuf r b; 
-                          name <- fromBuf r b
+                       pure (TDelay emptyFC lr ty tm)
+               8 => do tm <- fromBuf r b
+                       pure (TForce emptyFC tm)
+               9 => do c <- fromBuf r b
+                       pure (PrimVal emptyFC c)
+               10 => pure (Erased emptyFC)
+               11 => pure (TType emptyFC)
+               idxp => do name <- fromBuf r b
                           let idx = fromInteger (prim__sextB8_BigInt idxp - 12)
                           pure (Local {name} emptyFC Nothing idx (mkPrf idx))
 
