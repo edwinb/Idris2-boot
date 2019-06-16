@@ -59,7 +59,7 @@ mutual
 
   -- The assumption here is that hole types are abstracted over the entire
   -- environment, so that they have the appropriate number of function
-  -- arguments and lets are still in the right place
+  -- arguments and there are no lets
   updateHoleType : {auto c : Ref Ctxt Defs} ->
                    {auto u : Ref UST UState} ->
                    (useInHole : Bool) ->
@@ -75,9 +75,6 @@ mutual
                    pure (Bind bfc nm (Pi c' e ty) scty)
            else do scty <- updateHoleType useInHole var sc as
                    pure (Bind bfc nm (Pi c e ty) scty)
-  updateHoleType useInHole var (Bind bfc nm (Let c val ty) sc) as
-      = do scty <- updateHoleType useInHole var sc as
-           pure (Bind bfc nm (Let c val ty) scty)
   updateHoleType useInHole var (Bind bfc nm (Pi c e ty) sc) (a :: as)
       = do updateHoleUsage False var a
            scty <- updateHoleType useInHole var sc as

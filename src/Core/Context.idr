@@ -406,6 +406,9 @@ record Defs where
      -- be interpreted however the specific code generator requires
   toCompile : List Name
      -- ^ Names which need to be compiled to run time case trees
+  userHoles : NameMap ()
+     -- ^ Metavariables the user still has to fill in. In practice, that's
+     -- everything with a user accessible name and a definition of Hole
 
 export
 clearDefs : Defs -> Core Defs
@@ -418,7 +421,7 @@ initDefs : Core Defs
 initDefs 
     = do gam <- initCtxt
          pure (MkDefs gam [] ["Main"] defaults empty 100 
-                      empty empty empty [] [] 5381 [] [] [] [] [])
+                      empty empty empty [] [] 5381 [] [] [] [] [] empty)
       
 -- Label for context references
 export
@@ -447,11 +450,29 @@ initHash
          put Ctxt (record { ifaceHash = 5381 } defs)
 
 export
+addUserHole : {auto c : Ref Ctxt Defs} ->
+              Name -> Core ()
+addUserHole n
+    = do defs <- get Ctxt
+         put Ctxt (record { userHoles $= insert n () } defs)
+
+export
+clearUserHole : {auto c : Ref Ctxt Defs} ->
+                Name -> Core ()
+clearUserHole n
+    = do defs <- get Ctxt
+         put Ctxt (record { userHoles $= delete n } defs)
+
+
+export
 addDef : {auto c : Ref Ctxt Defs} -> 
          Name -> GlobalDef -> Core Int
 addDef n def
     = do defs <- get Ctxt
          (idx, gam') <- addCtxt n def (gamma defs)
+         case definition def of
+              PMDef _ _ _ _ => clearUserHole n
+              _ => pure ()
          put Ctxt (record { gamma = gam' } defs)
          pure idx
 
@@ -512,18 +533,18 @@ setLinearCheck i chk
 export
 setCtxt : {auto c : Ref Ctxt Defs} -> Context GlobalDef -> Core ()
 setCtxt gam
-    = do defs <- get Ctxt
-         put Ctxt (record { gamma = gam } defs)
+  = do defs <- get Ctxt
+       put Ctxt (record { gamma = gam } defs)
 
 export
 resolveName : {auto c : Ref Ctxt Defs} ->
-              Name -> Core Int
+            Name -> Core Int
 resolveName (Resolved idx) = pure idx
 resolveName n
-    = do defs <- get Ctxt
-         (i, gam') <- getPosition n (gamma defs)
-         setCtxt gam'
-         pure i
+  = do defs <- get Ctxt
+       (i, gam') <- getPosition n (gamma defs)
+       setCtxt gam'
+       pure i
 
 -- Call this before trying alternative elaborations, so that updates to the
 -- context are put in the staging area rather than writing over the mutable
@@ -531,54 +552,54 @@ resolveName n
 -- Returns the old context (the one we'll go back to if the branch fails)
 export
 branch : {auto c : Ref Ctxt Defs} ->
-         Core Defs
+       Core Defs
 branch
-    = do ctxt <- get Ctxt
-         gam' <- branchCtxt (gamma ctxt)
-         setCtxt gam'
-         pure ctxt
+  = do ctxt <- get Ctxt
+       gam' <- branchCtxt (gamma ctxt)
+       setCtxt gam'
+       pure ctxt
 
 -- Call this after trying an elaboration to commit any changes to the mutable
 -- array of definitions once we know they're correct. Only actually commits
 -- when we're right back at the top level
 export
 commit : {auto c : Ref Ctxt Defs} ->
-         Core ()
+       Core ()
 commit
-    = do defs <- get Ctxt
-         gam' <- commitCtxt (gamma defs)
-         setCtxt gam'
+  = do defs <- get Ctxt
+       gam' <- commitCtxt (gamma defs)
+       setCtxt gam'
 
 export
 depth : {auto c : Ref Ctxt Defs} ->
-        Core Nat
+      Core Nat
 depth
-    = do defs <- get Ctxt
-         pure (branchDepth (gamma defs))
+  = do defs <- get Ctxt
+       pure (branchDepth (gamma defs))
 
 -- Explicitly note that the name should be saved when writing out a .ttc
 export
 addToSave : {auto c : Ref Ctxt Defs} ->
-            Name -> Core ()
+          Name -> Core ()
 addToSave n
-    = do defs <- get Ctxt
-         put Ctxt (record { toSave $= insert n () } defs)
+  = do defs <- get Ctxt
+       put Ctxt (record { toSave $= insert n () } defs)
 
 -- Specific lookup functions
 export
 lookupExactBy : (GlobalDef -> a) -> Name -> Context GlobalDef -> 
-                Core (Maybe a)
+              Core (Maybe a)
 lookupExactBy fn n gam
-    = do Just gdef <- lookupCtxtExact n gam
-              | Nothing => pure Nothing
-         pure (Just (fn gdef))
+  = do Just gdef <- lookupCtxtExact n gam
+            | Nothing => pure Nothing
+       pure (Just (fn gdef))
 
 export
 lookupNameBy : (GlobalDef -> a) -> Name -> Context GlobalDef -> 
-               Core (List (Name, Int, a))
+             Core (List (Name, Int, a))
 lookupNameBy fn n gam
-    = do gdef <- lookupCtxtName n gam
-         pure (map (\ (n, i, gd) => (n, i, fn gd)) gdef)
+  = do gdef <- lookupCtxtName n gam
+       pure (map (\ (n, i, gd) => (n, i, fn gd)) gdef)
 
 export
 lookupDefExact : Name -> Context GlobalDef -> Core (Maybe Def)
@@ -618,7 +639,7 @@ reducibleIn nspace n _ = True
 
 export
 setFlag : {auto c : Ref Ctxt Defs} ->
-					FC -> Name -> DefFlag -> Core ()
+        FC -> Name -> DefFlag -> Core ()
 setFlag fc n fl
     = do defs <- get Ctxt
          Just def <- lookupCtxtExact n (gamma defs)

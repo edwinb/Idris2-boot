@@ -41,6 +41,34 @@ getRigNeeded InType = Rig0 -- unrestricted usage in types
 getRigNeeded (InLHS Rig0) = Rig0
 getRigNeeded _ = Rig1
 
+-- Make sure the types of holes have the references to solved holes normalised
+-- away (since solved holes don't get written to .tti)
+export
+normaliseHoleTypes : {auto c : Ref Ctxt Defs} ->
+                     {auto u : Ref UST UState} -> 
+                     Core ()
+normaliseHoleTypes
+    = do ust <- get UST
+         let hs = keys (holes ust)
+         defs <- get Ctxt
+         traverse (normaliseH defs) hs
+         pure ()
+  where
+    updateType : Defs -> Int -> GlobalDef -> Core ()
+    updateType defs i def
+        = do ty' <- normaliseHoles defs [] (type def)
+             addDef (Resolved i) (record { type = ty' } def)
+             pure ()
+
+    normaliseH : Defs -> Int -> Core ()
+    normaliseH defs i
+        = case !(lookupCtxtExact (Resolved i) (gamma defs)) of
+               Just gdef =>
+                  case definition gdef of
+                       Hole _ _ => updateType defs i gdef
+                       _ => pure ()
+               Nothing => pure ()
+
 export
 elabTermSub : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
@@ -108,7 +136,7 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
                           -- Linearity checking looks in case blocks, so no
                           -- need to check here.
                       else pure chktm
-
+         normaliseHoleTypes
          -- Put the current hole state back to what it was (minus anything 
          -- which has been solved in the meantime)
          when (not incase) $
