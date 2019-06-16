@@ -295,7 +295,6 @@ patternEnvTm {vars} env args
 -- and returning the term
 -- If the type of the metavariable doesn't have enough arguments, fail, because
 -- this wasn't valid for pattern unification
-export
 instantiate : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               {newvars : _} ->
@@ -379,6 +378,28 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
              pure (Bind bfc x (Lam c Explicit (Erased bfc)) sc')
     mkDef got (vs ++ [v]) (Snoc rec) cvs locs tm ty
         = ufail loc $ "Can't make solution for " ++ show mname  
+  
+export
+solveIfUndefined : {vars : _} ->
+                   {auto c : Ref Ctxt Defs} ->
+                   {auto u : Ref UST UState} ->
+                   Env Term vars -> Term vars -> Term vars -> Core Bool
+solveIfUndefined env (Meta fc mname idx args) soln
+    = do defs <- get Ctxt
+         Just (Hole _ _) <- lookupDefExact (Resolved idx) (gamma defs)
+              | pure False
+         case !(patternEnvTm env args) of
+              Nothing => pure False
+              Just (newvars ** (locs, submv)) =>
+                  case shrinkTerm soln submv of
+                       Nothing => pure False
+                       Just stm =>
+                          do Just hdef <- lookupCtxtExact (Resolved idx) (gamma defs)
+                                  | Nothing => throw (InternalError "Can't happen: no definition")
+                             instantiate fc env mname idx hdef locs soln stm
+                             pure True
+solveIfUndefined env metavar soln 
+    = pure False
 
 isDefInvertible : {auto c : Ref Ctxt Defs} ->
                   Int -> Core Bool
@@ -945,14 +966,18 @@ mutual
                   then do log 10 $ "Skipped unification (equal already): "
                                  ++ show x ++ " and " ++ show y
                           pure success
-                  else unify mode loc env !(nf defs env x) !(nf defs env y)
+                  else do xnf <- nf defs env x
+                          ynf <- nf defs env y
+                          unify mode loc env xnf ynf
     unifyWithLazyD _ _ mode loc env x y 
           = do defs <- get Ctxt
                if x == y
                   then do log 10 $ "Skipped unification (equal already): "
                                  ++ show x ++ " and " ++ show y
                           pure success
-                  else unifyWithLazy mode loc env !(nf defs env x) !(nf defs env y)
+                  else do xnf <- nf defs env x
+                          ynf <- nf defs env y
+                          unifyWithLazy mode loc env xnf ynf
 
   export
   Unify Closure where

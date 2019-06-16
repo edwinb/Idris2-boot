@@ -177,27 +177,6 @@ mutual
                    checkAppWith rig elabinfo nest env fc
                                 fntm fnty expargs impargs kr expty
 
-  solveIfUndefined : {vars : _} ->
-                     {auto c : Ref Ctxt Defs} ->
-                     {auto u : Ref UST UState} ->
-                     Env Term vars -> Term vars -> Term vars -> Core Bool
-  solveIfUndefined env (Meta fc mname idx args) soln
-      = do defs <- get Ctxt
-           Just (Hole _ _) <- lookupDefExact (Resolved idx) (gamma defs)
-                | pure False
-           case !(patternEnvTm env args) of
-                Nothing => pure False
-                Just (newvars ** (locs, submv)) =>
-                    case shrinkTerm soln submv of
-                         Nothing => pure False
-                         Just stm =>
-                            do Just hdef <- lookupCtxtExact (Resolved idx) (gamma defs)
-                                    | Nothing => throw (InternalError "Can't happen: no definition")
-                               instantiate fc env mname idx hdef locs soln stm
-                               pure True
-  solveIfUndefined env metavar soln 
-      = pure False
-
   -- Defer elaborating anything which will be easier given a known target
   -- type (ambiguity, cases, etc)
   needsDelay : {auto c : Ref Ctxt Defs} ->

@@ -68,6 +68,7 @@ delayOnFailure fc rig env expected pred elab
                                          (do est <- get EST
                                              put EST (record { allowDelay = False } est)
                                              tm <- elab True
+                                             est <- get EST
                                              put EST (record { allowDelay = True } est)
                                              pure tm)) :: ) } 
                                        ust)
@@ -82,7 +83,10 @@ retryDelayed : {auto c : Ref Ctxt Defs} ->
                Core ()
 retryDelayed [] = pure ()
 retryDelayed ((i, elab) :: ds)
-    = do tm <- elab
+    = do defs <- get Ctxt
+         Just Delayed <- lookupDefExact (Resolved i) (gamma defs)
+              | _ => retryDelayed ds
+         tm <- elab
          updateDef (Resolved i) (const (Just 
               (PMDef [] (STerm tm) (STerm tm) [])))
          logTerm 5 ("Resolved delayed hole " ++ show i) tm

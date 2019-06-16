@@ -318,11 +318,11 @@ export
 getToBind : {auto c : Ref Ctxt Defs} -> {auto e : Ref EST (EState vars)} ->
             {auto u : Ref UST UState} ->
             FC -> ElabMode -> BindMode ->
-            Env Term vars -> (excepts : List Name) -> Term vars ->
+            Env Term vars -> (excepts : List Name) ->
             Core (List (Name, ImplBinding vars))
-getToBind fc elabmode NONE env excepts toptom
+getToBind fc elabmode NONE env excepts 
     = pure [] -- We should probably never get here, but for completeness...
-getToBind {vars} fc elabmode impmode env excepts toptm
+getToBind {vars} fc elabmode impmode env excepts 
     = do solveConstraints (case elabmode of
                                 InLHS _ => InLHS
                                 _ => InTerm) Normal
@@ -504,16 +504,19 @@ checkBindHere rig elabinfo nest env fc bindmode tm exp
                      throw err)
          checkDots -- Check dot patterns unifying with the claimed thing
                    -- before binding names
+
+         logTerm 5 "Binding names" tmv
+         logTermNF 5 "Normalised" env tmv
          argImps <- getToBind fc (elabMode elabinfo)
-                              bindmode env dontbind tmv
+                              bindmode env dontbind
          clearToBind dontbind
-         defs <- get Ctxt
          est <- get EST
          put EST (updateEnv oldenv oldsub oldbif 
                      (record { boundNames = [] } est))
          ty <- getTerm tmt
+         defs <- get Ctxt
          (bv, bt) <- bindImplicits fc bindmode
-                                   defs env argImps
+                                   defs env argImps 
                                    !(normaliseHoles defs env tmv)
                                    !(normaliseHoles defs env ty)
          traverse_ implicitBind (map fst argImps)

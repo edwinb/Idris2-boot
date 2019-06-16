@@ -381,15 +381,12 @@ export
 traverse : (a -> Core b) -> List a -> Core (List b)
 traverse f xs = traverse' f xs []
 
-traverse_' : (a -> Core b) -> List a -> Core ()
-traverse_' f [] = pure ()
-traverse_' f (x :: xs)
-    = do f x
-         traverse_' f xs
-
 export
 traverse_ : (a -> Core b) -> List a -> Core ()
-traverse_ f xs = traverse_' f xs
+traverse_ f [] = pure ()
+traverse_ f (x :: xs)
+    = do f x
+         traverse_ f xs
 
 namespace Binder
   export

@@ -259,7 +259,7 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
 
          est <- get EST
          fullImps_in <- getToBind fc (elabMode elabinfo)
-                               (implicitMode elabinfo) env [] scrtm
+                               (implicitMode elabinfo) env []
          let fullImps = mapMaybe (shrinkImp (subEnv est)) fullImps_in
          log 5 $ "Doing a case under unbound implicits " ++ show fullImps
          
