@@ -312,12 +312,14 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
          case fullname mdef of
               PV pv pi => throw (PatternVariableUnifies loc env (PV pv pi) otm)
               _ => pure ()
-         let ty = type mdef
+         let ty = type mdef -- assume all pi binders we need are there since
+                            -- it was built from an environment, so no need
+                            -- to normalise
          defs <- get Ctxt
          rhs <- mkDef [] newvars (snocList newvars) CompatPre
                      (rewrite appendNilRightNeutral newvars in locs)
                      (rewrite appendNilRightNeutral newvars in tm) 
-                     !(nf defs [] ty)
+                     ty
          logTerm 5 ("Instantiated: " ++ show mname) ty
          logTerm 5 "Definition" rhs
          let newdef = record { definition = 
@@ -361,14 +363,15 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
     mkDef : (got : List Name) -> (vs : List Name) -> SnocList vs ->
             CompatibleVars got rest ->
             Maybe (List (Var (vs ++ got))) -> Term (vs ++ got) -> 
-            NF [] -> Core (Term rest)
+            Term ts -> Core (Term rest)
     mkDef got [] Empty cvs locs tm ty 
         = do let Just tm' = maybe (Just tm) (\lvs => updateLocs (reverse lvs) tm) locs
                     | Nothing => ufail loc ("Can't make solution for " ++ show mname)
              pure (renameVars cvs tm')
-    mkDef got (vs ++ [v]) (Snoc rec) cvs locs tm (NBind bfc x (Pi c _ ty) scfn) 
+    mkDef got vs rec cvs locs tm (Bind _ _ (Let _ _ _) sc)
+        = mkDef got vs rec cvs locs tm sc
+    mkDef got (vs ++ [v]) (Snoc rec) cvs locs tm (Bind bfc x (Pi c _ ty) sc) 
         = do defs <- get Ctxt
-             sc <- scfn defs (toClosure defaultOpts [] (Erased bfc))
              sc' <- mkDef (v :: got) vs rec (CompatExt cvs)
                        (rewrite appendAssociative vs [v] got in locs)
                        (rewrite appendAssociative vs [v] got in tm)
