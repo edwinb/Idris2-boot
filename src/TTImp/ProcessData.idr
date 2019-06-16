@@ -79,6 +79,7 @@ checkCon {vars} opts nest env vis tn (MkImpTy fc cn_in ty_raw)
 
          traverse_ addToSave (keys (getMetas ty))
          addToSave cn
+         log 10 $ "Saving from " ++ show cn ++ ": " ++ show (keys (getMetas ty))
 
          case vis of
               Public => do addHash cn
@@ -126,6 +127,7 @@ processData {vars} eopts nest env fc vis (MkImpLater dfc n_in ty_raw)
 
          traverse_ addToSave (keys (getMetas ty))
          addToSave n
+         log 10 $ "Saving from " ++ show n ++ ": " ++ show (keys (getMetas ty))
 
          case vis of
               Private => pure ()
@@ -195,6 +197,7 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
 
          traverse_ addToSave (keys (getMetas ty))
          addToSave n
+         log 10 $ "Saving from " ++ show n ++ ": " ++ show (keys (getMetas ty))
 
          when (not (NoHints `elem` opts)) $
               traverse_ (\x => addHintFor fc (Resolved tidx) x True False) (map conName cons)

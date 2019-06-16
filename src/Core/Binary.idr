@@ -82,7 +82,7 @@ readNameMap r b
         = show i ++ ": " ++ show n ++ "\n" ++ dumpMap (i+1) ns
     dumpMap i (_ :: ns) = dumpMap (i + 1) ns
 
--- For every name we're going to read from the file, work out what it's
+-- For every name we're going to read from the file, work out what its
 -- new resolved name is going to be in the context and update the name
 -- map accordingly
 -- Also update namespace if we've done "import ... as ..."
@@ -97,6 +97,7 @@ updateEntries ctxt mod as pos end r
                       | _ => updateEntries ctxt mod as (pos+1) end r
                  let n' = asName mod as n
                  (idx, ctxt') <- getPosition n' ctxt
+                 log 10 $ show n' ++ " " ++ show pos ++ " ==> " ++ show idx
                  coreLift $ writeArray r pos (n', Just idx)
                  updateEntries ctxt' mod as (pos+1) end r
 
@@ -114,9 +115,9 @@ writeTTCFile b file
            toBuf b (ifaceHash file)
            toBuf b (importHashes file)
            writeNameMap b (nameMap file)
-           toBuf b (holes file)
-           toBuf b (guesses file)
-           toBuf b (constraints file)
+--            toBuf b (holes file)
+--            toBuf b (guesses file)
+--            toBuf b (constraints file)
            toBuf b (context file)
            toBuf b (autoHints file)
            toBuf b (typeHints file)
@@ -144,13 +145,14 @@ readTTCFile modns as r b
            -- Read in name map, update 'r'
            r <- logTime "Name map" $ readNameMap r b
            defs <- get Ctxt
-           gam' <- updateEntries (gamma defs) modns as 0 (max r) r
+           gam' <- logTime "Update entries" $
+                      updateEntries (gamma defs) modns as 0 (max r) r
            setCtxt gam' 
-           holes <- fromBuf r b
+--            holes <- fromBuf r b
 --            coreLift $ putStrLn $ "Read " ++ show (length holes) ++ " holes"
-           guesses <- fromBuf r b
+--            guesses <- fromBuf r b
 --            coreLift $ putStrLn $ "Read " ++ show (length guesses) ++ " guesses"
-           constraints <- the (Core (List (Int, Constraint))) $ fromBuf r b
+--            constraints <- the (Core (List (Int, Constraint))) $ fromBuf r b
 --            coreLift $ putStrLn $ "Read " ++ show (length constraints) ++ " constraints"
            defs <- logTime "Definitions" $ fromBuf r b
            autohs <- fromBuf r b
@@ -167,10 +169,9 @@ readTTCFile modns as r b
            cgds <- fromBuf r b
            ex <- fromBuf r b
            pure (MkTTCFile ver ifaceHash importHashes r
-                           holes guesses constraints defs 
+                           [] [] [] defs -- holes guesses constraints defs 
                            autohs typehs imp nextv cns 
                            pns rws prims nds cgds ex)
-
 -- Pull out the list of GlobalDefs that we want to save
 getSaveDefs : List Name -> List GlobalDef -> Defs -> Core (List GlobalDef)
 getSaveDefs [] acc _ = pure acc
@@ -193,8 +194,7 @@ writeToTTC extradata fname
     = do buf <- initBinary
          defs <- get Ctxt
          ust <- get UST
-         savens <- getSave
-         gdefs <- getSaveDefs savens [] defs
+         gdefs <- getSaveDefs (keys (toSave defs)) [] defs
          log 5 $ "Writing " ++ fname ++ " with hash " ++ show (ifaceHash defs)
          r <- getNameRefs (gamma defs)
          writeTTCFile buf 

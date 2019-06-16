@@ -81,8 +81,6 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
                   do ust <- get UST
                      put UST (record { delayedElab = [] } ust)
                      throw err)
-         defs <- get Ctxt
-         chktm <- normaliseArgHoles defs env chktm
          -- As long as we're not in a case block, finish off constraint solving
          when (not incase) $
            -- resolve any default hints
@@ -93,6 +91,8 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
               solveConstraints solvemode LastChance
 
          dumpConstraints 4 False
+         defs <- get Ctxt
+         chktm <- normaliseArgHoles defs env chktm
 
          -- Linearity and hole checking.
          -- on the LHS, all holes need to have been solved

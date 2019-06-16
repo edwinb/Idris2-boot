@@ -196,7 +196,8 @@ buildDeps fname
                        -- Load the associated metadata for interactive editing
                        mainttm <- getTTCFileName fname ".ttm"
                        log 10 $ "Reloading " ++ show mainttm
-                       readFromTTM refs mainttm
+                       logTime "Reading TTM" $
+                         readFromTTM refs mainttm
                        pure []
               errs => pure errs -- Error happened, give up
 

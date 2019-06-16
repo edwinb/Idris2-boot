@@ -96,6 +96,7 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
 
          traverse_ addToSave (keys (getMetas ty))
          addToSave n
+         log 10 $ "Saving from " ++ show n ++ ": " ++ show (keys (getMetas ty))
 
          when (vis /= Private) $
               do addHash n

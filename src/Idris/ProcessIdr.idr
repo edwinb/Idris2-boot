@@ -59,7 +59,8 @@ readModule : {auto c : Ref Ctxt Defs} ->
              Core ()
 readModule top loc vis reexp imp as
     = do fname <- nsToPath loc imp
-         Just (syn, hash, more, _) <- readFromTTC {extra = SyntaxInfo} 
+         Just (syn, hash, more, _) <- logTime ("Reading " ++ show imp) $
+                                         readFromTTC {extra = SyntaxInfo} 
                                                   loc vis fname imp as
               | Nothing => when vis (setVisible imp) -- already loaded, just set visibility
          addImported (imp, reexp, as)

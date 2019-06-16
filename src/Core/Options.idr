@@ -2,7 +2,6 @@ module Core.Options
 
 import Core.Core
 import Core.Name
-import Core.TTC
 import Utils.Binary
 
 public export
@@ -34,19 +33,6 @@ Eq CG where
   Chicken == Chicken = True
   Racket == Racket = True
   _ == _ = False
-
-export
-TTC CG where
-  toBuf b Chez = tag 0
-  toBuf b Chicken = tag 1
-  toBuf b Racket = tag 2
-
-  fromBuf r b
-      = case !getTag of
-             0 => pure Chez
-             1 => pure Chicken
-             2 => pure Racket
-             _ => corrupt "CG"
 
 export
 availableCGs : List (String, CG)
@@ -83,40 +69,6 @@ data LangExt = Borrowing -- not yet implemented
 export
 Eq LangExt where
   Borrowing == Borrowing = True
-
-export
-TTC PairNames where
-  toBuf b l
-      = do toBuf b (pairType l)
-           toBuf b (fstName l)
-           toBuf b (sndName l)
-  fromBuf r b
-      = do ty <- fromBuf r b
-           d <- fromBuf r b
-           f <- fromBuf r b
-           pure (MkPairNs ty d f)
-
-export
-TTC RewriteNames where
-  toBuf b l
-      = do toBuf b (equalType l)
-           toBuf b (rewriteName l)
-  fromBuf r b
-      = do ty <- fromBuf r b
-           l <- fromBuf r b
-           pure (MkRewriteNs ty l)
-
-export
-TTC PrimNames where
-  toBuf b l
-      = do toBuf b (fromIntegerName l)
-           toBuf b (fromStringName l)
-           toBuf b (fromCharName l)
-  fromBuf r b
-      = do i <- fromBuf r b
-           str <- fromBuf r b
-           c <- fromBuf r b
-           pure (MkPrimNs i str c)
 
 -- Other options relevant to the current session (so not to be saved in a TTC)
 public export

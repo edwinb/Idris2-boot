@@ -120,8 +120,10 @@ stMain opts
                  u <- newRef UST initUState
                  updateREPLOpts
                  case fname of
-                      Nothing => readPrelude
-                      Just f => loadMainFile f
+                      Nothing => logTime "Loading prelude" $
+                                   readPrelude
+                      Just f => logTime "Loading main file" $ 
+                                   loadMainFile f
 
                  doRepl <- postOptions opts
                  if doRepl 

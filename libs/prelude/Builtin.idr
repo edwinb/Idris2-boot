@@ -3,7 +3,6 @@ module Builtin
 -- The most primitive data types; things which are used by desugaring
 
 -- Totality assertions
-
 %inline
 public export
 assert_total : {0 a : _} -> a -> a

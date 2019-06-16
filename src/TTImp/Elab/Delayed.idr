@@ -11,7 +11,6 @@ import Core.TT
 import Core.Value
 
 import TTImp.Elab.Check
-import TTImp.Elab.ImplicitBind
 import TTImp.TTImp
 
 import Data.IntMap
@@ -59,7 +58,7 @@ delayOnFailure fc rig env expected pred elab
                if pred err && allowDelay est
                   then 
                     do nm <- genName "delayed"
-                       (ci, dtm) <- newDelayed fc rig env nm !(getTerm expected)
+                       (ci, dtm) <- newDelayed fc Rig1 env nm !(getTerm expected)
                        logGlueNF 5 ("Postponing elaborator " ++ show nm ++ 
                                     " for") env expected
                        log 10 ("Due to error " ++ show err)

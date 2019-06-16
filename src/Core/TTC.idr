@@ -2,13 +2,17 @@ module Core.TTC
 
 import Core.CaseTree
 import Core.CompileExpr
+import Core.Context
 import Core.Core
 import Core.Env
 import Core.FC
 import Core.Name
+import Core.Options
 import Core.TT
 
+import Data.NameMap
 import Data.Vect
+
 import Utils.Binary
 
 %default covering
@@ -62,7 +66,9 @@ TTC Name where
              8 => do x <- fromBuf r b
                      Just (n, Just idx) <- coreLift $ readArray r x
                           | Just (n, Nothing) => pure n
-                          | Nothing => corrupt ("Name index " ++ show x)
+                          | Nothing => if x < 70 -- ^ must be primitive
+                                          then pure (Resolved x)
+                                          else corrupt ("Name index " ++ show x)
                      pure (Resolved idx)
              _ => corrupt "Name"
             
@@ -213,9 +219,10 @@ mutual
              toBuf b bnd; toBuf b scope
     toBuf b (App fc fn arg) 
         = do tag 4;
-             let (fn, args) = getFnArgs (App fc fn arg)
-             toBuf b fn; -- toBuf b p; 
-             toBuf b args
+             toBuf b fn; toBuf b arg
+--              let (fn, args) = getFnArgs (App fc fn arg)
+--              toBuf b fn; -- toBuf b p; 
+--              toBuf b args
     toBuf b (As fc as tm)
         = do tag 5;
              toBuf b as; toBuf b tm
@@ -246,7 +253,7 @@ mutual
                2 => do x <- fromBuf r b
                        Just (n, Just idx) <- coreLift $ readArray r x
                           | Just (n, Nothing) => 
-                                corrupt ("Metavar name index " ++ show x)
+                                corrupt ("Metavar name index not updated " ++ show x)
                           | Nothing => corrupt ("Metavar name index " ++ show x ++ " (not in array)")
                        xs <- fromBuf r b
                        pure (Meta emptyFC (UN "metavar") idx xs)
@@ -254,8 +261,8 @@ mutual
                        bnd <- fromBuf r b; scope <- fromBuf r b
                        pure (Bind emptyFC x bnd scope)
                4 => do fn <- fromBuf r b
-                       args <- fromBuf r b
-                       pure (apply emptyFC fn args)
+                       arg <- fromBuf r b
+                       pure (App emptyFC fn arg)
                5 => do as <- fromBuf r b; tm <- fromBuf r b
                        pure (As emptyFC as tm)
                6 => do lr <- fromBuf r b; tm <- fromBuf r b
@@ -618,5 +625,191 @@ export
                2 => do cexpr <- fromBuf s b
                        pure (MkError cexpr)
                _ => corrupt "CDef"
+
+export
+TTC CG where
+  toBuf b Chez = tag 0
+  toBuf b Chicken = tag 1
+  toBuf b Racket = tag 2
+
+  fromBuf r b
+      = case !getTag of
+             0 => pure Chez
+             1 => pure Chicken
+             2 => pure Racket
+             _ => corrupt "CG"
+
+export
+TTC PairNames where
+  toBuf b l
+      = do toBuf b (pairType l)
+           toBuf b (fstName l)
+           toBuf b (sndName l)
+  fromBuf r b
+      = do ty <- fromBuf r b
+           d <- fromBuf r b
+           f <- fromBuf r b
+           pure (MkPairNs ty d f)
+
+export
+TTC RewriteNames where
+  toBuf b l
+      = do toBuf b (equalType l)
+           toBuf b (rewriteName l)
+  fromBuf r b
+      = do ty <- fromBuf r b
+           l <- fromBuf r b
+           pure (MkRewriteNs ty l)
+
+export
+TTC PrimNames where
+  toBuf b l
+      = do toBuf b (fromIntegerName l)
+           toBuf b (fromStringName l)
+           toBuf b (fromCharName l)
+  fromBuf r b
+      = do i <- fromBuf r b
+           str <- fromBuf r b
+           c <- fromBuf r b
+           pure (MkPrimNs i str c)
+
+
+export
+TTC Def where
+  toBuf b None = tag 0
+  toBuf b (PMDef args ct rt pats) 
+      = do tag 1; toBuf b args; toBuf b ct; toBuf b rt; -- toBuf b pats
+  toBuf b (ExternDef a)
+      = do tag 2; toBuf b a
+  toBuf b (Builtin a)
+      = throw (InternalError "Trying to serialise a Builtin")
+  toBuf b (DCon t arity) = do tag 3; toBuf b t; toBuf b arity
+  toBuf b (TCon t arity parampos detpos ms datacons) 
+      = do tag 4; toBuf b t; toBuf b arity; toBuf b parampos
+           toBuf b detpos; toBuf b ms; toBuf b datacons
+  toBuf b (Hole locs invertible) = do tag 5; toBuf b locs; toBuf b invertible
+  toBuf b (BySearch c depth def) 
+      = do tag 6; toBuf b c; toBuf b depth; toBuf b def
+  toBuf b (Guess guess constraints) = do tag 7; toBuf b guess; toBuf b constraints
+  toBuf b ImpBind = tag 8
+  toBuf b Delayed = tag 9
+
+  fromBuf r b 
+      = case !getTag of
+             0 => pure None
+             1 => do args <- fromBuf r b 
+                     ct <- fromBuf r b
+                     rt <- fromBuf r b
+--                      pats <- fromBuf r b
+                     pure (PMDef args ct rt []) -- pats)
+             2 => do a <- fromBuf r b
+                     pure (ExternDef a)
+             3 => do t <- fromBuf r b; a <- fromBuf r b
+                     pure (DCon t a)
+             4 => do t <- fromBuf r b; a <- fromBuf r b
+                     ps <- fromBuf r b; dets <- fromBuf r b; 
+                     ms <- fromBuf r b; cs <- fromBuf r b
+                     pure (TCon t a ps dets ms cs)
+             5 => do l <- fromBuf r b
+                     i <- fromBuf r b
+                     pure (Hole l i)
+             6 => do c <- fromBuf r b; depth <- fromBuf r b
+                     def <- fromBuf r b
+                     pure (BySearch c depth def)
+             7 => do g <- fromBuf r b; cs <- fromBuf r b
+                     pure (Guess g cs)
+             8 => pure ImpBind
+             9 => pure Context.Delayed
+             _ => corrupt "Def"
+
+TTC TotalReq where
+  toBuf b Total = tag 0
+  toBuf b CoveringOnly = tag 1
+  toBuf b PartialOK = tag 2
+
+  fromBuf s b
+      = case !getTag of
+             0 => pure Total
+             1 => pure CoveringOnly
+             2 => pure PartialOK
+             _ => corrupt "TotalReq"
+
+TTC DefFlag where
+  toBuf b Inline = tag 2
+  toBuf b Invertible = tag 3
+  toBuf b Overloadable = tag 4
+  toBuf b TCInline = tag 5
+  toBuf b (SetTotal x) = do tag 6; toBuf b x
+
+  fromBuf s b
+      = case !getTag of
+             2 => pure Inline
+             3 => pure Invertible
+             4 => pure Overloadable
+             5 => pure TCInline
+             6 => do x <- fromBuf s b; pure (SetTotal x)
+             _ => corrupt "DefFlag"
+
+export
+TTC SizeChange where
+  toBuf b Smaller = tag 0
+  toBuf b Same = tag 1
+  toBuf b Unknown = tag 2
+
+  fromBuf s b
+      = case !getTag of
+             0 => pure Smaller
+             1 => pure Same
+             2 => pure Unknown
+             _ => corrupt "SizeChange"
+
+export
+TTC SCCall where
+  toBuf b c = do toBuf b (fnCall c); toBuf b (fnArgs c)
+  fromBuf s b
+      = do fn <- fromBuf s b
+           args <- fromBuf s b
+           pure (MkSCCall fn args)
+
+export
+TTC GlobalDef where
+  toBuf b gdef 
+      = -- Only write full details for user specified names. The others will
+        -- be holes where all we will ever need after loading is the definition
+        do toBuf b (fullname gdef)
+           toBuf b (definition gdef)
+           toBuf b (compexpr gdef)
+           when (isUserName (fullname gdef)) $
+              do toBuf b (location gdef)
+                 toBuf b (type gdef)
+                 toBuf b (multiplicity gdef)
+                 toBuf b (vars gdef)
+                 toBuf b (visibility gdef)
+                 toBuf b (totality gdef)
+                 toBuf b (flags gdef)
+                 toBuf b (map fst (toList (refersTo gdef)))
+                 toBuf b (noCycles gdef)
+                 toBuf b (sizeChange gdef)
+
+  fromBuf r b 
+      = do name <- fromBuf r b
+           def <- fromBuf r b
+           cdef <- fromBuf r b
+           if isUserName name
+              then do loc <- fromBuf r b; 
+                      ty <- fromBuf r b; mul <- fromBuf r b
+                      vars <- fromBuf r b
+                      vis <- fromBuf r b; tot <- fromBuf r b
+                      fl <- fromBuf r b
+                      refsList <- fromBuf r b; 
+                      let refs = fromList (map (\x => (x, ())) refsList)
+                      c <- fromBuf r b
+                      sc <- fromBuf r b
+                      pure (MkGlobalDef loc name ty mul vars vis 
+                                        tot fl refs c True def cdef sc)
+              else do let fc = emptyFC
+                      pure (MkGlobalDef fc name (Erased fc)
+                                        RigW [] Public unchecked [] empty
+                                        False True def cdef [])
 
 

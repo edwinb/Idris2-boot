@@ -12,6 +12,7 @@ import Core.TT
 import Core.Value
 
 import TTImp.Elab.Check
+import TTImp.Elab.Delayed
 import TTImp.TTImp
 
 import Data.NameMap
@@ -495,6 +496,12 @@ checkBindHere rig elabinfo nest env fc bindmode tm exp
          solveConstraints (case elabMode elabinfo of
                                 InLHS c => InLHS
                                 _ => InTerm) Normal
+         ust <- get UST
+         catch (retryDelayed (delayedElab ust))
+               (\err =>
+                  do ust <- get UST
+                     put UST (record { delayedElab = [] } ust)
+                     throw err)
          checkDots -- Check dot patterns unifying with the claimed thing
                    -- before binding names
          argImps <- getToBind fc (elabMode elabinfo)

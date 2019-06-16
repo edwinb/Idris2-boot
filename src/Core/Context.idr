@@ -8,7 +8,6 @@ import        Core.Hash
 import public Core.Name
 import        Core.Options
 import public Core.TT
-import        Core.TTC
 
 import Utils.Binary
 
@@ -60,8 +59,6 @@ getNameRefs gam
          pure arr
   where
     addToMap : NameRefs -> (Name, Int) -> Core ()
---     addToMap arr (PV _ _, i)
---         = coreLift $ putStrLn ("Skipping " ++ show i) -- pure () -- These won't appear in terms
     addToMap arr (n, i)
         = coreLift $ writeArray arr i (n, Nothing)
 
@@ -264,54 +261,6 @@ Show Def where
   show ImpBind = "Bound name"
   show Delayed = "Delayed"
 
-export
-TTC Def where
-  toBuf b None = tag 0
-  toBuf b (PMDef args ct rt pats) 
-      = do tag 1; toBuf b args; toBuf b ct; toBuf b rt; toBuf b pats
-  toBuf b (ExternDef a)
-      = do tag 2; toBuf b a
-  toBuf b (Builtin a)
-      = throw (InternalError "Trying to serialise a Builtin")
-  toBuf b (DCon t arity) = do tag 3; toBuf b t; toBuf b arity
-  toBuf b (TCon t arity parampos detpos ms datacons) 
-      = do tag 4; toBuf b t; toBuf b arity; toBuf b parampos
-           toBuf b detpos; toBuf b ms; toBuf b datacons
-  toBuf b (Hole locs invertible) = do tag 5; toBuf b locs; toBuf b invertible
-  toBuf b (BySearch c depth def) 
-      = do tag 6; toBuf b c; toBuf b depth; toBuf b def
-  toBuf b (Guess guess constraints) = do tag 7; toBuf b guess; toBuf b constraints
-  toBuf b ImpBind = tag 8
-  toBuf b Delayed = tag 9
-
-  fromBuf r b 
-      = case !getTag of
-             0 => pure None
-             1 => do args <- fromBuf r b 
-                     ct <- fromBuf r b
-                     rt <- fromBuf r b
-                     pats <- fromBuf r b
-                     pure (PMDef args ct rt pats)
-             2 => do a <- fromBuf r b
-                     pure (ExternDef a)
-             3 => do t <- fromBuf r b; a <- fromBuf r b
-                     pure (DCon t a)
-             4 => do t <- fromBuf r b; a <- fromBuf r b
-                     ps <- fromBuf r b; dets <- fromBuf r b; 
-                     ms <- fromBuf r b; cs <- fromBuf r b
-                     pure (TCon t a ps dets ms cs)
-             5 => do l <- fromBuf r b
-                     i <- fromBuf r b
-                     pure (Hole l i)
-             6 => do c <- fromBuf r b; depth <- fromBuf r b
-                     def <- fromBuf r b
-                     pure (BySearch c depth def)
-             7 => do g <- fromBuf r b; cs <- fromBuf r b
-                     pure (Guess g cs)
-             8 => pure ImpBind
-             9 => pure Context.Delayed
-             _ => corrupt "Def"
-
 public export
 record Constructor where
   constructor MkCon
@@ -364,34 +313,6 @@ Eq DefFlag where
     (==) (SetTotal x) (SetTotal y) = x == y
     (==) _ _ = False
 
-TTC TotalReq where
-  toBuf b Total = tag 0
-  toBuf b CoveringOnly = tag 1
-  toBuf b PartialOK = tag 2
-
-  fromBuf s b
-      = case !getTag of
-             0 => pure Total
-             1 => pure CoveringOnly
-             2 => pure PartialOK
-             _ => corrupt "TotalReq"
-
-TTC DefFlag where
-  toBuf b Inline = tag 2
-  toBuf b Invertible = tag 3
-  toBuf b Overloadable = tag 4
-  toBuf b TCInline = tag 5
-  toBuf b (SetTotal x) = do tag 6; toBuf b x
-
-  fromBuf s b
-      = case !getTag of
-             2 => pure Inline
-             3 => pure Invertible
-             4 => pure Overloadable
-             5 => pure TCInline
-             6 => do x <- fromBuf s b; pure (SetTotal x)
-             _ => corrupt "DefFlag"
-
 public export
 data SizeChange = Smaller | Same | Unknown
 
@@ -415,27 +336,6 @@ export
 Show SCCall where
   show c = show (fnCall c) ++ ": " ++ show (fnArgs c)
 
-export
-TTC SizeChange where
-  toBuf b Smaller = tag 0
-  toBuf b Same = tag 1
-  toBuf b Unknown = tag 2
-
-  fromBuf s b
-      = case !getTag of
-             0 => pure Smaller
-             1 => pure Same
-             2 => pure Unknown
-             _ => corrupt "SizeChange"
-
-export
-TTC SCCall where
-  toBuf b c = do toBuf b (fnCall c); toBuf b (fnArgs c)
-  fromBuf s b
-      = do fn <- fromBuf s b
-           args <- fromBuf s b
-           pure (MkSCCall fn args)
-
 public export
 record GlobalDef where
   constructor MkGlobalDef
@@ -457,47 +357,6 @@ record GlobalDef where
   definition : Def
   compexpr : Maybe CDef
   sizeChange : List SCCall
-
-export
-TTC GlobalDef where
-  toBuf b gdef 
-      = -- Only write full details for user specified names. The others will
-        -- be holes where all we will ever need after loading is the definition
-        do toBuf b (fullname gdef)
-           toBuf b (definition gdef)
-           toBuf b (compexpr gdef)
-           when (isUserName (fullname gdef)) $
-              do toBuf b (location gdef)
-                 toBuf b (type gdef)
-                 toBuf b (multiplicity gdef)
-                 toBuf b (vars gdef)
-                 toBuf b (visibility gdef)
-                 toBuf b (totality gdef)
-                 toBuf b (flags gdef)
-                 toBuf b (map fst (toList (refersTo gdef)))
-                 toBuf b (noCycles gdef)
-                 toBuf b (sizeChange gdef)
-
-  fromBuf r b 
-      = do name <- fromBuf r b
-           def <- fromBuf r b
-           cdef <- fromBuf r b
-           if isUserName name
-              then do loc <- fromBuf r b; 
-                      ty <- fromBuf r b; mul <- fromBuf r b
-                      vars <- fromBuf r b
-                      vis <- fromBuf r b; tot <- fromBuf r b
-                      fl <- fromBuf r b
-                      refsList <- fromBuf r b; 
-                      let refs = fromList (map (\x => (x, ())) refsList)
-                      c <- fromBuf r b
-                      sc <- fromBuf r b
-                      pure (MkGlobalDef loc name ty mul vars vis 
-                                        tot fl refs c True def cdef sc)
-              else do let fc = emptyFC
-                      pure (MkGlobalDef fc name (Erased fc)
-                                        RigW [] Public unchecked [] empty
-                                        False True def cdef [])
 
 export
 newDef : FC -> Name -> RigCount -> List Name -> 
@@ -696,33 +555,6 @@ depth : {auto c : Ref Ctxt Defs} ->
 depth
     = do defs <- get Ctxt
          pure (branchDepth (gamma defs))
-
--- Get the names to save. These are the ones explicitly noted, and the
--- ones between firstEntry and nextEntry (which are the names introduced in
--- the current source file)
-export
-getSave : {auto c : Ref Ctxt Defs} -> Core (List Name)
-getSave 
-    = do defs <- get Ctxt
-         let gam = gamma defs
-         let ns = toSave defs
-         let a = content gam
-         arr <- get Arr
-         ns' <- coreLift $ addAll (firstEntry gam) (nextEntry gam) ns arr
---          coreLift $ putStrLn $ show (length (toList ns)) ++ " explicitly to save"
---          coreLift $ putStrLn $ show (length (toList ns')) ++ " actually saving"
-         pure (map fst (toList ns))
-  where
-    addAll : Int -> Int -> NameMap () -> IOArray GlobalDef -> IO (NameMap ())
-    addAll first last ns arr
-        = if first == last 
-             then pure ns
-             else do Just d <- readArray arr first
-                         | Nothing => addAll (first + 1) last ns arr
-                     case fullname d of
-                          PV _ _ => addAll (first + 1) last ns arr
-                          _ => addAll (first + 1) last 
-                                      (insert (Resolved first) () ns) arr
 
 -- Explicitly note that the name should be saved when writing out a .ttc
 export
