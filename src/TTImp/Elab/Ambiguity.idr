@@ -297,7 +297,6 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
                                 then gnf env exp
                                 else expected
 
-                  let alts' = alts -- pruneByType defs !(getNF exp') alts TODO
                   logGlueNF 5 ("Ambiguous elaboration " ++ show alts' ++ 
                                "\nTarget type ") env exp'
                   let tryall = case uniq of
