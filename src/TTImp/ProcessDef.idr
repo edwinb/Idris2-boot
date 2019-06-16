@@ -97,6 +97,8 @@ findLinear : {auto c : Ref Ctxt Defs} ->
              Core (List (Name, RigCount))
 findLinear top bound rig (Bind fc n b sc) 
     = findLinear top (S bound) rig sc
+findLinear top bound rig (As fc _ p)
+    = findLinear top bound rig p
 findLinear top bound rig tm
     = case getFnArgs tm of
            (Ref _ _ n, []) => pure []
@@ -113,6 +115,7 @@ findLinear top bound rig tm
 
       findLinArg : RigCount -> NF [] -> List (Term vars) -> 
                    Core (List (Name, RigCount))
+      findLinArg rig ty (As fc _ p :: as) = findLinArg rig ty (p :: as)
       findLinArg rig (NBind _ x (Pi c _ _) sc) (Local {name=a} fc _ idx prf :: as) 
           = do defs <- get Ctxt
                if idx < bound
@@ -211,6 +214,7 @@ checkLHS {vars} mult hashit n opts nest env fc lhs_in
          lhstm <- normaliseLHS defs (letToLam env) lhstm
          lhsty <- normaliseHoles defs env lhsty
          linvars_in <- findLinear True 0 Rig1 lhstm
+         logTerm 10 "Checked LHS term after normalise" lhstm
          log 5 $ "Linearity of names in " ++ show n ++ ": " ++ 
                  show linvars_in
 
