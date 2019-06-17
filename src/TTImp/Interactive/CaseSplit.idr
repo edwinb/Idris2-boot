@@ -262,6 +262,8 @@ findUpdates defs (IImplicitApp _ f _ a) (IImplicitApp _ f' _ a')
          findUpdates defs a a'
 findUpdates defs (IImplicitApp _ f _ a) f' = findUpdates defs f f'
 findUpdates defs f (IImplicitApp _ f' _ a) = findUpdates defs f f'
+findUpdates defs (IAs _ _ _ f) f' = findUpdates defs f f'
+findUpdates defs f (IAs _ _ _ f') = findUpdates defs f f'
 findUpdates _ _ _ = pure ()
 
 getUpdates : Defs -> RawImp -> RawImp -> Core (List (Name, RawImp))
@@ -284,8 +286,11 @@ mkCase {c} {u} fn orig lhs_raw
                                     Nothing
                put Ctxt defs -- reset the context, we don't want any updates
                put UST ust
-
                lhs' <- unelabNoSugar [] lhs
+
+               log 3 $ "Original LHS: " ++ show orig
+               log 3 $ "New LHS: " ++ show lhs'
+
                pure (Valid lhs' !(getUpdates defs orig lhs')))
            (\err => case err of
                          WhenUnifying _ env l r err
