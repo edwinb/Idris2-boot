@@ -678,7 +678,7 @@ export
 TTC Def where
   toBuf b None = tag 0
   toBuf b (PMDef args ct rt pats) 
-      = do tag 1; toBuf b args; toBuf b ct; toBuf b rt; -- toBuf b pats
+      = do tag 1; toBuf b args; toBuf b ct; toBuf b rt; toBuf b pats
   toBuf b (ExternDef a)
       = do tag 2; toBuf b a
   toBuf b (Builtin a)
@@ -700,8 +700,8 @@ TTC Def where
              1 => do args <- fromBuf r b 
                      ct <- fromBuf r b
                      rt <- fromBuf r b
---                      pats <- fromBuf r b
-                     pure (PMDef args ct rt []) -- pats)
+                     pats <- fromBuf r b
+                     pure (PMDef args ct rt pats)
              2 => do a <- fromBuf r b
                      pure (ExternDef a)
              3 => do t <- fromBuf r b; a <- fromBuf r b

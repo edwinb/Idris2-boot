@@ -100,8 +100,8 @@ mutual
   unelabSugar _ (tm, ty) 
       = let (f, args) = getFnArgs tm [] in
             case f of
-             IVar fc (CaseBlock n i)
-                 => pure (!(unelabCase (CaseBlock n i) args tm), ty)
+             IVar fc (NS ns (CaseBlock n i))
+                 => pure (!(unelabCase (NS ns (CaseBlock n i)) args tm), ty)
              _ => pure (tm, ty)
     where
       getFnArgs : RawImp -> List IArg -> (RawImp, List IArg)
@@ -164,7 +164,10 @@ mutual
       = do (p', _) <- unelabTy' umode env p 
            (tm', ty) <- unelabTy' umode env tm
            case p' of
-                IVar _ n => pure (IAs fc UseRight n tm', ty)
+                IVar _ n => 
+                    case umode of
+                         NoSugar => pure (IAs fc UseRight n tm', ty)
+                         _ => pure (tm', ty)
                 _ => pure (tm', ty) -- Should never happen!
   unelabTy' umode env (TDelayed fc r tm)
       = do (tm', ty) <- unelabTy' umode env tm
