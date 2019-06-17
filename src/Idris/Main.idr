@@ -145,7 +145,7 @@ stMain opts
                            replIDE {c} {u} {m}                               
                    else do 
                        iputStrLn $ "Welcome to Idris 2 version " ++ version
-                                    ++ ". Fingers crossed!"
+                                    ++ ". Please be gentle."
                        repl {c} {u} {m}
                  else
                       -- exit with an error code if there was an error, otherwise

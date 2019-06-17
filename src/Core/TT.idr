@@ -871,6 +871,7 @@ mkLocals bs (TType fc) = TType fc
 
 export
 refsToLocals : Bounds bound -> Term vars -> Term (bound ++ vars)
+refsToLocals None y = y
 refsToLocals bs y = mkLocals {later = []} bs y
 
 -- Replace any reference to 'x' with a locally bound name 'new'

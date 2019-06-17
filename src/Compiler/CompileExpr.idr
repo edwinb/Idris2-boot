@@ -322,8 +322,7 @@ export
 compileDef : {auto c : Ref Ctxt Defs} -> NameTags -> Name -> Core ()
 compileDef tags n
     = do defs <- get Ctxt
-         case !(lookupDefExact n (gamma defs)) of
-              Just d => 
-                  do ce <- toCDef tags n d
-                     setCompiled n ce
-              Nothing => throw (InternalError ("Trying to compile unknown name " ++ show n))
+         Just gdef <- lookupCtxtExact n (gamma defs)
+              | Nothing => throw (InternalError ("Trying to compile unknown name " ++ show n))
+         ce <- toCDef tags n (definition gdef)
+         setCompiled n ce

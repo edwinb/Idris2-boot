@@ -70,7 +70,7 @@ parameters (defs : Defs, topopts : EvalOpts)
            Env Term free -> LocalEnv free vars -> 
            Term (vars ++ free) -> Stack free -> Core (NF free)
     eval env locs (Local fc mrig idx prf) stk 
-        = evalLocal env locs fc mrig idx prf stk
+        = evalLocal env fc mrig idx prf stk locs 
     eval env locs (Ref fc nt fn) stk 
         = evalRef env locs False fc nt fn stk (NApp fc (NRef nt fn) stk)
     eval env locs (Meta fc name idx args) stk
@@ -115,12 +115,13 @@ parameters (defs : Defs, topopts : EvalOpts)
     eval env locs (TType fc) stk = pure $ NType fc
     
     evalLocal : {vars : _} ->
-                Env Term free -> LocalEnv free vars -> 
+                Env Term free -> 
                 FC -> Maybe RigCount -> 
                 (idx : Nat) -> .(IsVar name idx (vars ++ free)) ->
                 Stack free ->
+                LocalEnv free vars -> 
                 Core (NF free)
-    evalLocal {vars = []} env locs fc mrig idx prf stk
+    evalLocal {vars = []} env fc mrig idx prf stk locs 
         = if not (holesOnly topopts || argHolesOnly topopts) && isLet idx env
              then
                case getBinder prf env of
@@ -133,10 +134,10 @@ parameters (defs : Defs, topopts : EvalOpts)
         isLet Z _ = False
         isLet (S k) (b :: env) = isLet k env
         isLet (S k) [] = False
-    evalLocal env (MkClosure opts locs' env' tm' :: locs) fc mrig Z First stk
+    evalLocal env fc mrig Z First stk (MkClosure opts locs' env' tm' :: locs)
         = evalWithOpts defs opts env' locs' tm' stk
     evalLocal {free} {vars = x :: xs} 
-              env (MkNFClosure nf :: locs) fc mrig Z First stk
+              env fc mrig Z First stk (MkNFClosure nf :: locs)
         = applyToStack nf stk
       where
         applyToStack : NF free -> Stack free -> Core (NF free)
@@ -148,7 +149,7 @@ parameters (defs : Defs, topopts : EvalOpts)
                       (NApp fc (NRef nt fn) args)
         applyToStack (NApp fc (NLocal mrig idx p) args) stk
           = let MkVar p' = insertVarNames {outer=[]} {ns = xs} idx p in
-               evalLocal env locs fc mrig _ p' (args ++ stk)
+               evalLocal env fc mrig _ p' (args ++ stk) locs 
         applyToStack (NDCon fc n t a args) stk 
             = pure $ NDCon fc n t a (args ++ stk)
         applyToStack (NTCon fc n t a args) stk 
@@ -156,8 +157,8 @@ parameters (defs : Defs, topopts : EvalOpts)
         applyToStack nf _ = pure nf
 
     evalLocal {vars = x :: xs} {free}
-              env (_ :: locs) fc mrig (S idx) (Later p) stk
-        = evalLocal {vars = xs} env locs fc mrig idx p stk
+              env fc mrig (S idx) (Later p) stk (_ :: locs)
+        = evalLocal {vars = xs} env fc mrig idx p stk locs 
     
     evalMeta : {vars : _} ->
                Env Term free -> LocalEnv free vars -> 
@@ -289,7 +290,7 @@ parameters (defs : Defs, topopts : EvalOpts)
       = do let x' : IsVar _ _ ((args ++ vars) ++ free) 
                = rewrite sym (appendAssociative args vars free) in
                          varExtend x
-           xval <- evalLocal env loc fc Nothing idx x' []
+           xval <- evalLocal env fc Nothing idx x' [] loc 
            findAlt env loc opts fc stk xval alts def
     evalTree {args} {vars} {free} env loc opts fc stk (STerm tm) def
           = do let tm' : Term ((args ++ vars) ++ free) 

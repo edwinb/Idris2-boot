@@ -288,9 +288,9 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
                   exp <- getTerm expected
                   -- If we don't know the target type on the first attempt, 
                   -- delay
-                  when (not delayed && 
-                        !(holeIn (gamma defs) exp)) $
-                    throw (AllFailed [])
+--                   when (not delayed && 
+--                         !(holeIn (gamma defs) exp)) $
+--                     throw (AllFailed [])
                   -- We can't just use the old NF on the second attempt, 
                   -- because we might know more now, so recalculate it
                   let exp' = if delayed 
@@ -298,6 +298,7 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
                                 else expected
 
                   logGlueNF 5 ("Ambiguous elaboration " ++ show alts' ++ 
+                               " at " ++ show fc ++
                                "\nTarget type ") env exp'
                   let tryall = case uniq of
                                     FirstSuccess => anyOne fc
