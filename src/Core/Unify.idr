@@ -1044,7 +1044,10 @@ retryGuess mode smode (hid, (loc, hname))
                  case smode of
                       LastChance =>
                           do log 5 $ "Last chance at " ++ show hname
-                             search loc rig False depth defining (type def) []
+                             tm <- search loc rig False depth defining (type def) []
+                             let gdef = record { definition = PMDef [] (STerm tm) (STerm tm) [] } def
+                             logTerm 5 ("Solved " ++ show hname) tm
+                             addDef (Resolved hid) gdef
                              pure True
                       _ => handleUnify
                              (do tm <- search loc rig (smode == Defaults) depth defining
@@ -1056,7 +1059,7 @@ retryGuess mode smode (hid, (loc, hname))
                                  pure True)
                              (\err => case err of
                                         DeterminingArg _ n i _ _ => 
-                                            do logTerm 5 ("Failed (det " ++ show hname ++ ")")
+                                            do logTerm 5 ("Failed (det " ++ show hname ++ " " ++ show n ++ ")")
                                                          (type def)
                                                setInvertible loc i
                                                pure False -- progress made!
@@ -1089,7 +1092,8 @@ solveConstraints : {auto c : Ref Ctxt Defs} ->
 solveConstraints umode smode
     = do ust <- get UST
          progress <- traverse (retryGuess umode smode) (toList (guesses ust))
-         when (or (map Delay progress)) $ solveConstraints umode smode
+         when (or (map Delay progress)) $ 
+               solveConstraints umode smode
 
 -- Replace any 'BySearch' with 'Hole', so that we don't keep searching 
 -- fruitlessly while elaborating the rest of a source file

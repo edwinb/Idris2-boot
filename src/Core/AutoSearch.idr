@@ -448,10 +448,11 @@ searchType {vars} fc rigc defaults trying depth def top env target
 --          Core (Term vars)
 Core.Unify.search fc rigc defaults depth def top env
     = do defs <- get Ctxt
-         logTerm 2 "Initial target: " top
+         logTermNF 2 "Initial target: " env top
          log 2 $ "Running search with defaults " ++ show defaults
          tm <- searchType fc rigc defaults [] depth def 
                           (abstractEnvType fc env top) env 
                           top
+         logTerm 2 "Result" tm
          defs <- get Ctxt
-         quote defs env tm
+         pure tm
