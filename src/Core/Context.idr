@@ -59,6 +59,7 @@ getNameRefs gam
          pure arr
   where
     addToMap : NameRefs -> (Name, Int) -> Core ()
+    addToMap arr (UN _, i) = pure () -- skip primitives, they're always added first
     addToMap arr (n, i)
         = coreLift $ writeArray arr i (n, Nothing)
 

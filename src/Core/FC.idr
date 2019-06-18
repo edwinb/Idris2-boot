@@ -12,11 +12,23 @@ FileName : Type
 FileName = String
 
 public export
-record FC where
-  constructor MkFC
-  file : FileName
-  startPos : FilePos
-  endPos : FilePos
+data FC = MkFC FileName FilePos FilePos
+        | EmptyFC
+        
+export
+file : FC -> FileName
+file (MkFC fn _ _) = fn
+file EmptyFC = ""
+
+export
+startPos : FC -> FilePos
+startPos (MkFC _ s _) = s
+startPos EmptyFC = (0, 0)
+
+export
+endPos : FC -> FilePos
+endPos (MkFC _ _ e) = e
+endPos EmptyFC = (0, 0)
 
 -- Return whether a given file position is within the file context (assuming we're
 -- in the right file)
@@ -24,6 +36,7 @@ export
 within : FilePos -> FC -> Bool
 within (x, y) (MkFC _ start end)
    = (x, y) >= start && (x, y) <= end
+within _ _ = False
 
 -- Return whether a given line is on the same line as the file context (assuming 
 -- we're in the right file)
@@ -31,10 +44,11 @@ export
 onLine : Int -> FC -> Bool
 onLine x (MkFC _ start end)
    = x >= fst start && x <= fst end
+onLine _ _ = False
 
 export
 emptyFC : FC
-emptyFC = MkFC "(no file)" (0, 0) (0, 0)
+emptyFC = EmptyFC
 
 export
 toplevelFC : FC

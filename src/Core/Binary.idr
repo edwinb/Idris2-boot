@@ -298,7 +298,7 @@ readFromTTC loc reexp fname modNS importAs
                      then Nothing 
                      else Just importAs
          ttc <- readTTCFile modNS as r bin
-         traverse (addGlobalDef modNS as) (context ttc)
+         logTime "Adding defs" $ traverse (addGlobalDef modNS as) (context ttc)
          setNS (currentNS ttc)
          -- Set up typeHints and autoHints based on the loaded data
          traverse_ (addTypeHint loc) (typeHints ttc)

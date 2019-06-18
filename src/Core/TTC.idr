@@ -20,11 +20,16 @@ import Utils.Binary
 export
 TTC FC where
   toBuf b (MkFC file startPos endPos) 
-      = do toBuf b file; toBuf b startPos; toBuf b endPos
+      = do tag 0; toBuf b file; toBuf b startPos; toBuf b endPos
+  toBuf b EmptyFC = tag 1
+
   fromBuf r b
-      = do f <- fromBuf r b; 
-           s <- fromBuf r b; e <- fromBuf r b
-           pure (MkFC f s e)
+      = case !getTag of
+             0 => do f <- fromBuf r b; 
+                     s <- fromBuf r b; e <- fromBuf r b
+                     pure (MkFC f s e)
+             1 => pure EmptyFC
+             _ => corrupt "FC"
 
 export
 TTC Name where
