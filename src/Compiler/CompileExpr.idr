@@ -185,8 +185,9 @@ mutual
              (f, args) =>
                 do args' <- traverse (toCExp tags n) args
                    defs <- get Ctxt
-                   pure $ natHack (expandToArity !(numArgs defs f) 
-                                          !(toCExpTm tags n f) args')
+                   pure $ natHack 
+                       (expandToArity !(numArgs defs f) 
+                                      !(toCExpTm tags n f) args')
 
 mutual
   conCases : {auto c : Ref Ctxt Defs} ->
@@ -194,10 +195,11 @@ mutual
              Core (List (CConAlt vars))
   conCases tags n [] = pure []
   conCases tags n (ConCase x tag args sc :: ns)
-      = let tag' = case lookup x tags of
-                        Just t => t
-                        _ => tag in
-            pure $ MkConAlt x tag' args !(toCExpTree tags n sc) 
+      = do let tag' = case lookup x tags of
+                           Just t => t
+                           _ => tag
+           xn <- getFullName x
+           pure $ MkConAlt xn tag' args !(toCExpTree tags n sc) 
                      :: !(conCases tags n ns)
   conCases tags n (_ :: ns) = conCases tags n ns
 

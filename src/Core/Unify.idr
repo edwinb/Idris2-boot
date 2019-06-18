@@ -864,8 +864,10 @@ mutual
       = unify mode loc env x y
   unifyNoEta mode loc env (NDelay xfc _ xty x) (NDelay yfc _ yty y)
       = unifyArgs mode loc env [xty, x] [yty, y]
-  unifyNoEta mode loc env (NForce xfc x) (NForce yfc y)
-      = unify mode loc env x y
+  unifyNoEta mode loc env (NForce xfc x axs) (NForce yfc y ays)
+      = do cs <- unify mode loc env x y
+           cs' <- unifyArgs mode loc env axs ays
+           pure (union cs cs')
   unifyNoEta mode loc env (NApp xfc fx axs) (NApp yfc fy ays)
       = unifyBothApps mode loc env xfc fx axs yfc fy ays
   unifyNoEta mode loc env (NApp xfc hd args) y 

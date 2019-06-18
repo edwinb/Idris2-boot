@@ -93,7 +93,7 @@ showEnv : {auto c : Ref Ctxt Defs} ->
 showEnv defs env fn (S args) (Bind fc x (Let c val ty) sc)
     = showEnv defs env fn args (subst val sc)
 showEnv defs env fn (S args) (Bind fc x b sc)
-    = do ity <- resugar env !(normaliseHoles defs env (binderType b))
+    = do ity <- resugar env !(normalise defs env (binderType b))
          let pre = if showName x
                       then showCount (multiplicity b) ++ 
                            impBracket (implicitBind b) (tidy x ++ " : " ++ show ity) ++ "\n"
@@ -108,7 +108,7 @@ showEnv defs env fn (S args) (Bind fc x b sc)
     implicitBind (Lam _ _ _) = True
     implicitBind _ = False
 showEnv defs env fn args ty
-    = do ity <- resugar env !(normaliseHoles defs env ty)
+    = do ity <- resugar env !(normalise defs env ty)
          pure ([], "-------------------------------------\n" ++
                     nameRoot fn ++ " : " ++ show ity)
 

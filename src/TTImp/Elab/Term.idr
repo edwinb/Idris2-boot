@@ -100,7 +100,7 @@ checkTerm rig elabinfo nest env (IPi fc r p Nothing argTy retTy) exp
 checkTerm rig elabinfo nest env (ILam fc r p (Just n) argTy scope) exp 
     = checkLambda rig elabinfo nest env fc r p n argTy scope exp
 checkTerm rig elabinfo nest env (ILam fc r p Nothing argTy scope) exp 
-    = do n <- genVarName "lam"
+    = do n <- genVarName "_"
          checkLambda rig elabinfo nest env fc r p n argTy scope exp
 checkTerm rig elabinfo nest env (ILet fc r n nTy nVal scope) exp
     = checkLet rig elabinfo nest env fc r n nTy nVal scope exp
