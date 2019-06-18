@@ -209,6 +209,33 @@ TTC String where
               else throw (TTCError (EndOfBuffer "String"))
 
 export
+TTC Binary where
+  toBuf b val
+    = do toBuf b (used val)
+         chunk <- get Bin
+         if avail chunk >= used val
+            then
+              do coreLift $ copyData (buf val) 0 (used val)
+                                     (buf chunk) (loc chunk)
+                 put Bin (appended (used val) chunk)
+            else do chunk' <- extendBinary chunk
+                    coreLift $ copyData (buf val) 0 (used val)
+                                        (buf chunk) (loc chunk)
+                    put Bin (appended (used val) chunk)
+
+  fromBuf s b
+    = do len <- fromBuf s b
+         chunk <- get Bin
+         if toRead chunk >= len
+            then
+              do Just newbuf <- coreLift $ newBuffer len
+                      | Nothing => throw (InternalError "Can't create buffer")
+                 coreLift $ copyData (buf chunk) (loc chunk) len
+                                     newbuf 0
+                 pure (MkBin newbuf 0 len len)
+            else throw (TTCError (EndOfBuffer "Binary"))
+
+export
 TTC Bool where
   toBuf b False = tag 0
   toBuf b True = tag 1
