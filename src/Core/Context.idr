@@ -1125,33 +1125,191 @@ getFullName (Resolved i)
          pure (fullname gdef)
 getFullName n = pure n
 
+public export
+interface HasNames a where
+  fullNames : Ref Ctxt Defs -> a -> Core a
+  resolvedNames : Ref Ctxt Defs -> a -> Core a
+
 export
 toFullNames : {auto c : Ref Ctxt Defs} ->
-              Term vars -> Core (Term vars)
-toFullNames tm
-    = do defs <- get Ctxt
-         full (gamma defs) tm
-  where
-    full : Context GlobalDef -> Term vars -> Core (Term vars)
-    full gam (Ref fc x (Resolved i)) 
-        = do Just gdef <- lookupCtxtExact (Resolved i) gam
-                  | Nothing => pure (Ref fc x (Resolved i))
-             pure (Ref fc x (fullname gdef))
-    full gam (Meta fc x y xs) 
-        = pure (Meta fc x y !(traverse (full gam) xs))
-    full gam (Bind fc x b scope) 
-        = pure (Bind fc x !(traverse (full gam) b) !(full gam scope))
-    full gam (App fc fn arg) 
-        = pure (App fc !(full gam fn) !(full gam arg))
-    full gam (As fc p tm)
-        = pure (As fc !(full gam p) !(full gam tm))
-    full gam (TDelayed fc x y) 
-        = pure (TDelayed fc x !(full gam y))
-    full gam (TDelay fc x t y)
-        = pure (TDelay fc x !(full gam t) !(full gam y))
-    full gam (TForce fc y)
-        = pure (TForce fc !(full gam y))
-    full gam tm = pure tm
+              HasNames a => a -> Core a
+toFullNames {c} t = fullNames c t
+
+export
+toResolvedNames : {auto c : Ref Ctxt Defs} ->
+                  HasNames a => a -> Core a
+toResolvedNames {c} t = resolvedNames c t
+
+export
+HasNames (Term vars) where
+  fullNames c tm
+      = do defs <- get Ctxt
+           full (gamma defs) tm
+    where
+      full : Context GlobalDef -> Term vars -> Core (Term vars)
+      full gam (Ref fc x (Resolved i)) 
+          = do Just gdef <- lookupCtxtExact (Resolved i) gam
+                    | Nothing => pure (Ref fc x (Resolved i))
+               pure (Ref fc x (fullname gdef))
+      full gam (Meta fc x y xs) 
+          = pure (Meta fc x y !(traverse (full gam) xs))
+      full gam (Bind fc x b scope) 
+          = pure (Bind fc x !(traverse (full gam) b) !(full gam scope))
+      full gam (App fc fn arg) 
+          = pure (App fc !(full gam fn) !(full gam arg))
+      full gam (As fc p tm)
+          = pure (As fc !(full gam p) !(full gam tm))
+      full gam (TDelayed fc x y) 
+          = pure (TDelayed fc x !(full gam y))
+      full gam (TDelay fc x t y)
+          = pure (TDelay fc x !(full gam t) !(full gam y))
+      full gam (TForce fc y)
+          = pure (TForce fc !(full gam y))
+      full gam tm = pure tm
+
+  resolvedNames c tm
+      = do defs <- get Ctxt
+           resolved (gamma defs) tm
+    where
+      resolved : Context GlobalDef -> Term vars -> Core (Term vars)
+      resolved gam (Ref fc x n) 
+          = do let Just i = getNameID n gam 
+                    | Nothing => pure (Ref fc x n)
+               pure (Ref fc x (Resolved i))
+      resolved gam (Meta fc x y xs) 
+          = pure (Meta fc x y !(traverse (resolved gam) xs))
+      resolved gam (Bind fc x b scope) 
+          = pure (Bind fc x !(traverse (resolved gam) b) !(resolved gam scope))
+      resolved gam (App fc fn arg) 
+          = pure (App fc !(resolved gam fn) !(resolved gam arg))
+      resolved gam (As fc p tm)
+          = pure (As fc !(resolved gam p) !(resolved gam tm))
+      resolved gam (TDelayed fc x y) 
+          = pure (TDelayed fc x !(resolved gam y))
+      resolved gam (TDelay fc x t y)
+          = pure (TDelay fc x !(resolved gam t) !(resolved gam y))
+      resolved gam (TForce fc y)
+          = pure (TForce fc !(resolved gam y))
+      resolved gam tm = pure tm
+
+mutual
+  export
+  HasNames (CaseTree vars) where
+    fullNames c tm
+        = do defs <- get Ctxt
+             full (gamma defs) tm
+      where
+        full : Context GlobalDef -> CaseTree vars -> Core (CaseTree vars)
+        full gam (Case i v ty alts)
+            = pure $ Case i v !(toFullNames ty) !(traverse toFullNames alts)
+        full gam (STerm tm)
+            = pure $ STerm !(toFullNames tm)
+        full gam t = pure t
+
+    resolvedNames c tm
+        = do defs <- get Ctxt
+             resolved (gamma defs) tm
+      where
+        resolved : Context GlobalDef -> CaseTree vars -> Core (CaseTree vars)
+        resolved gam (Case i v ty alts)
+            = pure $ Case i v !(toResolvedNames ty) !(traverse toResolvedNames alts)
+        resolved gam (STerm tm)
+            = pure $ STerm !(toResolvedNames tm)
+        resolved gam t = pure t
+
+  export
+  HasNames (CaseAlt vars) where
+    fullNames c tm
+        = do defs <- get Ctxt
+             full (gamma defs) tm
+      where
+        full : Context GlobalDef -> CaseAlt vars -> Core (CaseAlt vars)
+        full gam (ConCase n t args sc)
+            = do sc' <- toFullNames sc
+                 Just gdef <- lookupCtxtExact n gam
+                    | Nothing => pure (ConCase n t args sc')
+                 pure $ ConCase (fullname gdef) t args sc'
+        full gam (DelayCase ty arg sc)
+            = pure $ DelayCase ty arg !(toFullNames sc)
+        full gam (ConstCase c sc)
+            = pure $ ConstCase c !(toFullNames sc)
+        full gam (DefaultCase sc)
+            = pure $ DefaultCase !(toFullNames sc)
+
+    resolvedNames c tm
+        = do defs <- get Ctxt
+             resolved (gamma defs) tm
+      where
+        resolved : Context GlobalDef -> CaseAlt vars -> Core (CaseAlt vars)
+        resolved gam (ConCase n t args sc)
+            = do sc' <- toFullNames sc
+                 let Just i = getNameID n gam 
+                    | Nothing => pure (ConCase n t args sc')
+                 pure $ ConCase (Resolved i) t args sc'
+        resolved gam (DelayCase ty arg sc)
+            = pure $ DelayCase ty arg !(toResolvedNames sc)
+        resolved gam (ConstCase c sc)
+            = pure $ ConstCase c !(toResolvedNames sc)
+        resolved gam (DefaultCase sc)
+            = pure $ DefaultCase !(toResolvedNames sc)
+
+export
+HasNames (Env Term vars) where
+  fullNames c env
+      = do defs <- get Ctxt
+           full (gamma defs) env
+    where
+      full : Context GlobalDef -> Env Term vars -> Core (Env Term vars)
+      full gam [] = pure []
+      full gam (b :: bs)
+          = pure $ !(traverse toFullNames b) :: !(full gam bs)
+
+  resolvedNames c env
+      = do defs <- get Ctxt
+           resolved (gamma defs) env
+    where
+      resolved : Context GlobalDef -> Env Term vars -> Core (Env Term vars)
+      resolved gam [] = pure []
+      resolved gam (b :: bs)
+          = pure $ !(traverse toResolvedNames b) :: !(resolved gam bs)
+
+export
+HasNames Def where
+  fullNames c tm
+      = do defs <- get Ctxt
+           full (gamma defs) tm
+    where
+      fullNamesPat : (vs ** (Env Term vs, Term vs, Term vs)) ->
+                     Core (vs ** (Env Term vs, Term vs, Term vs))
+      fullNamesPat (_ ** (env, lhs, rhs))
+          = pure $ (_ ** (!(toFullNames env), 
+                          !(toFullNames lhs), !(toFullNames rhs))) 
+
+      full : Context GlobalDef -> Def -> Core Def
+      full gam (PMDef args ct rt pats) 
+          = pure $ PMDef args !(toFullNames ct) !(toFullNames rt)
+                         !(traverse fullNamesPat pats)
+      full gam (Guess tm cs) 
+          = pure $ Guess !(toFullNames tm) cs
+      full gam t = pure t
+  
+  resolvedNames c tm
+      = do defs <- get Ctxt
+           resolved (gamma defs) tm
+    where
+      resolvedNamesPat : (vs ** (Env Term vs, Term vs, Term vs)) ->
+                     Core (vs ** (Env Term vs, Term vs, Term vs))
+      resolvedNamesPat (_ ** (env, lhs, rhs))
+          = pure $ (_ ** (!(toResolvedNames env), 
+                          !(toResolvedNames lhs), !(toResolvedNames rhs))) 
+
+      resolved : Context GlobalDef -> Def -> Core Def
+      resolved gam (PMDef args ct rt pats) 
+          = pure $ PMDef args !(toResolvedNames ct) !(toResolvedNames rt)
+                         !(traverse resolvedNamesPat pats)
+      resolved gam (Guess tm cs) 
+          = pure $ Guess !(toResolvedNames tm) cs
+      resolved gam t = pure t
 
 -- Getting and setting various options
 

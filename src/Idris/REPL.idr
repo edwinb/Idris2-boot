@@ -50,7 +50,7 @@ showInfo : {auto c : Ref Ctxt Defs} ->
            (Name, Int, GlobalDef) -> Core ()
 showInfo (n, idx, d) 
     = do coreLift $ putStrLn (show (fullname d) ++ " ==> " ++ 
-                              show (definition d))
+                              show !(toFullNames (definition d)))
          case compexpr d of
               Nothing => pure ()
               Just expr => coreLift $ putStrLn ("Compiled: " ++ show expr)
