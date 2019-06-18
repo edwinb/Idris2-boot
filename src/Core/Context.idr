@@ -89,6 +89,20 @@ addPossible n i ps
                    Nothing => insert nr [(n, i)] ps
                    Just nis => insert nr ((n, i) :: nis) ps
 
+export
+newEntry : Name -> Context a -> Core (Int, Context a)
+newEntry n ctxt
+    = do let idx = nextEntry ctxt
+         let a = content ctxt
+         arr <- get Arr
+         when (idx >= max arr) $
+                 do arr' <- coreLift $ newArrayCopy (max arr + Grow) arr
+                    put Arr arr'
+         pure (idx, record { nextEntry = idx + 1,
+                             resolvedAs $= insert n idx,
+                             possibles $= addPossible n idx
+                           } ctxt)
+
 -- Get the position of the next entry in the context array, growing the
 -- array if it's out of bounds.
 -- Updates the context with the mapping from name to index
@@ -99,17 +113,7 @@ getPosition n ctxt
     = case lookup n (resolvedAs ctxt) of
            Just idx => 
               do pure (idx, ctxt)
-           Nothing => 
-              do let idx = nextEntry ctxt
-                 let a = content ctxt
-                 arr <- get Arr
-                 when (idx >= max arr) $
-                         do arr' <- coreLift $ newArrayCopy (max arr + Grow) arr
-                            put Arr arr'
-                 pure (idx, record { nextEntry = idx + 1,
-                                     resolvedAs $= insert n idx,
-                                     possibles $= addPossible n idx
-                                   } ctxt)
+           Nothing => newEntry n ctxt
 
 export
 getNameID : Name -> Context a -> Maybe Int

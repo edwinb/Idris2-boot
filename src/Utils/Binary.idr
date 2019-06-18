@@ -23,107 +23,67 @@ data Bin : Type where
 export
 data ResID : Type where
 
--- A component of the serialised data.
-record Chunk where
-  constructor MkChunk
+export
+record Binary where
+  constructor MkBin
   buf : Buffer
   loc : Int
   size : Int -- Capacity
   used : Int -- Amount used
 
-newChunk : Buffer -> Chunk
-newChunk b = MkChunk b 0 (size b) 0
+newBinary : Buffer -> Binary
+newBinary b = MkBin b 0 (size b) 0
 
-avail : Chunk -> Int
-avail c = size c - loc c
+blockSize : Int
+blockSize = 655360
 
-toRead : Chunk -> Int
-toRead c = used c - loc c
+avail : Binary -> Int
+avail c = (size c - loc c) - 1
 
-appended : Int -> Chunk -> Chunk
-appended i (MkChunk b loc s used) = MkChunk b (loc+i) s (used + i)
+toRead : Binary -> Int
+toRead c = used c - loc c 
 
-incLoc : Int -> Chunk -> Chunk
+appended : Int -> Binary -> Binary
+appended i (MkBin b loc s used) = MkBin b (loc+i) s (used + i)
+
+incLoc : Int -> Binary -> Binary
 incLoc i c = record { loc $= (+i) } c
 
--- Serialised data is stored as a list of chunks, in a zipper.
--- i.e. processed chunks, chunk we're working on, chunks to do
-export
-data Binary = MkBin (List Chunk) Chunk (List Chunk)
-
 dumpBin : Binary -> IO ()
-dumpBin (MkBin done chunk rest)
-   = do printLn !(traverse bufferData (map buf done))
+dumpBin chunk
+   = do -- printLn !(traverse bufferData (map buf done))
         printLn !(bufferData (buf chunk))
-        printLn !(traverse bufferData (map buf rest))
+        -- printLn !(traverse bufferData (map buf rest))
 
 nonEmptyRev : NonEmpty (xs ++ y :: ys)
 nonEmptyRev {xs = []} = IsNonEmpty
 nonEmptyRev {xs = (x :: xs)} = IsNonEmpty
 
-reset : Binary -> Binary
-reset (MkBin done cur rest) 
-    = setBin (reverse done ++ cur :: rest) nonEmptyRev
-  where
-    setBin : (xs : List Chunk) -> (prf : NonEmpty xs) -> Binary
-    setBin (chunk :: rest) IsNonEmpty 
-        = MkBin [] (record { loc = 0 } chunk)
-                   (map (record { loc = 0 }) rest)
-
-req : List Chunk -> Int
-req [] = 0
-req (c :: cs)
-    = used c + req cs
-
--- Take all the data from the chunks in a 'Binary' and copy them into one
--- single buffer, ready for writing to disk.
--- TODO: YAGNI? Delete if so...
-toBuffer : Binary -> IO (Maybe Buffer)
-toBuffer (MkBin done cur rest)
-    = do let chunks = reverse done ++ cur :: rest
-         Just b <- newBuffer (req chunks)
-              | Nothing => pure Nothing
-         copyToBuf 0 b chunks
-         pure (Just b)
-  where
-    copyToBuf : (pos : Int) -> Buffer -> List Chunk -> IO ()
-    copyToBuf pos b [] = pure ()
-    copyToBuf pos b (c :: cs)
-        = do copyData (buf c) 0 (used c) b pos
-             copyToBuf (pos + used c) b cs
-
 fromBuffer : Buffer -> IO Binary
 fromBuffer buf
     = do len <- rawSize buf
-         pure (MkBin [] (MkChunk buf 0 len len) []) -- assume all used
+         pure (MkBin buf 0 len len)
 
 export
 writeToFile : (fname : String) -> Binary -> IO (Either FileError ())
-writeToFile fname (MkBin done cur rest)
+writeToFile fname c
     = do Right h <- openFile fname WriteTruncate
                | Left err => pure (Left err)
-         let chunks = reverse done ++ cur :: rest
-         writeChunks h chunks
+         writeBufferToFile h (resetBuffer (buf c)) (used c)
          closeFile h
          pure (Right ())
-  where
-    writeChunks : File -> List Chunk -> IO ()
-    writeChunks h [] = pure ()
-    writeChunks h (c :: cs)
-        = do writeBufferToFile h (resetBuffer (buf c)) (used c)
-             writeChunks h cs
 
 export
 readFromFile : (fname : String) -> IO (Either FileError Binary)
 readFromFile fname
     = do Right h <- openFile fname Read
                | Left err => pure (Left err)
-         Right max <- fileSize h
+         Right fsize <- fileSize h
                | Left err => pure (Left err)
-         Just b <- newBuffer max
+         Just b <- newBuffer fsize
                | Nothing => pure (Left (GenericFileError 0)) --- um, not really
-         b <- readBufferFromFile h b max
-         pure (Right (MkBin [] (MkChunk b 0 max max) []))
+         b <- readBufferFromFile h b fsize
+         pure (Right (MkBin b 0 fsize fsize))
 
 -- A mapping from the resolved name ids encountered in a TTC file to the
 -- name they represent, and (if known) the new resolved id it'll be after
@@ -143,16 +103,21 @@ interface TTC a where -- TTC = TT intermediate code/interface file
   -- Throws if the data can't be parsed as an 'a'
   fromBuf : NameRefs -> Ref Bin Binary -> Core a
 
-blockSize : Int
-blockSize = 655360
-
 -- Create a new list of chunks, initialised with one 64k chunk
 export
 initBinary : Core (Ref Bin Binary)
 initBinary
     = do Just buf <- coreLift $ newBuffer blockSize
              | Nothing => throw (InternalError "Buffer creation failed")
-         newRef Bin (MkBin [] (newChunk buf) [])
+         newRef Bin (newBinary buf)
+
+extendBinary : Binary -> Core Binary
+extendBinary (MkBin buf l s u)
+    = do let s' = s + blockSize
+         Just buf' <- coreLift $ resizeBuffer buf s'
+             | Nothing => throw (InternalError "Buffer expansion failed")
+         pure (MkBin buf' l s' u)
+
 
 export
 initNameRefs : Int -> Core NameRefs
@@ -169,33 +134,23 @@ corrupt ty = throw (TTCError (Corrupt ty))
 export
 TTC Bits8 where
   toBuf b val 
-    = do MkBin done chunk rest <- get Bin
+    = do chunk <- get Bin
          if avail chunk >= 1
             then
               do coreLift $ setByte (buf chunk) (loc chunk) val
-                 put Bin (MkBin done (appended 1 chunk) rest)
-            else 
-              do Just newbuf <- coreLift $ newBuffer blockSize
-                    | Nothing => throw (InternalError "Buffer expansion failed")
-                 coreLift $ setByte newbuf 0 val
-                 put Bin (MkBin (chunk :: done)
-                                (MkChunk newbuf 1 (size newbuf) 1)
-                                rest)
+                 put Bin (appended 1 chunk)
+            else do chunk' <- extendBinary chunk
+                    coreLift $ setByte (buf chunk') (loc chunk') val
+                    put Bin (appended 1 chunk')
 
   fromBuf s b
-    = do MkBin done chunk rest <- get Bin
+    = do chunk <- get Bin
          if toRead chunk >= 1
             then
               do val <- coreLift $ getByte (buf chunk) (loc chunk)
-                 put Bin (MkBin done (incLoc 1 chunk) rest)
+                 put Bin (incLoc 1 chunk)
                  pure val
-              else
-                case rest of
-                     [] => throw (TTCError (EndOfBuffer "Byte"))
-                     (next :: rest) =>
-                        do val <- coreLift $ getByte (buf next) 0
-                           put Bin (MkBin (chunk :: done) (incLoc 1 next) rest)
-                           pure val
+              else throw (TTCError (EndOfBuffer "Byte"))
 
 export
 tag : {auto b : Ref Bin Binary} -> Bits8 -> Core ()
@@ -211,67 +166,47 @@ getTag {r} {b} = fromBuf r b
 export
 TTC Int where
   toBuf b val
-    = do MkBin done chunk rest <- get Bin
+    = do chunk <- get Bin
          if avail chunk >= 4
             then 
               do coreLift $ setInt (buf chunk) (loc chunk) val
-                 put Bin (MkBin done (appended 4 chunk) rest)
-            else 
-              do Just newbuf <- coreLift $ newBuffer blockSize
-                    | Nothing => throw (InternalError "Buffer expansion failed")
-                 coreLift $ setInt newbuf 0 val
-                 put Bin (MkBin (chunk :: done)
-                                (MkChunk newbuf 4 (size newbuf) 4)
-                                rest)
+                 put Bin (appended 4 chunk)
+            else do chunk' <- extendBinary chunk
+                    coreLift $ setInt (buf chunk') (loc chunk') val
+                    put Bin (appended 4 chunk')
+
   fromBuf r b 
-    = do MkBin done chunk rest <- get Bin
+    = do chunk <- get Bin
          if toRead chunk >= 4
             then
               do val <- coreLift $ getInt (buf chunk) (loc chunk)
-                 put Bin (MkBin done (incLoc 4 chunk) rest)
+                 put Bin (incLoc 4 chunk)
                  pure val
-              else
-                case rest of
-                     [] => throw (TTCError (EndOfBuffer "Int"))
-                     (next :: rest) =>
-                        do val <- coreLift $ getInt (buf next) 0
-                           put Bin (MkBin (chunk :: done) (incLoc 4 next) rest)
-                           pure val
+              else throw (TTCError (EndOfBuffer ("Int " ++ show (loc chunk, size chunk))))
 
 export
 TTC String where
   toBuf b val
       = do let req : Int = cast (length val)
            toBuf b req
-           MkBin done chunk rest <- get Bin
+           chunk <- get Bin
            if avail chunk >= req
               then
                 do coreLift $ setString (buf chunk) (loc chunk) val
-                   put Bin (MkBin done (appended req chunk) rest)
-              else 
-                do Just newbuf <- coreLift $ newBuffer blockSize
-                      | Nothing => throw (InternalError "Buffer expansion failed")
-                   coreLift $ setString newbuf 0 val
-                   put Bin (MkBin (chunk :: done)
-                                  (MkChunk newbuf req (size newbuf) req)
-                                  rest)
+                   put Bin (appended req chunk)
+              else do chunk' <- extendBinary chunk
+                      coreLift $ setString (buf chunk') (loc chunk') val
+                      put Bin (appended req chunk')
 
   fromBuf r b 
       = do len <- fromBuf {a = Int} r b
-           MkBin done chunk rest <- get Bin
+           chunk <- get Bin
            if toRead chunk >= len
               then
                 do val <- coreLift $ getString (buf chunk) (loc chunk) len
-                   put Bin (MkBin done (incLoc len chunk) rest)
+                   put Bin (incLoc len chunk)
                    pure val
-              else 
-                case rest of
-                     [] => throw (TTCError (EndOfBuffer "String"))
-                     (next :: rest) =>
-                        do val <- coreLift $ getString (buf next) 0 len
-                           put Bin (MkBin (chunk :: done)
-                                          (incLoc len next) rest)
-                           pure val
+              else throw (TTCError (EndOfBuffer "String"))
 
 export
 TTC Bool where
@@ -293,32 +228,23 @@ TTC Char where
 export
 TTC Double where
   toBuf b val
-    = do MkBin done chunk rest <- get Bin
+    = do chunk <- get Bin
          if avail chunk >= 8
             then 
               do coreLift $ setDouble (buf chunk) (loc chunk) val
-                 put Bin (MkBin done (appended 8 chunk) rest)
-            else 
-              do Just newbuf <- coreLift $ newBuffer blockSize
-                    | Nothing => throw (InternalError "Buffer expansion failed")
-                 coreLift $ setDouble newbuf 0 val
-                 put Bin (MkBin (chunk :: done)
-                                (MkChunk newbuf 8 (size newbuf) 8)
-                                rest)
+                 put Bin (appended 8 chunk)
+            else do chunk' <- extendBinary chunk
+                    coreLift $ setDouble (buf chunk') (loc chunk') val
+                    put Bin (appended 8 chunk')
+
   fromBuf r b 
-    = do MkBin done chunk rest <- get Bin
+    = do chunk <- get Bin
          if toRead chunk >= 8
             then
               do val <- coreLift $ getDouble (buf chunk) (loc chunk)
-                 put Bin (MkBin done (incLoc 8 chunk) rest)
+                 put Bin (incLoc 8 chunk)
                  pure val
-              else
-                case rest of
-                     [] => throw (TTCError (EndOfBuffer "Double"))
-                     (next :: rest) =>
-                        do val <- coreLift $ getDouble (buf next) 0
-                           put Bin (MkBin (chunk :: done) (incLoc 8 next) rest)
-                           pure val
+              else throw (TTCError (EndOfBuffer "Double"))
 
 export
 (TTC a, TTC b) => TTC (a, b) where
