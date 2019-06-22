@@ -169,28 +169,25 @@ mutual
                  (POp fc op arg (PRef fc (MN "arg" 0))))
   desugar side ps (PSearch fc depth) = pure $ ISearch fc depth
   desugar side ps (PPrimVal fc (BI x))
-      = do defs <- get Ctxt
-           case fromIntegerName defs of
-                Nothing =>
-                   pure $ IAlternative fc (UniqueDefault (IPrimVal fc (BI x)))
-                                   [IPrimVal fc (BI x),
-                                    IPrimVal fc (I (fromInteger x))]
-                Just fi => pure $ IApp fc (IVar fc fi) 
-                                          (IPrimVal fc (BI x))
+      = case !fromIntegerName of
+             Nothing =>
+                pure $ IAlternative fc (UniqueDefault (IPrimVal fc (BI x)))
+                                [IPrimVal fc (BI x),
+                                 IPrimVal fc (I (fromInteger x))]
+             Just fi => pure $ IApp fc (IVar fc fi) 
+                                       (IPrimVal fc (BI x))
   desugar side ps (PPrimVal fc (Str x))
-      = do defs <- get Ctxt
-           case fromStringName defs of
-                Nothing =>
-                   pure $ IPrimVal fc (Str x)
-                Just f => pure $ IApp fc (IVar fc f) 
-                                         (IPrimVal fc (Str x))
+      = case !fromStringName of
+             Nothing =>
+                pure $ IPrimVal fc (Str x)
+             Just f => pure $ IApp fc (IVar fc f) 
+                                      (IPrimVal fc (Str x))
   desugar side ps (PPrimVal fc (Ch x))
-      = do defs <- get Ctxt
-           case fromCharName defs of
-                Nothing =>
-                   pure $ IPrimVal fc (Ch x)
-                Just f => pure $ IApp fc (IVar fc f) 
-                                         (IPrimVal fc (Ch x))
+      = case !fromCharName of
+             Nothing =>
+                pure $ IPrimVal fc (Ch x)
+             Just f => pure $ IApp fc (IVar fc f) 
+                                      (IPrimVal fc (Ch x))
   desugar side ps (PPrimVal fc x) = pure $ IPrimVal fc x
   desugar side ps (PQuote fc x) 
       = throw (GenericMsg fc "Reflection not implemeted yet")

@@ -231,11 +231,11 @@ searchLocalWith {vars} fc rigc defaults trying depth def top env ((prf, ty) :: r
         = tryUnify (findDirect defs prf f nty target)
             (do fname <- maybe (throw (CantSolveGoal fc [] top))
                                pure
-                               (fstName defs)
+                               !fstName
                 sname <- maybe (throw (CantSolveGoal fc [] top))
                                pure
-                               (sndName defs)
-                if isPairType pn defs
+                               !sndName
+                if !(isPairType pn)
                    then do empty <- clearDefs defs
                            xtytm <- quote empty env xty
                            ytytm <- quote empty env yty
@@ -269,9 +269,10 @@ searchLocal : {auto c : Ref Ctxt Defs} ->
 searchLocal fc rig defaults trying depth def top env target
     = searchLocalWith fc rig defaults trying depth def top env (getAllEnv fc [] env) target
 
-isPairNF : Env Term vars -> NF vars -> Defs -> Core Bool
+isPairNF : {auto c : Ref Ctxt Defs} ->
+           Env Term vars -> NF vars -> Defs -> Core Bool
 isPairNF env (NTCon _ n _ _ _) defs
-    = pure $ isPairType n defs
+    = isPairType n
 isPairNF env (NBind fc b (Pi _ _ _) sc) defs
     = isPairNF env !(sc defs (toClosure defaultOpts env (Erased fc))) defs
 isPairNF _ _ _ = pure False
@@ -321,7 +322,7 @@ searchNames fc rigc defaults trying depth defining topty env (n :: ns) target
          exactlyOne fc env topty 
             (map (searchName fc rigc defaults trying depth defining topty env target) visns)
   where
-    visible : Context GlobalDef -> 
+    visible : Context -> 
               List String -> Name -> Core (Maybe (Name, GlobalDef))
     visible gam nspace n
         = do Just def <- lookupCtxtExact n gam
@@ -368,7 +369,7 @@ checkConcreteDets : {auto c : Ref Ctxt Defs} ->
                     Core ()
 checkConcreteDets fc defaults env top (NTCon tfc tyn t a args) 
     = do defs <- get Ctxt
-         if isPairType tyn defs
+         if !(isPairType tyn)
             then case args of
                       [aty, bty] => 
                           do anf <- evalClosure defs aty

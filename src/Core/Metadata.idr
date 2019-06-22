@@ -185,6 +185,39 @@ TTC TTMFile where
            md <- fromBuf s b
            pure (MkTTMFile ver md)
 
+HasNames Metadata where
+  full gam (MkMetadata lhs ns tys clhs hlhs)
+      = pure $ MkMetadata !(traverse fullLHS lhs)
+                          !(traverse fullTy ns)
+                          !(traverse fullTy tys)
+                          Nothing
+                          !(traverse fullHLHS hlhs)
+    where
+      fullLHS : (FC, (Nat, ClosedTerm)) -> Core (FC, (Nat, ClosedTerm))
+      fullLHS (fc, (i, tm)) = pure (fc, (i, !(full gam tm)))
+
+      fullTy : (FC, (Name, Nat, ClosedTerm)) -> Core (FC, (Name, Nat, ClosedTerm))
+      fullTy (fc, (n, i, tm)) = pure (fc, (!(full gam n), i, !(full gam tm)))
+
+      fullHLHS : (Name, ClosedTerm) -> Core (Name, ClosedTerm)
+      fullHLHS (n, tm) = pure (!(full gam n), !(full gam tm))
+
+  resolved gam (MkMetadata lhs ns tys clhs hlhs)
+      = pure $ MkMetadata !(traverse resolvedLHS lhs)
+                          !(traverse resolvedTy ns)
+                          !(traverse resolvedTy tys)
+                          Nothing
+                          !(traverse resolvedHLHS hlhs)
+    where
+      resolvedLHS : (FC, (Nat, ClosedTerm)) -> Core (FC, (Nat, ClosedTerm))
+      resolvedLHS (fc, (i, tm)) = pure (fc, (i, !(resolved gam tm)))
+
+      resolvedTy : (FC, (Name, Nat, ClosedTerm)) -> Core (FC, (Name, Nat, ClosedTerm))
+      resolvedTy (fc, (n, i, tm)) = pure (fc, (!(resolved gam n), i, !(resolved gam tm)))
+
+      resolvedHLHS : (Name, ClosedTerm) -> Core (Name, ClosedTerm)
+      resolvedHLHS (n, tm) = pure (!(resolved gam n), !(resolved gam tm))
+
 export
 writeToTTM : {auto c : Ref Ctxt Defs} ->
              {auto m : Ref MD Metadata} ->
@@ -194,7 +227,8 @@ writeToTTM fname
     = do normaliseTypes
          buf <- initBinary
          meta <- get MD
-         toBuf buf (MkTTMFile ttcVersion meta)
+         defs <- get Ctxt
+         toBuf buf (MkTTMFile ttcVersion !(full (gamma defs) meta))
          Right ok <- coreLift $ writeToFile fname !(get Bin)
              | Left err => throw (InternalError (fname ++ ": " ++ show err))
          pure ()

@@ -191,7 +191,7 @@ searchNames fc rig opts env ty topty defining (n :: ns)
          getSuccessful fc rig opts False env ty topty defining
             (map (searchName fc rig opts env nfty topty defining) visns)
   where
-    visible : Context GlobalDef -> List String -> Name -> 
+    visible : Context -> List String -> Name -> 
               Core (Maybe (Name, GlobalDef))
     visible gam nspace n
         = do Just def <- lookupCtxtExact n gam
@@ -317,11 +317,11 @@ searchLocalWith {vars} fc rig opts env ((p, pty) :: rest) ty topty defining
               [findDirect defs prf f x target,
                  (do fname <- maybe (throw (InternalError "No fst"))
                                     pure
-                                    (fstName defs)
+                                    !fstName
                      sname <- maybe (throw (InternalError "No snd"))
                                     pure
-                                    (sndName defs)
-                     if isPairType pn defs
+                                    !sndName
+                     if !(isPairType pn)
                         then do empty <- clearDefs defs
                                 xtytm <- quote empty env xty
                                 ytytm <- quote empty env yty
@@ -432,7 +432,7 @@ search fc rig opts defining topty n_in
               _ => do log 10 $ show n_in ++ " not found"
                       throw (UndefinedName fc n_in)
   where
-    lookupHoleName : Name -> Context GlobalDef -> 
+    lookupHoleName : Name -> Context -> 
                      Core (Maybe (Name, Int, GlobalDef))
     lookupHoleName n defs
         = case !(lookupCtxtExactI n defs) of

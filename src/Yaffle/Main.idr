@@ -32,6 +32,10 @@ processArgs _
     = coreLift $ do putStrLn usage
                     exitWith (ExitFailure 1)
 
+HasNames () where
+  full _ _ = pure ()
+  resolved _ _ = pure ()
+
 export
 yaffleMain : String -> List String -> Core ()
 yaffleMain fname args

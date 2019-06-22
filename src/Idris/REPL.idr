@@ -252,7 +252,7 @@ printClause i (ImpossibleClause _ lhsraw)
     = do lhs <- pterm lhsraw
          pure (pack (replicate i ' ') ++ show lhs ++ " impossible")
 
-lookupDefTyName : Name -> Context GlobalDef -> 
+lookupDefTyName : Name -> Context -> 
                   Core (List (Name, Int, (Def, ClosedTerm)))
 lookupDefTyName = lookupNameBy (\g => (definition g, type g))
 

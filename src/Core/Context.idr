@@ -20,206 +20,6 @@ import System
 
 %default covering
 
--- Label for array references
-data Arr : Type where
-
-export
-record Context a where
-    constructor MkContext
-    firstEntry : Int -- First entry in the current source file
-    nextEntry : Int
-    -- Map from full name to its position in the context
-    resolvedAs : NameMap Int
-    -- Map from strings to all the possible names in all namespaces
-    possibles : StringMap (List (Name, Int))
-    -- Reference to the actual content, indexed by Int
-    content : Ref Arr (IOArray a)    
-    -- Branching depth, in a backtracking elaborator. 0 is top level; at lower
-    -- levels we need to stage updates rather than add directly to the
-    -- 'content' store
-    branchDepth : Nat
-    -- Things which we're going to add, if this branch succeeds
-    staging : IntMap a
-
-    -- Namespaces which are visible (i.e. have been imported)
-    -- This only matters during evaluation and type checking, to control
-    -- access in a program - in all other cases, we'll assume everything is
-    -- visible
-    visibleNS : List (List String)
-
--- Make an array which is a mapping from IDs to the names they represent
--- (the reverse of 'resolvedAs') which we use when serialising to record which
--- name each ID refers to. Then when we read references in terms, we'll know
--- which name it really is and can update appropriately for the new context.
-export
-getNameRefs : Context a -> Core NameRefs
-getNameRefs gam
-    = do arr <- coreLift $ newArray (nextEntry gam)
-         traverse_ (addToMap arr) (toList (resolvedAs gam))
-         pure arr
-  where
-    addToMap : NameRefs -> (Name, Int) -> Core ()
-    addToMap arr (UN _, i) = pure () -- skip primitives, they're always added first
-    addToMap arr (n, i)
-        = coreLift $ writeArray arr i (n, Nothing)
-
-initSize : Int
-initSize = 10000
-
-Grow : Int
-Grow = initSize
-
-export
-initCtxtS : Int -> Core (Context a)
-initCtxtS s
-    = do arr <- coreLift $ newArray s
-         aref <- newRef Arr arr
-         pure (MkContext 0 0 empty empty aref 0 empty [])
-
-export
-initCtxt : Core (Context a)
-initCtxt = initCtxtS initSize
-
-addPossible : Name -> Int -> 
-              StringMap (List (Name, Int)) -> StringMap (List (Name, Int))
-addPossible n i ps
-    = case userNameRoot n of
-           Nothing => ps
-           Just nr =>
-              case lookup nr ps of
-                   Nothing => insert nr [(n, i)] ps
-                   Just nis => insert nr ((n, i) :: nis) ps
-
-export
-newEntry : Name -> Context a -> Core (Int, Context a)
-newEntry n ctxt
-    = do let idx = nextEntry ctxt
-         let a = content ctxt
-         arr <- get Arr
-         when (idx >= max arr) $
-                 do arr' <- coreLift $ newArrayCopy (max arr + Grow) arr
-                    put Arr arr'
-         pure (idx, record { nextEntry = idx + 1,
-                             resolvedAs $= insert n idx,
-                             possibles $= addPossible n idx
-                           } ctxt)
-
--- Get the position of the next entry in the context array, growing the
--- array if it's out of bounds.
--- Updates the context with the mapping from name to index
-export
-getPosition : Name -> Context a -> Core (Int, Context a)
-getPosition (Resolved idx) ctxt = pure (idx, ctxt)
-getPosition n ctxt
-    = case lookup n (resolvedAs ctxt) of
-           Just idx => 
-              do pure (idx, ctxt)
-           Nothing => newEntry n ctxt
-
-export
-getNameID : Name -> Context a -> Maybe Int
-getNameID (Resolved idx) ctxt = Just idx
-getNameID n ctxt = lookup n (resolvedAs ctxt)
-
--- Add the name to the context, or update the existing entry if it's already
--- there.
--- If we're not at the top level, add it to the staging area
-export
-addCtxt : Name -> a -> Context a -> Core (Int, Context a)
-addCtxt n val ctxt_in
-    = if branchDepth ctxt_in == 0
-         then do (idx, ctxt) <- getPosition n ctxt_in
-                 let a = content ctxt
-                 arr <- get Arr
-                 coreLift $ writeArray arr idx val
-                 pure (idx, ctxt)
-         else do (idx, ctxt) <- getPosition n ctxt_in
-                 pure (idx, record { staging $= insert idx val } ctxt)
-
-export
-lookupCtxtExactI : Name -> Context a -> Core (Maybe (Int, a))
-lookupCtxtExactI (Resolved idx) ctxt
-    = case lookup idx (staging ctxt) of
-           Just val => pure (Just (idx, val))
-           Nothing =>
-              do let a = content ctxt
-                 arr <- get Arr
-                 Just def <- coreLift (readArray arr idx)
-                      | Nothing => pure Nothing
-                 pure (Just (idx, def))
-lookupCtxtExactI n ctxt
-    = do let Just idx = lookup n (resolvedAs ctxt)
-                  | Nothing => pure Nothing
-         lookupCtxtExactI (Resolved idx) ctxt
-
-export
-lookupCtxtExact : Name -> Context a -> Core (Maybe a)
-lookupCtxtExact (Resolved idx) ctxt
-    = case lookup idx (staging ctxt) of
-           Just res => pure (Just res)
-           Nothing =>
-              do let a = content ctxt
-                 arr <- get Arr
-                 coreLift (readArray arr idx)
-lookupCtxtExact n ctxt
-    = do Just (i, def) <- lookupCtxtExactI n ctxt
-              | Nothing => pure Nothing
-         pure (Just def)
-
-export
-lookupCtxtName : Name -> Context a -> Core (List (Name, Int, a))
-lookupCtxtName n ctxt
-    = case userNameRoot n of
-           Nothing => do Just (i, res) <- lookupCtxtExactI n ctxt
-                              | Nothing => pure []
-                         pure [(n, i, res)]
-           Just r =>
-              do let Just ps = lookup r (possibles ctxt)
-                      | Nothing => pure []
-                 ps' <- the (Core (List (Maybe (Name, Int, a)))) $
-                           traverse (\ (n, i) => 
-                                    do Just res <- lookupCtxtExact (Resolved i) ctxt
-                                            | pure Nothing
-                                       pure (Just (n, i, res))) ps
-                 getMatches ps'
-  where
-    matches : Name -> (Name, Int, a) -> Bool
-    matches (NS ns _) (NS cns _, _, _) = ns `isPrefixOf` cns
-    matches (NS _ _) _ = True -- no in library name, so root doesn't match
-    matches _ _ = True -- no prefix, so root must match, so good
-    
-    getMatches : List (Maybe (Name, Int, a)) -> Core (List (Name, Int, a))
-    getMatches [] = pure []
-    getMatches (Nothing :: rs) = getMatches rs
-    getMatches (Just r :: rs)
-        = if matches n r
-             then do rs' <- getMatches rs
-                     pure (r :: rs')
-             else getMatches rs
-
-branchCtxt : Context a -> Core (Context a)
-branchCtxt ctxt = pure (record { branchDepth $= S } ctxt)
-
-commitCtxt : Context a -> Core (Context a) 
-commitCtxt ctxt
-    = case branchDepth ctxt of
-           Z => pure ctxt
-           S Z => -- add all the things from 'staging' to the real array
-                  do let a = content ctxt
-                     arr <- get Arr
-                     coreLift $ commitStaged (toList (staging ctxt)) arr
-                     pure (record { staging = empty,
-                                    branchDepth = Z } ctxt)
-           S k => pure (record { branchDepth = k } ctxt)
-  where
-    -- We know the array must be big enough, because it will have been resized
-    -- if necessary in the branch to fit the index we've been given here
-    commitStaged : List (Int, a) -> IOArray a -> IO ()
-    commitStaged [] arr = pure ()
-    commitStaged ((idx, val) :: rest) arr
-        = do writeArray arr idx val
-             commitStaged rest arr
-
 public export
 data Def : Type where
     None : Def -- Not yet defined
@@ -258,6 +58,7 @@ Show Def where
   show (DCon t a) = "DataCon " ++ show t ++ " " ++ show a
   show (TCon t a ps ds ms cons) 
       = "TyCon " ++ show t ++ " " ++ show a ++ " " ++ show cons
+        ++ " with " ++ show ms
   show (ExternDef arity) = "<external def with arith " ++ show arity ++ ">"
   show (Builtin {arity} _) = "<builtin with arith " ++ show arity ++ ">"
   show (Hole _ inv) = "Hole"
@@ -363,6 +164,234 @@ record GlobalDef where
   compexpr : Maybe CDef
   sizeChange : List SCCall
 
+-- Label for array references
+data Arr : Type where
+
+-- A context entry. If it's never been looked up, we haved decoded the
+-- names yet, so decoded it first time
+public export
+data ContextEntry : Type where
+     Coded : GlobalDef -> ContextEntry
+     Decoded : GlobalDef -> ContextEntry
+
+-- All the GlobalDefs. We can only have one context, because name references
+-- point at locations in here, and if we have more than one the indices won't
+-- match up. So, this isn't polymorphic.
+export
+record Context where
+    constructor MkContext
+    firstEntry : Int -- First entry in the current source file
+    nextEntry : Int
+    -- Map from full name to its position in the context
+    resolvedAs : NameMap Int
+    -- Map from strings to all the possible names in all namespaces
+    possibles : StringMap (List (Name, Int))
+    -- Reference to the actual content, indexed by Int
+    content : Ref Arr (IOArray ContextEntry)    
+    -- Branching depth, in a backtracking elaborator. 0 is top level; at lower
+    -- levels we need to stage updates rather than add directly to the
+    -- 'content' store
+    branchDepth : Nat
+    -- Things which we're going to add, if this branch succeeds
+    staging : IntMap ContextEntry
+
+    -- Namespaces which are visible (i.e. have been imported)
+    -- This only matters during evaluation and type checking, to control
+    -- access in a program - in all other cases, we'll assume everything is
+    -- visible
+    visibleNS : List (List String)
+
+-- Implemented later, once we can convert to and from full names
+decode : Context -> Int -> ContextEntry -> Core GlobalDef
+
+-- Make an array which is a mapping from IDs to the names they represent
+-- (the reverse of 'resolvedAs') which we use when serialising to record which
+-- name each ID refers to. Then when we read references in terms, we'll know
+-- which name it really is and can update appropriately for the new context.
+export
+getNameRefs : Context -> Core NameRefs
+getNameRefs gam
+    = do arr <- coreLift $ newArray (nextEntry gam)
+         traverse_ (addToMap arr) (toList (resolvedAs gam))
+         pure arr
+  where
+    addToMap : NameRefs -> (Name, Int) -> Core ()
+    addToMap arr (UN _, i) = pure () -- skip primitives, they're always added first
+    addToMap arr (n, i)
+        = coreLift $ writeArray arr i (n, Nothing)
+
+initSize : Int
+initSize = 10000
+
+Grow : Int
+Grow = initSize
+
+export
+initCtxtS : Int -> Core Context
+initCtxtS s
+    = do arr <- coreLift $ newArray s
+         aref <- newRef Arr arr
+         pure (MkContext 0 0 empty empty aref 0 empty [])
+
+export
+initCtxt : Core Context
+initCtxt = initCtxtS initSize
+
+addPossible : Name -> Int -> 
+              StringMap (List (Name, Int)) -> StringMap (List (Name, Int))
+addPossible n i ps
+    = case userNameRoot n of
+           Nothing => ps
+           Just nr =>
+              case lookup nr ps of
+                   Nothing => insert nr [(n, i)] ps
+                   Just nis => insert nr ((n, i) :: nis) ps
+
+export
+newEntry : Name -> Context -> Core (Int, Context)
+newEntry n ctxt
+    = do let idx = nextEntry ctxt
+         let a = content ctxt
+         arr <- get Arr
+         when (idx >= max arr) $
+                 do arr' <- coreLift $ newArrayCopy (max arr + Grow) arr
+                    put Arr arr'
+         pure (idx, record { nextEntry = idx + 1,
+                             resolvedAs $= insert n idx,
+                             possibles $= addPossible n idx
+                           } ctxt)
+
+-- Get the position of the next entry in the context array, growing the
+-- array if it's out of bounds.
+-- Updates the context with the mapping from name to index
+export
+getPosition : Name -> Context -> Core (Int, Context)
+getPosition (Resolved idx) ctxt = pure (idx, ctxt)
+getPosition n ctxt
+    = case lookup n (resolvedAs ctxt) of
+           Just idx => 
+              do pure (idx, ctxt)
+           Nothing => newEntry n ctxt
+
+export
+getNameID : Name -> Context -> Maybe Int
+getNameID (Resolved idx) ctxt = Just idx
+getNameID n ctxt = lookup n (resolvedAs ctxt)
+
+-- Add the name to the context, or update the existing entry if it's already
+-- there.
+-- If we're not at the top level, add it to the staging area
+export
+addCtxt : Name -> GlobalDef -> Context -> Core (Int, Context)
+addCtxt n val ctxt_in
+    = if branchDepth ctxt_in == 0
+         then do (idx, ctxt) <- getPosition n ctxt_in
+                 let a = content ctxt
+                 arr <- get Arr
+                 coreLift $ writeArray arr idx (Decoded val)
+                 pure (idx, ctxt)
+         else do (idx, ctxt) <- getPosition n ctxt_in
+                 pure (idx, record { staging $= insert idx (Decoded val) } ctxt)
+
+export
+addEntry : Name -> ContextEntry -> Context -> Core (Int, Context)
+addEntry n entry ctxt_in
+    = if branchDepth ctxt_in == 0
+         then do (idx, ctxt) <- getPosition n ctxt_in
+                 let a = content ctxt
+                 arr <- get Arr
+                 coreLift $ writeArray arr idx entry
+                 pure (idx, ctxt)
+         else do (idx, ctxt) <- getPosition n ctxt_in
+                 pure (idx, record { staging $= insert idx entry } ctxt)
+
+export
+lookupCtxtExactI : Name -> Context -> Core (Maybe (Int, GlobalDef))
+lookupCtxtExactI (Resolved idx) ctxt
+    = case lookup idx (staging ctxt) of
+           Just val => pure (Just (idx, !(decode ctxt idx val)))
+           Nothing =>
+              do let a = content ctxt
+                 arr <- get Arr
+                 Just def <- coreLift (readArray arr idx)
+                      | Nothing => pure Nothing
+                 pure (Just (idx, !(decode ctxt idx def)))
+lookupCtxtExactI n ctxt
+    = do let Just idx = lookup n (resolvedAs ctxt)
+                  | Nothing => pure Nothing
+         lookupCtxtExactI (Resolved idx) ctxt
+
+export
+lookupCtxtExact : Name -> Context -> Core (Maybe GlobalDef)
+lookupCtxtExact (Resolved idx) ctxt
+    = case lookup idx (staging ctxt) of
+           Just res => pure (Just !(decode ctxt idx res))
+           Nothing =>
+              do let a = content ctxt
+                 arr <- get Arr
+                 Just def <- coreLift (readArray arr idx)
+                      | Nothing => pure Nothing
+                 pure (Just !(decode ctxt idx def))
+lookupCtxtExact n ctxt
+    = do Just (i, def) <- lookupCtxtExactI n ctxt
+              | Nothing => pure Nothing
+         pure (Just def)
+
+export
+lookupCtxtName : Name -> Context -> Core (List (Name, Int, GlobalDef))
+lookupCtxtName n ctxt
+    = case userNameRoot n of
+           Nothing => do Just (i, res) <- lookupCtxtExactI n ctxt
+                              | Nothing => pure []
+                         pure [(n, i, res)]
+           Just r =>
+              do let Just ps = lookup r (possibles ctxt)
+                      | Nothing => pure []
+                 ps' <- the (Core (List (Maybe (Name, Int, GlobalDef)))) $
+                           traverse (\ (n, i) => 
+                                    do Just res <- lookupCtxtExact (Resolved i) ctxt
+                                            | pure Nothing
+                                       pure (Just (n, i, res))) ps
+                 getMatches ps'
+  where
+    matches : Name -> (Name, Int, a) -> Bool
+    matches (NS ns _) (NS cns _, _, _) = ns `isPrefixOf` cns
+    matches (NS _ _) _ = True -- no in library name, so root doesn't match
+    matches _ _ = True -- no prefix, so root must match, so good
+    
+    getMatches : List (Maybe (Name, Int, GlobalDef)) -> 
+                 Core (List (Name, Int, GlobalDef))
+    getMatches [] = pure []
+    getMatches (Nothing :: rs) = getMatches rs
+    getMatches (Just r :: rs)
+        = if matches n r
+             then do rs' <- getMatches rs
+                     pure (r :: rs')
+             else getMatches rs
+
+branchCtxt : Context -> Core Context
+branchCtxt ctxt = pure (record { branchDepth $= S } ctxt)
+
+commitCtxt : Context -> Core Context
+commitCtxt ctxt
+    = case branchDepth ctxt of
+           Z => pure ctxt
+           S Z => -- add all the things from 'staging' to the real array
+                  do let a = content ctxt
+                     arr <- get Arr
+                     coreLift $ commitStaged (toList (staging ctxt)) arr
+                     pure (record { staging = empty,
+                                    branchDepth = Z } ctxt)
+           S k => pure (record { branchDepth = k } ctxt)
+  where
+    -- We know the array must be big enough, because it will have been resized
+    -- if necessary in the branch to fit the index we've been given here
+    commitStaged : List (Int, ContextEntry) -> IOArray ContextEntry -> IO ()
+    commitStaged [] arr = pure ()
+    commitStaged ((idx, val) :: rest) arr
+        = do writeArray arr idx val
+             commitStaged rest arr
+
 export
 newDef : FC -> Name -> RigCount -> List Name -> 
          ClosedTerm -> Visibility -> Def -> GlobalDef
@@ -371,9 +400,250 @@ newDef fc n rig vars ty vis def
                   Nothing []
 
 public export
+interface HasNames a where
+  full : Context -> a -> Core a
+  resolved : Context -> a -> Core a
+
+export
+HasNames Name where
+  full gam (Resolved i)
+      = do Just gdef <- lookupCtxtExact (Resolved i) gam
+                | Nothing => do coreLift $ putStrLn $ "Missing name! " ++ show i
+                                pure (Resolved i)
+           pure (fullname gdef)
+  full gam n = pure n
+
+  resolved gam (Resolved i)
+      = pure (Resolved i)
+  resolved gam n
+      = do let Just i = getNameID n gam
+                    | Nothing => pure n
+           pure (Resolved i)
+
+export
+HasNames (Term vars) where
+  full gam (Ref fc x (Resolved i)) 
+      = do Just gdef <- lookupCtxtExact (Resolved i) gam
+                | Nothing => do coreLift $ putStrLn $ "Missing name! " ++ show i
+                                pure (Ref fc x (Resolved i))
+           pure (Ref fc x (fullname gdef))
+  full gam (Meta fc x y xs) 
+      = pure (Meta fc x y !(traverse (full gam) xs))
+  full gam (Bind fc x b scope) 
+      = pure (Bind fc x !(traverse (full gam) b) !(full gam scope))
+  full gam (App fc fn arg) 
+      = pure (App fc !(full gam fn) !(full gam arg))
+  full gam (As fc p tm)
+      = pure (As fc !(full gam p) !(full gam tm))
+  full gam (TDelayed fc x y) 
+      = pure (TDelayed fc x !(full gam y))
+  full gam (TDelay fc x t y)
+      = pure (TDelay fc x !(full gam t) !(full gam y))
+  full gam (TForce fc y)
+      = pure (TForce fc !(full gam y))
+  full gam tm = pure tm
+
+  resolved gam (Ref fc x n) 
+      = do let Just i = getNameID n gam 
+                | Nothing => pure (Ref fc x n)
+           pure (Ref fc x (Resolved i))
+  resolved gam (Meta fc x y xs) 
+      = do xs' <- traverse (resolved gam) xs
+           let Just i = getNameID x gam
+               | Nothing => pure (Meta fc x y xs')
+           pure (Meta fc x i xs')
+  resolved gam (Bind fc x b scope) 
+      = pure (Bind fc x !(traverse (resolved gam) b) !(resolved gam scope))
+  resolved gam (App fc fn arg) 
+      = pure (App fc !(resolved gam fn) !(resolved gam arg))
+  resolved gam (As fc p tm)
+      = pure (As fc !(resolved gam p) !(resolved gam tm))
+  resolved gam (TDelayed fc x y) 
+      = pure (TDelayed fc x !(resolved gam y))
+  resolved gam (TDelay fc x t y)
+      = pure (TDelay fc x !(resolved gam t) !(resolved gam y))
+  resolved gam (TForce fc y)
+      = pure (TForce fc !(resolved gam y))
+  resolved gam tm = pure tm
+
+mutual
+  export
+  HasNames (CaseTree vars) where
+    full gam (Case i v ty alts)
+        = pure $ Case i v !(full gam ty) !(traverse (full gam) alts)
+    full gam (STerm tm)
+        = pure $ STerm !(full gam tm)
+    full gam t = pure t
+
+    resolved gam (Case i v ty alts)
+        = pure $ Case i v !(resolved gam ty) !(traverse (resolved gam) alts)
+    resolved gam (STerm tm)
+        = pure $ STerm !(resolved gam tm)
+    resolved gam t = pure t
+
+  export
+  HasNames (CaseAlt vars) where
+    full gam (ConCase n t args sc)
+        = do sc' <- full gam sc
+             Just gdef <- lookupCtxtExact n gam
+                | Nothing => pure (ConCase n t args sc')
+             pure $ ConCase (fullname gdef) t args sc'
+    full gam (DelayCase ty arg sc)
+        = pure $ DelayCase ty arg !(full gam sc)
+    full gam (ConstCase c sc)
+        = pure $ ConstCase c !(full gam sc)
+    full gam (DefaultCase sc)
+        = pure $ DefaultCase !(full gam sc)
+
+    resolved gam (ConCase n t args sc)
+        = do sc' <- resolved gam sc
+             let Just i = getNameID n gam 
+                | Nothing => pure (ConCase n t args sc')
+             pure $ ConCase (Resolved i) t args sc'
+    resolved gam (DelayCase ty arg sc)
+        = pure $ DelayCase ty arg !(resolved gam sc)
+    resolved gam (ConstCase c sc)
+        = pure $ ConstCase c !(resolved gam sc)
+    resolved gam (DefaultCase sc)
+        = pure $ DefaultCase !(resolved gam sc)
+
+export
+HasNames (Env Term vars) where
+  full gam [] = pure []
+  full gam (b :: bs)
+      = pure $ !(traverse (full gam) b) :: !(full gam bs)
+
+  resolved gam [] = pure []
+  resolved gam (b :: bs)
+      = pure $ !(traverse (resolved gam) b) :: !(resolved gam bs)
+
+export
+HasNames Def where
+  full gam (PMDef args ct rt pats) 
+      = pure $ PMDef args !(full gam ct) !(full gam rt)
+                     !(traverse fullNamesPat pats)
+    where
+      fullNamesPat : (vs ** (Env Term vs, Term vs, Term vs)) ->
+                     Core (vs ** (Env Term vs, Term vs, Term vs))
+      fullNamesPat (_ ** (env, lhs, rhs))
+          = pure $ (_ ** (!(full gam env), 
+                          !(full gam lhs), !(full gam rhs))) 
+  full gam (TCon t a ps ds ms cs)
+      = pure $ TCon t a ps ds !(traverse (full gam) ms)
+                              !(traverse (full gam) cs)
+  full gam (Guess tm cs) 
+      = pure $ Guess !(full gam tm) cs
+  full gam t = pure t
+  
+  resolved gam (PMDef args ct rt pats) 
+      = pure $ PMDef args !(resolved gam ct) !(resolved gam rt)
+                     !(traverse resolvedNamesPat pats)
+    where
+      resolvedNamesPat : (vs ** (Env Term vs, Term vs, Term vs)) ->
+                         Core (vs ** (Env Term vs, Term vs, Term vs))
+      resolvedNamesPat (_ ** (env, lhs, rhs))
+          = pure $ (_ ** (!(resolved gam env), 
+                          !(resolved gam lhs), !(resolved gam rhs))) 
+  resolved gam (TCon t a ps ds ms cs)
+      = pure $ TCon t a ps ds !(traverse (resolved gam) ms)
+                              !(traverse (resolved gam) cs)
+  resolved gam (Guess tm cs) 
+      = pure $ Guess !(resolved gam tm) cs
+  resolved gam t = pure t
+
+HasNames (NameMap a) where
+  full gam nmap
+      = insertAll empty (toList nmap)
+    where
+      insertAll : NameMap a -> List (Name, a) -> Core (NameMap a)
+      insertAll ms [] = pure ms
+      insertAll ms ((k, v) :: ns)
+          = insertAll (insert !(full gam k) v ms) ns 
+
+  resolved gam nmap
+      = insertAll empty (toList nmap)
+    where
+      insertAll : NameMap a -> List (Name, a) -> Core (NameMap a)
+      insertAll ms [] = pure ms
+      insertAll ms ((k, v) :: ns)
+          = insertAll (insert !(resolved gam k) v ms) ns 
+
+export
+HasNames PartialReason where
+  full gam NotStrictlyPositive = pure NotStrictlyPositive
+  full gam (BadCall ns) = pure $ BadCall !(traverse (full gam) ns)
+  full gam (RecPath ns) = pure $ RecPath !(traverse (full gam) ns)
+
+  resolved gam NotStrictlyPositive = pure NotStrictlyPositive
+  resolved gam (BadCall ns) = pure $ BadCall !(traverse (resolved gam) ns)
+  resolved gam (RecPath ns) = pure $ RecPath !(traverse (resolved gam) ns)
+
+export
+HasNames Terminating where
+  full gam (NotTerminating p) = pure $ NotTerminating !(full gam p)
+  full gam t = pure t
+
+  resolved gam (NotTerminating p) = pure $ NotTerminating !(resolved gam p)
+  resolved gam t = pure t
+
+export
+HasNames Covering where
+  full gam IsCovering = pure IsCovering
+  full gam (MissingCases ts)
+      = pure $ MissingCases !(traverse (full gam) ts)
+  full gam (NonCoveringCall ns)
+      = pure $ NonCoveringCall !(traverse (full gam) ns)
+
+  resolved gam IsCovering = pure IsCovering
+  resolved gam (MissingCases ts)
+      = pure $ MissingCases !(traverse (resolved gam) ts)
+  resolved gam (NonCoveringCall ns)
+      = pure $ NonCoveringCall !(traverse (resolved gam) ns)
+
+export
+HasNames Totality where
+  full gam (MkTotality t c) = pure $ MkTotality !(full gam t) !(full gam c)
+  resolved gam (MkTotality t c) = pure $ MkTotality !(resolved gam t) !(resolved gam c)
+
+export
+HasNames SCCall where
+  full gam sc = pure $ record { fnCall = !(full gam (fnCall sc)) } sc
+  resolved gam sc = pure $ record { fnCall = !(resolved gam (fnCall sc)) } sc
+
+export
+HasNames GlobalDef where
+  full gam def 
+      = do 
+--            ts <- full gam (type def)
+--            d <- full gam (definition def)
+--            coreLift $ printLn (fullname def, ts)
+--            coreLift $ printLn (fullname def, d)
+           pure $ record { type = !(full gam (type def)),
+                           definition = !(full gam (definition def)),
+                           totality = !(full gam (totality def)),
+                           refersTo = !(full gam (refersTo def)),
+                           sizeChange = !(traverse (full gam) (sizeChange def))
+                         } def
+  resolved gam def
+      = pure $ record { type = !(resolved gam (type def)),
+                        definition = !(resolved gam (definition def)),
+                        totality = !(resolved gam (totality def)),
+                        refersTo = !(resolved gam (refersTo def)), 
+                        sizeChange = !(traverse (resolved gam) (sizeChange def))
+                      } def
+
+decode gam idx (Coded def) 
+    = do let a = content gam
+         arr <- get Arr
+         def' <- resolved gam def
+         coreLift $ writeArray arr idx (Decoded def')
+         pure def'
+decode gam idx (Decoded def) = pure def
+
+public export
 record Defs where
   constructor MkDefs
-  gamma : Context GlobalDef
+  gamma : Context
   mutData : List Name -- Currently declared but undefined data types
   currentNS : List String -- namespace for current definitions
   options : Options
@@ -415,6 +685,11 @@ record Defs where
      -- ^ Metavariables the user still has to fill in. In practice, that's
      -- everything with a user accessible name and a definition of Hole
 
+-- Label for context references
+export
+data Ctxt : Type where
+
+
 export
 clearDefs : Defs -> Core Defs
 clearDefs defs
@@ -428,10 +703,6 @@ initDefs
          pure (MkDefs gam [] ["Main"] defaults empty 100 
                       empty empty empty [] [] 5381 [] [] [] [] [] empty)
       
--- Label for context references
-export
-data Ctxt : Type where
-
 -- Reset the context, except for the options
 export
 clearCtxt : {auto c : Ref Ctxt Defs} ->
@@ -475,6 +746,18 @@ addDef : {auto c : Ref Ctxt Defs} ->
 addDef n def
     = do defs <- get Ctxt
          (idx, gam') <- addCtxt n def (gamma defs)
+         case definition def of
+              PMDef _ _ _ _ => clearUserHole n
+              _ => pure ()
+         put Ctxt (record { gamma = gam' } defs)
+         pure idx
+
+export
+addContextEntry : {auto c : Ref Ctxt Defs} -> 
+                  Name -> GlobalDef -> Core Int
+addContextEntry n def
+    = do defs <- get Ctxt
+         (idx, gam') <- addEntry n (Coded def) (gamma defs)
          case definition def of
               PMDef _ _ _ _ => clearUserHole n
               _ => pure ()
@@ -536,7 +819,7 @@ setLinearCheck i chk
          pure ()
 
 export
-setCtxt : {auto c : Ref Ctxt Defs} -> Context GlobalDef -> Core ()
+setCtxt : {auto c : Ref Ctxt Defs} -> Context -> Core ()
 setCtxt gam
   = do defs <- get Ctxt
        put Ctxt (record { gamma = gam } defs)
@@ -592,7 +875,7 @@ addToSave n
 
 -- Specific lookup functions
 export
-lookupExactBy : (GlobalDef -> a) -> Name -> Context GlobalDef -> 
+lookupExactBy : (GlobalDef -> a) -> Name -> Context -> 
               Core (Maybe a)
 lookupExactBy fn n gam
   = do Just gdef <- lookupCtxtExact n gam
@@ -600,30 +883,30 @@ lookupExactBy fn n gam
        pure (Just (fn gdef))
 
 export
-lookupNameBy : (GlobalDef -> a) -> Name -> Context GlobalDef -> 
+lookupNameBy : (GlobalDef -> a) -> Name -> Context -> 
              Core (List (Name, Int, a))
 lookupNameBy fn n gam
   = do gdef <- lookupCtxtName n gam
        pure (map (\ (n, i, gd) => (n, i, fn gd)) gdef)
 
 export
-lookupDefExact : Name -> Context GlobalDef -> Core (Maybe Def)
+lookupDefExact : Name -> Context -> Core (Maybe Def)
 lookupDefExact = lookupExactBy definition
 
 export
-lookupDefName : Name -> Context GlobalDef -> Core (List (Name, Int, Def))
+lookupDefName : Name -> Context -> Core (List (Name, Int, Def))
 lookupDefName = lookupNameBy definition 
 
 export
-lookupTyExact : Name -> Context GlobalDef -> Core (Maybe ClosedTerm)
+lookupTyExact : Name -> Context -> Core (Maybe ClosedTerm)
 lookupTyExact = lookupExactBy type 
 
 export
-lookupTyName : Name -> Context GlobalDef -> Core (List (Name, Int, ClosedTerm))
+lookupTyName : Name -> Context -> Core (List (Name, Int, ClosedTerm))
 lookupTyName = lookupNameBy type 
 
 export
-lookupDefTyExact : Name -> Context GlobalDef -> Core (Maybe (Def, ClosedTerm))
+lookupDefTyExact : Name -> Context -> Core (Maybe (Def, ClosedTerm))
 lookupDefTyExact = lookupExactBy (\g => (definition g, type g))
 
 -- private names are only visible in this namespace if their namespace
@@ -641,6 +924,20 @@ reducibleIn : (nspace : List String) -> Name -> Visibility -> Bool
 reducibleIn nspace (NS ns (UN n)) Export = isSuffixOf ns nspace
 reducibleIn nspace (NS ns (UN n)) Private = isSuffixOf ns nspace
 reducibleIn nspace n _ = True
+
+export
+toFullNames : {auto c : Ref Ctxt Defs} ->
+              HasNames a => a -> Core a
+toFullNames t 
+    = do defs <- get Ctxt
+         full (gamma defs) t
+
+export
+toResolvedNames : {auto c : Ref Ctxt Defs} ->
+                  HasNames a => a -> Core a
+toResolvedNames t
+    = do defs <- get Ctxt
+         resolved (gamma defs) t
 
 export
 setFlag : {auto c : Ref Ctxt Defs} ->
@@ -875,14 +1172,11 @@ setDetermining fc tyn args
 export
 addHintFor : {auto c : Ref Ctxt Defs} ->
 					   FC -> Name -> Name -> Bool -> Bool -> Core ()
-addHintFor fc tyn hintn_in direct loading
+addHintFor fc tyn_in hintn_in direct loading
     = do defs <- get Ctxt
-         let hintn : Name
-             = case hintn_in of
-                    Resolved i => hintn_in
-                    _ => case getNameID hintn_in (gamma defs) of
-                              Nothing => hintn_in
-                              Just idx => Resolved idx
+         tyn <- toResolvedNames tyn_in
+         hintn <- toResolvedNames hintn_in
+
          let hs = case lookup tyn (typeHints defs) of
                        Just hs => hs
                        Nothing => []
@@ -900,12 +1194,8 @@ addGlobalHint : {auto c : Ref Ctxt Defs} ->
 					      Name -> Bool -> Core ()
 addGlobalHint hintn_in isdef
     = do defs <- get Ctxt
-         let hintn : Name
-             = case hintn_in of
-                    Resolved i => hintn_in
-                    _ => case getNameID hintn_in (gamma defs) of
-                              Nothing => hintn_in
-                              Just idx => Resolved idx
+         hintn <- toResolvedNames hintn_in
+
          put Ctxt (record { autoHints $= insert hintn isdef,
                             saveAutoHints $= ((hintn, isdef) ::) } defs)
 
@@ -913,12 +1203,7 @@ export
 addOpenHint : {auto c : Ref Ctxt Defs} -> Name -> Core ()
 addOpenHint hintn_in
     = do defs <- get Ctxt
-         let hintn : Name
-             = case hintn_in of
-                    Resolved i => hintn_in
-                    _ => case getNameID hintn_in (gamma defs) of
-                              Nothing => hintn_in
-                              Just idx => Resolved idx
+         hintn <- toResolvedNames hintn_in
          put Ctxt (record { openHints $= insert hintn () } defs)
 
 export
@@ -1024,7 +1309,7 @@ addData vars vis (MkData (MkCon dfc tyn arity tycon) datacons)
     conVisibility x = x
 
     addDataConstructors : (tag : Int) -> List Constructor -> 
-                          Context GlobalDef -> Core (Context GlobalDef)
+                          Context -> Core Context
     addDataConstructors tag [] gam = pure gam
     addDataConstructors tag (MkCon fc n a ty :: cs) gam
         = do let condef = newDef fc n RigW vars ty (conVisibility vis) (DCon tag a)
@@ -1124,192 +1409,6 @@ getFullName (Resolved i)
               | Nothing => pure (Resolved i)
          pure (fullname gdef)
 getFullName n = pure n
-
-public export
-interface HasNames a where
-  fullNames : Ref Ctxt Defs -> a -> Core a
-  resolvedNames : Ref Ctxt Defs -> a -> Core a
-
-export
-toFullNames : {auto c : Ref Ctxt Defs} ->
-              HasNames a => a -> Core a
-toFullNames {c} t = fullNames c t
-
-export
-toResolvedNames : {auto c : Ref Ctxt Defs} ->
-                  HasNames a => a -> Core a
-toResolvedNames {c} t = resolvedNames c t
-
-export
-HasNames (Term vars) where
-  fullNames c tm
-      = do defs <- get Ctxt
-           full (gamma defs) tm
-    where
-      full : Context GlobalDef -> Term vars -> Core (Term vars)
-      full gam (Ref fc x (Resolved i)) 
-          = do Just gdef <- lookupCtxtExact (Resolved i) gam
-                    | Nothing => pure (Ref fc x (Resolved i))
-               pure (Ref fc x (fullname gdef))
-      full gam (Meta fc x y xs) 
-          = pure (Meta fc x y !(traverse (full gam) xs))
-      full gam (Bind fc x b scope) 
-          = pure (Bind fc x !(traverse (full gam) b) !(full gam scope))
-      full gam (App fc fn arg) 
-          = pure (App fc !(full gam fn) !(full gam arg))
-      full gam (As fc p tm)
-          = pure (As fc !(full gam p) !(full gam tm))
-      full gam (TDelayed fc x y) 
-          = pure (TDelayed fc x !(full gam y))
-      full gam (TDelay fc x t y)
-          = pure (TDelay fc x !(full gam t) !(full gam y))
-      full gam (TForce fc y)
-          = pure (TForce fc !(full gam y))
-      full gam tm = pure tm
-
-  resolvedNames c tm
-      = do defs <- get Ctxt
-           resolved (gamma defs) tm
-    where
-      resolved : Context GlobalDef -> Term vars -> Core (Term vars)
-      resolved gam (Ref fc x n) 
-          = do let Just i = getNameID n gam 
-                    | Nothing => pure (Ref fc x n)
-               pure (Ref fc x (Resolved i))
-      resolved gam (Meta fc x y xs) 
-          = pure (Meta fc x y !(traverse (resolved gam) xs))
-      resolved gam (Bind fc x b scope) 
-          = pure (Bind fc x !(traverse (resolved gam) b) !(resolved gam scope))
-      resolved gam (App fc fn arg) 
-          = pure (App fc !(resolved gam fn) !(resolved gam arg))
-      resolved gam (As fc p tm)
-          = pure (As fc !(resolved gam p) !(resolved gam tm))
-      resolved gam (TDelayed fc x y) 
-          = pure (TDelayed fc x !(resolved gam y))
-      resolved gam (TDelay fc x t y)
-          = pure (TDelay fc x !(resolved gam t) !(resolved gam y))
-      resolved gam (TForce fc y)
-          = pure (TForce fc !(resolved gam y))
-      resolved gam tm = pure tm
-
-mutual
-  export
-  HasNames (CaseTree vars) where
-    fullNames c tm
-        = do defs <- get Ctxt
-             full (gamma defs) tm
-      where
-        full : Context GlobalDef -> CaseTree vars -> Core (CaseTree vars)
-        full gam (Case i v ty alts)
-            = pure $ Case i v !(toFullNames ty) !(traverse toFullNames alts)
-        full gam (STerm tm)
-            = pure $ STerm !(toFullNames tm)
-        full gam t = pure t
-
-    resolvedNames c tm
-        = do defs <- get Ctxt
-             resolved (gamma defs) tm
-      where
-        resolved : Context GlobalDef -> CaseTree vars -> Core (CaseTree vars)
-        resolved gam (Case i v ty alts)
-            = pure $ Case i v !(toResolvedNames ty) !(traverse toResolvedNames alts)
-        resolved gam (STerm tm)
-            = pure $ STerm !(toResolvedNames tm)
-        resolved gam t = pure t
-
-  export
-  HasNames (CaseAlt vars) where
-    fullNames c tm
-        = do defs <- get Ctxt
-             full (gamma defs) tm
-      where
-        full : Context GlobalDef -> CaseAlt vars -> Core (CaseAlt vars)
-        full gam (ConCase n t args sc)
-            = do sc' <- toFullNames sc
-                 Just gdef <- lookupCtxtExact n gam
-                    | Nothing => pure (ConCase n t args sc')
-                 pure $ ConCase (fullname gdef) t args sc'
-        full gam (DelayCase ty arg sc)
-            = pure $ DelayCase ty arg !(toFullNames sc)
-        full gam (ConstCase c sc)
-            = pure $ ConstCase c !(toFullNames sc)
-        full gam (DefaultCase sc)
-            = pure $ DefaultCase !(toFullNames sc)
-
-    resolvedNames c tm
-        = do defs <- get Ctxt
-             resolved (gamma defs) tm
-      where
-        resolved : Context GlobalDef -> CaseAlt vars -> Core (CaseAlt vars)
-        resolved gam (ConCase n t args sc)
-            = do sc' <- toFullNames sc
-                 let Just i = getNameID n gam 
-                    | Nothing => pure (ConCase n t args sc')
-                 pure $ ConCase (Resolved i) t args sc'
-        resolved gam (DelayCase ty arg sc)
-            = pure $ DelayCase ty arg !(toResolvedNames sc)
-        resolved gam (ConstCase c sc)
-            = pure $ ConstCase c !(toResolvedNames sc)
-        resolved gam (DefaultCase sc)
-            = pure $ DefaultCase !(toResolvedNames sc)
-
-export
-HasNames (Env Term vars) where
-  fullNames c env
-      = do defs <- get Ctxt
-           full (gamma defs) env
-    where
-      full : Context GlobalDef -> Env Term vars -> Core (Env Term vars)
-      full gam [] = pure []
-      full gam (b :: bs)
-          = pure $ !(traverse toFullNames b) :: !(full gam bs)
-
-  resolvedNames c env
-      = do defs <- get Ctxt
-           resolved (gamma defs) env
-    where
-      resolved : Context GlobalDef -> Env Term vars -> Core (Env Term vars)
-      resolved gam [] = pure []
-      resolved gam (b :: bs)
-          = pure $ !(traverse toResolvedNames b) :: !(resolved gam bs)
-
-export
-HasNames Def where
-  fullNames c tm
-      = do defs <- get Ctxt
-           full (gamma defs) tm
-    where
-      fullNamesPat : (vs ** (Env Term vs, Term vs, Term vs)) ->
-                     Core (vs ** (Env Term vs, Term vs, Term vs))
-      fullNamesPat (_ ** (env, lhs, rhs))
-          = pure $ (_ ** (!(toFullNames env), 
-                          !(toFullNames lhs), !(toFullNames rhs))) 
-
-      full : Context GlobalDef -> Def -> Core Def
-      full gam (PMDef args ct rt pats) 
-          = pure $ PMDef args !(toFullNames ct) !(toFullNames rt)
-                         !(traverse fullNamesPat pats)
-      full gam (Guess tm cs) 
-          = pure $ Guess !(toFullNames tm) cs
-      full gam t = pure t
-  
-  resolvedNames c tm
-      = do defs <- get Ctxt
-           resolved (gamma defs) tm
-    where
-      resolvedNamesPat : (vs ** (Env Term vs, Term vs, Term vs)) ->
-                     Core (vs ** (Env Term vs, Term vs, Term vs))
-      resolvedNamesPat (_ ** (env, lhs, rhs))
-          = pure $ (_ ** (!(toResolvedNames env), 
-                          !(toResolvedNames lhs), !(toResolvedNames rhs))) 
-
-      resolved : Context GlobalDef -> Def -> Core Def
-      resolved gam (PMDef args ct rt pats) 
-          = pure $ PMDef args !(toResolvedNames ct) !(toResolvedNames rt)
-                         !(traverse resolvedNamesPat pats)
-      resolved gam (Guess tm cs) 
-          = pure $ Guess !(toResolvedNames tm) cs
-      resolved gam t = pure t
 
 -- Getting and setting various options
 
@@ -1473,51 +1572,64 @@ addNameDirective fc n ns
 -- Checking special names from Options
 
 export
-isPairType : Name -> Defs -> Bool
-isPairType n defs
-    = case pairnames (options defs) of
-           Nothing => False
-           Just l => n == pairType l
+isPairType : {auto c : Ref Ctxt Defs} ->
+             Name -> Core Bool
+isPairType n 
+    = do defs <- get Ctxt
+         case pairnames (options defs) of
+              Nothing => pure False
+              Just l => pure $ !(getFullName n) == !(getFullName (pairType l))
 
 export
-fstName : Defs -> Maybe Name
-fstName defs
-    = do l <- pairnames (options defs)
-         pure (fstName l)
+fstName : {auto c : Ref Ctxt Defs} ->
+          Core (Maybe Name)
+fstName
+    = do defs <- get Ctxt
+         pure $ maybe Nothing (Just . fstName) (pairnames (options defs))
 
 export
-sndName : Defs -> Maybe Name
-sndName defs
-    = do l <- pairnames (options defs)
-         pure (sndName l)
+sndName : {auto c : Ref Ctxt Defs} ->
+          Core (Maybe Name)
+sndName 
+    = do defs <- get Ctxt
+         pure $ maybe Nothing (Just . sndName) (pairnames (options defs))
 
 export
-getRewrite : Defs -> Maybe Name
-getRewrite defs
-    = do r <- rewritenames (options defs)
-         pure (rewriteName r)
+getRewrite :{auto c : Ref Ctxt Defs} ->
+            Core (Maybe Name)
+getRewrite
+    = do defs <- get Ctxt
+         pure $ maybe Nothing (Just . rewriteName) (rewritenames (options defs))
 
 export
-isEqualTy : Name -> Defs -> Bool
-isEqualTy n defs
-    = case rewritenames (options defs) of
-           Nothing => False
-           Just r => n == equalType r
+isEqualTy : {auto c : Ref Ctxt Defs} ->
+            Name -> Core Bool
+isEqualTy n 
+    = do defs <- get Ctxt
+         case rewritenames (options defs) of
+              Nothing => pure False
+              Just r => pure $ !(getFullName n) == !(getFullName (equalType r))
 
 export
-fromIntegerName : Defs -> Maybe Name
-fromIntegerName defs
-    = fromIntegerName (primnames (options defs))
+fromIntegerName : {auto c : Ref Ctxt Defs} ->
+                  Core (Maybe Name)
+fromIntegerName
+    = do defs <- get Ctxt
+         pure $ fromIntegerName (primnames (options defs))
 
 export
-fromStringName : Defs -> Maybe Name
-fromStringName defs
-    = fromStringName (primnames (options defs))
+fromStringName : {auto c : Ref Ctxt Defs} ->
+                 Core (Maybe Name)
+fromStringName
+    = do defs <- get Ctxt
+         pure $ fromStringName (primnames (options defs))
 
 export
-fromCharName : Defs -> Maybe Name
-fromCharName defs
-    = fromCharName (primnames (options defs))
+fromCharName : {auto c : Ref Ctxt Defs} ->
+               Core (Maybe Name)
+fromCharName
+    = do defs <- get Ctxt
+         pure $ fromCharName (primnames (options defs))
 
 export
 setLogLevel : {auto c : Ref Ctxt Defs} ->

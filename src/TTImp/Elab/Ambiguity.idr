@@ -36,11 +36,13 @@ expandAmbigName mode env orig args (IVar fc x) exp
                    else pure $ IMustUnify fc "Name applied to arguments" orig
               Nothing => 
                  do est <- get EST
+                    let prims = mapMaybe id 
+                                  [!fromIntegerName, !fromStringName, !fromCharName]
                     case !(lookupCtxtName x (gamma defs)) of
                          [] => pure orig
-                         [nalt] => pure $ mkAlt defs est nalt
+                         [nalt] => pure $ mkAlt prims est nalt
                          nalts => pure $ IAlternative fc Unique 
-                                                (map (mkAlt defs est) nalts)
+                                                (map (mkAlt prims est) nalts)
   where
     buildAlt : RawImp -> List (FC, Maybe (Maybe Name), RawImp) -> 
                RawImp
@@ -50,44 +52,37 @@ expandAmbigName mode env orig args (IVar fc x) exp
     buildAlt f ((fc', Just i, a) :: as) 
         = buildAlt (IImplicitApp fc' f i a) as
      
-    isPrimAppF : Defs -> (Defs -> Maybe Name) -> Name -> RawImp -> Bool
-    isPrimAppF defs pname n (IPrimVal _ _)
-        = case pname defs of
-               Nothing => False
-               Just n' => dropNS n == n'
-    isPrimAppF defs pname _ _ = False
-
-    isPrimApp : Defs -> Name -> RawImp -> Bool
-    isPrimApp defs fn arg
-        = isPrimAppF defs fromIntegerName fn arg
-        || isPrimAppF defs fromStringName fn arg
-        || isPrimAppF defs fromCharName fn arg
+    isPrimApp : List Name -> Name -> RawImp -> Bool
+    isPrimApp [] fn arg = False
+    isPrimApp (p :: ps) fn arg
+        = dropNS fn == p || isPrimApp ps fn arg
 
     -- If it's not a constructor application, dot it
-    wrapDot : Defs -> EState vars ->
+    wrapDot : List Name -> EState vars ->
               ElabMode -> Name -> List RawImp -> Def -> RawImp -> RawImp 
     wrapDot _ _ _ _ _ (DCon _ _) tm = tm
     wrapDot _ _ _ _ _ (TCon _ _ _ _ _ _) tm = tm
     -- Leave primitive applications alone, because they'll be inlined
     -- before compiling the case tree
-    wrapDot defs est (InLHS _) n' [arg] _ tm 
-       = if n' == Resolved (defining est) || isPrimApp defs n' arg
+    wrapDot prims est (InLHS _) n' [arg] _ tm 
+       = if n' == Resolved (defining est) || isPrimApp prims n' arg
             then tm
             else IMustUnify fc "Not a constructor application or primitive" tm
-    wrapDot defs est (InLHS _) n' _ _ tm 
+    wrapDot prims est (InLHS _) n' _ _ tm 
        = if n' == Resolved (defining est)
             then tm
             else IMustUnify fc "Not a constructor application or primitive" tm
     wrapDot _ _ _ _ _ _ tm = tm
 
 
-    mkTerm : Defs -> EState vars -> Name -> GlobalDef -> RawImp
-    mkTerm defs est n def 
-        = wrapDot defs est mode n (map (snd . snd) args)
+    mkTerm : List Name -> EState vars -> Name -> GlobalDef -> RawImp
+    mkTerm prims est n def 
+        = wrapDot prims est mode n (map (snd . snd) args)
                   (definition def) (buildAlt (IVar fc n) args)
 
-    mkAlt : Defs -> EState vars -> (Name, Int, GlobalDef) -> RawImp
-    mkAlt defs est (fullname, i, gdef) = mkTerm defs est (Resolved i) gdef
+    mkAlt : List Name -> EState vars -> (Name, Int, GlobalDef) -> RawImp
+    mkAlt prims est (fullname, i, gdef) 
+        = mkTerm prims est (Resolved i) gdef
 
     notLHS : ElabMode -> Bool
     notLHS (InLHS _) = False
@@ -315,7 +310,7 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
                           log 10 $ show (getName t) ++ " success"
                           pure res)) alts'))
   where
-    holeIn : Context GlobalDef -> Term vs -> Core Bool
+    holeIn : Context -> Term vs -> Core Bool
     holeIn gam tm
         = case getFn tm of
                Meta _ _ idx _ =>

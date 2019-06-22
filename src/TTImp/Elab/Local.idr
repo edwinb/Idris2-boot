@@ -50,7 +50,7 @@ checkLocal {vars} rig elabinfo nest env fc nestdecls scope expty
                  Core (Name, (Maybe Name, FC -> NameType -> Term vars))
       applyEnv outer inner 
             = do n' <- resolveName (Nested outer inner)
-                 pure (inner, (Just (Resolved n'), 
+                 pure (inner, (Just (Nested outer inner), 
                           \fc, nt => applyTo fc 
                                  (Ref fc nt (Resolved n')) env))
 

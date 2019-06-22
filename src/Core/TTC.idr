@@ -41,7 +41,9 @@ TTC Name where
   toBuf b (Nested x y) = do tag 5; toBuf b x; toBuf b y
   toBuf b (CaseBlock x y) = do tag 6; toBuf b x; toBuf b y
   toBuf b (WithBlock x y) = do tag 7; toBuf b x; toBuf b y
-  toBuf b (Resolved x) = do tag 8; toBuf b x
+  toBuf b (Resolved x) 
+      = throw (InternalError ("Can't write resolved name " ++ show x))
+        -- do tag 8; toBuf b x
 
   fromBuf r b
       = case !getTag of
@@ -216,8 +218,7 @@ mutual
              toBuf b nt; toBuf b name
     toBuf b (Meta fc n i xs) 
         = do tag 2;
-             -- Name no longer needed
-             toBuf b i; toBuf b xs
+             toBuf b n; toBuf b xs
     toBuf b (Bind fc x bnd scope) 
         = do tag 3;
              toBuf b x; 
@@ -255,13 +256,9 @@ mutual
                        pure (Local {name} emptyFC Nothing idx (mkPrf idx))
                1 => do nt <- fromBuf r b; name <- fromBuf r b
                        pure (Ref emptyFC nt name)
-               2 => do x <- fromBuf r b
-                       Just (n, Just idx) <- coreLift $ readArray r x
-                          | Just (n, Nothing) => 
-                                corrupt ("Metavar name index not updated " ++ show x)
-                          | Nothing => corrupt ("Metavar name index " ++ show x ++ " (not in array)")
+               2 => do n <- fromBuf r b
                        xs <- fromBuf r b
-                       pure (Meta emptyFC (UN "metavar") idx xs)
+                       pure (Meta emptyFC n 0 xs) -- needs resolving
                3 => do x <- fromBuf r b
                        bnd <- fromBuf r b; scope <- fromBuf r b
                        pure (Bind emptyFC x bnd scope)

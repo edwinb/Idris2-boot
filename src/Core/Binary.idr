@@ -43,9 +43,6 @@ record TTCFile extra where
   version : Int
   ifaceHash : Int
   importHashes : List (List String, Int)
-  nameMap : NameRefs -- All the names referenced in the file
-                     -- This is a mapping from the index used in the file
-                     -- to the actual name
   holes : List (Int, (FC, Name))
   guesses : List (Int, (FC, Name))
   constraints : List (Int, Constraint)
@@ -61,6 +58,108 @@ record TTCFile extra where
   namedirectives : List (Name, List String)
   cgdirectives : List (CG, String)
   extraData : extra
+
+HasNames a => HasNames (List a) where
+  full c [] = pure []
+  full c (n :: ns) = pure $ !(full c n) :: !(full c ns)
+
+  resolved c [] = pure []
+  resolved c (n :: ns) = pure $ !(resolved c n) :: !(resolved c ns)
+
+HasNames (Name, Bool) where
+  full c (n, b) = pure (!(full c n), b)
+  resolved c (n, b) = pure (!(resolved c n), b)
+
+HasNames (Name, List String) where
+  full c (n, b) = pure (!(full c n), b)
+  resolved c (n, b) = pure (!(resolved c n), b)
+
+HasNames (Name, Name, Bool) where
+  full c (n1, n2, b) = pure (!(full c n1), !(full c n2), b)
+  resolved c (n1, n2, b) = pure (!(resolved c n1), !(resolved c n2), b)
+
+HasNames (Maybe Name) where
+  full c Nothing = pure Nothing
+  full c (Just n) = pure $ Just !(full c n)
+
+  resolved c Nothing = pure Nothing
+  resolved c (Just n) = pure $ Just !(resolved c n)
+
+HasNames e => HasNames (TTCFile e) where
+  full gam (MkTTCFile version ifaceHash iHashes
+                      holes guesses constraints
+                      context 
+                      autoHints typeHints
+                      imported nextVar currentNS 
+                      pairnames rewritenames primnames
+                      namedirectives cgdirectives
+                      extra)
+      = pure $ MkTTCFile version ifaceHash iHashes
+                         holes guesses constraints
+                         !(traverse (full gam) context)
+                         !(traverse (full gam) autoHints)
+                         !(traverse (full gam) typeHints)
+                         imported nextVar currentNS
+                         !(fullPair gam pairnames)
+                         !(fullRW gam rewritenames)
+                         !(fullPrim gam primnames)
+                         !(full gam namedirectives)
+                         cgdirectives 
+                         !(full gam extra)
+    where
+      fullPair : Context -> Maybe PairNames -> Core (Maybe PairNames)
+      fullPair gam Nothing = pure Nothing
+      fullPair gam (Just (MkPairNs t f s))
+          = pure $ Just $ MkPairNs !(full gam t) !(full gam f) !(full gam s)
+
+      fullRW : Context -> Maybe RewriteNames -> Core (Maybe RewriteNames)
+      fullRW gam Nothing = pure Nothing
+      fullRW gam (Just (MkRewriteNs e r))
+          = pure $ Just $ MkRewriteNs !(full gam e) !(full gam r)
+
+      fullPrim : Context -> PrimNames -> Core PrimNames
+      fullPrim gam (MkPrimNs mi ms mc)
+          = pure $ MkPrimNs !(full gam mi) !(full gam ms) !(full gam mc)
+
+
+  -- I don't think we ever actually want to call this, because after we read
+  -- from the file we're going to add them to learn what the resolved names
+  -- are supposed to be! But for completeness, let's do it right.
+  resolved gam (MkTTCFile version ifaceHash iHashes
+                      holes guesses constraints
+                      context 
+                      autoHints typeHints
+                      imported nextVar currentNS 
+                      pairnames rewritenames primnames
+                      namedirectives cgdirectives
+                      extra)
+      = pure $ MkTTCFile version ifaceHash iHashes
+                         holes guesses constraints
+                         !(traverse (resolved gam) context)
+                         !(traverse (resolved gam) autoHints)
+                         !(traverse (resolved gam) typeHints)
+                         imported nextVar currentNS
+                         !(resolvedPair gam pairnames)
+                         !(resolvedRW gam rewritenames)
+                         !(resolvedPrim gam primnames)
+                         !(resolved gam namedirectives)
+                         cgdirectives
+                         !(resolved gam extra)
+    where
+      resolvedPair : Context -> Maybe PairNames -> Core (Maybe PairNames)
+      resolvedPair gam Nothing = pure Nothing
+      resolvedPair gam (Just (MkPairNs t f s))
+          = pure $ Just $ MkPairNs !(resolved gam t) !(resolved gam f) !(resolved gam s)
+
+      resolvedRW : Context -> Maybe RewriteNames -> Core (Maybe RewriteNames)
+      resolvedRW gam Nothing = pure Nothing
+      resolvedRW gam (Just (MkRewriteNs e r))
+          = pure $ Just $ MkRewriteNs !(resolved gam e) !(resolved gam r)
+
+      resolvedPrim : Context -> PrimNames -> Core PrimNames
+      resolvedPrim gam (MkPrimNs mi ms mc)
+          = pure $ MkPrimNs !(resolved gam mi) !(resolved gam ms) !(resolved gam mc)
+
 
 asName : List String -> Maybe (List String) -> Name -> Name
 asName mod (Just ns) (NS oldns n) 
@@ -87,9 +186,9 @@ readNameMap r b
 -- map accordingly
 -- Also update namespace if we've done "import ... as ..."
 updateEntries : {auto c : Ref Ctxt Defs} ->
-                Context GlobalDef ->
+                Context ->
                 List String -> Maybe (List String) ->
-                Int -> Int -> NameRefs -> Core (Context GlobalDef)
+                Int -> Int -> NameRefs -> Core Context
 updateEntries ctxt mod as pos end r
     = if pos >= end
          then pure ctxt
@@ -108,13 +207,15 @@ writeNameMap b r
 
 -- NOTE: TTC files are only compatible if the version number is the same,
 -- *and* the 'annot/extra' type are the same, or there are no holes/constraints
-writeTTCFile : TTC extra => Ref Bin Binary -> TTCFile extra -> Core ()
-writeTTCFile b file
-      = do toBuf b "TTC"
+writeTTCFile : (HasNames extra, TTC extra) => 
+               {auto c : Ref Ctxt Defs} ->
+               Ref Bin Binary -> TTCFile extra -> Core ()
+writeTTCFile b file_in
+      = do file <- toFullNames file_in
+           toBuf b "TTC"
            toBuf b (version file)
            toBuf b (ifaceHash file)
            toBuf b (importHashes file)
-           writeNameMap b (nameMap file)
 --            toBuf b (holes file)
 --            toBuf b (guesses file)
 --            toBuf b (constraints file)
@@ -142,12 +243,6 @@ readTTCFile modns as r b
            checkTTCVersion ver ttcVersion
            ifaceHash <- fromBuf r b
            importHashes <- fromBuf r b
-           -- Read in name map, update 'r'
-           r <- logTime "Name map" $ readNameMap r b
-           defs <- get Ctxt
-           gam' <- logTime "Update entries" $
-                      updateEntries (gamma defs) modns as 0 (max r) r
-           setCtxt gam' 
 --            holes <- fromBuf r b
 --            coreLift $ putStrLn $ "Read " ++ show (length holes) ++ " holes"
 --            guesses <- fromBuf r b
@@ -168,7 +263,7 @@ readTTCFile modns as r b
            nds <- fromBuf r b
            cgds <- fromBuf r b
            ex <- fromBuf r b
-           pure (MkTTCFile ver ifaceHash importHashes r
+           pure (MkTTCFile ver ifaceHash importHashes
                            [] [] [] defs -- holes guesses constraints defs 
                            autohs typehs imp nextv cns 
                            pns rws prims nds cgds ex)
@@ -186,7 +281,7 @@ getSaveDefs (n :: ns) acc defs
 -- Write out the things in the context which have been defined in the
 -- current source file
 export
-writeToTTC : TTC extra =>
+writeToTTC : (HasNames extra, TTC extra) =>
              {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              extra -> (fname : String) -> Core ()
@@ -199,7 +294,6 @@ writeToTTC extradata fname
          r <- getNameRefs (gamma defs)
          writeTTCFile buf 
                    (MkTTCFile ttcVersion (ifaceHash defs) (importHashes defs)
-                              r
                               (toList (holes ust)) 
                               (toList (guesses ust)) 
                               (toList (constraints ust))
@@ -224,7 +318,7 @@ addGlobalDef : {auto c : Ref Ctxt Defs} ->
                GlobalDef -> Core ()
 addGlobalDef modns as def 
     = do let n = fullname def
-         addDef (asName modns as n) def
+         addContextEntry (asName modns as n) def
          pure ()
 
 addTypeHint : {auto c : Ref Ctxt Defs} ->
@@ -319,7 +413,7 @@ readFromTTC loc reexp fname modNS importAs
          put UST (record { holes = fromList (holes ttc),
                            constraints = fromList (constraints ttc),
                            nextName = nextVar ttc } ust)
-         pure (Just (extraData ttc, ifaceHash ttc, imported ttc, nameMap ttc))
+         pure (Just (extraData ttc, ifaceHash ttc, imported ttc, r))
 
 getImportHashes : NameRefs -> Ref Bin Binary ->
                   Core (List (List String, Int))

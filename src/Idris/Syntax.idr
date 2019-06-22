@@ -498,6 +498,42 @@ TTC SyntaxInfo where
            pure (MkSyntax (fromList inf) (fromList pre) (fromList ifs) 
                           bhs start)
 
+HasNames IFaceInfo where
+  full gam iface
+      = do -- coreLift $ printLn (iconstructor iface)
+           -- coreLift $ printLn (methods iface)
+           pure iface
+
+  resolved gam iface = pure iface
+
+HasNames a => HasNames (ANameMap a) where
+  full gam nmap
+      = insertAll empty (toList nmap)
+    where
+      insertAll : ANameMap a -> List (Name, a) -> Core (ANameMap a)
+      insertAll ms [] = pure ms
+      insertAll ms ((k, v) :: ns)
+          = insertAll (addName !(full gam k) !(full gam v) ms) ns 
+
+  resolved gam nmap
+      = insertAll empty (toList nmap)
+    where
+      insertAll : ANameMap a -> List (Name, a) -> Core (ANameMap a)
+      insertAll ms [] = pure ms
+      insertAll ms ((k, v) :: ns)
+          = insertAll (addName !(resolved gam k) !(resolved gam v) ms) ns 
+
+export
+HasNames SyntaxInfo where
+  full gam syn
+      = pure $ record { ifaces = !(full gam (ifaces syn)),
+                        bracketholes = !(traverse (full gam) (bracketholes syn))
+                      } syn
+  resolved gam syn
+      = pure $ record { ifaces = !(resolved gam (ifaces syn)),
+                        bracketholes = !(traverse (resolved gam) (bracketholes syn))
+                      } syn
+
 export
 initSyntax : SyntaxInfo
 initSyntax

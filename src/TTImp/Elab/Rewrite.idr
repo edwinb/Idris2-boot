@@ -22,15 +22,15 @@ findRewriteLemma : {auto c : Ref Ctxt Defs} ->
                    FC -> (rulety : Term vars) ->
                    Core Name
 findRewriteLemma loc rulety
-   = do defs <- get Ctxt
-        case getRewrite defs of
-             Nothing => throw (GenericMsg loc "No rewrite lemma defined")
-             Just n => pure n
+   = case !getRewrite of
+          Nothing => throw (GenericMsg loc "No rewrite lemma defined")
+          Just n => pure n
 
-getRewriteTerms : FC -> Defs -> NF vars -> Error ->
+getRewriteTerms : {auto c : Ref Ctxt Defs} ->
+                  FC -> Defs -> NF vars -> Error ->
                   Core (NF vars, NF vars, NF vars)
 getRewriteTerms loc defs (NTCon nfc eq t a args) err
-    = if isEqualTy eq defs
+    = if !(isEqualTy eq)
          then case reverse args of
                    (rhs :: lhs :: rhsty :: lhsty :: _) =>
                         pure (!(evalClosure defs lhs), 
