@@ -46,7 +46,7 @@ record TTCFile extra where
   holes : List (Int, (FC, Name))
   guesses : List (Int, (FC, Name))
   constraints : List (Int, Constraint)
-  context : List GlobalDef
+  context : List (Name, Binary)
   autoHints : List (Name, Bool)
   typeHints : List (Name, Name, Bool)
   imported : List (List String, Bool, List String)
@@ -96,7 +96,7 @@ HasNames e => HasNames (TTCFile e) where
                       extra)
       = pure $ MkTTCFile version ifaceHash iHashes
                          holes guesses constraints
-                         !(traverse (full gam) context)
+                         context
                          !(traverse (full gam) autoHints)
                          !(traverse (full gam) typeHints)
                          imported nextVar currentNS
@@ -135,7 +135,7 @@ HasNames e => HasNames (TTCFile e) where
                       extra)
       = pure $ MkTTCFile version ifaceHash iHashes
                          holes guesses constraints
-                         !(traverse (resolved gam) context)
+                         context
                          !(traverse (resolved gam) autoHints)
                          !(traverse (resolved gam) typeHints)
                          imported nextVar currentNS
@@ -268,7 +268,8 @@ readTTCFile modns as r b
                            autohs typehs imp nextv cns 
                            pns rws prims nds cgds ex)
 -- Pull out the list of GlobalDefs that we want to save
-getSaveDefs : List Name -> List GlobalDef -> Defs -> Core (List GlobalDef)
+getSaveDefs : List Name -> List (Name, Binary) -> Defs -> 
+              Core (List (Name, Binary))
 getSaveDefs [] acc _ = pure acc
 getSaveDefs (n :: ns) acc defs
     = do Just gdef <- lookupCtxtExact n (gamma defs)
@@ -276,7 +277,9 @@ getSaveDefs (n :: ns) acc defs
          -- No need to save builtins
          case definition gdef of
               Builtin _ => getSaveDefs ns acc defs
-              _ => getSaveDefs ns (gdef :: acc) defs
+              _ => do bin <- initBinaryS 16384
+                      toBuf bin !(full (gamma defs) gdef)
+                      getSaveDefs ns ((fullname gdef, !(get Bin)) :: acc) defs
 
 -- Write out the things in the context which have been defined in the
 -- current source file
@@ -315,10 +318,9 @@ writeToTTC extradata fname
 
 addGlobalDef : {auto c : Ref Ctxt Defs} ->
                (modns : List String) -> (importAs : Maybe (List String)) ->
-               GlobalDef -> Core ()
-addGlobalDef modns as def 
-    = do let n = fullname def
-         addContextEntry (asName modns as n) def
+               (Name, Binary) -> Core ()
+addGlobalDef modns as (n, def)
+    = do addContextEntry (asName modns as n) def
          pure ()
 
 addTypeHint : {auto c : Ref Ctxt Defs} ->

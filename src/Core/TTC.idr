@@ -814,4 +814,15 @@ TTC GlobalDef where
                                         RigW [] Public unchecked [] empty
                                         False True def cdef [])
 
+-- decode : Context -> Int -> ContextEntry -> Core GlobalDef
+Core.Context.decode gam idx (Coded bin) 
+    = do r <- initNameRefs 1 -- dummy value, delete this argument!
+         b <- newRef Bin bin
+         def <- fromBuf r b
+         let a = getContent gam
+         arr <- get Arr
+         def' <- resolved gam def
+         coreLift $ writeArray arr idx (Decoded def')
+         pure def'
+Core.Context.decode gam idx (Decoded def) = pure def
 

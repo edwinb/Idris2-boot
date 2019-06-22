@@ -165,13 +165,14 @@ record GlobalDef where
   sizeChange : List SCCall
 
 -- Label for array references
+export
 data Arr : Type where
 
--- A context entry. If it's never been looked up, we haved decoded the
--- names yet, so decoded it first time
+-- A context entry. If it's never been looked up, we haven't decoded the
+-- binary blod yet, so decode it first time
 public export
 data ContextEntry : Type where
-     Coded : GlobalDef -> ContextEntry
+     Coded : Binary -> ContextEntry
      Decoded : GlobalDef -> ContextEntry
 
 -- All the GlobalDefs. We can only have one context, because name references
@@ -201,7 +202,13 @@ record Context where
     -- visible
     visibleNS : List (List String)
 
+export
+getContent : Context -> Ref Arr (IOArray ContextEntry)
+getContent = content
+
 -- Implemented later, once we can convert to and from full names
+-- Defined in Core.TTC
+export
 decode : Context -> Int -> ContextEntry -> Core GlobalDef
 
 -- Make an array which is a mapping from IDs to the names they represent
@@ -632,14 +639,6 @@ HasNames GlobalDef where
                         sizeChange = !(traverse (resolved gam) (sizeChange def))
                       } def
 
-decode gam idx (Coded def) 
-    = do let a = content gam
-         arr <- get Arr
-         def' <- resolved gam def
-         coreLift $ writeArray arr idx (Decoded def')
-         pure def'
-decode gam idx (Decoded def) = pure def
-
 public export
 record Defs where
   constructor MkDefs
@@ -754,13 +753,10 @@ addDef n def
 
 export
 addContextEntry : {auto c : Ref Ctxt Defs} -> 
-                  Name -> GlobalDef -> Core Int
+                  Name -> Binary -> Core Int
 addContextEntry n def
     = do defs <- get Ctxt
          (idx, gam') <- addEntry n (Coded def) (gamma defs)
-         case definition def of
-              PMDef _ _ _ _ => clearUserHole n
-              _ => pure ()
          put Ctxt (record { gamma = gam' } defs)
          pure idx
 

@@ -256,5 +256,5 @@ process buildmsg file
                                         mfn <- getTTCFileName file ".ttm"
                                         writeToTTM mfn
                                         pure []
-                                 else pure errs)
+                                 else do pure errs)
                           (\err => pure [err])

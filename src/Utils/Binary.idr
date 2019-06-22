@@ -23,7 +23,7 @@ data Bin : Type where
 export
 data ResID : Type where
 
-export
+public export
 record Binary where
   constructor MkBin
   buf : Buffer
@@ -111,9 +111,16 @@ initBinary
              | Nothing => throw (InternalError "Buffer creation failed")
          newRef Bin (newBinary buf)
 
+export
+initBinaryS : Int -> Core (Ref Bin Binary)
+initBinaryS s
+    = do Just buf <- coreLift $ newBuffer s
+             | Nothing => throw (InternalError "Buffer creation failed")
+         newRef Bin (newBinary buf)
+
 extendBinary : Binary -> Core Binary
 extendBinary (MkBin buf l s u)
-    = do let s' = s + blockSize
+    = do let s' = s * 2
          Just buf' <- coreLift $ resizeBuffer buf s'
              | Nothing => throw (InternalError "Buffer expansion failed")
          pure (MkBin buf' l s' u)
@@ -211,17 +218,18 @@ TTC String where
 export
 TTC Binary where
   toBuf b val
-    = do toBuf b (used val)
+    = do let len = used val
+         toBuf b len
          chunk <- get Bin
-         if avail chunk >= used val
+         if avail chunk >= len
             then
-              do coreLift $ copyData (buf val) 0 (used val)
+              do coreLift $ copyData (buf val) 0 len
                                      (buf chunk) (loc chunk)
-                 put Bin (appended (used val) chunk)
+                 put Bin (appended len chunk)
             else do chunk' <- extendBinary chunk
-                    coreLift $ copyData (buf val) 0 (used val)
-                                        (buf chunk) (loc chunk)
-                    put Bin (appended (used val) chunk)
+                    coreLift $ copyData (buf val) 0 len
+                                        (buf chunk') (loc chunk')
+                    put Bin (appended len chunk')
 
   fromBuf s b
     = do len <- fromBuf s b
@@ -232,6 +240,7 @@ TTC Binary where
                       | Nothing => throw (InternalError "Can't create buffer")
                  coreLift $ copyData (buf chunk) (loc chunk) len
                                      newbuf 0
+                 put Bin (incLoc len chunk)
                  pure (MkBin newbuf 0 len len)
             else throw (TTCError (EndOfBuffer "Binary"))
 
