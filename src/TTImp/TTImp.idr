@@ -528,76 +528,76 @@ mutual
     toBuf b (Implicit fc i)
         = do tag 23; toBuf b fc; toBuf b i
 
-    fromBuf s b
+    fromBuf b
         = case !getTag of
-               0 => do fc <- fromBuf s b; n <- fromBuf s b;
+               0 => do fc <- fromBuf b; n <- fromBuf b;
                        pure (IVar fc n)
-               1 => do fc <- fromBuf s b;
-                       r <- fromBuf s b; p <- fromBuf s b; 
-                       n <- fromBuf s b
-                       argTy <- fromBuf s b; retTy <- fromBuf s b
+               1 => do fc <- fromBuf b;
+                       r <- fromBuf b; p <- fromBuf b; 
+                       n <- fromBuf b
+                       argTy <- fromBuf b; retTy <- fromBuf b
                        pure (IPi fc r p n argTy retTy)
-               2 => do fc <- fromBuf s b;
-                       r <- fromBuf s b; p <- fromBuf s b; n <- fromBuf s b
-                       argTy <- fromBuf s b; scope <- fromBuf s b
+               2 => do fc <- fromBuf b;
+                       r <- fromBuf b; p <- fromBuf b; n <- fromBuf b
+                       argTy <- fromBuf b; scope <- fromBuf b
                        pure (ILam fc r p n argTy scope)
-               3 => do fc <- fromBuf s b;
-                       r <- fromBuf s b; n <- fromBuf s b
-                       nTy <- fromBuf s b; nVal <- fromBuf s b
-                       scope <- fromBuf s b
+               3 => do fc <- fromBuf b;
+                       r <- fromBuf b; n <- fromBuf b
+                       nTy <- fromBuf b; nVal <- fromBuf b
+                       scope <- fromBuf b
                        pure (ILet fc r n nTy nVal scope)
-               4 => do fc <- fromBuf s b; y <- fromBuf s b;
-                       ty <- fromBuf s b; xs <- fromBuf s b
+               4 => do fc <- fromBuf b; y <- fromBuf b;
+                       ty <- fromBuf b; xs <- fromBuf b
                        pure (ICase fc y ty xs)
-               5 => do fc <- fromBuf s b;
-                       xs <- fromBuf s b; sc <- fromBuf s b
+               5 => do fc <- fromBuf b;
+                       xs <- fromBuf b; sc <- fromBuf b
                        pure (ILocal fc xs sc)
-               6 => do fc <- fromBuf s b; fs <- fromBuf s b
-                       rec <- fromBuf s b
+               6 => do fc <- fromBuf b; fs <- fromBuf b
+                       rec <- fromBuf b
                        pure (IUpdate fc fs rec)
-               7 => do fc <- fromBuf s b; fn <- fromBuf s b
-                       arg <- fromBuf s b
+               7 => do fc <- fromBuf b; fn <- fromBuf b
+                       arg <- fromBuf b
                        pure (IApp fc fn arg)
-               8 => do fc <- fromBuf s b; fn <- fromBuf s b
-                       y <- fromBuf s b; arg <- fromBuf s b
+               8 => do fc <- fromBuf b; fn <- fromBuf b
+                       y <- fromBuf b; arg <- fromBuf b
                        pure (IImplicitApp fc fn y arg)
-               9 => do fc <- fromBuf s b; depth <- fromBuf s b
+               9 => do fc <- fromBuf b; depth <- fromBuf b
                        pure (ISearch fc depth)
-               10 => do fc <- fromBuf s b; y <- fromBuf s b
-                        xs <- fromBuf s b
+               10 => do fc <- fromBuf b; y <- fromBuf b
+                        xs <- fromBuf b
                         pure (IAlternative fc y xs)
-               11 => do fc <- fromBuf s b; x <- fromBuf s b; y <- fromBuf s b
+               11 => do fc <- fromBuf b; x <- fromBuf b; y <- fromBuf b
                         pure (IRewrite fc x y)
-               12 => do fc <- fromBuf s b; y <- fromBuf s b
+               12 => do fc <- fromBuf b; y <- fromBuf b
                         pure (ICoerced fc y)
-               13 => do fc <- fromBuf s b; m <- fromBuf s b; y <- fromBuf s b
+               13 => do fc <- fromBuf b; m <- fromBuf b; y <- fromBuf b
                         pure (IBindHere fc m y)
-               14 => do fc <- fromBuf s b; y <- fromBuf s b
+               14 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IBindVar fc y)
-               15 => do fc <- fromBuf s b; side <- fromBuf s b
-                        y <- fromBuf s b
-                        pattern <- fromBuf s b
+               15 => do fc <- fromBuf b; side <- fromBuf b
+                        y <- fromBuf b
+                        pattern <- fromBuf b
                         pure (IAs fc side y pattern)
-               16 => do fc <- fromBuf s b
-                        pattern <- fromBuf s b
+               16 => do fc <- fromBuf b
+                        pattern <- fromBuf b
                         pure (IMustUnify fc "" pattern)
 
-               17 => do fc <- fromBuf s b; r <- fromBuf s b
-                        y <- fromBuf s b
+               17 => do fc <- fromBuf b; r <- fromBuf b
+                        y <- fromBuf b
                         pure (IDelayed fc r y)
-               18 => do fc <- fromBuf s b; y <- fromBuf s b
+               18 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IDelay fc y)
-               19 => do fc <- fromBuf s b; y <- fromBuf s b
+               19 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IForce fc y)
 
-               20 => do fc <- fromBuf s b; y <- fromBuf s b
+               20 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IPrimVal fc y)
-               21 => do fc <- fromBuf s b
+               21 => do fc <- fromBuf b
                         pure (IType fc)
-               22 => do fc <- fromBuf s b; y <- fromBuf s b
+               22 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IHole fc y)
-               23 => do fc <- fromBuf s b
-                        i <- fromBuf s b
+               23 => do fc <- fromBuf b
+                        i <- fromBuf b
                         pure (Implicit fc i)
                _ => corrupt "RawImp"
   
@@ -608,11 +608,11 @@ mutual
     toBuf b (ISetFieldApp p val)
         = do tag 1; toBuf b p; toBuf b val
 
-    fromBuf s b
+    fromBuf b
         = case !getTag of
-               0 => do p <- fromBuf s b; val <- fromBuf s b
+               0 => do p <- fromBuf b; val <- fromBuf b
                        pure (ISetField p val)
-               1 => do p <- fromBuf s b; val <- fromBuf s b
+               1 => do p <- fromBuf b; val <- fromBuf b
                        pure (ISetFieldApp p val)
                _ => corrupt "IFieldUpdate"
 
@@ -622,9 +622,9 @@ mutual
     toBuf b PATTERN = tag 1
     toBuf b NONE = tag 2
 
-    fromBuf s b
+    fromBuf b
         = case !getTag of
-               0 => do x <- fromBuf s b
+               0 => do x <- fromBuf b
                        pure (PI x)
                1 => pure PATTERN
                2 => pure NONE
@@ -635,7 +635,7 @@ mutual
     toBuf b UseLeft = tag 0
     toBuf b UseRight = tag 1
 
-    fromBuf s b
+    fromBuf b
         = case !getTag of
                0 => pure UseLeft
                1 => pure UseRight
@@ -647,11 +647,11 @@ mutual
     toBuf b Unique = tag 1
     toBuf b (UniqueDefault x) = do tag 2; toBuf b x
 
-    fromBuf s b
+    fromBuf b
         = case !getTag of
                0 => pure FirstSuccess
                1 => pure Unique
-               2 => do x <- fromBuf s b
+               2 => do x <- fromBuf b
                        pure (UniqueDefault x)
                _ => corrupt "AltType"
   
@@ -659,8 +659,8 @@ mutual
   TTC ImpTy where
     toBuf b (MkImpTy fc n ty) 
         = do toBuf b fc; toBuf b n; toBuf b ty
-    fromBuf s b
-        = do fc <- fromBuf s b; n <- fromBuf s b; ty <- fromBuf s b
+    fromBuf b
+        = do fc <- fromBuf b; n <- fromBuf b; ty <- fromBuf b
              pure (MkImpTy fc n ty)
 
   export
@@ -672,15 +672,15 @@ mutual
     toBuf b (WithClause fc lhs wval cs) 
         = do tag 2; toBuf b fc; toBuf b lhs; toBuf b wval; toBuf b cs
 
-    fromBuf s b
+    fromBuf b
         = case !getTag of
-               0 => do fc <- fromBuf s b; lhs <- fromBuf s b; 
-                       rhs <- fromBuf s b
+               0 => do fc <- fromBuf b; lhs <- fromBuf b; 
+                       rhs <- fromBuf b
                        pure (PatClause fc lhs rhs)
-               1 => do fc <- fromBuf s b; lhs <- fromBuf s b; 
+               1 => do fc <- fromBuf b; lhs <- fromBuf b; 
                        pure (ImpossibleClause fc lhs)
-               2 => do fc <- fromBuf s b; lhs <- fromBuf s b; 
-                       wval <- fromBuf s b; cs <- fromBuf s b
+               2 => do fc <- fromBuf b; lhs <- fromBuf b; 
+                       wval <- fromBuf b; cs <- fromBuf b
                        pure (WithClause fc lhs wval cs)
                _ => corrupt "ImpClause"
 
@@ -690,9 +690,9 @@ mutual
         = do tag 0; toBuf b ns
     toBuf b NoHints = tag 1
 
-    fromBuf s b
+    fromBuf b
         = case !getTag of
-               0 => do ns <- fromBuf s b
+               0 => do ns <- fromBuf b
                        pure (SearchBy ns)
                1 => pure NoHints
                _ => corrupt "DataOpt"
@@ -705,14 +705,14 @@ mutual
     toBuf b (MkImpLater fc n tycon) 
         = do tag 1; toBuf b fc; toBuf b n; toBuf b tycon
 
-    fromBuf s b
+    fromBuf b
         = case !getTag of
-               0 => do fc <- fromBuf s b; n <- fromBuf s b;
-                       tycon <- fromBuf s b; opts <- fromBuf s b
-                       cons <- fromBuf s b
+               0 => do fc <- fromBuf b; n <- fromBuf b;
+                       tycon <- fromBuf b; opts <- fromBuf b
+                       cons <- fromBuf b
                        pure (MkImpData fc n tycon opts cons)
-               1 => do fc <- fromBuf s b; n <- fromBuf s b;
-                       tycon <- fromBuf s b
+               1 => do fc <- fromBuf b; n <- fromBuf b;
+                       tycon <- fromBuf b
                        pure (MkImpLater fc n tycon)
                _ => corrupt "ImpData"
 
@@ -721,9 +721,9 @@ mutual
     toBuf b (MkIField fc c p n ty)
         = do toBuf b fc; toBuf b c; toBuf b p; toBuf b n; toBuf b ty
 
-    fromBuf s b
-        = do fc <- fromBuf s b; c <- fromBuf s b; p <- fromBuf s b
-             n <- fromBuf s b; ty <- fromBuf s b
+    fromBuf b
+        = do fc <- fromBuf b; c <- fromBuf b; p <- fromBuf b
+             n <- fromBuf b; ty <- fromBuf b
              pure (MkIField fc c p n ty)
 
   export
@@ -731,9 +731,9 @@ mutual
     toBuf b (MkImpRecord fc n ps con fs)
         = do toBuf b fc; toBuf b n; toBuf b ps; toBuf b con; toBuf b fs
 
-    fromBuf s b
-        = do fc <- fromBuf s b; n <- fromBuf s b; ps <- fromBuf s b
-             con <- fromBuf s b; fs <- fromBuf s b
+    fromBuf b
+        = do fc <- fromBuf b; n <- fromBuf b; ps <- fromBuf b
+             con <- fromBuf b; fs <- fromBuf b
              pure (MkImpRecord fc n ps con fs)
 
   export
@@ -747,11 +747,11 @@ mutual
     toBuf b Covering = tag 6
     toBuf b PartialOK = tag 7
 
-    fromBuf s b
+    fromBuf b
         = case !getTag of
                0 => pure Inline
-               1 => do t <- fromBuf s b; pure (Hint t)
-               2 => do t <- fromBuf s b; pure (GlobalHint t)
+               1 => do t <- fromBuf b; pure (Hint t)
+               2 => do t <- fromBuf b; pure (GlobalHint t)
                3 => pure ExternFn
                4 => pure Invertible
                5 => pure Total
@@ -777,28 +777,28 @@ mutual
     toBuf b (ILog n) 
         = do tag 6; toBuf b n
 
-    fromBuf s b
+    fromBuf b
         = case !getTag of
-               0 => do fc <- fromBuf s b; c <- fromBuf s b
-                       vis <- fromBuf s b;
-                       xs <- fromBuf s b; d <- fromBuf s b
+               0 => do fc <- fromBuf b; c <- fromBuf b
+                       vis <- fromBuf b;
+                       xs <- fromBuf b; d <- fromBuf b
                        pure (IClaim fc c vis xs d)
-               1 => do fc <- fromBuf s b; vis <- fromBuf s b
-                       d <- fromBuf s b
+               1 => do fc <- fromBuf b; vis <- fromBuf b
+                       d <- fromBuf b
                        pure (IData fc vis d)
-               2 => do fc <- fromBuf s b; n <- fromBuf s b
-                       xs <- fromBuf s b
+               2 => do fc <- fromBuf b; n <- fromBuf b
+                       xs <- fromBuf b
                        pure (IDef fc n xs)
-               3 => do fc <- fromBuf s b; vis <- fromBuf s b
-                       d <- fromBuf s b
+               3 => do fc <- fromBuf b; vis <- fromBuf b
+                       d <- fromBuf b
                        pure (IParameters fc vis d)
-               4 => do fc <- fromBuf s b; vis <- fromBuf s b
-                       r <- fromBuf s b
+               4 => do fc <- fromBuf b; vis <- fromBuf b
+                       r <- fromBuf b
                        pure (IRecord fc vis r)
-               5 => do fc <- fromBuf s b; xs <- fromBuf s b
-                       ds <- fromBuf s b
+               5 => do fc <- fromBuf b; xs <- fromBuf b
+                       ds <- fromBuf b
                        pure (INamespace fc xs ds)
-               6 => do n <- fromBuf s b
+               6 => do n <- fromBuf b
                        pure (ILog n)
                _ => corrupt "ImpDecl"
 

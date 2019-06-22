@@ -50,11 +50,11 @@ TTC Metadata where
            toBuf b (tydecls m)
            toBuf b (holeLHS m)
 
-  fromBuf s b
-      = do apps <- fromBuf s b
-           ns <- fromBuf s b
-           tys <- fromBuf s b
-           hlhs <- fromBuf s b
+  fromBuf b
+      = do apps <- fromBuf b
+           ns <- fromBuf b
+           tys <- fromBuf b
+           hlhs <- fromBuf b
            pure (MkMetadata apps ns tys Nothing hlhs)
 
 export
@@ -177,12 +177,12 @@ TTC TTMFile where
            toBuf b (version file)
            toBuf b (metadata file)
 
-  fromBuf s b
-      = do hdr <- fromBuf s b
+  fromBuf b
+      = do hdr <- fromBuf b
            when (hdr /= "TTM") $ corrupt "TTM header"
-           ver <- fromBuf s b
+           ver <- fromBuf b
            checkTTCVersion ver ttcVersion
-           md <- fromBuf s b
+           md <- fromBuf b
            pure (MkTTMFile ver md)
 
 HasNames Metadata where
@@ -233,16 +233,14 @@ writeToTTM fname
              | Left err => throw (InternalError (fname ++ ": " ++ show err))
          pure ()
 
--- The 'NameRefs' comes from the corresponding TTC file (so the assumption
--- is that the TTM and TTC are in sync!)
 export
 readFromTTM : {auto m : Ref MD Metadata} ->
-              NameRefs -> (fname : String) ->
+              (fname : String) ->
               Core ()
-readFromTTM r fname
+readFromTTM fname
     = do Right buf <- coreLift $ readFromFile fname
              | Left err => throw (InternalError (fname ++ ": " ++ show err))
          bin <- newRef Bin buf
-         ttm <- fromBuf r bin
+         ttm <- fromBuf bin
          put MD (metadata ttm)
 

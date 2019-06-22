@@ -168,43 +168,6 @@ asName mod (Just ns) (NS oldns n)
          else NS oldns n
 asName _ _ n = n
 
-readNameMap : {auto c : Ref Ctxt Defs} ->
-              NameRefs -> Ref Bin Binary -> Core NameRefs
-readNameMap r b
-    = do ns <- fromBuf r b
-         log 10 $ "Name map:\n" ++ dumpMap 0 ns
-         coreLift $ fromList ns
-  where
-    dumpMap : Int -> List (Maybe (Name, Maybe Int)) -> String
-    dumpMap i [] = ""
-    dumpMap i (Just (n, _) :: ns) 
-        = show i ++ ": " ++ show n ++ "\n" ++ dumpMap (i+1) ns
-    dumpMap i (_ :: ns) = dumpMap (i + 1) ns
-
--- For every name we're going to read from the file, work out what its
--- new resolved name is going to be in the context and update the name
--- map accordingly
--- Also update namespace if we've done "import ... as ..."
-updateEntries : {auto c : Ref Ctxt Defs} ->
-                Context ->
-                List String -> Maybe (List String) ->
-                Int -> Int -> NameRefs -> Core Context
-updateEntries ctxt mod as pos end r
-    = if pos >= end
-         then pure ctxt
-         else do Just (n, Nothing) <- coreLift $ readArray r pos
-                      | _ => updateEntries ctxt mod as (pos+1) end r
-                 let n' = asName mod as n
-                 (idx, ctxt') <- getPosition n' ctxt
-                 log 10 $ show n' ++ " " ++ show pos ++ " ==> " ++ show idx
-                 coreLift $ writeArray r pos (n', Just idx)
-                 updateEntries ctxt' mod as (pos+1) end r
-
-writeNameMap : Ref Bin Binary -> NameRefs -> Core ()
-writeNameMap b r
-    = do ns <- coreLift $ toList r
-         toBuf b ns
-
 -- NOTE: TTC files are only compatible if the version number is the same,
 -- *and* the 'annot/extra' type are the same, or there are no holes/constraints
 writeTTCFile : (HasNames extra, TTC extra) => 
@@ -235,34 +198,34 @@ writeTTCFile b file_in
 readTTCFile : TTC extra => 
               {auto c : Ref Ctxt Defs} ->
               List String -> Maybe (List String) ->
-              NameRefs -> Ref Bin Binary -> Core (TTCFile extra)
-readTTCFile modns as r b
-      = do hdr <- fromBuf r b
+              Ref Bin Binary -> Core (TTCFile extra)
+readTTCFile modns as b
+      = do hdr <- fromBuf b
            when (hdr /= "TTC") $ corrupt "TTC header"
-           ver <- fromBuf r b
+           ver <- fromBuf b
            checkTTCVersion ver ttcVersion
-           ifaceHash <- fromBuf r b
-           importHashes <- fromBuf r b
---            holes <- fromBuf r b
+           ifaceHash <- fromBuf b
+           importHashes <- fromBuf b
+--            holes <- fromBuf b
 --            coreLift $ putStrLn $ "Read " ++ show (length holes) ++ " holes"
---            guesses <- fromBuf r b
+--            guesses <- fromBuf b
 --            coreLift $ putStrLn $ "Read " ++ show (length guesses) ++ " guesses"
---            constraints <- the (Core (List (Int, Constraint))) $ fromBuf r b
+--            constraints <- the (Core (List (Int, Constraint))) $ fromBuf b
 --            coreLift $ putStrLn $ "Read " ++ show (length constraints) ++ " constraints"
-           defs <- logTime "Definitions" $ fromBuf r b
-           autohs <- fromBuf r b
-           typehs <- fromBuf r b
+           defs <- logTime "Definitions" $ fromBuf b
+           autohs <- fromBuf b
+           typehs <- fromBuf b
 --            coreLift $ putStrLn ("Hints: " ++ show typehs)
 --            coreLift $ putStrLn $ "Read " ++ show (length (map fullname defs)) ++ " defs"
-           imp <- fromBuf r b
-           nextv <- fromBuf r b
-           cns <- fromBuf r b
-           pns <- fromBuf r b
-           rws <- fromBuf r b
-           prims <- fromBuf r b
-           nds <- fromBuf r b
-           cgds <- fromBuf r b
-           ex <- fromBuf r b
+           imp <- fromBuf b
+           nextv <- fromBuf b
+           cns <- fromBuf b
+           pns <- fromBuf b
+           rws <- fromBuf b
+           prims <- fromBuf b
+           nds <- fromBuf b
+           cgds <- fromBuf b
+           ex <- fromBuf b
            pure (MkTTCFile ver ifaceHash importHashes
                            [] [] [] defs -- holes guesses constraints defs 
                            autohs typehs imp nextv cns 
@@ -294,7 +257,6 @@ writeToTTC extradata fname
          ust <- get UST
          gdefs <- getSaveDefs (keys (toSave defs)) [] defs
          log 5 $ "Writing " ++ fname ++ " with hash " ++ show (ifaceHash defs)
-         r <- getNameRefs (gamma defs)
          writeTTCFile buf 
                    (MkTTCFile ttcVersion (ifaceHash defs) (importHashes defs)
                               (toList (holes ust)) 
@@ -376,8 +338,7 @@ readFromTTC : TTC extra =>
               (modNS : List String) -> -- module namespace
               (importAs : List String) -> -- namespace to import as
               Core (Maybe (extra, Int, 
-                           List (List String, Bool, List String),
-                           NameRefs))
+                           List (List String, Bool, List String)))
 readFromTTC loc reexp fname modNS importAs
     = do defs <- get Ctxt
          -- If it's already in the context, don't load it again
@@ -388,12 +349,10 @@ readFromTTC loc reexp fname modNS importAs
          Right buf <- coreLift $ readFromFile fname
                | Left err => throw (InternalError (fname ++ ": " ++ show err))
          bin <- newRef Bin buf -- for reading the file into
-         r <- initNameRefs 1 -- this will be updated when we read the name
-                             -- map from the file
          let as = if importAs == modNS 
                      then Nothing 
                      else Just importAs
-         ttc <- readTTCFile modNS as r bin
+         ttc <- readTTCFile modNS as bin
          logTime "Adding defs" $ traverse (addGlobalDef modNS as) (context ttc)
          setNS (currentNS ttc)
          -- Set up typeHints and autoHints based on the loaded data
@@ -415,25 +374,25 @@ readFromTTC loc reexp fname modNS importAs
          put UST (record { holes = fromList (holes ttc),
                            constraints = fromList (constraints ttc),
                            nextName = nextVar ttc } ust)
-         pure (Just (extraData ttc, ifaceHash ttc, imported ttc, r))
+         pure (Just (extraData ttc, ifaceHash ttc, imported ttc))
 
-getImportHashes : NameRefs -> Ref Bin Binary ->
+getImportHashes : Ref Bin Binary ->
                   Core (List (List String, Int))
-getImportHashes r b
-    = do hdr <- fromBuf r {a = String} b
+getImportHashes b
+    = do hdr <- fromBuf {a = String} b
          when (hdr /= "TTC") $ corrupt "TTC header"
-         ver <- fromBuf r {a = Int} b
+         ver <- fromBuf {a = Int} b
          checkTTCVersion ver ttcVersion
-         ifaceHash <- fromBuf r {a = Int} b
-         fromBuf r b
+         ifaceHash <- fromBuf {a = Int} b
+         fromBuf b
 
-getHash : NameRefs -> Ref Bin Binary -> Core Int
-getHash r b
-    = do hdr <- fromBuf r {a = String} b
+getHash : Ref Bin Binary -> Core Int
+getHash b
+    = do hdr <- fromBuf {a = String} b
          when (hdr /= "TTC") $ corrupt "TTC header"
-         ver <- fromBuf r {a = Int} b
+         ver <- fromBuf {a = Int} b
          checkTTCVersion ver ttcVersion
-         fromBuf r b
+         fromBuf b
 
 export
 readIFaceHash : (fname : String) -> -- file containing the module
@@ -442,8 +401,7 @@ readIFaceHash fname
     = do Right buf <- coreLift $ readFromFile fname
             | Left err => pure 0
          b <- newRef Bin buf
-         r <- initNameRefs 1
-         catch (getHash r b)
+         catch (getHash b)
                (\err => pure 0)
 
 export
@@ -453,7 +411,6 @@ readImportHashes fname
     = do Right buf <- coreLift $ readFromFile fname
             | Left err => pure []
          b <- newRef Bin buf
-         r <- initNameRefs 1
-         catch (getImportHashes r b)
+         catch (getImportHashes b)
                (\err => pure [])
 

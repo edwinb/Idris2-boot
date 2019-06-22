@@ -211,22 +211,6 @@ getContent = content
 export
 decode : Context -> Int -> ContextEntry -> Core GlobalDef
 
--- Make an array which is a mapping from IDs to the names they represent
--- (the reverse of 'resolvedAs') which we use when serialising to record which
--- name each ID refers to. Then when we read references in terms, we'll know
--- which name it really is and can update appropriately for the new context.
-export
-getNameRefs : Context -> Core NameRefs
-getNameRefs gam
-    = do arr <- coreLift $ newArray (nextEntry gam)
-         traverse_ (addToMap arr) (toList (resolvedAs gam))
-         pure arr
-  where
-    addToMap : NameRefs -> (Name, Int) -> Core ()
-    addToMap arr (UN _, i) = pure () -- skip primitives, they're always added first
-    addToMap arr (n, i)
-        = coreLift $ writeArray arr i (n, Nothing)
-
 initSize : Int
 initSize = 10000
 

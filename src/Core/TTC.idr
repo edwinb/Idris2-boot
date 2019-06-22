@@ -23,10 +23,10 @@ TTC FC where
       = do tag 0; toBuf b file; toBuf b startPos; toBuf b endPos
   toBuf b EmptyFC = tag 1
 
-  fromBuf r b
+  fromBuf b
       = case !getTag of
-             0 => do f <- fromBuf r b; 
-                     s <- fromBuf r b; e <- fromBuf r b
+             0 => do f <- fromBuf b; 
+                     s <- fromBuf b; e <- fromBuf b
                      pure (MkFC f s e)
              1 => pure EmptyFC
              _ => corrupt "FC"
@@ -43,40 +43,32 @@ TTC Name where
   toBuf b (WithBlock x y) = do tag 7; toBuf b x; toBuf b y
   toBuf b (Resolved x) 
       = throw (InternalError ("Can't write resolved name " ++ show x))
-        -- do tag 8; toBuf b x
 
-  fromBuf r b
+  fromBuf b
       = case !getTag of
-             0 => do xs <- fromBuf r b
-                     x <- fromBuf r b
+             0 => do xs <- fromBuf b
+                     x <- fromBuf b
                      pure (NS xs x)
-             1 => do x <- fromBuf r b
+             1 => do x <- fromBuf b
                      pure (UN x)
-             2 => do x <- fromBuf r b
-                     y <- fromBuf r b
+             2 => do x <- fromBuf b
+                     y <- fromBuf b
                      pure (MN x y)
-             3 => do x <- fromBuf r b
-                     y <- fromBuf r b
+             3 => do x <- fromBuf b
+                     y <- fromBuf b
                      pure (PV x y)
-             4 => do x <- fromBuf r b
-                     y <- fromBuf r b
+             4 => do x <- fromBuf b
+                     y <- fromBuf b
                      pure (DN x y)
-             5 => do x <- fromBuf r b
-                     y <- fromBuf r b
+             5 => do x <- fromBuf b
+                     y <- fromBuf b
                      pure (Nested x y)
-             6 => do x <- fromBuf r b
-                     y <- fromBuf r b
+             6 => do x <- fromBuf b
+                     y <- fromBuf b
                      pure (CaseBlock x y)
-             7 => do x <- fromBuf r b
-                     y <- fromBuf r b
+             7 => do x <- fromBuf b
+                     y <- fromBuf b
                      pure (WithBlock x y)
-             8 => do x <- fromBuf r b
-                     Just (n, Just idx) <- coreLift $ readArray r x
-                          | Just (n, Nothing) => pure n
-                          | Nothing => if x < 70 -- ^ must be primitive
-                                          then pure (Resolved x)
-                                          else corrupt ("Name index " ++ show x)
-                     pure (Resolved idx)
              _ => corrupt "Name"
             
 export 
@@ -85,7 +77,7 @@ TTC RigCount where
   toBuf b Rig1 = tag 1
   toBuf b RigW = tag 2
 
-  fromBuf r b
+  fromBuf b
       = case !getTag of
              0 => pure Rig0
              1 => pure Rig1
@@ -98,7 +90,7 @@ TTC PiInfo where
   toBuf b Explicit = tag 1
   toBuf b AutoImplicit = tag 2
 
-  fromBuf r b
+  fromBuf b
       = case !getTag of
              0 => pure Implicit
              1 => pure Explicit
@@ -121,13 +113,13 @@ TTC Constant where
   toBuf b DoubleType = tag 10
   toBuf b WorldType = tag 11
 
-  fromBuf r b
+  fromBuf b
       = case !getTag of
-             0 => do x <- fromBuf r b; pure (I x)
-             1 => do x <- fromBuf r b; pure (BI x)
-             2 => do x <- fromBuf r b; pure (Str x)
-             3 => do x <- fromBuf r b; pure (Ch x)
-             4 => do x <- fromBuf r b; pure (Db x)
+             0 => do x <- fromBuf b; pure (I x)
+             1 => do x <- fromBuf b; pure (BI x)
+             2 => do x <- fromBuf b; pure (Str x)
+             3 => do x <- fromBuf b; pure (Ch x)
+             4 => do x <- fromBuf b; pure (Db x)
              5 => pure WorldVal
              6 => pure IntType
              7 => pure IntegerType
@@ -143,7 +135,7 @@ TTC LazyReason where
   toBuf b LLazy = tag 1
   toBuf b LUnknown = tag 2
 
-  fromBuf r b
+  fromBuf b
       = case !getTag of
              0 => pure LInf
              1 => pure LLazy
@@ -157,12 +149,12 @@ TTC NameType where
   toBuf b (DataCon t arity) = do tag 2; toBuf b t; toBuf b arity
   toBuf b (TyCon t arity) = do tag 3; toBuf b t; toBuf b arity
 
-  fromBuf r b
+  fromBuf b
       = case !getTag of
              0 => pure Bound
              1 => pure Func
-             2 => do x <- fromBuf r b; y <- fromBuf r b; pure (DataCon x y)
-             3 => do x <- fromBuf r b; y <- fromBuf r b; pure (TyCon x y)
+             2 => do x <- fromBuf b; y <- fromBuf b; pure (DataCon x y)
+             3 => do x <- fromBuf b; y <- fromBuf b; pure (TyCon x y)
              _ => corrupt "NameType"
 
 -- Assumption is that it was type safe when we wrote it out, so believe_me
@@ -178,9 +170,9 @@ mkPrf {n} {ns} (S k) = believe_me (Later {m=n} (mkPrf {n} {ns} k))
 export
 TTC (Var vars) where
   toBuf b (MkVar {i} {n} v) = do toBuf b n; toBuf b i
-  fromBuf r b
-      = do n <- fromBuf r b
-           i <- fromBuf r b
+  fromBuf b
+      = do n <- fromBuf b
+           i <- fromBuf b
            pure (MkVar {n} (mkPrf i))
 
 mutual
@@ -193,14 +185,14 @@ mutual
     toBuf b (PLet c val ty) = do tag 4; toBuf b c; toBuf b val -- ; toBuf b ty
     toBuf b (PVTy c ty) = do tag 5; toBuf b c -- ; toBuf b ty
 
-    fromBuf r b
+    fromBuf b
         = case !getTag of
-               0 => do c <- fromBuf r b; x <- fromBuf r b; pure (Lam c x (Erased emptyFC))
-               1 => do c <- fromBuf r b; x <- fromBuf r b; pure (Let c x (Erased emptyFC))
-               2 => do c <- fromBuf r b; x <- fromBuf r b; y <- fromBuf r b; pure (Pi c x y)
-               3 => do c <- fromBuf r b; ty <- fromBuf r b; pure (PVar c ty)
-               4 => do c <- fromBuf r b; x <- fromBuf r b; pure (PLet c x (Erased emptyFC))
-               5 => do c <- fromBuf r b; pure (PVTy c (Erased emptyFC))
+               0 => do c <- fromBuf b; x <- fromBuf b; pure (Lam c x (Erased emptyFC))
+               1 => do c <- fromBuf b; x <- fromBuf b; pure (Let c x (Erased emptyFC))
+               2 => do c <- fromBuf b; x <- fromBuf b; y <- fromBuf b; pure (Pi c x y)
+               3 => do c <- fromBuf b; ty <- fromBuf b; pure (PVar c ty)
+               4 => do c <- fromBuf b; x <- fromBuf b; pure (PLet c x (Erased emptyFC))
+               5 => do c <- fromBuf b; pure (PVTy c (Erased emptyFC))
                _ => corrupt "Binder"
 
 
@@ -249,36 +241,36 @@ mutual
     toBuf b (TType fc)
         = tag 11
 
-    fromBuf r b 
+    fromBuf b 
         = case !getTag of
-               0 => do name <- fromBuf r b
-                       idx <- fromBuf r b
+               0 => do name <- fromBuf b
+                       idx <- fromBuf b
                        pure (Local {name} emptyFC Nothing idx (mkPrf idx))
-               1 => do nt <- fromBuf r b; name <- fromBuf r b
+               1 => do nt <- fromBuf b; name <- fromBuf b
                        pure (Ref emptyFC nt name)
-               2 => do n <- fromBuf r b
-                       xs <- fromBuf r b
+               2 => do n <- fromBuf b
+                       xs <- fromBuf b
                        pure (Meta emptyFC n 0 xs) -- needs resolving
-               3 => do x <- fromBuf r b
-                       bnd <- fromBuf r b; scope <- fromBuf r b
+               3 => do x <- fromBuf b
+                       bnd <- fromBuf b; scope <- fromBuf b
                        pure (Bind emptyFC x bnd scope)
-               4 => do fn <- fromBuf r b
-                       arg <- fromBuf r b
+               4 => do fn <- fromBuf b
+                       arg <- fromBuf b
                        pure (App emptyFC fn arg)
-               5 => do as <- fromBuf r b; tm <- fromBuf r b
+               5 => do as <- fromBuf b; tm <- fromBuf b
                        pure (As emptyFC as tm)
-               6 => do lr <- fromBuf r b; tm <- fromBuf r b
+               6 => do lr <- fromBuf b; tm <- fromBuf b
                        pure (TDelayed emptyFC lr tm)
-               7 => do lr <- fromBuf r b; 
-                       ty <- fromBuf r b; tm <- fromBuf r b
+               7 => do lr <- fromBuf b; 
+                       ty <- fromBuf b; tm <- fromBuf b
                        pure (TDelay emptyFC lr ty tm)
-               8 => do tm <- fromBuf r b
+               8 => do tm <- fromBuf b
                        pure (TForce emptyFC tm)
-               9 => do c <- fromBuf r b
+               9 => do c <- fromBuf b
                        pure (PrimVal emptyFC c)
                10 => pure (Erased emptyFC)
                11 => pure (TType emptyFC)
-               idxp => do name <- fromBuf r b
+               idxp => do name <- fromBuf b
                           let idx = fromInteger (prim__sextB8_BigInt idxp - 12)
                           pure (Local {name} emptyFC Nothing idx (mkPrf idx))
 
@@ -301,30 +293,30 @@ TTC Pat where
   toBuf b (PUnmatchable fc x) 
       = do tag 7; toBuf b fc; toBuf b x
 
-  fromBuf r b 
+  fromBuf b 
       = case !getTag of
-             0 => do fc <- fromBuf r b; x <- fromBuf r b;
-                     y <- fromBuf r b
+             0 => do fc <- fromBuf b; x <- fromBuf b;
+                     y <- fromBuf b
                      pure (PAs fc x y)
-             1 => do fc <- fromBuf r b; x <- fromBuf r b
-                     t <- fromBuf r b; arity <- fromBuf r b
-                     xs <- fromBuf r b
+             1 => do fc <- fromBuf b; x <- fromBuf b
+                     t <- fromBuf b; arity <- fromBuf b
+                     xs <- fromBuf b
                      pure (PCon fc x t arity xs)
-             2 => do fc <- fromBuf r b; x <- fromBuf r b
-                     arity <- fromBuf r b
-                     xs <- fromBuf r b
+             2 => do fc <- fromBuf b; x <- fromBuf b
+                     arity <- fromBuf b
+                     xs <- fromBuf b
                      pure (PTyCon fc x arity xs)
-             3 => do fc <- fromBuf r b; c <- fromBuf r b
+             3 => do fc <- fromBuf b; c <- fromBuf b
                      pure (PConst fc c)
-             4 => do fc <- fromBuf r b; x <- fromBuf r b
-                     s <- fromBuf r b; t <- fromBuf r b
+             4 => do fc <- fromBuf b; x <- fromBuf b
+                     s <- fromBuf b; t <- fromBuf b
                      pure (PArrow fc x s t)
-             5 => do fc <- fromBuf r b; x <- fromBuf r b;
-                     t <- fromBuf r b; y <- fromBuf r b
+             5 => do fc <- fromBuf b; x <- fromBuf b;
+                     t <- fromBuf b; y <- fromBuf b
                      pure (PDelay fc x t y)
-             6 => do fc <- fromBuf r b; x <- fromBuf r b
+             6 => do fc <- fromBuf b; x <- fromBuf b
                      pure (PLoc fc x)
-             7 => do fc <- fromBuf r b; x <- fromBuf r b
+             7 => do fc <- fromBuf b; x <- fromBuf b
                      pure (PUnmatchable fc x)
              _ => corrupt "Pat"
 
@@ -339,14 +331,14 @@ mutual
         = do tag 2; toBuf b msg
     toBuf b Impossible = tag 3
 
-    fromBuf r b 
+    fromBuf b 
         = case !getTag of
-               0 => do name <- fromBuf r b; idx <- fromBuf r b
-                       scTy <- fromBuf r b; xs <- fromBuf r b
+               0 => do name <- fromBuf b; idx <- fromBuf b
+                       scTy <- fromBuf b; xs <- fromBuf b
                        pure (Case {name} idx (mkPrf idx) scTy xs)
-               1 => do x <- fromBuf r b
+               1 => do x <- fromBuf b
                        pure (STerm x)
-               2 => do msg <- fromBuf r b
+               2 => do msg <- fromBuf b
                        pure (Unmatched msg)
                3 => pure Impossible
                _ => corrupt "CaseTree"
@@ -362,16 +354,16 @@ mutual
     toBuf b (DefaultCase x)
         = do tag 3; toBuf b x
 
-    fromBuf r b 
+    fromBuf b 
         = case !getTag of
-               0 => do x <- fromBuf r b; t <- fromBuf r b
-                       args <- fromBuf r b; y <- fromBuf r b
+               0 => do x <- fromBuf b; t <- fromBuf b
+                       args <- fromBuf b; y <- fromBuf b
                        pure (ConCase x t args y)
-               1 => do ty <- fromBuf r b; arg <- fromBuf r b; y <- fromBuf r b
+               1 => do ty <- fromBuf b; arg <- fromBuf b; y <- fromBuf b
                        pure (DelayCase ty arg y)
-               2 => do x <- fromBuf r b; y <- fromBuf r b
+               2 => do x <- fromBuf b; y <- fromBuf b
                        pure (ConstCase x y)
-               3 => do x <- fromBuf r b
+               3 => do x <- fromBuf b
                        pure (DefaultCase x)
                _ => corrupt "CaseAlt"
 
@@ -382,10 +374,10 @@ TTC (Env Term vars) where
       = do toBuf b bnd; toBuf b env
 
   -- Length has to correspond to length of 'vars'
-  fromBuf s {vars = []} b = pure Nil
-  fromBuf s {vars = x :: xs} b
-      = do bnd <- fromBuf s b
-           env <- fromBuf s b
+  fromBuf {vars = []} b = pure Nil
+  fromBuf {vars = x :: xs} b
+      = do bnd <- fromBuf b
+           env <- fromBuf b
            pure (bnd :: env)
 
 export
@@ -394,7 +386,7 @@ TTC Visibility where
   toBuf b Export = tag 1
   toBuf b Public = tag 2
 
-  fromBuf s b 
+  fromBuf b 
       = case !getTag of
              0 => pure Private
              1 => pure Export
@@ -407,12 +399,12 @@ TTC PartialReason where
   toBuf b (BadCall xs) = do tag 1; toBuf b xs
   toBuf b (RecPath xs) = do tag 2; toBuf b xs
 
-  fromBuf s b 
+  fromBuf b 
       = case !getTag of
              0 => pure NotStrictlyPositive
-             1 => do xs <- fromBuf s b
+             1 => do xs <- fromBuf b
                      pure (BadCall xs)
-             2 => do xs <- fromBuf s b
+             2 => do xs <- fromBuf b
                      pure (RecPath xs)
              _ => corrupt "PartialReason"
 
@@ -422,11 +414,11 @@ TTC Terminating where
   toBuf b IsTerminating = tag 1
   toBuf b (NotTerminating p) = do tag 2; toBuf b p
 
-  fromBuf s b
+  fromBuf b
       = case !getTag of
              0 => pure Unchecked
              1 => pure IsTerminating
-             2 => do p <- fromBuf s b
+             2 => do p <- fromBuf b
                      pure (NotTerminating p)
              _ => corrupt "Terminating"
 
@@ -440,12 +432,12 @@ TTC Covering where
       = do tag 2
            toBuf b ns
 
-  fromBuf s b 
+  fromBuf b 
       = case !getTag of
              0 => pure IsCovering
-             1 => do ms <- fromBuf s b
+             1 => do ms <- fromBuf b
                      pure (MissingCases ms)
-             2 => do ns <- fromBuf s b
+             2 => do ns <- fromBuf b
                      pure (NonCoveringCall ns)
              _ => corrupt "Covering"
 
@@ -453,9 +445,9 @@ export
 TTC Totality where
   toBuf b (MkTotality term cov) = do toBuf b term; toBuf b cov
 
-  fromBuf s b
-      = do term <- fromBuf s b
-           cov <- fromBuf s b
+  fromBuf b
+      = do term <- fromBuf b
+           cov <- fromBuf b
            pure (MkTotality term cov)
 
 export
@@ -482,47 +474,47 @@ TTC (PrimFn n) where
   toBuf b (Cast x y) = do tag 19; toBuf b x; toBuf b y
   toBuf b BelieveMe = tag 20
 
-  fromBuf {n} s b
+  fromBuf {n} b
       = case n of
-             S Z => fromBuf1 s b
-             S (S Z) => fromBuf2 s b
-             S (S (S Z)) => fromBuf3 s b
+             S Z => fromBuf1 b
+             S (S Z) => fromBuf2 b
+             S (S (S Z)) => fromBuf3 b
              _ => corrupt "PrimFn"
     where
-      fromBuf1 : NameRefs -> Ref Bin Binary ->
+      fromBuf1 : Ref Bin Binary ->
                  Core (PrimFn 1)
-      fromBuf1 s b
+      fromBuf1 b
           = case !getTag of
-                 5 => do ty <- fromBuf s b; pure (Neg ty)
+                 5 => do ty <- fromBuf b; pure (Neg ty)
                  11 => pure StrLength
                  12 => pure StrHead
                  13 => pure StrTail
                  17 => pure StrReverse
-                 19 => do x <- fromBuf s b; y <- fromBuf s b; pure (Cast x y)
+                 19 => do x <- fromBuf b; y <- fromBuf b; pure (Cast x y)
                  _ => corrupt "PrimFn 1"
 
-      fromBuf2 : NameRefs -> Ref Bin Binary ->
+      fromBuf2 : Ref Bin Binary ->
                  Core (PrimFn 2)
-      fromBuf2 s b
+      fromBuf2 b
           = case !getTag of
-                 0 => do ty <- fromBuf s b; pure (Add ty)
-                 1 => do ty <- fromBuf s b; pure (Sub ty)
-                 2 => do ty <- fromBuf s b; pure (Mul ty)
-                 3 => do ty <- fromBuf s b; pure (Div ty)
-                 4 => do ty <- fromBuf s b; pure (Mod ty)
-                 6 => do ty <- fromBuf s b; pure (LT ty)
-                 7 => do ty <- fromBuf s b; pure (LTE ty)
-                 8 => do ty <- fromBuf s b; pure (EQ ty)
-                 9 => do ty <- fromBuf s b; pure (GTE ty)
-                 10 => do ty <- fromBuf s b; pure (GT ty)
+                 0 => do ty <- fromBuf b; pure (Add ty)
+                 1 => do ty <- fromBuf b; pure (Sub ty)
+                 2 => do ty <- fromBuf b; pure (Mul ty)
+                 3 => do ty <- fromBuf b; pure (Div ty)
+                 4 => do ty <- fromBuf b; pure (Mod ty)
+                 6 => do ty <- fromBuf b; pure (LT ty)
+                 7 => do ty <- fromBuf b; pure (LTE ty)
+                 8 => do ty <- fromBuf b; pure (EQ ty)
+                 9 => do ty <- fromBuf b; pure (GTE ty)
+                 10 => do ty <- fromBuf b; pure (GT ty)
                  14 => pure StrIndex
                  15 => pure StrCons
                  16 => pure StrAppend
                  _ => corrupt "PrimFn 2"
       
-      fromBuf3 : NameRefs -> Ref Bin Binary ->
+      fromBuf3 : Ref Bin Binary ->
                  Core (PrimFn 3)
-      fromBuf3 s b
+      fromBuf3 b
           = case !getTag of
                  18 => pure StrSubstr
                  20 => pure BelieveMe
@@ -547,51 +539,51 @@ mutual
     toBuf b (CErased fc) = do tag 13; toBuf b fc
     toBuf b (CCrash fc msg) = do tag 14; toBuf b fc; toBuf b msg
 
-    fromBuf s b
+    fromBuf b
         = assert_total $ case !getTag of
-               0 => do fc <- fromBuf s b
-                       x <- fromBuf s b; idx <- fromBuf s b
+               0 => do fc <- fromBuf b
+                       x <- fromBuf b; idx <- fromBuf b
                        pure (CLocal {x} fc (mkPrf idx))
-               1 => do fc <- fromBuf s b
-                       n <- fromBuf s b
+               1 => do fc <- fromBuf b
+                       n <- fromBuf b
                        pure (CRef fc n)
-               2 => do fc <- fromBuf s b
-                       x <- fromBuf s b; sc <- fromBuf s b
+               2 => do fc <- fromBuf b
+                       x <- fromBuf b; sc <- fromBuf b
                        pure (CLam fc x sc)
-               3 => do fc <- fromBuf s b
-                       x <- fromBuf s b; val <- fromBuf s b; sc <- fromBuf s b
+               3 => do fc <- fromBuf b
+                       x <- fromBuf b; val <- fromBuf b; sc <- fromBuf b
                        pure (CLet fc x val sc)
-               4 => do fc <- fromBuf s b
-                       f <- fromBuf s b; as <- fromBuf s b
+               4 => do fc <- fromBuf b
+                       f <- fromBuf b; as <- fromBuf b
                        pure (CApp fc f as)
-               5 => do fc <- fromBuf s b
-                       t <- fromBuf s b; n <- fromBuf s b; as <- fromBuf s b
+               5 => do fc <- fromBuf b
+                       t <- fromBuf b; n <- fromBuf b; as <- fromBuf b
                        pure (CCon fc t n as)
-               6 => do fc <- fromBuf s b
-                       arity <- fromBuf s b; op <- fromBuf s b; args <- fromBuf s b
+               6 => do fc <- fromBuf b
+                       arity <- fromBuf b; op <- fromBuf b; args <- fromBuf b
                        pure (COp {arity} fc op args)
-               7 => do fc <- fromBuf s b
-                       p <- fromBuf s b; as <- fromBuf s b
+               7 => do fc <- fromBuf b
+                       p <- fromBuf b; as <- fromBuf b
                        pure (CExtPrim fc p as)
-               8 => do fc <- fromBuf s b
-                       x <- fromBuf s b
+               8 => do fc <- fromBuf b
+                       x <- fromBuf b
                        pure (CForce fc x)
-               9 => do fc <- fromBuf s b
-                       x <- fromBuf s b
+               9 => do fc <- fromBuf b
+                       x <- fromBuf b
                        pure (CDelay fc x)
-               10 => do fc <- fromBuf s b
-                        sc <- fromBuf s b; alts <- fromBuf s b; def <- fromBuf s b
+               10 => do fc <- fromBuf b
+                        sc <- fromBuf b; alts <- fromBuf b; def <- fromBuf b
                         pure (CConCase fc sc alts def)
-               11 => do fc <- fromBuf s b
-                        sc <- fromBuf s b; alts <- fromBuf s b; def <- fromBuf s b
+               11 => do fc <- fromBuf b
+                        sc <- fromBuf b; alts <- fromBuf b; def <- fromBuf b
                         pure (CConstCase fc sc alts def)
-               12 => do fc <- fromBuf s b
-                        c <- fromBuf s b
+               12 => do fc <- fromBuf b
+                        c <- fromBuf b
                         pure (CPrimVal fc c)
-               13 => do fc <- fromBuf s b
+               13 => do fc <- fromBuf b
                         pure (CErased fc)
-               14 => do fc <- fromBuf s b
-                        msg <- fromBuf s b
+               14 => do fc <- fromBuf b
+                        msg <- fromBuf b
                         pure (CCrash fc msg)
                _ => corrupt "CExp"
 
@@ -599,17 +591,17 @@ mutual
   TTC (CConAlt vars) where
     toBuf b (MkConAlt n t as sc) = do toBuf b n; toBuf b t; toBuf b as; toBuf b sc
 
-    fromBuf s b
-        = do n <- fromBuf s b; t <- fromBuf s b
-             as <- fromBuf s b; sc <- fromBuf s b
+    fromBuf b
+        = do n <- fromBuf b; t <- fromBuf b
+             as <- fromBuf b; sc <- fromBuf b
              pure (MkConAlt n t as sc)
 
   export
   TTC (CConstAlt vars) where
     toBuf b (MkConstAlt c sc) = do toBuf b c; toBuf b sc
 
-    fromBuf s b
-        = do c <- fromBuf s b; sc <- fromBuf s b
+    fromBuf b
+        = do c <- fromBuf b; sc <- fromBuf b
              pure (MkConstAlt c sc)
 
 export
@@ -618,13 +610,13 @@ export
     toBuf b (MkCon t arity) = do tag 1; toBuf b t; toBuf b arity
     toBuf b (MkError cexpr) = do tag 2; toBuf b cexpr
 
-    fromBuf s b 
+    fromBuf b 
         = case !getTag of
-               0 => do args <- fromBuf s b; cexpr <- fromBuf s b
+               0 => do args <- fromBuf b; cexpr <- fromBuf b
                        pure (MkFun args cexpr)
-               1 => do t <- fromBuf s b; arity <- fromBuf s b
+               1 => do t <- fromBuf b; arity <- fromBuf b
                        pure (MkCon t arity)
-               2 => do cexpr <- fromBuf s b
+               2 => do cexpr <- fromBuf b
                        pure (MkError cexpr)
                _ => corrupt "CDef"
 
@@ -634,7 +626,7 @@ TTC CG where
   toBuf b Chicken = tag 1
   toBuf b Racket = tag 2
 
-  fromBuf r b
+  fromBuf b
       = case !getTag of
              0 => pure Chez
              1 => pure Chicken
@@ -647,10 +639,10 @@ TTC PairNames where
       = do toBuf b (pairType l)
            toBuf b (fstName l)
            toBuf b (sndName l)
-  fromBuf r b
-      = do ty <- fromBuf r b
-           d <- fromBuf r b
-           f <- fromBuf r b
+  fromBuf b
+      = do ty <- fromBuf b
+           d <- fromBuf b
+           f <- fromBuf b
            pure (MkPairNs ty d f)
 
 export
@@ -658,9 +650,9 @@ TTC RewriteNames where
   toBuf b l
       = do toBuf b (equalType l)
            toBuf b (rewriteName l)
-  fromBuf r b
-      = do ty <- fromBuf r b
-           l <- fromBuf r b
+  fromBuf b
+      = do ty <- fromBuf b
+           l <- fromBuf b
            pure (MkRewriteNs ty l)
 
 export
@@ -669,10 +661,10 @@ TTC PrimNames where
       = do toBuf b (fromIntegerName l)
            toBuf b (fromStringName l)
            toBuf b (fromCharName l)
-  fromBuf r b
-      = do i <- fromBuf r b
-           str <- fromBuf r b
-           c <- fromBuf r b
+  fromBuf b
+      = do i <- fromBuf b
+           str <- fromBuf b
+           c <- fromBuf b
            pure (MkPrimNs i str c)
 
 
@@ -696,29 +688,29 @@ TTC Def where
   toBuf b ImpBind = tag 8
   toBuf b Delayed = tag 9
 
-  fromBuf r b 
+  fromBuf b 
       = case !getTag of
              0 => pure None
-             1 => do args <- fromBuf r b 
-                     ct <- fromBuf r b
-                     rt <- fromBuf r b
-                     pats <- fromBuf r b
+             1 => do args <- fromBuf b 
+                     ct <- fromBuf b
+                     rt <- fromBuf b
+                     pats <- fromBuf b
                      pure (PMDef args ct rt pats)
-             2 => do a <- fromBuf r b
+             2 => do a <- fromBuf b
                      pure (ExternDef a)
-             3 => do t <- fromBuf r b; a <- fromBuf r b
+             3 => do t <- fromBuf b; a <- fromBuf b
                      pure (DCon t a)
-             4 => do t <- fromBuf r b; a <- fromBuf r b
-                     ps <- fromBuf r b; dets <- fromBuf r b; 
-                     ms <- fromBuf r b; cs <- fromBuf r b
+             4 => do t <- fromBuf b; a <- fromBuf b
+                     ps <- fromBuf b; dets <- fromBuf b; 
+                     ms <- fromBuf b; cs <- fromBuf b
                      pure (TCon t a ps dets ms cs)
-             5 => do l <- fromBuf r b
-                     i <- fromBuf r b
+             5 => do l <- fromBuf b
+                     i <- fromBuf b
                      pure (Hole l i)
-             6 => do c <- fromBuf r b; depth <- fromBuf r b
-                     def <- fromBuf r b
+             6 => do c <- fromBuf b; depth <- fromBuf b
+                     def <- fromBuf b
                      pure (BySearch c depth def)
-             7 => do g <- fromBuf r b; cs <- fromBuf r b
+             7 => do g <- fromBuf b; cs <- fromBuf b
                      pure (Guess g cs)
              8 => pure ImpBind
              9 => pure Context.Delayed
@@ -729,7 +721,7 @@ TTC TotalReq where
   toBuf b CoveringOnly = tag 1
   toBuf b PartialOK = tag 2
 
-  fromBuf s b
+  fromBuf b
       = case !getTag of
              0 => pure Total
              1 => pure CoveringOnly
@@ -743,13 +735,13 @@ TTC DefFlag where
   toBuf b TCInline = tag 5
   toBuf b (SetTotal x) = do tag 6; toBuf b x
 
-  fromBuf s b
+  fromBuf b
       = case !getTag of
              2 => pure Inline
              3 => pure Invertible
              4 => pure Overloadable
              5 => pure TCInline
-             6 => do x <- fromBuf s b; pure (SetTotal x)
+             6 => do x <- fromBuf b; pure (SetTotal x)
              _ => corrupt "DefFlag"
 
 export
@@ -758,7 +750,7 @@ TTC SizeChange where
   toBuf b Same = tag 1
   toBuf b Unknown = tag 2
 
-  fromBuf s b
+  fromBuf b
       = case !getTag of
              0 => pure Smaller
              1 => pure Same
@@ -768,9 +760,9 @@ TTC SizeChange where
 export
 TTC SCCall where
   toBuf b c = do toBuf b (fnCall c); toBuf b (fnArgs c)
-  fromBuf s b
-      = do fn <- fromBuf s b
-           args <- fromBuf s b
+  fromBuf b
+      = do fn <- fromBuf b
+           args <- fromBuf b
            pure (MkSCCall fn args)
 
 export
@@ -793,20 +785,20 @@ TTC GlobalDef where
                  toBuf b (noCycles gdef)
                  toBuf b (sizeChange gdef)
 
-  fromBuf r b 
-      = do name <- fromBuf r b
-           def <- fromBuf r b
-           cdef <- fromBuf r b
+  fromBuf b 
+      = do name <- fromBuf b
+           def <- fromBuf b
+           cdef <- fromBuf b
            if isUserName name
-              then do loc <- fromBuf r b; 
-                      ty <- fromBuf r b; mul <- fromBuf r b
-                      vars <- fromBuf r b
-                      vis <- fromBuf r b; tot <- fromBuf r b
-                      fl <- fromBuf r b
-                      refsList <- fromBuf r b; 
+              then do loc <- fromBuf b; 
+                      ty <- fromBuf b; mul <- fromBuf b
+                      vars <- fromBuf b
+                      vis <- fromBuf b; tot <- fromBuf b
+                      fl <- fromBuf b
+                      refsList <- fromBuf b; 
                       let refs = fromList (map (\x => (x, ())) refsList)
-                      c <- fromBuf r b
-                      sc <- fromBuf r b
+                      c <- fromBuf b
+                      sc <- fromBuf b
                       pure (MkGlobalDef loc name ty mul vars vis 
                                         tot fl refs c True def cdef sc)
               else do let fc = emptyFC
@@ -816,9 +808,8 @@ TTC GlobalDef where
 
 -- decode : Context -> Int -> ContextEntry -> Core GlobalDef
 Core.Context.decode gam idx (Coded bin) 
-    = do r <- initNameRefs 1 -- dummy value, delete this argument!
-         b <- newRef Bin bin
-         def <- fromBuf r b
+    = do b <- newRef Bin bin
+         def <- fromBuf b
          let a = getContent gam
          arr <- get Arr
          def' <- resolved gam def

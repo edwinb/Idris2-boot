@@ -443,12 +443,12 @@ TTC IFaceInfo where
            toBuf b ms
            toBuf b ds
 
-  fromBuf s b
-      = do ic <- fromBuf s b
-           ps <- fromBuf s b
-           cs <- fromBuf s b
-           ms <- fromBuf s b
-           ds <- fromBuf s b
+  fromBuf b
+      = do ic <- fromBuf b
+           ps <- fromBuf b
+           cs <- fromBuf b
+           ms <- fromBuf b
+           ds <- fromBuf b
            pure (MkIFaceInfo ic ps cs ms ds)
 
 -- If you update this, update 'extendAs' in Desugar to keep it up to date
@@ -472,7 +472,7 @@ TTC Fixity where
   toBuf b Infix = tag 2
   toBuf b Prefix = tag 3
 
-  fromBuf r b 
+  fromBuf b 
       = case !getTag of
              0 => pure InfixL
              1 => pure InfixR
@@ -489,12 +489,12 @@ TTC SyntaxInfo where
            toBuf b (bracketholes syn)
            toBuf b (startExpr syn)
 
-  fromBuf r b 
-      = do inf <- fromBuf r b
-           pre <- fromBuf r b
-           ifs <- fromBuf r b
-           bhs <- fromBuf r b
-           start <- fromBuf r b
+  fromBuf b 
+      = do inf <- fromBuf b
+           pre <- fromBuf b
+           ifs <- fromBuf b
+           bhs <- fromBuf b
+           start <- fromBuf b
            pure (MkSyntax (fromList inf) (fromList pre) (fromList ifs) 
                           bhs start)
 

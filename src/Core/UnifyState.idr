@@ -45,15 +45,15 @@ TTC Constraint where
      = do tag 1; toBuf b vars; toBuf b fc; toBuf b env; toBuf b xs; toBuf b ys
   toBuf b Resolved = tag 2
 
-  fromBuf r b 
+  fromBuf b 
       = case !getTag of
-             0 => do vars <- fromBuf r b
-                     fc <- fromBuf r b; env <- fromBuf r b
-                     x <- fromBuf r b; y <- fromBuf r b
+             0 => do vars <- fromBuf b
+                     fc <- fromBuf b; env <- fromBuf b
+                     x <- fromBuf b; y <- fromBuf b
                      pure (MkConstraint {vars} fc env x y)
-             1 => do vars <- fromBuf r b
-                     fc <- fromBuf r b; env <- fromBuf r b
-                     xs <- fromBuf r b; ys <- fromBuf r b
+             1 => do vars <- fromBuf b
+                     fc <- fromBuf b; env <- fromBuf b
+                     xs <- fromBuf b; ys <- fromBuf b
                      pure (MkSeqConstraint {vars} fc env xs ys)
              2 => pure Resolved
              _ => corrupt "Constraint"

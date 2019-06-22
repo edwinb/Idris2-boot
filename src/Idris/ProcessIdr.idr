@@ -59,7 +59,7 @@ readModule : {auto c : Ref Ctxt Defs} ->
              Core ()
 readModule top loc vis reexp imp as
     = do fname <- nsToPath loc imp
-         Just (syn, hash, more, _) <- logTime ("Reading " ++ show imp) $
+         Just (syn, hash, more) <- logTime ("Reading " ++ show imp) $
                                          readFromTTC {extra = SyntaxInfo} 
                                                   loc vis fname imp as
               | Nothing => when vis (setVisible imp) -- already loaded, just set visibility
@@ -115,10 +115,10 @@ export
 readAsMain : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              {auto s : Ref Syn SyntaxInfo} ->
-             (fname : String) -> Core NameRefs
+             (fname : String) -> Core ()
 readAsMain fname
-    = do Just (syn, _, more, refs) <- readFromTTC {extra = SyntaxInfo} 
-                                                  toplevelFC True fname [] []
+    = do Just (syn, _, more) <- readFromTTC {extra = SyntaxInfo} 
+                                             toplevelFC True fname [] []
               | Nothing => throw (InternalError "Already loaded")
          replNS <- getNS
          extendAs replNS replNS syn
@@ -128,7 +128,6 @@ readAsMain fname
                           fname <- nsToPath emptyFC m
                           readModule False emptyFC True False m as) more
          setNS replNS
-         pure refs
 
 addPrelude : List Import -> List Import
 addPrelude imps 

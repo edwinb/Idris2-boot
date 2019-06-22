@@ -85,23 +85,13 @@ readFromFile fname
          b <- readBufferFromFile h b fsize
          pure (Right (MkBin b 0 fsize fsize))
 
--- A mapping from the resolved name ids encountered in a TTC file to the
--- name they represent, and (if known) the new resolved id it'll be after
--- reading
--- (We need this because files will be used in different contexts and resolved
--- name ids are not going to be unique, so we need to recalculate them when
--- loading from TTC)
-public export
-NameRefs : Type
-NameRefs = IOArray (Name, Maybe Int)
-
 public export
 interface TTC a where -- TTC = TT intermediate code/interface file
   -- Add binary data representing the value to the given buffer
   toBuf : Ref Bin Binary -> a -> Core ()
   -- Return the data representing a thing of type 'a' from the given buffer.
   -- Throws if the data can't be parsed as an 'a'
-  fromBuf : NameRefs -> Ref Bin Binary -> Core a
+  fromBuf : Ref Bin Binary -> Core a
 
 -- Create a new list of chunks, initialised with one 64k chunk
 export
@@ -125,12 +115,6 @@ extendBinary (MkBin buf l s u)
              | Nothing => throw (InternalError "Buffer expansion failed")
          pure (MkBin buf' l s' u)
 
-
-export
-initNameRefs : Int -> Core NameRefs
-initNameRefs num 
-    = coreLift $ newArray num
-
 export
 corrupt : String -> Core a
 corrupt ty = throw (TTCError (Corrupt ty))
@@ -150,7 +134,7 @@ TTC Bits8 where
                     coreLift $ setByte (buf chunk') (loc chunk') val
                     put Bin (appended 1 chunk')
 
-  fromBuf s b
+  fromBuf b
     = do chunk <- get Bin
          if toRead chunk >= 1
             then
@@ -164,9 +148,8 @@ tag : {auto b : Ref Bin Binary} -> Bits8 -> Core ()
 tag {b} val = toBuf b val
 
 export
-getTag : {auto r : NameRefs} ->
-         {auto b : Ref Bin Binary} -> Core Bits8
-getTag {r} {b} = fromBuf r b
+getTag : {auto b : Ref Bin Binary} -> Core Bits8
+getTag {b} = fromBuf b
 
 -- Some useful types from the prelude
 
@@ -182,7 +165,7 @@ TTC Int where
                     coreLift $ setInt (buf chunk') (loc chunk') val
                     put Bin (appended 4 chunk')
 
-  fromBuf r b 
+  fromBuf b 
     = do chunk <- get Bin
          if toRead chunk >= 4
             then
@@ -205,8 +188,8 @@ TTC String where
                       coreLift $ setString (buf chunk') (loc chunk') val
                       put Bin (appended req chunk')
 
-  fromBuf r b 
-      = do len <- fromBuf {a = Int} r b
+  fromBuf b 
+      = do len <- fromBuf {a = Int} b
            chunk <- get Bin
            if toRead chunk >= len
               then
@@ -231,8 +214,8 @@ TTC Binary where
                                         (buf chunk') (loc chunk')
                     put Bin (appended len chunk')
 
-  fromBuf s b
-    = do len <- fromBuf s b
+  fromBuf b
+    = do len <- fromBuf b
          chunk <- get Bin
          if toRead chunk >= len
             then
@@ -248,7 +231,7 @@ export
 TTC Bool where
   toBuf b False = tag 0
   toBuf b True = tag 1
-  fromBuf r b
+  fromBuf b
       = case !getTag of
              0 => pure False
              1 => pure True
@@ -257,8 +240,8 @@ TTC Bool where
 export
 TTC Char where
   toBuf b c = toBuf b (cast {to=Int} c)
-  fromBuf r b
-      = do i <- fromBuf r b
+  fromBuf b
+      = do i <- fromBuf b
            pure (cast {from=Int} i)
 
 export
@@ -273,7 +256,7 @@ TTC Double where
                     coreLift $ setDouble (buf chunk') (loc chunk') val
                     put Bin (appended 8 chunk')
 
-  fromBuf r b 
+  fromBuf b 
     = do chunk <- get Bin
          if toRead chunk >= 8
             then
@@ -287,15 +270,15 @@ export
   toBuf b (x, y)
      = do toBuf b x
           toBuf b y
-  fromBuf r b
-     = do x <- fromBuf r b
-          y <- fromBuf r b
+  fromBuf b
+     = do x <- fromBuf b
+          y <- fromBuf b
           pure (x, y)
 
 export
 TTC () where
   toBuf b () = pure ()
-  fromBuf r b = pure ()
+  fromBuf b = pure ()
 
 export
 (TTC a, {y : a} -> TTC (p y)) => TTC (DPair a p) where
@@ -303,9 +286,9 @@ export
       = do toBuf b vs
            toBuf b tm
 
-  fromBuf r b
-      = do x <- fromBuf r b
-           p <- fromBuf r b
+  fromBuf b
+      = do x <- fromBuf b
+           p <- fromBuf b
            pure (x ** p)
 
 export
@@ -316,10 +299,10 @@ TTC a => TTC (Maybe a) where
      = do tag 1
           toBuf b val
 
-  fromBuf r b
+  fromBuf b
      = case !getTag of
             0 => pure Nothing
-            1 => do val <- fromBuf r b
+            1 => do val <- fromBuf b
                     pure (Just val)
             _ => corrupt "Maybe"
 
@@ -332,11 +315,11 @@ export
      = do tag 1
           toBuf b val
 
-  fromBuf r b
+  fromBuf b
      = case !getTag of
-            0 => do val <- fromBuf r b
+            0 => do val <- fromBuf b
                     pure (Left val)
-            1 => do val <- fromBuf r b
+            1 => do val <- fromBuf b
                     pure (Right val)
             _ => corrupt "Either"
 
@@ -345,14 +328,14 @@ TTC a => TTC (List a) where
   toBuf b xs
       = do toBuf b (cast {to=Int} (length xs))
            traverse_ (toBuf b) xs
-  fromBuf r b 
-      = do len <- fromBuf r b {a = Int}
+  fromBuf b 
+      = do len <- fromBuf b {a = Int}
            readElems [] (cast len)
     where
       readElems : List a -> Nat -> Core (List a)
       readElems xs Z = pure (reverse xs)
       readElems xs (S k)
-          = do val <- fromBuf r b
+          = do val <- fromBuf b
                readElems (val :: xs) k
 
 export
@@ -363,13 +346,13 @@ TTC a => TTC (Vect n a) where
       writeAll [] = pure ()
       writeAll (x :: xs) = do toBuf b x; writeAll xs
 
-  fromBuf {n} r b = rewrite sym (plusZeroRightNeutral n) in readElems [] n
+  fromBuf {n} b = rewrite sym (plusZeroRightNeutral n) in readElems [] n
     where
       readElems : Vect done a -> (todo : Nat) -> Core (Vect (todo + done) a)
       readElems {done} xs Z 
           = pure (reverse xs)
       readElems {done} xs (S k)
-          = do val <- fromBuf r b
+          = do val <- fromBuf b
                rewrite (plusSuccRightSucc k done)
                readElems (val :: xs) k
 
@@ -397,18 +380,18 @@ TTC Integer where
                  toBuf b (toLimbs (-val))
          else do toBuf b (the Bits8 1)
                  toBuf b (toLimbs val)
-  fromBuf r b 
-    = do val <- fromBuf r b {a = Bits8}
+  fromBuf b 
+    = do val <- fromBuf b {a = Bits8}
          case val of
-              0 => do val <- fromBuf r b
+              0 => do val <- fromBuf b
                       pure (-(fromLimbs val))
-              1 => do val <- fromBuf r b
+              1 => do val <- fromBuf b
                       pure (fromLimbs val)
               _ => corrupt "Integer"
 
 export
 TTC Nat where
   toBuf b val = toBuf b (cast {to=Integer} val)
-  fromBuf r b 
-     = do val <- fromBuf r b
+  fromBuf b 
+     = do val <- fromBuf b
           pure (fromInteger val)
