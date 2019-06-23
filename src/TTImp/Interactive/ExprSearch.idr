@@ -107,6 +107,8 @@ searchName : {auto c : Ref Ctxt Defs} ->
              Maybe RecData -> (Name, GlobalDef) -> Core (List (Term vars))
 searchName fc rigc opts env target topty defining (n, ndef)
     = do defs <- get Ctxt
+         let True = visibleIn !getNS (fullname ndef) (visibility ndef)
+             | _ => pure []
          let ty = type ndef
          let namety : NameType
                  = case definition ndef of

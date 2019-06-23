@@ -41,7 +41,7 @@ getNameType rigc env fc x
                  [(pname, i, def)] <- lookupCtxtName x (gamma defs)
                       | [] => throw (UndefinedName fc x)
                       | ns => throw (AmbiguousName fc (map fst ns))
-                 checkVisibleNS !(getFullName pname)
+                 checkVisibleNS !(getFullName pname) (visibility def)
                  let nt = case definition def of
                                PMDef _ _ _ _ => Func
                                DCon t a => DataCon t a
@@ -60,13 +60,14 @@ getNameType rigc env fc x
     rigSafe Rig0 Rig1 = throw (LinearMisuse fc x Rig0 Rig1)
     rigSafe _ _ = pure ()
 
-    checkVisibleNS : Name -> Core ()
-    checkVisibleNS (NS ns x) 
+    checkVisibleNS : Name -> Visibility -> Core ()
+    checkVisibleNS (NS ns x) vis
         = if !(isVisible ns)
-             then pure ()
-             else do defs <- get Ctxt
-                     throw $ InvisibleName fc (NS ns x)
-    checkVisibleNS _ = pure ()
+             then if visibleIn !getNS (NS ns x) vis
+                     then pure ()
+                     else throw $ InvisibleName fc (NS ns x) Nothing
+             else throw $ InvisibleName fc (NS ns x) (Just ns)
+    checkVisibleNS _ _ = pure ()
           
 
 -- Get the type of a variable, looking it up in the nested names first.

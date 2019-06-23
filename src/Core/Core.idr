@@ -34,7 +34,7 @@ data Error
     | WhenUnifying FC (Env Term vars) (Term vars) (Term vars) Error
     | ValidCase FC (Env Term vars) (Either (Term vars) Error)
     | UndefinedName FC Name
-    | InvisibleName FC Name
+    | InvisibleName FC Name (Maybe (List String))
     | BadTypeConType FC Name 
     | BadDataConType FC Name Name
     | NotCovering FC Name Covering
@@ -112,10 +112,10 @@ Show Error where
              Left tm => assert_total (show tm) ++ " is not a valid impossible pattern because it typechecks"
              Right err => "Not a valid impossible pattern:\n\t" ++ assert_total (show err)
   show (UndefinedName fc x) = show fc ++ ":Undefined name " ++ show x
-  show (InvisibleName fc (NS ns x)) 
+  show (InvisibleName fc x (Just ns)) 
        = show fc ++ ":Name " ++ show x ++ " is inaccessible since " ++
          showSep "." (reverse ns) ++ " is not explicitly imported"
-  show (InvisibleName fc x) = show fc ++ ":Name " ++ show x ++ " is inaccessible"
+  show (InvisibleName fc x _) = show fc ++ ":Name " ++ show x ++ " is private"
   show (BadTypeConType fc n) 
        = show fc ++ ":Return type of " ++ show n ++ " must be Type"
   show (BadDataConType fc n fam) 
@@ -248,7 +248,7 @@ getErrorLoc (CyclicMeta loc n) = Just loc
 getErrorLoc (WhenUnifying loc env tm y z) = Just loc
 getErrorLoc (ValidCase loc env y) = Just loc
 getErrorLoc (UndefinedName loc y) = Just loc
-getErrorLoc (InvisibleName loc y) = Just loc
+getErrorLoc (InvisibleName loc y _) = Just loc
 getErrorLoc (BadTypeConType loc y) = Just loc
 getErrorLoc (BadDataConType loc y z) = Just loc
 getErrorLoc (NotCovering loc _ _) = Just loc

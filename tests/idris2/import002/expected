@@ -2,7 +2,7 @@
 2/3: Building Mult (Mult.idr)
 3/3: Building Test (Test.idr)
 Test.idr:5:9--5:13:While processing type of Test.thing at Test.idr:5:1--6:1:
-Name Nat is inaccessible since Nat is not explicitly imported
+Name Nat.Nat is inaccessible since Nat is not explicitly imported
 Test.idr:6:1--8:1:No type declaration for Test.thing
 Welcome to Idris 2 version 0.0. Please be gentle.
 Test> Bye for now!

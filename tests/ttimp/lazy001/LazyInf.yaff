@@ -3,6 +3,7 @@ data Nat : Type where
      S : Nat -> Nat
 
 namespace Stream
+    public export
     data Stream : Type -> Type where
          Cons : $a -> Inf (Stream $a) -> Stream $a
 

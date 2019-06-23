@@ -333,13 +333,16 @@ Num Integer where
   (*) = prim__mul_Integer
   fromInteger = id
 
+public export
 Neg Integer where
   negate x = prim__sub_Integer 0 x
   (-) = prim__sub_Integer
 
+public export
 Abs Integer where
   abs x = if x < 0 then -x else x
 
+public export
 Integral Integer where
   div x y 
       = case y == 0 of
@@ -364,13 +367,16 @@ Num Int where
   (*) = prim__mul_Int
   fromInteger = prim__cast_IntegerInt
 
+public export
 Neg Int where
   negate x = prim__sub_Int 0 x
   (-) = prim__sub_Int
 
+public export
 Abs Int where
   abs x = if x < 0 then -x else x
 
+public export
 Integral Int where
   div x y 
       = case y == 0 of
@@ -387,13 +393,16 @@ Num Double where
   (*) = prim__mul_Double
   fromInteger = prim__cast_IntegerDouble
 
+public export
 Neg Double where
   negate x = prim__negate_Double x
   (-) = prim__sub_Double
 
+public export
 Abs Double where
   abs x = if x < 0 then -x else x
 
+public export
 Fractional Double where
   (/) = prim__div_Double
 
@@ -914,10 +923,12 @@ precCon (User n)    = 4
 precCon PrefixMinus = 5
 precCon App         = 6
 
+export
 Eq Prec where
   (==) (User m) (User n) = m == n
   (==) x        y        = precCon x == precCon y
 
+export
 Ord Prec where
   compare (User m) (User n) = compare m n
   compare x        y        = compare (precCon x) (precCon y)

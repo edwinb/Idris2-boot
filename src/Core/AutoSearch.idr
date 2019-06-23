@@ -288,6 +288,8 @@ searchName : {auto c : Ref Ctxt Defs} ->
              Core (Term vars)
 searchName fc rigc defaults trying depth def top env target (n, ndef)
     = do defs <- get Ctxt
+         when (not (visibleIn !getNS (fullname ndef) (visibility ndef))) $
+            throw (CantSolveGoal fc [] top)
          let ty = type ndef
          let namety : NameType
                  = case definition ndef of

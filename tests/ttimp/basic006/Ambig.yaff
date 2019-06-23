@@ -6,19 +6,23 @@ the : (a : Type) -> a -> a
 the _ $x = x
 
 namespace List
+  public export
   data List : Type -> Type where
        Nil : List $a
        Cons : $a -> List $a -> List $a
 
+  public export
   length : List $a -> Nat
   length Nil = Z
   length (Cons $x $xs) = S (length xs)
 
 namespace Vect
+  public export
   data Vect : Nat -> Type -> Type where
        Nil : Vect Z $a
        Cons : $a -> Vect $k $a -> Vect (S $k) $a
 
+  public export
   length : Vect $n $a -> Nat
   length Nil = Z
   length (Cons $x $xs) = S (length xs)

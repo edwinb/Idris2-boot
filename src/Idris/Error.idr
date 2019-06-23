@@ -52,11 +52,11 @@ perror (ValidCase _ env (Left tm))
 perror (ValidCase _ env (Right err))
     = pure $ "Impossible pattern gives an error:\n" ++ !(perror err)
 perror (UndefinedName _ x) = pure $ "Undefined name " ++ show x
-perror (InvisibleName _ (NS ns x))
-    = pure $ "Name " ++ show x ++ " is inaccessible since " ++
+perror (InvisibleName _ n (Just ns))
+    = pure $ "Name " ++ show n ++ " is inaccessible since " ++
              showSep "." (reverse ns) ++ " is not explicitly imported"
-perror (InvisibleName _ x)
-    = pure $ "Name " ++ show x ++ " is inaccessible"
+perror (InvisibleName _ x Nothing)
+    = pure $ "Name " ++ show x ++ " is private"
 perror (BadTypeConType fc n)
     = pure $ "Return type of " ++ show n ++ " must be Type"
 perror (BadDataConType fc n fam)
