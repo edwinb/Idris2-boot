@@ -374,7 +374,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
          let scenv = Pi RigW Explicit wvalTy :: wvalEnv
 
          wtyScope <- replace defs scenv !(nf defs scenv (weaken wval))
-                            (Local fc (Just RigW) _ First)
+                            (Local fc (Just False) _ First)
                             !(nf defs scenv 
                                  (weaken (bindNotReq fc 0 env' withSub reqty)))
          let bNotReq = Bind fc wargn (Pi RigW Explicit wvalTy) wtyScope

@@ -118,6 +118,7 @@ modules =
 sourcedir = src
 executable = idris2
 -- opts = "--cg-opt -O2 --partial-eval"
+-- opts = "--cg-opt -pg --partial-eval"
 opts = "--partial-eval"
 
 main = Idris.Main

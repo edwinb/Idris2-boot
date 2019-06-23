@@ -524,7 +524,7 @@ groupCons fc fn pvars cs
     -- In 'As' replace the name on the RHS with a reference to the
     -- variable we're doing the case split on
     addGroup (PAs fc n p) pprf pats rhs acc 
-         = addGroup p pprf pats (substName n (Local fc Nothing _ pprf) rhs) acc
+         = addGroup p pprf pats (substName n (Local fc (Just True) _ pprf) rhs) acc
     addGroup (PCon _ n t a pargs) pprf pats rhs acc 
          = addConG n t pargs pats rhs acc
     addGroup (PTyCon _ n a pargs) pprf pats rhs acc 
@@ -801,13 +801,13 @@ mutual
       -- replace the name with the relevant variable on the rhs
       updateVar (MkPatClause pvars (MkInfo (PLoc pfc n) prf fty :: pats) rhs)
           = pure $ MkPatClause (n :: pvars) 
-                        !(substInPats fc a (Local pfc Nothing _ prf) pats)
-                        (substName n (Local pfc Nothing _ prf) rhs)
+                        !(substInPats fc a (Local pfc (Just False) _ prf) pats)
+                        (substName n (Local pfc (Just False) _ prf) rhs)
       -- If it's an as pattern, replace the name with the relevant variable on
       -- the rhs then continue with the inner pattern
       updateVar (MkPatClause pvars (MkInfo (PAs pfc n pat) prf fty :: pats) rhs)
           = do pats' <- substInPats fc a (mkTerm _ pat) pats
-               let rhs' = substName n (Local pfc Nothing _ prf) rhs
+               let rhs' = substName n (Local pfc (Just True) _ prf) rhs
                updateVar (MkPatClause pvars (MkInfo pat prf fty :: pats') rhs')
       -- match anything, name won't appear in rhs but need to update
       -- LHS pattern types based on what we've learned

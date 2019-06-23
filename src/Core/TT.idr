@@ -351,7 +351,7 @@ data LazyReason = LInf | LLazy | LUnknown
 public export
 data Term : List Name -> Type where
      Local : {name : _} ->
-             FC -> Maybe RigCount -> 
+             FC -> Maybe Bool -> 
              (idx : Nat) -> .(IsVar name idx vars) -> Term vars
      Ref : FC -> NameType -> (name : Name) -> Term vars
      -- Metavariables and the scope they are applied to
@@ -893,7 +893,7 @@ export
 resolveNames : (vars : List Name) -> Term vars -> Term vars
 resolveNames vars (Ref fc Bound name)
     = case isVar name vars of
-           Just (MkVar prf) => Local fc Nothing _ prf
+           Just (MkVar prf) => Local fc (Just False) _ prf
            _ => Ref fc Bound name
 resolveNames vars (Meta fc n i xs) 
     = Meta fc n i (map (resolveNames vars) xs)
@@ -924,7 +924,7 @@ namespace SubstEnv
               SubstEnv ds vars -> SubstEnv (d :: ds) vars
 
   findDrop : {drop : _} -> {idx : Nat} ->
-             FC -> Maybe RigCount -> .(IsVar name idx (drop ++ vars)) -> 
+             FC -> Maybe Bool -> .(IsVar name idx (drop ++ vars)) -> 
              SubstEnv drop vars -> Term vars
   findDrop {drop = []} fc r var env = Local fc r _ var
   findDrop {drop = x :: xs} fc r First (tm :: env) = tm
@@ -932,7 +932,7 @@ namespace SubstEnv
       = findDrop fc r p env
 
   find : {outer : _} -> {idx : Nat} ->
-         FC -> Maybe RigCount -> .(IsVar name idx (outer ++ (drop ++ vars))) ->
+         FC -> Maybe Bool -> .(IsVar name idx (outer ++ (drop ++ vars))) ->
          SubstEnv drop vars ->
          Term (outer ++ vars)
   find {outer = []} fc r var env = findDrop fc r var env
@@ -1050,7 +1050,10 @@ export Show (Term vars) where
   show tm = let (fn, args) = getFnArgs tm in showApp fn args
     where
       showApp : Term vars -> List (Term vars) -> String
-      showApp (Local {name} _ _ idx _) [] = show name ++ "[" ++ show idx ++ "]"
+      showApp (Local {name} _ c idx _) [] 
+         = case c of
+                Just _ => show name ++ "[" ++ show idx ++ "!]"
+                _ => show name ++ "[" ++ show idx ++ "]"
       showApp (Ref _ _ n) [] = show n
       showApp (Meta _ n i args) [] 
           = "?" ++ show n ++ "_" ++ show args

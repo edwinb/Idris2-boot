@@ -28,13 +28,14 @@ getNameType rigc env fc x
     = case defined x env of
            Just (MkIsDefined rigb lv) => 
               do rigSafe rigb rigc
-                 let bty = binderType (getBinder lv env)
+                 let binder = getBinder lv env
+                 let bty = binderType binder
                  addNameType fc x env bty
                  when (isLinear rigb) $
                       do est <- get EST
                          put EST 
                             (record { linearUsed $= ((MkVar lv) :: ) } est)
-                 pure (Local fc (Just rigb) _ lv, gnf env bty)
+                 pure (Local fc (Just (isLet binder)) _ lv, gnf env bty)
            Nothing => 
               do defs <- get Ctxt
                  [(fullname, i, def)] <- lookupCtxtName x (gamma defs)
@@ -48,6 +49,10 @@ getNameType rigc env fc x
                  addNameType fc x env (embed (type def))
                  pure (Ref fc nt (Resolved i), gnf env (embed (type def)))
   where
+    isLet : Binder t -> Bool
+    isLet (Let _ _ _) = True
+    isLet _ = False
+
     rigSafe : RigCount -> RigCount -> Core ()
     rigSafe Rig1 RigW = throw (LinearMisuse fc x Rig1 RigW)
     rigSafe Rig0 RigW = throw (LinearMisuse fc x Rig0 RigW)

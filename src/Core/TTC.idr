@@ -201,8 +201,10 @@ mutual
     toBuf b (Local {name} fc c idx y) 
         = if idx < 244
              then do toBuf b (prim__truncBigInt_B8 (12 + cast idx))
+                     toBuf b c
                      toBuf b name
              else do tag 0
+                     toBuf b c
                      toBuf b name
                      toBuf b idx
     toBuf b (Ref fc nt name) 
@@ -243,9 +245,10 @@ mutual
 
     fromBuf b 
         = case !getTag of
-               0 => do name <- fromBuf b
+               0 => do c <- fromBuf b
+                       name <- fromBuf b
                        idx <- fromBuf b
-                       pure (Local {name} emptyFC Nothing idx (mkPrf idx))
+                       pure (Local {name} emptyFC c idx (mkPrf idx))
                1 => do nt <- fromBuf b; name <- fromBuf b
                        pure (Ref emptyFC nt name)
                2 => do n <- fromBuf b
@@ -270,9 +273,10 @@ mutual
                        pure (PrimVal emptyFC c)
                10 => pure (Erased emptyFC)
                11 => pure (TType emptyFC)
-               idxp => do name <- fromBuf b
+               idxp => do c <- fromBuf b
+                          name <- fromBuf b
                           let idx = fromInteger (prim__sextB8_BigInt idxp - 12)
-                          pure (Local {name} emptyFC Nothing idx (mkPrf idx))
+                          pure (Local {name} emptyFC c idx (mkPrf idx))
 
 export
 TTC Pat where
