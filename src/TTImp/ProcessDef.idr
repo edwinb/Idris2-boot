@@ -562,7 +562,8 @@ processDef opts nest env fc n_in cs_in
          (cargs ** tree_ct) <- getPMDef fc CompileTime n ty 
                                         (mapMaybe id cs)
         
-         log 5 $ "Case tree for " ++ show n ++ ": " ++ show tree_ct
+         logC 5 (do t <- toFullNames tree_ct
+                    pure ("Case tree for " ++ show n ++ ": " ++ show t))
 
          let refs = getRefs tree_ct
          let rmetas = getMetas tree_ct
@@ -634,8 +635,10 @@ processDef opts nest env fc n_in cs_in
                             then do log 3 $ "Catch all case in " ++ show n
                                     pure []
                             else getMissing fc (Resolved n) ctree
-             log 3 ("Initially missing in " ++ show n ++ ":\n" ++ 
-                               showSep "\n" (map show missCase))
+             logC 3 (do mc <- traverse toFullNames missCase
+                        pure ("Initially missing in " ++ 
+                                 show !(getFullName (Resolved n)) ++ ":\n" ++ 
+                                showSep "\n" (map show mc)))
              missImp <- traverse (checkImpossible n mult) missCase
              let miss = mapMaybe id missImp
              if isNil miss

@@ -131,14 +131,14 @@ mutual
       = do defs <- get Ctxt
            Just ty <- lookupTyExact n (gamma defs)
                | Nothing => case umode of
-                                 ImplicitHoles => pure (Implicit fc False, Erased fc)
+                                 ImplicitHoles => pure (Implicit fc True, Erased fc)
                                  _ => pure (IHole fc (nameRoot n), Erased fc)
            pure (IVar fc !(getFullName n), embed ty)
   unelabTy' umode env (Meta fc n i args)
       = do defs <- get Ctxt
            Just ty <- lookupTyExact (Resolved i) (gamma defs)
                | Nothing => case umode of
-                                 ImplicitHoles => pure (Implicit fc False, Erased fc)
+                                 ImplicitHoles => pure (Implicit fc True, Erased fc)
                                  _ => pure (IHole fc (nameRoot n), Erased fc)
            pure (IHole fc (nameRoot n), embed ty)
   unelabTy' umode env (Bind fc x b sc)

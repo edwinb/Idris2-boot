@@ -24,6 +24,7 @@ ttimpTests
 idrisTests : List String
 idrisTests
     = ["basic001",
+       "coverage001", "coverage002",
        "import001"]
 
 chdir : String -> IO Bool

@@ -1,0 +1,8 @@
+1/1: Building Vect (Vect.idr)
+Welcome to Idris 2 version 0.0. Please be gentle.
+Main> Main.append: All cases covered
+Main> Main.funny: All cases covered
+Main> Main.notFunny:
+notFunny [False, False, True, True]
+notFunny [False, True, True, True]
+Main> Bye for now!
