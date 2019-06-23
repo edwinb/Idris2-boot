@@ -324,6 +324,15 @@ updatePrims p
     = do defs <- get Ctxt
          put Ctxt (record { options->primnames $= updatePrimNames p } defs)
 
+export
+updateNameDirectives : {auto c : Ref Ctxt Defs} -> 
+                       List (Name, List String) -> Core ()
+updateNameDirectives [] = pure ()
+updateNameDirectives ((t, ns) :: nds)
+    = do defs <- get Ctxt
+         put Ctxt (record { options $= addNameDirective (t, ns) } defs)
+         updateNameDirectives nds
+
 -- Add definitions from a binary file to the current context
 -- Returns the "extra" section of the file (user defined data), the interface
 -- hash and the list of additional TTCs that need importing
@@ -363,7 +372,7 @@ readFromTTC loc reexp fname modNS importAs
          updatePair (pairnames ttc)
          updateRewrite (rewritenames ttc)
          updatePrims (primnames ttc)
-         -- TODO: Name directives
+         updateNameDirectives (reverse (namedirectives ttc))
 
          when (not reexp) clearSavedHints
          resetFirstEntry

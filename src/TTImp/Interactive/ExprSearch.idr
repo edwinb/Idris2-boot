@@ -370,7 +370,7 @@ searchType {vars} fc rig opts env defining topty Z (Bind bfc n (Pi c info ty) sc
       getSuccessful fc rig opts False env ty topty defining
            [searchLocal fc rig opts env (Bind bfc n (Pi c info ty) sc) topty defining,
             (do defs <- get Ctxt
-                let n' = UN (getArgName defs n vars !(nf defs env ty))
+                let n' = UN !(getArgName defs n vars !(nf defs env ty))
                 let env' : Env Term (n' :: _) = Pi c info ty :: env
                 let sc' = renameTop n' sc
                 log 10 $ "Introduced lambda, search for " ++ show sc'

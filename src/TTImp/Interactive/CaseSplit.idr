@@ -121,36 +121,46 @@ defaultNames : List String
 defaultNames = ["x", "y", "z", "w", "v", "s", "t", "u"]
 
 export
-getArgName : Defs -> Name -> List Name -> NF vars -> String
+getArgName : {auto c : Ref Ctxt Defs} ->
+             Defs -> Name -> List Name -> NF vars -> Core String
 getArgName defs x allvars ty 
-    = let defnames = findNames ty in
-          getName x defnames allvars
+    = do defnames <- findNames ty
+         pure $ getName x defnames allvars
   where
-    findNames : NF vars -> List String
-    findNames (NBind _ x (Pi _ _ _) _) = ["f", "g"]
+    lookupName : Name -> List (Name, a) -> Core (Maybe a)
+    lookupName n [] = pure Nothing
+    lookupName n ((n', t) :: ts)
+        = if !(getFullName n) == !(getFullName n')
+             then pure (Just t)
+             else lookupName n ts
+
+    findNames : NF vars -> Core (List String)
+    findNames (NBind _ x (Pi _ _ _) _) = pure ["f", "g"]
     findNames (NTCon _ n _ _ _)
-        = case lookup n (namedirectives (options defs)) of
-               Nothing => defaultNames
-               Just ns => ns
-    findNames ty = defaultNames
+        = case !(lookupName n (namedirectives (options defs))) of
+               Nothing => pure defaultNames
+               Just ns => pure ns
+    findNames ty = pure defaultNames
 
     getName : Name -> List String -> List Name -> String
     getName (UN n) defs used = unique (n :: defs) (n :: defs) 0 used
     getName _ defs used = unique defs defs 0 used
 
 export
-getArgNames : Defs -> List Name -> Env Term vars -> NF vars -> 
+getArgNames : {auto c : Ref Ctxt Defs} ->
+              Defs -> List Name -> Env Term vars -> NF vars -> 
               Core (List String)
 getArgNames defs allvars env (NBind fc x (Pi _ p ty) sc) 
-    = do let ns = case p of
-                       Explicit => [getArgName defs x allvars ty]
-                       _ => []
+    = do ns <- case p of
+                    Explicit => pure [!(getArgName defs x allvars ty)]
+                    _ => pure []
          sc' <- sc defs (toClosure defaultOpts env (Erased fc))
          pure $ ns ++ !(getArgNames defs (map UN ns ++ allvars) env sc')
 getArgNames defs allvars env val = pure []
 
 export
-getEnvArgNames : Defs -> Nat -> NF [] -> Core (List String)
+getEnvArgNames : {auto c : Ref Ctxt Defs} ->
+                 Defs -> Nat -> NF [] -> Core (List String)
 getEnvArgNames defs Z sc = getArgNames defs [] [] sc
 getEnvArgNames defs (S k) (NBind fc n _ sc)
     = getEnvArgNames defs k !(sc defs (toClosure defaultOpts [] (Erased fc)))
