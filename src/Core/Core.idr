@@ -419,7 +419,8 @@ filterM : (a -> Core Bool) -> List a -> Core (List a)
 filterM p [] = pure []
 filterM p (x :: xs)
     = if !(p x)
-         then pure (x :: !(filterM p xs))
+         then do xs' <- filterM p xs
+                 pure (x :: xs')
          else filterM p xs
 
 export
