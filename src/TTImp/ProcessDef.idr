@@ -202,7 +202,7 @@ checkLHS {vars} mult hashit n opts nest env fc lhs_in
          log 5 $ "Checking " ++ show lhs
          logEnv 5 "In env" env
          (lhstm, lhstyg) <- 
-             wrapError (InLHS fc (Resolved n)) $
+             wrapError (InLHS fc !(getFullName (Resolved n))) $
                      elabTerm n (InLHS mult) opts nest env 
                                 (IBindHere fc PATTERN lhs) Nothing
          logTerm 10 "Checked LHS term" lhstm
@@ -344,7 +344,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
                       Rig0 => InType -- treat as used in type only
                       _ => InExpr
 
-         (wval, gwvalTy) <- wrapError (InRHS fc (Resolved n)) $
+         (wval, gwvalTy) <- wrapError (InRHS fc !(getFullName (Resolved n))) $
                 elabTermSub n wmode opts nest' env' env sub' wval_raw Nothing
          clearHoleLHS
          
@@ -397,7 +397,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
          let rhs_in = apply (IVar fc wname)
                         (map (maybe wval_raw (IVar fc)) wargNames)
 
-         rhs <- wrapError (InRHS fc (Resolved n)) $
+         rhs <- wrapError (InRHS fc !(getFullName (Resolved n))) $
              checkTermSub n wmode opts nest' env' env sub' rhs_in 
                           (gnf env' reqty)
 

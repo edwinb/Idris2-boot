@@ -65,7 +65,7 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
          idx <- resolveName n 
          
          (ty, _) <- 
-             wrapError (InType fc (Resolved idx)) $
+             wrapError (InType fc n) $
                     elabTerm idx InType (HolesOkay :: eopts) nest env 
                              (IBindHere fc (PI Rig0) ty_raw) 
                              (Just (gType fc))

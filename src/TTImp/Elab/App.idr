@@ -38,9 +38,10 @@ getNameType rigc env fc x
                  pure (Local fc (Just (isLet binder)) _ lv, gnf env bty)
            Nothing => 
               do defs <- get Ctxt
-                 [(fullname, i, def)] <- lookupCtxtName x (gamma defs)
+                 [(pname, i, def)] <- lookupCtxtName x (gamma defs)
                       | [] => throw (UndefinedName fc x)
                       | ns => throw (AmbiguousName fc (map fst ns))
+                 checkVisibleNS !(getFullName pname)
                  let nt = case definition def of
                                PMDef _ _ _ _ => Func
                                DCon t a => DataCon t a
@@ -58,6 +59,15 @@ getNameType rigc env fc x
     rigSafe Rig0 RigW = throw (LinearMisuse fc x Rig0 RigW)
     rigSafe Rig0 Rig1 = throw (LinearMisuse fc x Rig0 Rig1)
     rigSafe _ _ = pure ()
+
+    checkVisibleNS : Name -> Core ()
+    checkVisibleNS (NS ns x) 
+        = if !(isVisible ns)
+             then pure ()
+             else do defs <- get Ctxt
+                     throw $ InvisibleName fc (NS ns x)
+    checkVisibleNS _ = pure ()
+          
 
 -- Get the type of a variable, looking it up in the nested names first.
 getVarType : {vars : _} ->
