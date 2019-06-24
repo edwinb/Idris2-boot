@@ -18,31 +18,33 @@ import TTImp.TTImp
 export
 expandAmbigName : {auto c : Ref Ctxt Defs} ->
                   {auto e : Ref EST (EState vars)} ->
-                  ElabMode -> Env Term vars -> RawImp -> 
+                  ElabMode -> NestedNames vars -> Env Term vars -> RawImp -> 
                   List (FC, Maybe (Maybe Name), RawImp) -> 
                   RawImp -> Maybe (Glued vars) -> Core RawImp
-expandAmbigName (InLHS _) env orig args (IBindVar fc n) exp
+expandAmbigName (InLHS _) nest env orig args (IBindVar fc n) exp
     = do est <- get EST
          if n `elem` lhsPatVars est
             then pure $ IMustUnify fc "Non linear pattern variable" orig
             else pure $ orig
-expandAmbigName mode env orig args (IVar fc x) exp
-    = do defs <- get Ctxt
-         -- TODO: Look up 'x' in nested names, when we have them
-         case defined x env of
-              Just _ => 
-                if isNil args || notLHS mode 
-                   then pure $ orig
-                   else pure $ IMustUnify fc "Name applied to arguments" orig
-              Nothing => 
-                 do est <- get EST
-                    let prims = mapMaybe id 
-                                  [!fromIntegerName, !fromStringName, !fromCharName]
-                    case !(lookupCtxtName x (gamma defs)) of
-                         [] => pure orig
-                         [nalt] => pure $ mkAlt prims est nalt
-                         nalts => pure $ IAlternative fc Unique 
-                                                (map (mkAlt prims est) nalts)
+expandAmbigName mode nest env orig args (IVar fc x) exp
+   = case lookup x (names nest) of
+          Just _ => pure orig
+          Nothing => do
+             defs <- get Ctxt
+             case defined x env of
+                  Just _ => 
+                    if isNil args || notLHS mode 
+                       then pure $ orig
+                       else pure $ IMustUnify fc "Name applied to arguments" orig
+                  Nothing => 
+                     do est <- get EST
+                        let prims = mapMaybe id 
+                                      [!fromIntegerName, !fromStringName, !fromCharName]
+                        case !(lookupCtxtName x (gamma defs)) of
+                             [] => pure orig
+                             [nalt] => pure $ mkAlt prims est nalt
+                             nalts => pure $ IAlternative fc Unique 
+                                                    (map (mkAlt prims est) nalts)
   where
     buildAlt : RawImp -> List (FC, Maybe (Maybe Name), RawImp) -> 
                RawImp
@@ -88,13 +90,13 @@ expandAmbigName mode env orig args (IVar fc x) exp
     notLHS (InLHS _) = False
     notLHS _ = True
 
-expandAmbigName mode env orig args (IApp fc f a) exp
-    = expandAmbigName mode env orig 
+expandAmbigName mode nest env orig args (IApp fc f a) exp
+    = expandAmbigName mode nest env orig 
                       ((fc, Nothing, a) :: args) f exp
-expandAmbigName mode env orig args (IImplicitApp fc f n a) exp
-    = expandAmbigName mode env orig 
+expandAmbigName mode nest env orig args (IImplicitApp fc f n a) exp
+    = expandAmbigName mode nest env orig 
                       ((fc, Just n, a) :: args) f exp
-expandAmbigName elabmode env orig args tm exp = pure orig
+expandAmbigName elabmode nest env orig args tm exp = pure orig
 
 stripDelay : Defs -> NF vars -> NF vars
 stripDelay defs (NDelayed fc r t) = t

@@ -199,8 +199,7 @@ TTImp.Elab.Check.check rigc elabinfo nest env tm@(IUpdate fc fs rec) exp
 TTImp.Elab.Check.check rigc elabinfo nest env tm_in exp 
     = do defs <- get Ctxt
          est <- get EST
-         tm <- expandAmbigName (elabMode elabinfo) env tm_in [] tm_in exp
-         -- TODO: insertLazy
+         tm <- expandAmbigName (elabMode elabinfo) nest env tm_in [] tm_in exp
          case elabMode elabinfo of
               InLHS _ => -- Don't expand implicit lambda on lhs
                  checkImp rigc elabinfo nest env tm exp

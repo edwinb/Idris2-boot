@@ -9,7 +9,11 @@ exceptions. The most notable user visible differences, which might cause Idris
 
 + Unbound implicit arguments are always erased, so it is a type error to
   attempt to pattern match on one.
-+ Simplified resolution of ambiguous names.
++ Simplified resolution of ambiguous names, which might mean you need to
+  explicitly disambiguate more often. As a general rule, Idris 2 will be able
+  to disambiguate between names which have different concrete return types
+  (such as data constructores), or which have different concrete argument
+  types (such as record projections).
 + Minor differences in the meaning of export modifiers `private`, `export`,
   and `public export`, which now refer to visibility of names from other
   *namespaces* rather than visibility from other *files*.

@@ -183,7 +183,7 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
          cons <- traverse (checkCon eopts nest env cvis (Resolved tidx)) cons_raw
 
          let ddef = MkData (MkCon dfc n arity fullty) cons
-         addData vars vis ddef
+         addData vars vis tidx ddef
 
          -- Type is defined mutually with every data type undefined at the
          -- point it was declared, and every data type undefined right now

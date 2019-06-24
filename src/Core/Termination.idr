@@ -513,8 +513,9 @@ calcPositive loc n
 export
 checkPositive : {auto c : Ref Ctxt Defs} ->
                 FC -> Name -> Core Terminating
-checkPositive loc n 
-    = do tot <- getTotality loc n
+checkPositive loc n_in
+    = do n <- toResolvedNames n_in
+         tot <- getTotality loc n
          case isTerminating tot of
               Unchecked =>
                   do (tot', cons) <- calcPositive loc n

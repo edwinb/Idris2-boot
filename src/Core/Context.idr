@@ -57,8 +57,9 @@ Show Def where
       = show args ++ "; " ++ show ct
   show (DCon t a) = "DataCon " ++ show t ++ " " ++ show a
   show (TCon t a ps ds ms cons) 
-      = "TyCon " ++ show t ++ " " ++ show a ++ " " ++ show cons
-        ++ " with " ++ show ms
+      = "TyCon " ++ show t ++ " " ++ show a ++ " params: " ++ show ps ++ 
+        " constructors: " ++ show cons ++ 
+        " mutual with: " ++ show ms
   show (ExternDef arity) = "<external def with arith " ++ show arity ++ ">"
   show (Builtin {arity} _) = "<builtin with arith " ++ show arity ++ ">"
   show (Hole _ inv) = "Hole"
@@ -1261,18 +1262,88 @@ getNextTypeTag
          put Ctxt (record { nextTag $= (+1) } defs)
          pure (nextTag defs)
 
-paramPos : Name -> (dcons : List ClosedTerm) -> List Nat
-paramPos _ _ = [] -- TODO
+-- If a name appears more than once in an argument list, only the first is
+-- considered a parameter
+dropReps : List (Maybe (Term vars)) -> List (Maybe (Term vars))
+dropReps [] = []
+dropReps {vars} (Just (Local fc r x p) :: xs)
+    = Just (Local fc r x p) :: assert_total (dropReps (map toNothing xs))
+  where
+    toNothing : Maybe (Term vars) -> Maybe (Term vars)
+    toNothing tm@(Just (Local _ _ v' _))
+        = if x == v' then Nothing else tm
+    toNothing tm = tm
+dropReps (x :: xs) = x :: dropReps xs
+
+updateParams : Maybe (List (Maybe (Term vars))) ->
+                  -- arguments to the type constructor which could be
+                  -- parameters
+                  -- Nothing, as an argument, means this argument can't
+                  -- be a parameter position
+               List (Term vars) ->
+                  -- arguments to an application
+               List (Maybe (Term vars))
+updateParams Nothing args = dropReps $ map couldBeParam args
+  where
+    couldBeParam : Term vars -> Maybe (Term vars)
+    couldBeParam (Local fc r v p) = Just (Local fc r v p)
+    couldBeParam _ = Nothing
+updateParams (Just args) args' = dropReps $ zipWith mergeArg args args'
+  where
+    mergeArg : Maybe (Term vars) -> Term vars -> Maybe (Term vars)
+    mergeArg (Just (Local fc r x p)) (Local _ _ y _)
+        = if x == y then Just (Local fc r x p) else Nothing
+    mergeArg _ _ = Nothing
+
+getPs : Maybe (List (Maybe (Term vars))) -> Name -> Term vars ->
+        Maybe (List (Maybe (Term vars)))
+getPs acc tyn (Bind _ x (Pi _ _ ty) sc)
+      = let scPs = getPs (map (map (map weaken)) acc) tyn sc in
+            map (map shrink) scPs
+  where
+    shrink : Maybe (Term (x :: vars)) -> Maybe (Term vars)
+    shrink Nothing = Nothing
+    shrink (Just tm) = shrinkTerm tm (DropCons SubRefl)
+getPs acc tyn tm
+    = case getFnArgs tm of
+           (Ref _ _ n, args) => 
+              if n == tyn
+                 then Just (updateParams acc args)
+                 else acc
+           _ => acc
+
+toPos : Maybe (List (Maybe a)) -> List Nat
+toPos Nothing = []
+toPos (Just ns) = justPos 0 ns
+  where
+    justPos : Nat -> List (Maybe a) -> List Nat
+    justPos i [] = []
+    justPos i (Just x :: xs) = i :: justPos (1 + i) xs
+    justPos i (Nothing :: xs) = justPos (1 + i) xs
+
+getConPs : Maybe (List (Maybe (Term vars))) -> Name -> Term vars -> List Nat
+getConPs acc tyn (Bind _ x (Pi _ _ ty) sc)
+    = let bacc = getPs acc tyn ty in
+          getConPs (map (map (map weaken)) bacc) tyn sc
+getConPs acc tyn tm = toPos (getPs acc tyn tm)
+
+combinePos : Eq a => List (List a) -> List a
+combinePos [] = []
+combinePos (xs :: xss) = filter (\x => all (elem x) xss) xs
+
+paramPos : Name -> (dcons : List ClosedTerm) ->
+           List Nat
+paramPos tyn dcons = combinePos (map (getConPs Nothing tyn) dcons)
 
 export
 addData : {auto c : Ref Ctxt Defs} ->
-					List Name -> Visibility -> DataDef -> Core Int
-addData vars vis (MkData (MkCon dfc tyn arity tycon) datacons)
+					List Name -> Visibility -> Int -> DataDef -> Core Int
+addData vars vis tidx (MkData (MkCon dfc tyn arity tycon) datacons)
     = do defs <- get Ctxt 
          tag <- getNextTypeTag 
          let tydef = newDef dfc tyn RigW vars tycon vis 
                             (TCon tag arity 
-                                  (paramPos tyn (map type datacons))
+                                  (paramPos (Resolved tidx) (map type datacons))
                                   (allDet arity)
                                   [] (map name datacons))
          (idx, gam') <- addCtxt tyn tydef (gamma defs)
