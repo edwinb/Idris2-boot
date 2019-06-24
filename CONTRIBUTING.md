@@ -4,13 +4,16 @@ Contributing to Idris 2
 Contributions are welcome! The most important things needed at this stage,
 beyond work on the language core, are (in no particular order):
 
-* CI integration
-* Documentation string support (at the REPL and IDE mode)
+* CI integration.
+* Documentation string support (at the REPL and IDE mode).
 * A better REPL, including:
   - readline and tab completion
   - :search and :apropos
   - help commands
 * Further library support (please add initially into contrib/)
+* Partial evaluation, especially for specialisation of interface 
+  implementations.
+* An alternative, high performance, back end. OCaml seems worth a try.
 
 Some language extensions from Idris 1 have not yet been implemented. Most
 notably:

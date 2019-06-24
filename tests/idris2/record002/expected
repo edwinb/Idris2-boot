@@ -1,5 +1,5 @@
 1/1: Building Record (Record.idr)
-Welcome to Idris 2 version 0.0. Please be gentle.
+Welcome to Idris 2 version 0.0. Enjoy yourself!
 Main> MkPerson "Fred" 1337 10 (MkStats 11 10)
 Main> MkPerson "Fred" 1337 10 (MkStats 12 10)
 Main> MkMyDPair (S (S (S (S (S (S Z)))))) [10, 1, 2, 3, 4, 5]
