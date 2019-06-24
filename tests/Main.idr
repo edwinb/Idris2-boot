@@ -28,7 +28,8 @@ idrisTests
        "interactive001", "interactive002", "interactive003", "interactive004",
        "interactive005", "interactive006", "interactive007", "interactive008",
        "interactive009", "interactive010", "interactive011", "interactive012",
-       "interface001", "interface002",
+       "interface001", "interface002", "interface003", "interface004",
+       "interface005",
        "import001", "import002",
        "record001", "record002"]
 

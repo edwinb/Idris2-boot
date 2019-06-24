@@ -1,0 +1,11 @@
+1/1: Building Do (Do.idr)
+Welcome to Idris 2 version 0.0. Enjoy yourself!
+Main>  0 b : Type
+ 0 a' : Type
+ 0 a : Type
+ 0 m : Type -> Type
+   conArg : Monad m
+   x : m a
+-------------------------------------
+foo : (a' -> m b) -> m b
+Main> Bye for now!

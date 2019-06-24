@@ -135,7 +135,7 @@ perror (NotRecordType fc ty)
 perror (IncompatibleFieldUpdate fc flds)
     = pure $ "Field update " ++ showSep "->" flds ++ 
              " not compatible with other updates"
-perror (InvalidImplicits _ env [n] tm)
+perror (InvalidImplicits _ env [Just n] tm)
     = pure $ show n ++ " is not a valid implicit argument in " ++ !(pshow env tm)
 perror (InvalidImplicits _ env ns tm)
     = pure $ showSep ", " (map show ns) ++ 

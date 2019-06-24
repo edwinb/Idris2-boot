@@ -269,7 +269,7 @@ elabImplementation {vars} fc vis pass env nest cons iname ps impln mbody
              log 3 $ "Name updates " ++ show upds 
              log 3 $ "Param names: " ++ show pnames 
              log 10 $ "Used names " ++ show ibound
-             let ibinds = findIBinds mty
+             let ibinds = nub $ findIBinds mty
              let methupds' = if isNil ibinds then []
                              else [(n, impsApply (IVar fc n)
                                      (map (\x => (UN x, IBindVar fc x)) ibinds))]
