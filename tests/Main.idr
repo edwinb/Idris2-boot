@@ -31,6 +31,7 @@ idrisTests
        "interface001", "interface002", "interface003", "interface004",
        "interface005",
        "import001", "import002",
+       "lazy001",
        "record001", "record002"]
 
 chdir : String -> IO Bool
