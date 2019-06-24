@@ -476,7 +476,7 @@ exprSearch fc n_in hints
     = do defs <- get Ctxt
          Just (n, idx, gdef) <- lookupHoleName n_in defs
              | Nothing => throw (UndefinedName fc n_in)
-         lhs <- findHoleLHS (Resolved idx)
+         lhs <- findHoleLHS !(getFullName (Resolved idx))
          log 10 $ "LHS hole data " ++ show (n, lhs)
          rs <- search fc (multiplicity gdef) (MkSearchOpts False True 5)
                       !(getLHSData defs lhs) (type gdef) n

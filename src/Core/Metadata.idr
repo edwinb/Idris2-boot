@@ -58,12 +58,14 @@ TTC Metadata where
            pure (MkMetadata apps ns tys Nothing hlhs)
 
 export
-addLHS : {auto m : Ref MD Metadata} ->
+addLHS : {auto c : Ref Ctxt Defs} ->
+         {auto m : Ref MD Metadata} ->
          FC -> Nat -> Env Term vars -> Term vars -> Core ()
 addLHS loc outerenvlen env tm
     = do meta <- get MD
+         tm' <- toFullNames (bindEnv loc (toPat env) tm)
          put MD (record { 
-                      lhsApps $= ((loc, outerenvlen, bindEnv loc (toPat env) tm) ::) 
+                      lhsApps $= ((loc, outerenvlen, tm') ::) 
                     } meta)
   where
     toPat : Env Term vs -> Env Term vs
@@ -72,21 +74,25 @@ addLHS loc outerenvlen env tm
     toPat [] = []
 
 export
-addNameType : {auto m : Ref MD Metadata} ->
+addNameType : {auto c : Ref Ctxt Defs} ->
+              {auto m : Ref MD Metadata} ->
               FC -> Name -> Env Term vars -> Term vars -> Core ()
 addNameType loc n env tm
     = do meta <- get MD
+         n' <- getFullName n
          put MD (record { 
-                      names $= ((loc, (n, length env, bindEnv loc env tm)) ::) 
+                      names $= ((loc, (n', length env, bindEnv loc env tm)) ::) 
                     } meta)
 
 export
-addTyDecl : {auto m : Ref MD Metadata} ->
+addTyDecl : {auto c : Ref Ctxt Defs} ->
+            {auto m : Ref MD Metadata} ->
             FC -> Name -> Env Term vars -> Term vars -> Core ()
 addTyDecl loc n env tm
     = do meta <- get MD
+         n' <- getFullName n
          put MD (record { 
-                      tydecls $= ((loc, (n, length env, bindEnv loc env tm)) ::) 
+                      tydecls $= ((loc, (n', length env, bindEnv loc env tm)) ::) 
                     } meta)
 
 export
@@ -104,12 +110,14 @@ clearHoleLHS
          put MD (record { currentLHS = Nothing } meta)
 
 export
-withCurrentLHS : {auto m : Ref MD Metadata} ->
+withCurrentLHS : {auto c : Ref Ctxt Defs} ->
+                 {auto m : Ref MD Metadata} ->
                  Name -> Core ()
 withCurrentLHS n
     = do meta <- get MD
+         n' <- getFullName n
          maybe (pure ())
-               (\lhs => put MD (record { holeLHS $= ((n, lhs) ::) } meta))
+               (\lhs => put MD (record { holeLHS $= ((n', lhs) ::) } meta))
                (currentLHS meta)
 
 findEntryWith : (FC -> a -> Bool) -> List (FC, a) -> Maybe (FC, a)
