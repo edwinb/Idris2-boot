@@ -1,0 +1,10 @@
+1/1: Building Total (Total.idr)
+Welcome to Idris 2 version 0.0. Enjoy yourself!
+Main> Main.onlyOne:
+onlyOne _
+Main> Main.covered: All cases covered
+Main> Main.matchInt: All cases covered
+Main> Main.matchInt':
+matchInt' _ _ IsZero
+matchInt' _ _ IsSuc
+Main> Bye for now!

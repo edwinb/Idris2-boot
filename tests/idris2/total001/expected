@@ -1,0 +1,7 @@
+1/1: Building Total (Total.idr)
+Welcome to Idris 2 version 0.0. Enjoy yourself!
+Main> Main.lookup: All cases covered
+Main> Main.lookup':
+lookup' FZ _
+Main> Main.lookup'': Calls non covering function Main.lookup'
+Main> Bye for now!
