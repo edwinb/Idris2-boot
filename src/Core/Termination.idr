@@ -34,6 +34,24 @@ totRefs defs (n :: ns)
 totRefsIn : Defs -> Term vars -> Core Terminating
 totRefsIn defs ty = totRefs defs (keys (getRefs ty))
 
+-- Equal for the purposes of size change means, ignoring as patterns, all
+-- non-metavariable positions are equal
+scEq : Term vars -> Term vars -> Bool
+scEq (Local _ _ idx _) (Local _ _ idx' _) = idx == idx'
+scEq (Ref _ _ n) (Ref _ _ n') = n == n'
+scEq (Meta _ _ i args) _ = True 
+scEq _ (Meta _ _ i args) = True 
+scEq (Bind _ _ b sc) (Bind _ _ b' sc') = False -- not checkable
+scEq (App _ f a) (App _ f' a') = scEq f f' && scEq a a'
+scEq (As _ a p) p' = scEq p p'
+scEq p (As _ a p') = scEq p p'
+scEq (TDelayed _ _ t) (TDelayed _ _ t') = scEq t t'
+scEq (TDelay _ _ t x) (TDelay _ _ t' x') = scEq t t' && scEq x x'
+scEq (TForce _ t) (TForce _ t') = scEq t t'
+scEq (PrimVal _ c) (PrimVal _ c') = c == c'
+scEq (Erased _) (Erased _) = True
+scEq (TType _) (TType _) = True
+scEq _ _ = False
 
 data Guardedness = Toplevel | Unguarded | Guarded | InDelay
 
@@ -102,7 +120,7 @@ mutual
   smaller inc defs big s t = smallerArg inc defs big s t
 
   assertedSmaller : Maybe (Term vars) -> Term vars -> Bool
-  assertedSmaller (Just b) a = b == a
+  assertedSmaller (Just b) a = scEq b a
   assertedSmaller _ _ = False
 
   smallerArg : Bool -> Defs ->
@@ -121,11 +139,11 @@ mutual
                                _ => False
 
   -- if the argument is an 'assert_smaller', return the thing it's smaller than
-  asserted : Term vars -> Maybe (Term vars)
-  asserted tm 
+  asserted : Name -> Term vars -> Maybe (Term vars)
+  asserted aSmaller tm 
        = case getFnArgs tm of
               (Ref _ nt fn, [_, _, b, _]) 
-                   => if fn == NS ["Builtin"] (UN "assert_smaller")
+                   => if fn == aSmaller
                          then Just b
                          else Nothing
               _ => Nothing
@@ -134,17 +152,17 @@ mutual
   -- i.e., return the size relationship of the given argument with an entry 
   -- in 'pats'; the position in 'pats' and the size change.
   -- Nothing if there is no relation with any of them.
-  mkChange : Defs ->
+  mkChange : Defs -> Name ->
              (pats : List (Nat, Term vars)) -> 
              (arg : Term vars) ->
              Maybe (Nat, SizeChange)
-  mkChange defs [] arg = Nothing
-  mkChange defs ((i, As _ p parg) :: pats) arg
-      = mkChange defs ((i, p) :: (i, parg) :: pats) arg
-  mkChange defs ((i, parg) :: pats) arg
-      = cond [(arg == parg, Just (i, Same)),
-              (smaller False defs (asserted arg) arg parg, Just (i, Smaller))]
-          (mkChange defs pats arg)
+  mkChange defs aSmaller [] arg = Nothing
+  mkChange defs aSmaller ((i, As _ p parg) :: pats) arg
+      = mkChange defs aSmaller ((i, p) :: (i, parg) :: pats) arg
+  mkChange defs aSmaller ((i, parg) :: pats) arg
+      = cond [(scEq arg parg, Just (i, Same)),
+              (smaller False defs (asserted aSmaller arg) arg parg, Just (i, Smaller))]
+          (mkChange defs aSmaller pats arg)
 
   -- Given a name of a case function, and a list of the arguments being
   -- passed to it, update the pattern list so that it's referring to the LHS
@@ -221,6 +239,8 @@ mutual
       = do Just gdef <- lookupCtxtExact fn_in (gamma defs)
                 | Nothing => throw (UndefinedName fc fn_in)
            let fn = fullname gdef
+           log 10 $ "Looking under " ++ show fn
+           aSmaller <- resolved (gamma defs) (NS ["Builtin"] (UN "assert_smaller"))
            cond [(fn == NS ["Builtin"] (UN "assert_total"), pure []),
               (caseFn fn,
                   do mps <- getCasePats defs fn pats args
@@ -231,7 +251,7 @@ mutual
               (do scs <- traverse (findSC defs env g pats) args
                   pure ([MkSCCall fn 
                            (expandToArity arity 
-                                (map (mkChange defs pats) args))] 
+                                (map (mkChange defs aSmaller pats) args))] 
                            ++ concat scs))
 
   findInCase : {auto c : Ref Ctxt Defs} ->
@@ -239,7 +259,10 @@ mutual
                (vs ** (Env Term vs, List (Nat, Term vs), Term vs)) ->
                Core (List SCCall)
   findInCase defs g (_ ** (env, pats, tm)) 
-     = do rhs <- normaliseOpts tcOnly defs env tm
+     = do logC 10 (do ps <- traverse toFullNames (map snd pats)
+                      pure ("Looking in case args " ++ show ps))
+          logTermNF 10 "        =" env tm
+          rhs <- normaliseOpts tcOnly defs env tm
           findSC defs env g pats rhs
 
 -- Remove all laziness annotations which are nothing to do with coinduction,
@@ -314,6 +337,7 @@ initArgs (S k)
 -- TODO: If we encounter a name where we already know its termination status,
 -- use that rather than continuing to traverse the graph!
 checkSC : {auto a : Ref APos Arg} ->
+          {auto c : Ref Ctxt Defs} ->
           Defs -> 
           Name -> -- function we're checking
           List (Maybe (Arg, SizeChange)) -> -- functions arguments and change
@@ -322,7 +346,7 @@ checkSC : {auto a : Ref APos Arg} ->
 checkSC defs f args path
    = let pos = (f, map (map fst) args) in
          if pos `elem` path
-            then pure $ checkDesc (mapMaybe (map snd) args) path
+            then toFullNames $ checkDesc (mapMaybe (map snd) args) path
             else case !(lookupCtxtExact f (gamma defs)) of
                       Nothing => pure IsTerminating
                       Just def => continue (sizeChange def) (pos :: path)

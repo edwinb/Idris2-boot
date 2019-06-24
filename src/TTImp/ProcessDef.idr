@@ -578,8 +578,9 @@ processDef opts nest env fc n_in cs_in
          addToSave n
          log 10 $ "Saving from " ++ show n ++ ": " ++ show (keys rmetas)
 
-         sc <- calculateSizeChange fc n
-         setSizeChange fc n sc
+         when (not (InCase `elem` opts)) $
+             do sc <- calculateSizeChange fc n
+                setSizeChange fc n sc
 
          cov <- checkCoverage nidx mult cs tree_ct
          setCovering fc n cov

@@ -1051,9 +1051,7 @@ export Show (Term vars) where
     where
       showApp : Term vars -> List (Term vars) -> String
       showApp (Local {name} _ c idx _) [] 
-         = case c of
-                Just _ => show name ++ "[" ++ show idx ++ "!]"
-                _ => show name ++ "[" ++ show idx ++ "]"
+         = show name ++ "[" ++ show idx ++ "]"
       showApp (Ref _ _ n) [] = show n
       showApp (Meta _ n i args) [] 
           = "?" ++ show n ++ "_" ++ show args

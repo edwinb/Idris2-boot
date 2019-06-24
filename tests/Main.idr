@@ -33,7 +33,7 @@ idrisTests
        "import001", "import002",
        "lazy001",
        "record001", "record002",
-       "total001", "total002", "total003"]
+       "total001", "total002", "total003", "total004"]
 
 chdir : String -> IO Bool
 chdir dir 
