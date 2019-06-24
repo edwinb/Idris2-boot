@@ -424,7 +424,7 @@ process (Check itm)
          defs <- get Ctxt
          itm <- resugar [] !(normaliseHoles defs [] tm)
          ty <- getTerm gty
-         ity <- resugar [] !(normaliseHoles defs [] ty)
+         ity <- resugar [] !(normaliseScope defs [] ty)
          coreLift (putStrLn (show itm ++ " : " ++ show ity))
          pure True
 process (PrintDef fn)

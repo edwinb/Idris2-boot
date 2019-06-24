@@ -25,7 +25,8 @@ idrisTests : List String
 idrisTests
     = ["basic001",
        "coverage001", "coverage002",
-       "import001", "import002"]
+       "import001", "import002",
+       "record001", "record002"]
 
 chdir : String -> IO Bool
 chdir dir 
