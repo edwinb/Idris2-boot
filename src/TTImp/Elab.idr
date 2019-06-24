@@ -13,6 +13,7 @@ import TTImp.Elab.Check
 import TTImp.Elab.Delayed
 import TTImp.Elab.Term
 import TTImp.TTImp
+import TTImp.Unelab
 
 import Data.IntMap
 
@@ -187,9 +188,35 @@ checkTermSub : {vars : _} ->
                RawImp -> Glued vars ->
                Core (Term vars)
 checkTermSub defining mode opts nest env env' sub tm ty
-    = do (tm_elab, _) <- elabTermSub defining mode opts nest 
-                                     env env' sub tm (Just ty)
-         pure tm_elab
+    = do defs <- the (Core Defs) $ case mode of
+                      InType => branch -- might need to backtrack if there's
+                                       -- a case in the type
+                      _ => get Ctxt
+         ust <- get UST
+         mv <- get MD
+         res <- 
+            catch {t = Error}
+                  (elabTermSub defining mode opts nest 
+                               env env' sub tm (Just ty))
+                  (\err => case err of
+                              TryWithImplicits loc benv ns
+                                 => do put Ctxt defs
+                                       put UST ust
+                                       put MD mv
+                                       tm' <- bindImps loc benv ns tm
+                                       elabTermSub defining mode opts nest
+                                                   env env' sub
+                                                   tm' (Just ty)
+                              _ => throw err)
+         pure (fst res)
+  where
+    bindImps : FC -> Env Term vs -> List (Name, Term vs) -> RawImp -> 
+               Core RawImp
+    bindImps loc env [] ty = pure ty
+    bindImps loc env ((n, ty) :: ntys) sc
+        = pure $ IPi loc Rig0 Implicit (Just n)
+                     !(unelabNoSugar env ty) !(bindImps loc env ntys sc)
+
 
 export
 checkTerm : {vars : _} ->

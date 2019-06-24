@@ -1,0 +1,16 @@
+1/1: Building IEdit (IEdit.idr)
+Welcome to Idris 2 version 0.0. Enjoy yourself!
+Main> \f => \g => \x => g (f x)
+Main> (\x => \zs => x :: zs)
+Main>  0 c : Type
+ 0 b : Type
+ 0 a : Type
+ 0 k : Nat
+   xs : Vect k a
+   x : a
+   ys : Vect k b
+   y : b
+   f : a -> b -> c
+-------------------------------------
+f : a -> b -> c
+Main> Bye for now!

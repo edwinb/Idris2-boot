@@ -66,11 +66,11 @@ checkCon {vars} opts nest env vis tn (MkImpTy fc cn_in ty_raw)
          -- Check 'cn' is undefined
          Nothing <- lookupCtxtExact cn (gamma defs)
              | Just gdef => throw (AlreadyDefined fc cn)
-         (ty, _) <- 
+         ty <- 
              wrapError (InCon fc cn) $
-                    elabTerm !(resolveName cn) InType opts nest env 
+                   checkTerm !(resolveName cn) InType opts nest env 
                               (IBindHere fc (PI Rig0) ty_raw)
-                              (Just (gType fc))
+                              (gType fc)
 
          -- Check 'ty' returns something in the right family
          checkFamily fc cn tn env !(nf defs env ty)

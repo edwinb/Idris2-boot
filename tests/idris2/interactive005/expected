@@ -1,0 +1,13 @@
+1/1: Building IEdit (IEdit.idr)
+Welcome to Idris 2 version 0.0. Enjoy yourself!
+Main> my_cong x x Refl = Refl
+Main> curry f x y = f (x, y)
+Main> uncurry f x = f (fst x) (snd x)
+Main> append [] ys = ys
+append (x :: xs) ys = x :: append xs ys
+Main> zipWith f [] ys = []
+zipWith f (x :: xs) (y :: ys) = f x y :: zipWith f xs ys
+Main> lookup Here (ECons x es) = x
+lookup (There p) (ECons x es) = lookup p es
+Main> Main.uncurry : (a -> b -> c) -> (a, b) -> c
+Main> Bye for now!

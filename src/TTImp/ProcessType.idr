@@ -64,11 +64,11 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
          log 5 $ "Checking type decl " ++ show n ++ " : " ++ show ty_raw
          idx <- resolveName n 
          
-         (ty, _) <- 
+         ty <- 
              wrapError (InType fc n) $
-                    elabTerm idx InType (HolesOkay :: eopts) nest env 
+                   checkTerm idx InType (HolesOkay :: eopts) nest env 
                              (IBindHere fc (PI Rig0) ty_raw) 
-                             (Just (gType fc))
+                             (gType fc)
          logTermNF 5 (show n) [] (abstractEnvType tfc env ty)
          -- TODO: Check name visibility
          -- If it's declared as externally defined, set the definition to
