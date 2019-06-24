@@ -41,7 +41,7 @@ checkAs rig elabinfo nest env fc side n_in pat topexp
          notePatVar n
          case lookup n (boundNames est) of
               Nothing => 
-                 do (pattm, patty) <- checkImp rigPat elabinfo nest env pat topexp
+                 do (pattm, patty) <- check rigPat elabinfo nest env pat topexp
                     (tm, exp, bty) <- mkPatternHole fc rig n env
                                             (implicitMode elabinfo)
                                             topexp

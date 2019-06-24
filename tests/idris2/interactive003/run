@@ -1,0 +1,4 @@
+$1 IEdit.idr < input
+$1 IEdit2.idr < input2
+
+rm -rf build
