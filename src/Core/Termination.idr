@@ -17,7 +17,8 @@ import Debug.Trace
 %default covering
 
 -- Check that the names a function refers to are terminating
-totRefs : Defs -> List Name -> Core Terminating
+totRefs : {auto c : Ref Ctxt Defs} ->
+          Defs -> List Name -> Core Terminating
 totRefs defs [] = pure IsTerminating
 totRefs defs (n :: ns)
     = do rest <- totRefs defs ns
@@ -28,10 +29,11 @@ totRefs defs (n :: ns)
               Unchecked => pure rest
               bad => case rest of
                           NotTerminating (BadCall ns)
-                             => pure $ NotTerminating (BadCall (n :: ns))
-                          _ => pure $ NotTerminating (BadCall [n])
+                             => toFullNames $ NotTerminating (BadCall (n :: ns))
+                          _ => toFullNames $ NotTerminating (BadCall [n])
 
-totRefsIn : Defs -> Term vars -> Core Terminating
+totRefsIn : {auto c : Ref Ctxt Defs} ->
+            Defs -> Term vars -> Core Terminating
 totRefsIn defs ty = totRefs defs (keys (getRefs ty))
 
 -- Equal for the purposes of size change means, ignoring as patterns, all
@@ -419,15 +421,21 @@ calcTerminating loc n
                            checkSC defs n args []
                      bad => pure bad
   where
+    addCases' : Defs -> NameMap () -> List Name -> Core (List Name)
+    addCases' defs all [] = pure (keys all)
+    addCases' defs all (n :: ns)
+        = case lookup n all of
+             Just _ => addCases' defs all ns
+             Nothing =>
+               if caseFn !(getFullName n)
+                  then case !(lookupCtxtExact n (gamma defs)) of
+                            Just def => addCases' defs (insert n () all)
+                                                  (keys (refersTo def) ++ ns)
+                            Nothing => addCases' defs (insert n () all) ns
+                  else addCases' defs (insert n () all) ns
+
     addCases : Defs -> List Name -> Core (List Name)
-    addCases defs [] = pure []
-    addCases defs (n :: ns)
-        = if caseFn n
-             then case !(lookupCtxtExact n (gamma defs)) of
-                       Just def => pure $ n :: keys (refersTo def) ++ !(addCases defs ns)
-                       Nothing => pure $ n :: !(addCases defs ns)
-             else do ns' <- addCases defs ns
-                     pure $ n :: ns'
+    addCases defs ns = addCases' defs empty ns
 
 -- Check whether a function is terminating, and record in the context
 export
@@ -500,7 +508,8 @@ checkPosArgs defs tyns (NBind fc x (Pi c e ty) sc)
            bad => pure bad
 checkPosArgs defs tyns _ = pure IsTerminating
 
-checkCon : Defs -> List Name -> Name -> Core Terminating
+checkCon : {auto c : Ref Ctxt Defs} ->
+           Defs -> List Name -> Name -> Core Terminating
 checkCon defs tyns cn 
     = case !(lookupTyExact cn (gamma defs)) of
            Nothing => pure Unchecked
@@ -509,7 +518,8 @@ checkCon defs tyns cn
                      IsTerminating => checkPosArgs defs tyns !(nf defs [] ty)
                      bad => pure bad
 
-checkData : Defs -> List Name -> List Name -> Core Terminating
+checkData : {auto c : Ref Ctxt Defs} ->
+            Defs -> List Name -> List Name -> Core Terminating
 checkData defs tyns [] = pure IsTerminating
 checkData defs tyns (c :: cs)
     = case !(checkCon defs tyns c) of
