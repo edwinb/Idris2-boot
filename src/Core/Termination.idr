@@ -34,7 +34,7 @@ totRefs defs (n :: ns)
 
 totRefsIn : {auto c : Ref Ctxt Defs} ->
             Defs -> Term vars -> Core Terminating
-totRefsIn defs ty = totRefs defs (keys (getRefs ty))
+totRefsIn defs ty = totRefs defs (keys (getRefs (Resolved (-1)) ty))
 
 -- Equal for the purposes of size change means, ignoring as patterns, all
 -- non-metavariable positions are equal
@@ -56,6 +56,12 @@ scEq (TType _) (TType _) = True
 scEq _ _ = False
 
 data Guardedness = Toplevel | Unguarded | Guarded | InDelay
+
+Show Guardedness where
+  show Toplevel = "Toplevel"
+  show Unguarded = "Unguarded"
+  show Guarded = "Guarded"
+  show InDelay = "InDelay"
 
 mutual
   findSC : {auto c : Ref Ctxt Defs} ->
@@ -80,6 +86,11 @@ mutual
     -- guaranteed to return a constructor; AllGuarded set), continue as InDelay
              (InDelay, Ref fc (DataCon _ _) cn, args) =>
                  do scs <- traverse (findSC defs env InDelay pats) args
+                    pure (concat scs)
+             -- If we're InDelay otherwise, just check the arguments, the
+             -- function call is okay
+             (InDelay, _, args) =>
+                 do scs <- traverse (findSC defs env Unguarded pats) args
                     pure (concat scs)
              (Toplevel, Ref fc (DataCon _ _) cn, args) =>
                  do scs <- traverse (findSC defs env Guarded pats) args
@@ -273,14 +284,14 @@ delazy : Defs -> Term vars -> Term vars
 delazy defs (TDelayed fc r tm) 
     = let tm' = delazy defs tm in
           case r of
-               LInf => tm'
-               _ => TDelayed fc r tm'
+               LInf => TDelayed fc r tm'
+               _ => tm'
 delazy defs (TDelay fc r ty tm) 
     = let ty' = delazy defs ty
           tm' = delazy defs tm in
           case r of
-               LInf => tm'
-               _ => TDelay fc r ty' tm'
+               LInf => TDelay fc r ty' tm'
+               _ => tm'
 delazy defs (Meta fc n i args) = Meta fc n i (map (delazy defs) args)
 delazy defs (Bind fc x b sc) 
     = Bind fc x (map (delazy defs) b) (delazy defs sc)

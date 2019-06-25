@@ -3,5 +3,5 @@ Written TTC
 Yaffle> Main.lookup: All cases covered
 Yaffle> Main.lookup':
 ($resolved114 {arg:0} {arg:1} (Main.FZ {m:0}) {arg:3})
-Yaffle> Main.lookup'': Calls non covering function $resolved114
+Yaffle> Main.lookup'': Calls non covering function Main.lookup'
 Yaffle> Bye for now!

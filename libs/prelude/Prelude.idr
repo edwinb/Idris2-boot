@@ -955,7 +955,7 @@ showArg x = " " ++ showPrec App x
 
 firstCharIs : (Char -> Bool) -> String -> Bool
 firstCharIs p "" = False
-firstCharIs p str = p (prim__strHead str)
+firstCharIs p str = p (assert_total (prim__strHead str))
 
 primNumShow : (a -> String) -> Prec -> a -> String
 primNumShow f d x = let str = f x in showParens (d >= PrefixMinus && firstCharIs (== '-') str) str

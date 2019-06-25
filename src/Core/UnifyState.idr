@@ -514,7 +514,7 @@ checkValidHole (idx, (fc, n))
                                 ynf <- normaliseHoles defs env y
                                 throw (CantSolveEq fc env xnf ynf)
                           _ => pure ()
-              _ => traverse_ checkRef (map fst (toList (getRefs (type gdef))))
+              _ => traverse_ checkRef (keys (getRefs (Resolved (-1)) (type gdef)))
   where
     checkRef : Name -> Core ()
     checkRef (PV n f)

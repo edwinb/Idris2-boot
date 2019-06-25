@@ -154,7 +154,7 @@ record GlobalDef where
   visibility : Visibility
   totality : Totality
   flags : List DefFlag
-  refersTo : NameMap () 
+  refersTo : NameMap Bool 
   noCycles : Bool -- for metavariables, whether they can be cyclic (this
                   -- would only be allowed when using a metavariable as a 
                   -- placeholder for a yet to be elaborated arguments, but

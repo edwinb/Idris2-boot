@@ -58,7 +58,7 @@ showInfo (n, idx, d)
                                show !(traverse getFullName (keys (refersTo d))))
          when (not (isNil (sizeChange d))) $ 
             let scinfo = map (\s => show (fnCall s) ++ ": " ++ 
-                                    show (fnArgs s)) (sizeChange d) in
+                                    show (fnArgs s)) !(traverse toFullNames (sizeChange d)) in
                 coreLift $ putStrLn $
                         "Size change: " ++ showSep ", " scinfo
 
@@ -511,7 +511,7 @@ process (Total n)
               ts => do traverse (\fn =>
                           do checkTotal replFC fn
                              tot <- getTotality replFC fn
-                             iputStrLn (show fn ++ " is " ++ show tot)) 
+                             iputStrLn (show fn ++ " is " ++ show !(toFullNames tot))) 
                                (map fst ts)
                        pure True
 process (DebugInfo n)

@@ -48,12 +48,12 @@ Show (ImplBinding vars) where
   show (AsBinding c p ty tm) = show (p, ty) ++ "@" ++ show tm
 
 export
-bindingMetas : ImplBinding vars -> NameMap ()
+bindingMetas : ImplBinding vars -> NameMap Bool
 bindingMetas (NameBinding c tm ty) = getMetas ty
 bindingMetas (AsBinding c tm ty pat) 
     = insertAll (toList (getMetas ty)) (getMetas pat)
   where
-    insertAll : List (Name, ()) -> NameMap () -> NameMap ()
+    insertAll : List (Name, Bool) -> NameMap Bool -> NameMap Bool
     insertAll [] ns = ns
     insertAll ((k, v) :: ks) ns = insert k v (insertAll ks ns)
 

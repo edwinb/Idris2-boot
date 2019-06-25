@@ -565,7 +565,8 @@ processDef opts nest env fc n_in cs_in
          logC 5 (do t <- toFullNames tree_ct
                     pure ("Case tree for " ++ show n ++ ": " ++ show t))
 
-         let refs = getRefs tree_ct
+         atotal <- toResolvedNames (NS ["Builtin"] (UN "assert_total"))
+         let refs = getRefs atotal tree_ct
          let rmetas = getMetas tree_ct
 
          -- Add compile time tree as a placeholder for the runtime tree,
@@ -644,7 +645,7 @@ processDef opts nest env fc n_in cs_in
              let miss = mapMaybe id missImp
              if isNil miss
                 then do [] <- getNonCoveringRefs fc (Resolved n)
-                           | ns => pure (NonCoveringCall ns)
+                           | ns => toFullNames (NonCoveringCall ns)
                         pure IsCovering
                 else pure (MissingCases miss)
 

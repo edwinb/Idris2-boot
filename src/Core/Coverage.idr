@@ -319,8 +319,12 @@ getNonCoveringRefs fc n
    = do defs <- get Ctxt
         Just d <- lookupCtxtExact n (gamma defs)
            | Nothing => throw (UndefinedName fc n)
-        filterM (notCovering defs) (keys (refersTo d))
+        filterM (notCovering defs) (mapMaybe noAssert (toList (refersTo d)))
   where
+    noAssert : (Name, Bool) -> Maybe Name
+    noAssert (n, True) = Nothing
+    noAssert (n, False) = Just n
+
     notCovering : Defs -> Name -> Core Bool
     notCovering defs n
         = case !(lookupCtxtExact n (gamma defs)) of

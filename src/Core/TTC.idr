@@ -785,7 +785,7 @@ TTC GlobalDef where
                  toBuf b (visibility gdef)
                  toBuf b (totality gdef)
                  toBuf b (flags gdef)
-                 toBuf b (map fst (toList (refersTo gdef)))
+                 toBuf b (toList (refersTo gdef))
                  toBuf b (noCycles gdef)
                  toBuf b (sizeChange gdef)
 
@@ -800,7 +800,7 @@ TTC GlobalDef where
                       vis <- fromBuf b; tot <- fromBuf b
                       fl <- fromBuf b
                       refsList <- fromBuf b; 
-                      let refs = fromList (map (\x => (x, ())) refsList)
+                      let refs = fromList refsList
                       c <- fromBuf b
                       sc <- fromBuf b
                       pure (MkGlobalDef loc name ty mul vars vis 

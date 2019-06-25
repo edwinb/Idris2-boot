@@ -113,34 +113,34 @@ export
 Weaken CaseTree where
   weakenNs ns t = insertCaseNames {outer = []} ns t 
 
-getNames : ({vs : _} -> NameMap () -> Term vs -> NameMap ()) ->
-           CaseTree vars -> NameMap ()
+getNames : ({vs : _} -> NameMap Bool -> Term vs -> NameMap Bool) ->
+           CaseTree vars -> NameMap Bool
 getNames add sc = getSet empty sc
   where
     mutual
-      getAltSet : NameMap () -> CaseAlt vs -> NameMap ()
-      getAltSet ns (ConCase n t args sc) = getSet (insert n () ns) sc
+      getAltSet : NameMap Bool -> CaseAlt vs -> NameMap Bool
+      getAltSet ns (ConCase n t args sc) = getSet (insert n False ns) sc
       getAltSet ns (DelayCase t a sc) = getSet ns sc
       getAltSet ns (ConstCase i sc) = getSet ns sc
       getAltSet ns (DefaultCase sc) = getSet ns sc
 
-      getAltSets : NameMap () -> List (CaseAlt vs) -> NameMap ()
+      getAltSets : NameMap Bool -> List (CaseAlt vs) -> NameMap Bool
       getAltSets ns [] = ns
       getAltSets ns (a :: as) 
           = assert_total $ getAltSets (getAltSet ns a) as
 
-      getSet : NameMap () -> CaseTree vs -> NameMap ()
+      getSet : NameMap Bool -> CaseTree vs -> NameMap Bool
       getSet ns (Case _ x ty xs) = getAltSets ns xs
       getSet ns (STerm tm) = add ns tm
       getSet ns (Unmatched msg) = ns
       getSet ns Impossible = ns
 
 export
-getRefs : CaseTree vars -> NameMap ()
-getRefs = getNames addRefs
+getRefs : (aTotal : Name) -> CaseTree vars -> NameMap Bool
+getRefs at = getNames (addRefs False at)
 
 export
-getMetas : CaseTree vars -> NameMap ()
+getMetas : CaseTree vars -> NameMap Bool
 getMetas = getNames addMetas
 
 export

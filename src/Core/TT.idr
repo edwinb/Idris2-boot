@@ -996,10 +996,10 @@ substName x new (TForce fc y)
 substName x new tm = tm
     
 export
-addMetas : NameMap () -> Term vars -> NameMap ()
+addMetas : NameMap Bool -> Term vars -> NameMap Bool
 addMetas ns (Local fc x idx y) = ns
 addMetas ns (Ref fc x name) = ns
-addMetas ns (Meta fc n i xs) = insert n () ns
+addMetas ns (Meta fc n i xs) = insert n False ns
 addMetas ns (Bind fc x (Let c val ty) scope) 
     = addMetas (addMetas (addMetas ns val) ty) scope
 addMetas ns (Bind fc x b scope) 
@@ -1017,34 +1017,40 @@ addMetas ns (TType fc) = ns
 
 -- Get the metavariable names in a term
 export
-getMetas : Term vars -> NameMap ()
+getMetas : Term vars -> NameMap Bool
 getMetas tm = addMetas empty tm
   
 export
-addRefs : NameMap () -> Term vars -> NameMap ()
-addRefs ns (Local fc x idx y) = ns
-addRefs ns (Ref fc x name) = insert name () ns
-addRefs ns (Meta fc n i xs) = ns
-addRefs ns (Bind fc x (Let c val ty) scope) 
-    = addRefs (addRefs (addRefs ns val) ty) scope
-addRefs ns (Bind fc x b scope) 
-    = addRefs (addRefs ns (binderType b)) scope
-addRefs ns (App fc fn arg) 
-    = addRefs (addRefs ns fn) arg
-addRefs ns (As fc as tm) = addRefs ns tm
-addRefs ns (TDelayed fc x y) = addRefs ns y
-addRefs ns (TDelay fc x t y) 
-    = addRefs (addRefs ns t) y
-addRefs ns (TForce fc x) = addRefs ns x
-addRefs ns (PrimVal fc c) = ns
-addRefs ns (Erased fc) = ns
-addRefs ns (TType fc) = ns
+addRefs : (underAssert : Bool) -> (aTotal : Name) -> 
+          NameMap Bool -> Term vars -> NameMap Bool
+addRefs ua at ns (Local fc x idx y) = ns
+addRefs ua at ns (Ref fc x name) = insert name ua ns
+addRefs ua at ns (Meta fc n i xs) = ns
+addRefs ua at ns (Bind fc x (Let c val ty) scope) 
+    = addRefs ua at (addRefs ua at (addRefs ua at ns val) ty) scope
+addRefs ua at ns (Bind fc x b scope) 
+    = addRefs ua at (addRefs ua at ns (binderType b)) scope
+addRefs ua at ns (App _ (App _ (Ref fc _ name) x) y)
+    = if name == at
+         then addRefs True at ns y
+         else addRefs ua at (addRefs ua at (insert name ua ns) x) y
+addRefs ua at ns (App fc fn arg) 
+    = addRefs ua at (addRefs ua at ns fn) arg
+addRefs ua at ns (As fc as tm) = addRefs ua at ns tm
+addRefs ua at ns (TDelayed fc x y) = addRefs ua at ns y
+addRefs ua at ns (TDelay fc x t y) 
+    = addRefs ua at (addRefs ua at ns t) y
+addRefs ua at ns (TForce fc x) = addRefs ua at ns x
+addRefs ua at ns (PrimVal fc c) = ns
+addRefs ua at ns (Erased fc) = ns
+addRefs ua at ns (TType fc) = ns
 
--- As above, but for references (the only difference is between the 'Ref' and
--- 'Meta' cases, perhaps refector a bit?)
+-- As above, but for references. Also flag whether a name is under an
+-- 'assert_total' because we may need to know that in coverage/totality
+-- checking
 export
-getRefs : Term vars -> NameMap ()
-getRefs tm = addRefs empty tm
+getRefs : (aTotal : Name) -> Term vars -> NameMap Bool
+getRefs at tm = addRefs False at empty tm
 
 export Show (Term vars) where
   show tm = let (fn, args) = getFnArgs tm in showApp fn args
