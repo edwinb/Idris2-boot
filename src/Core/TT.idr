@@ -1032,7 +1032,7 @@ addRefs ua at ns (Bind fc x b scope)
     = addRefs ua at (addRefs ua at ns (binderType b)) scope
 addRefs ua at ns (App _ (App _ (Ref fc _ name) x) y)
     = if name == at
-         then addRefs True at ns y
+         then addRefs True at (insert name True ns) y
          else addRefs ua at (addRefs ua at (insert name ua ns) x) y
 addRefs ua at ns (App fc fn arg) 
     = addRefs ua at (addRefs ua at ns fn) arg

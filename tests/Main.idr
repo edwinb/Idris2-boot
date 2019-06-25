@@ -36,6 +36,10 @@ idrisTests
        "total001", "total002", "total003", "total004", "total005",
        "total006"]
 
+chezTests : List String
+chezTests
+   = ["chez001"]
+
 chdir : String -> IO Bool
 chdir dir 
     = do ok <- foreign FFI_C "chdir" (String -> IO Int) dir
@@ -63,13 +67,35 @@ runTest dir prog test
          chdir "../.."
          pure (out == exp)
 
+exists : String -> IO Bool
+exists f
+    = do Right ok <- openFile f Read
+             | Left err => pure False
+         closeFile ok
+         pure True
+
+firstExists : List String -> IO (Maybe String)
+firstExists [] = pure Nothing
+firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
+
+findChez : IO (Maybe String)
+findChez
+    = firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
+                            x <- ["scheme", "chez", "chezscheme9.5"]]
+
 main : IO ()
 main
     = do [_, idris2] <- getArgs
               | _ => do putStrLn "Usage: runtests [ttimp path]"
          ttimps <- traverse (runTest "ttimp" idris2) ttimpTests
          idrs <- traverse (runTest "idris2" idris2) idrisTests
-         if (any not (ttimps ++ idrs))
+         chexec <- findChez
+         chezs <- maybe (do putStrLn "Chez Scheme not found"
+                            pure [])
+                        (\c => do putStrLn $ "Found Chez Scheme at " ++ c
+                                  traverse (runTest "chez" idris2) chezTests)
+                        chexec
+         if (any not (ttimps ++ idrs ++ chezs))
             then exitWith (ExitFailure 1)
             else exitWith ExitSuccess
 

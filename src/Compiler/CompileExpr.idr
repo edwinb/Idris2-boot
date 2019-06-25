@@ -136,7 +136,8 @@ mutual
       = let tag' = case lookup fn tags of
                         Just t => t
                         _ => tag in
-            pure $ CCon fc fn tag' []
+            -- get full name for readability, and the Nat hack
+            pure $ CCon fc !(getFullName fn) tag' []
   toCExpTm tags n (Ref fc (TyCon tag arity) fn)
       = let tag' = case lookup fn tags of
                         Just t => t
@@ -145,7 +146,6 @@ mutual
   toCExpTm tags n (Ref fc _ fn) 
       = do full <- getFullName fn 
                -- ^ For readability of output code, and the Nat hack, 
-               -- but if it ever shows up in the profile switch back!
            pure $ CApp fc (CRef fc full) []
   toCExpTm tags n (Meta fc mn i args)
       = pure $ CApp fc (CRef fc mn) !(traverse (toCExp tags n) args)
@@ -185,9 +185,9 @@ mutual
              (f, args) =>
                 do args' <- traverse (toCExp tags n) args
                    defs <- get Ctxt
-                   pure $ natHack 
-                       (expandToArity !(numArgs defs f) 
-                                      !(toCExpTm tags n f) args')
+                   let res = expandToArity !(numArgs defs f)
+                                           !(toCExpTm tags n f) args'
+                   pure $ natHack res
 
 mutual
   conCases : {auto c : Ref Ctxt Defs} ->
