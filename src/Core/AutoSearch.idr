@@ -68,9 +68,9 @@ searchIfHole fc defaults trying ispair (S depth) def top env arg
               | Nothing => throw (CantSolveGoal fc [] top)
          let Hole _ inv = definition gdef
               | _ => pure () -- already solved
-         let top' = if ispair 
-                       then type gdef
-                       else top
+         top' <- if ispair 
+                    then normaliseScope defs [] (type gdef)
+                    else pure top
 
          argdef <- searchType fc rig defaults trying depth def top' env 
                               !(normaliseScope defs env (argType arg))

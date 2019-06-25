@@ -1,0 +1,3 @@
+1/1: Building Error (Error.idr)
+Error.idr:6:12--6:14:While processing right hand side of Main.wrong at Error.idr:6:1--7:1:
+Undefined name x

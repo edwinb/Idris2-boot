@@ -115,7 +115,7 @@ perror (AllFailed ts)
   where
     pAlterror : (Maybe Name, Error) -> Core String
     pAlterror (Just n, err)
-       = pure $ "If " ++ show n ++ ": " ++ !(perror err) ++ "\n"
+       = pure $ "If " ++ show !(getFullName n) ++ ": " ++ !(perror err) ++ "\n"
     pAlterror (Nothing, err)
        = pure $ "Possible error:\n\t" ++ !(perror err)
 

@@ -25,6 +25,8 @@ idrisTests : List String
 idrisTests
     = ["basic001",
        "coverage001", "coverage002",
+       "error001", "error002", "error003", "error004", "error005",
+       "error006",
        "interactive001", "interactive002", "interactive003", "interactive004",
        "interactive005", "interactive006", "interactive007", "interactive008",
        "interactive009", "interactive010", "interactive011", "interactive012",

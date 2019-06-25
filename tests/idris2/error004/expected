@@ -1,0 +1,12 @@
+1/1: Building Error1 (Error1.idr)
+Error1.idr:8:9--9:1:While processing right hand side of Main.wrong at Error1.idr:8:1--9:1:
+Can't find an implementation for Show (Vect (S (S (S (S Z)))) Integer)
+1/1: Building Error2 (Error2.idr)
+Error2.idr:11:1--15:1:While processing right hand side of Main.showPrec at Error2.idr:11:1--15:1:
+Multiple solutions found in search. Possible correct results:
+	Show implementation at Error2.idr:11:1--15:1
+	Show implementation at Error2.idr:7:1--11:1
+Error2.idr:16:9--17:1:While processing right hand side of Main.wrong at Error2.idr:16:1--17:1:
+Multiple solutions found in search. Possible correct results:
+	Show implementation at Error2.idr:11:1--15:1
+	Show implementation at Error2.idr:7:1--11:1
