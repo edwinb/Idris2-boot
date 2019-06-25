@@ -999,7 +999,11 @@ export
 addMetas : NameMap Bool -> Term vars -> NameMap Bool
 addMetas ns (Local fc x idx y) = ns
 addMetas ns (Ref fc x name) = ns
-addMetas ns (Meta fc n i xs) = insert n False ns
+addMetas ns (Meta fc n i xs) = addMetaArgs (insert n False ns) xs
+  where
+    addMetaArgs : NameMap Bool -> List (Term vars) -> NameMap Bool
+    addMetaArgs ns [] = ns
+    addMetaArgs ns (t :: ts) = addMetaArgs (addMetas ns t) ts
 addMetas ns (Bind fc x (Let c val ty) scope) 
     = addMetas (addMetas (addMetas ns val) ty) scope
 addMetas ns (Bind fc x b scope) 
@@ -1025,7 +1029,12 @@ addRefs : (underAssert : Bool) -> (aTotal : Name) ->
           NameMap Bool -> Term vars -> NameMap Bool
 addRefs ua at ns (Local fc x idx y) = ns
 addRefs ua at ns (Ref fc x name) = insert name ua ns
-addRefs ua at ns (Meta fc n i xs) = ns
+addRefs ua at ns (Meta fc n i xs) 
+    = addRefsArgs ns xs
+  where
+    addRefsArgs : NameMap Bool -> List (Term vars) -> NameMap Bool
+    addRefsArgs ns [] = ns
+    addRefsArgs ns (t :: ts) = addRefsArgs (addRefs ua at ns t) ts
 addRefs ua at ns (Bind fc x (Let c val ty) scope) 
     = addRefs ua at (addRefs ua at (addRefs ua at ns val) ty) scope
 addRefs ua at ns (Bind fc x b scope) 

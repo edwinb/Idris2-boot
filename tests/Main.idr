@@ -38,7 +38,7 @@ idrisTests
 
 chezTests : List String
 chezTests
-   = ["chez001"]
+   = ["chez001", "chez002", "chez003"]
 
 chdir : String -> IO Bool
 chdir dir 

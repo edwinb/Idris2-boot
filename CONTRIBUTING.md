@@ -14,6 +14,7 @@ beyond work on the language core, are (in no particular order):
 * Partial evaluation, especially for specialisation of interface 
   implementations.
 * An alternative, high performance, back end. OCaml seems worth a try.
+* JS and Node back ends would be nice.
 
 Some language extensions from Idris 1 have not yet been implemented. Most
 notably:
@@ -41,3 +42,6 @@ Some things from Idris 1 definitely won't be implemented:
 
 * Uniqueness types (instead, Idris 2 is based on QTT and supports linearity)
 * Some esoteric syntax experiments, such as match applications
+* Syntax extensions (at least in the unrestricted form from Idris 1)
+* DSL blocks (probably) unless someone has a compelling use case that can't
+  be done another way
