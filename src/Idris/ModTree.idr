@@ -193,6 +193,7 @@ buildDeps fname
                        mainttc <- getTTCFileName fname ".ttc"
                        log 10 $ "Reloading " ++ show mainttc
                        readAsMain mainttc
+
                        -- Load the associated metadata for interactive editing
                        mainttm <- getTTCFileName fname ".ttm"
                        log 10 $ "Reloading " ++ show mainttm

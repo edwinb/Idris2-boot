@@ -23,7 +23,8 @@ ttimpTests
 
 idrisTests : List String
 idrisTests
-    = ["basic001", "basic002", "basic003",
+    = ["basic001", "basic002", "basic003", "basic004", "basic005",
+       "basic006", "basic007",
        "coverage001", "coverage002",
        "error001", "error002", "error003", "error004", "error005",
        "error006",

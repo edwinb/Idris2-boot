@@ -549,7 +549,8 @@ processCatch cmd
          u' <- get UST
          s' <- get Syn
          o' <- get ROpts
-         catch (do r <- process cmd
+         catch (do ust <- get UST
+                   r <- process cmd
                    commit
                    pure r)
                (\err => do put Ctxt c'

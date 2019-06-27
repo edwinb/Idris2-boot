@@ -89,6 +89,13 @@ initUState = MkUState empty empty empty empty empty [] 0 0 []
 export
 data UST : Type where
 
+export
+resetNextVar : {auto u : Ref UST UState} ->
+               Core ()
+resetNextVar
+    = do ust <- get UST
+         put UST (record { nextName = 0 } ust)
+
 -- Generate a global name based on the given root, in the current namespace
 export
 genName : {auto c : Ref Ctxt Defs} ->
@@ -354,6 +361,7 @@ newMeta {vars} fc rig env n ty nocyc
                            (newDef fc n rig [] hty Public (Hole (length env) False))
          log 5 $ "Adding new meta " ++ show (n, fc, rig)
          logTerm 10 ("New meta type " ++ show n) hty
+         defs <- get Ctxt
          idx <- addDef n hole 
          addHoleName fc n idx
          pure (idx, Meta fc n idx envArgs)
@@ -385,6 +393,8 @@ newConstant {vars} fc rig env tm ty constrs
          let defty = abstractEnvType fc env ty
          cn <- genName "postpone"
          let guess = newDef fc cn rig [] defty Public (Guess def constrs)
+         log 5 $ "Adding new constant " ++ show (cn, fc, rig)
+         logTerm 10 ("New constant type " ++ show cn) defty
          idx <- addDef cn guess
          addGuessName fc cn idx
          pure (Meta fc cn idx envArgs)

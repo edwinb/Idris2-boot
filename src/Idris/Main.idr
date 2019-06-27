@@ -184,11 +184,3 @@ main = do Right opts <- getCmdOpts
                                 exit 1)
                      (\res => pure ())
              else pure ()
-
-locMain : List CLOpt -> IO ()
-locMain opts = coreRun (stMain opts)
-                     (\err : Error =>
-                             do putStrLn ("Uncaught error: " ++ show err)
-                                exit 1)
-                     (\res => pure ())
-

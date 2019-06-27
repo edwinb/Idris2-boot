@@ -305,7 +305,7 @@ instantiate : {auto c : Ref Ctxt Defs} ->
               Term newvars -> -- shrunk environment
               Core ()
 instantiate {newvars} loc env mname mref mdef locs otm tm
-    = do log 5 $ "Instantiating " ++ show tm ++ " in " ++ show newvars 
+    = do logTerm 5 ("Instantiating in " ++ show newvars) tm
 --          let Hole _ _ = definition mdef
 --              | def => ufail {a=()} loc (show mname ++ " already resolved as " ++ show def)
          case fullname mdef of
