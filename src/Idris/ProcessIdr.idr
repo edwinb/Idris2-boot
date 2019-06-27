@@ -122,11 +122,21 @@ readAsMain fname
               | Nothing => throw (InternalError "Already loaded")
          replNS <- getNS
          extendAs replNS replNS syn
+
+         ustm <- get UST
          traverse (\ mimp => 
                        do let m = fst mimp
                           let as = snd (snd mimp)
                           fname <- nsToPath emptyFC m
                           readModule False emptyFC True False m as) more
+
+         -- We're in the namespace from the first TTC, so use the next name
+         -- from that for the fresh metavariable name generation
+         -- TODO: Maybe we should record this per namespace, since this is
+         -- a little bit of a hack? Or maybe that will have too much overhead.
+         ust <- get UST
+         put UST (record { nextName = nextName ustm } ust)
+
          setNS replNS
 
 addPrelude : List Import -> List Import
@@ -241,6 +251,7 @@ process buildmsg file
                 -- but may fail for other reasons, so we still need to catch
                 -- other possible errors
                     catch (do initHash
+                              resetNextVar
                               fn <- getTTCFileName file ".ttc"
                               Just errs <- logTime ("Elaborating " ++ file) $
                                               processMod file fn buildmsg mod res

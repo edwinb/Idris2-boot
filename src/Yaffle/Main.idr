@@ -57,6 +57,8 @@ yaffleMain fname args
                          do makeBuildDirectory (pathToNS (working_dir d) fname)
                             writeToTTC () !(getTTCFileName fname ".ttc")
                             coreLift $ putStrLn "Written TTC"
+         ust <- get UST
+
          repl {c} {u}
 
 {-

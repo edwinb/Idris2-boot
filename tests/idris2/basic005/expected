@@ -1,0 +1,6 @@
+1/1: Building NoInfer (NoInfer.idr)
+NoInfer.idr:1:7--1:9:Unsolved holes:
+Main.{_:1} introduced at NoInfer.idr:1:7--1:9
+
+Welcome to Idris 2 version 0.0. Enjoy yourself!
+Main> Bye for now!

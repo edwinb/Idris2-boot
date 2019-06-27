@@ -447,7 +447,7 @@ checkApp rig elabinfo nest env fc (IVar fc' n) expargs impargs exp
                                                  etynf <- normaliseHoles defs env ety
                                                  pure (Just !(toFullNames etynf)))
                                        exp
-                    pure ("Checking application of " ++ show n ++
+                    pure ("Checking application of " ++ show !(getFullName n) ++
                           " to " ++ show expargs ++ "\n\tFunction type " ++
                           (show !(toFullNames fnty)) ++ "\n\tExpected app type "
                                 ++ show exptyt))
