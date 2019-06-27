@@ -103,6 +103,8 @@ getVarType rigc nest env fc x
       useVars [] sc = sc
       useVars (a :: as) (Bind bfc n (Pi c _ ty) sc) 
            = Bind bfc n (Let c a ty) (useVars (map weaken as) sc)
+      useVars as (Bind bfc n (Let c v ty) sc) 
+           = Bind bfc n (Let c v ty) (useVars (map weaken as) sc)
       useVars _ sc = sc -- Can't happen?
 
 isHole : NF vars -> Bool
