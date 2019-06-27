@@ -393,7 +393,14 @@ mutual
       = do defs <- get Ctxt
            checkExp rig elabinfo env fc tm (glueBack defs env ty) expty
   checkAppWith rig elabinfo nest env fc tm ty [] impargs kr expty 
-      = throw (InvalidImplicits fc env (map fst impargs) tm)
+      = case filter notInfer impargs of
+             [] => checkAppWith rig elabinfo nest env fc tm ty [] [] kr expty
+             is => throw (InvalidImplicits fc env (map fst is) tm)
+    where
+      notInfer : (Maybe Name, RawImp) -> Bool
+      notInfer (_, Implicit _ _) = False
+      notInfer (n, IAs _ _ _ i) = notInfer (n, i)
+      notInfer _ = True
   checkAppWith {vars} rig elabinfo nest env fc tm ty (arg :: expargs) impargs kr expty 
       = -- Invent a function type,  and hope that we'll know enough to solve it
         -- later when we unify with expty
