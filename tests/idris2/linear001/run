@@ -1,0 +1,3 @@
+echo ':q' | $1 --no-prelude Door.idr
+
+rm -rf build

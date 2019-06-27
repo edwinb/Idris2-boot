@@ -35,6 +35,7 @@ idrisTests
        "interface005",
        "import001", "import002",
        "lazy001",
+       "linear001", "linear002", "linear003", "linear004", "linear005",
        "record001", "record002",
        "total001", "total002", "total003", "total004", "total005",
        "total006"]
