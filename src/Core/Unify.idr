@@ -1132,6 +1132,8 @@ checkDots
     checkConstraint (n, reason, MkConstraint fc env x y)
         = do logTermNF 10 "Dot" env y
              logTermNF 10 "  =" env x
+             -- A dot is okay if the constraint is solvable *without solving
+             -- any additional holes*
              catch
                (do cs <- unify InTerm fc env x y
                    defs <- get Ctxt
@@ -1141,7 +1143,7 @@ checkDots
                                 Hole _ _ => True
                                 _ => False
                    
-                   when (not (isNil (constraints cs)) || h) $
+                   when (not (isNil (constraints cs)) || holesSolved cs || h) $
                       throw (InternalError "Dot pattern match fail"))
                (\err => do defs <- get Ctxt
                            throw (BadDotPattern fc env reason 

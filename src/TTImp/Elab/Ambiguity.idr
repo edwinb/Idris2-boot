@@ -40,11 +40,12 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
                      do est <- get EST
                         let prims = mapMaybe id 
                                       [!fromIntegerName, !fromStringName, !fromCharName]
+                        let primApp = isPrimName prims x
                         case !(lookupCtxtName x (gamma defs)) of
                              [] => pure orig
-                             [nalt] => pure $ mkAlt prims est nalt
+                             [nalt] => pure $ mkAlt primApp est nalt
                              nalts => pure $ IAlternative fc Unique 
-                                                    (map (mkAlt prims est) nalts)
+                                                    (map (mkAlt primApp est) nalts)
   where
     buildAlt : RawImp -> List (FC, Maybe (Maybe Name), RawImp) -> 
                RawImp
@@ -54,37 +55,37 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
     buildAlt f ((fc', Just i, a) :: as) 
         = buildAlt (IImplicitApp fc' f i a) as
      
-    isPrimApp : List Name -> Name -> RawImp -> Bool
-    isPrimApp [] fn arg = False
-    isPrimApp (p :: ps) fn arg
-        = dropNS fn == p || isPrimApp ps fn arg
+    isPrimName : List Name -> Name -> Bool
+    isPrimName [] fn = False
+    isPrimName (p :: ps) fn 
+        = dropNS fn == p || isPrimName ps fn
 
     -- If it's not a constructor application, dot it
-    wrapDot : List Name -> EState vars ->
+    wrapDot : Bool -> EState vars ->
               ElabMode -> Name -> List RawImp -> Def -> RawImp -> RawImp 
     wrapDot _ _ _ _ _ (DCon _ _) tm = tm
     wrapDot _ _ _ _ _ (TCon _ _ _ _ _ _) tm = tm
     -- Leave primitive applications alone, because they'll be inlined
     -- before compiling the case tree
-    wrapDot prims est (InLHS _) n' [arg] _ tm 
-       = if n' == Resolved (defining est) || isPrimApp prims n' arg
+    wrapDot prim est (InLHS _) n' [arg] _ tm 
+       = if n' == Resolved (defining est) || prim
             then tm
             else IMustUnify fc "Not a constructor application or primitive" tm
-    wrapDot prims est (InLHS _) n' _ _ tm 
+    wrapDot prim est (InLHS _) n' _ _ tm 
        = if n' == Resolved (defining est)
             then tm
             else IMustUnify fc "Not a constructor application or primitive" tm
     wrapDot _ _ _ _ _ _ tm = tm
 
 
-    mkTerm : List Name -> EState vars -> Name -> GlobalDef -> RawImp
-    mkTerm prims est n def 
-        = wrapDot prims est mode n (map (snd . snd) args)
+    mkTerm : Bool -> EState vars -> Name -> GlobalDef -> RawImp
+    mkTerm prim est n def 
+        = wrapDot prim est mode n (map (snd . snd) args)
                   (definition def) (buildAlt (IVar fc n) args)
 
-    mkAlt : List Name -> EState vars -> (Name, Int, GlobalDef) -> RawImp
-    mkAlt prims est (fullname, i, gdef) 
-        = mkTerm prims est (Resolved i) gdef
+    mkAlt : Bool -> EState vars -> (Name, Int, GlobalDef) -> RawImp
+    mkAlt prim est (fullname, i, gdef) 
+        = mkTerm prim est (Resolved i) gdef
 
     notLHS : ElabMode -> Bool
     notLHS (InLHS _) = False

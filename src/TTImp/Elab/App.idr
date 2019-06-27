@@ -442,6 +442,7 @@ checkApp rig elabinfo nest env fc (IImplicitApp fc' fn nm arg) expargs impargs e
 checkApp rig elabinfo nest env fc (IVar fc' n) expargs impargs exp
    = do (ntm, nty_in) <- getVarType rig nest env fc n
         nty <- getNF nty_in
+        elabinfo <- updateElabInfo (elabMode elabinfo) n expargs elabinfo
         logC 10 (do defs <- get Ctxt
                     fnty <- quote defs env nty
                     exptyt <- maybe (pure Nothing) 
@@ -454,6 +455,24 @@ checkApp rig elabinfo nest env fc (IVar fc' n) expargs impargs exp
                           (show !(toFullNames fnty)) ++ "\n\tExpected app type "
                                 ++ show exptyt))
         checkAppWith rig elabinfo nest env fc ntm nty expargs impargs False exp
+  where
+    isPrimName : List Name -> Name -> Bool
+    isPrimName [] fn = False
+    isPrimName (p :: ps) fn 
+        = dropNS fn == p || isPrimName ps fn
+        
+    updateElabInfo : ElabMode -> Name -> List RawImp -> ElabInfo -> Core ElabInfo
+    -- If it's a primitive function applied to a constant on the LHS, treat it
+    -- as an expression because we'll normalise the function away and match on
+    -- the result
+    updateElabInfo (InLHS _) n [IPrimVal fc c] elabinfo =
+        do let prims = mapMaybe id 
+                          [!fromIntegerName, !fromStringName, !fromCharName]
+           if isPrimName prims !(getFullName n)
+              then pure (record { elabMode = InExpr } elabinfo)
+              else pure elabinfo
+    updateElabInfo _ _ _ info = pure info
+
 checkApp rig elabinfo nest env fc fn expargs impargs exp
    = do (fntm, fnty_in) <- checkImp rig elabinfo nest env fn Nothing
         fnty <- getNF fnty_in

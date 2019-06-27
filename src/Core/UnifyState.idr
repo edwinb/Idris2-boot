@@ -580,7 +580,7 @@ dumpHole lvl hole
                  Just gdef => case (definition gdef, type gdef) of
                     (Guess tm constraints, ty) => 
                          do log lvl $ "!" ++ show hole ++ " : " ++ 
-                                              show !(normaliseHoles defs [] ty)
+                                              show !(toFullNames !(normaliseHoles defs [] ty))
                             log lvl $ "\t  = " ++ show !(normaliseHoles defs [] tm)
                                             ++ "\n\twhen"
                             traverse dumpConstraint constraints 
@@ -612,10 +612,10 @@ dumpHole lvl hole
                   Nothing => pure ()
                   Just Resolved => log lvl "\tResolved"
                   Just (MkConstraint _ env x y) =>
-                    do log lvl $ "\t  " ++ show !(normalise defs env x) 
-                                      ++ " =?= " ++ show !(normalise defs env y)
-                       log 5 $ "\t    from " ++ show x 
-                                      ++ " =?= " ++ show y
+                    do log lvl $ "\t  " ++ show !(toFullNames !(normalise defs env x))
+                                      ++ " =?= " ++ show !(toFullNames !(normalise defs env y))
+                       log 5 $ "\t    from " ++ show !(toFullNames x)
+                                      ++ " =?= " ++ show !(toFullNames y)
                   Just (MkSeqConstraint _ _ xs ys) =>
                        log lvl $ "\t\t" ++ show xs ++ " =?= " ++ show ys
 
