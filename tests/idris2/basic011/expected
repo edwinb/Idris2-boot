@@ -1,0 +1,9 @@
+1/1: Building Dots1 (Dots1.idr)
+1/1: Building Dots2 (Dots2.idr)
+Dots2.idr:2:7--2:9:While processing left hand side of Main.foo at Dots2.idr:2:1--4:1:
+Can't match on ?x (Non linear pattern variable)
+It elaborates to: ?x
+1/1: Building Dots3 (Dots3.idr)
+Dots3.idr:5:9--5:14:While processing left hand side of Main.addBaz at Dots3.idr:5:1--6:1:
+Can't match on ?x + ?y (Not a constructor application or primitive)
+It elaborates to: prim__add_Int ?x ?z
