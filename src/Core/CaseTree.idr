@@ -114,8 +114,8 @@ Weaken CaseTree where
   weakenNs ns t = insertCaseNames {outer = []} ns t 
 
 getNames : ({vs : _} -> NameMap Bool -> Term vs -> NameMap Bool) ->
-           CaseTree vars -> NameMap Bool
-getNames add sc = getSet empty sc
+           NameMap Bool -> CaseTree vars -> NameMap Bool
+getNames add ns sc = getSet ns sc
   where
     mutual
       getAltSet : NameMap Bool -> CaseAlt vs -> NameMap Bool
@@ -137,11 +137,15 @@ getNames add sc = getSet empty sc
 
 export
 getRefs : (aTotal : Name) -> CaseTree vars -> NameMap Bool
-getRefs at = getNames (addRefs False at)
+getRefs at = getNames (addRefs False at) empty
+
+export
+addRefs : (aTotal : Name) -> NameMap Bool -> CaseTree vars -> NameMap Bool
+addRefs at ns = getNames (addRefs False at) ns
 
 export
 getMetas : CaseTree vars -> NameMap Bool
-getMetas = getNames addMetas
+getMetas = getNames addMetas empty
 
 export
 mkPat' : List Pat -> ClosedTerm -> ClosedTerm -> Pat

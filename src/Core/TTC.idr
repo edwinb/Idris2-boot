@@ -777,6 +777,7 @@ TTC GlobalDef where
         do toBuf b (fullname gdef)
            toBuf b (definition gdef)
            toBuf b (compexpr gdef)
+           toBuf b (map toList (refersToM gdef))
            when (isUserName (fullname gdef)) $
               do toBuf b (location gdef)
                  toBuf b (type gdef)
@@ -785,7 +786,6 @@ TTC GlobalDef where
                  toBuf b (visibility gdef)
                  toBuf b (totality gdef)
                  toBuf b (flags gdef)
-                 toBuf b (toList (refersTo gdef))
                  toBuf b (noCycles gdef)
                  toBuf b (sizeChange gdef)
 
@@ -793,21 +793,21 @@ TTC GlobalDef where
       = do name <- fromBuf b
            def <- fromBuf b
            cdef <- fromBuf b
+           refsList <- fromBuf b; 
+           let refs = map fromList refsList
            if isUserName name
               then do loc <- fromBuf b; 
                       ty <- fromBuf b; mul <- fromBuf b
                       vars <- fromBuf b
                       vis <- fromBuf b; tot <- fromBuf b
                       fl <- fromBuf b
-                      refsList <- fromBuf b; 
-                      let refs = fromList refsList
                       c <- fromBuf b
                       sc <- fromBuf b
                       pure (MkGlobalDef loc name ty mul vars vis 
                                         tot fl refs c True def cdef sc)
               else do let fc = emptyFC
                       pure (MkGlobalDef fc name (Erased fc)
-                                        RigW [] Public unchecked [] empty
+                                        RigW [] Public unchecked [] refs
                                         False True def cdef [])
 
 -- decode : Context -> Int -> ContextEntry -> Core GlobalDef

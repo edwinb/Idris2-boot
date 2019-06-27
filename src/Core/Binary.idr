@@ -78,13 +78,6 @@ HasNames (Name, Name, Bool) where
   full c (n1, n2, b) = pure (!(full c n1), !(full c n2), b)
   resolved c (n1, n2, b) = pure (!(resolved c n1), !(resolved c n2), b)
 
-HasNames (Maybe Name) where
-  full c Nothing = pure Nothing
-  full c (Just n) = pure $ Just !(full c n)
-
-  resolved c Nothing = pure Nothing
-  resolved c (Just n) = pure $ Just !(resolved c n)
-
 HasNames e => HasNames (TTCFile e) where
   full gam (MkTTCFile version ifaceHash iHashes
                       holes guesses constraints

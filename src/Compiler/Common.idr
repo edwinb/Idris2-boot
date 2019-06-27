@@ -75,7 +75,7 @@ findUsedNames tm
          let cns = keys allNs
          -- Initialise the type constructor list with explicit names for
          -- the primitives (this is how we look up the tags)
-         -- Use '1' for '->' constructor (although we can't match it yet!)
+         -- Use '1' for '->' constructor
          let tyconInit = insert (UN "->") 1 $
                          insert (UN "Type") 2 $
                             primTags 3 empty 

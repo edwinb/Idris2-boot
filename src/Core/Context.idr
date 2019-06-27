@@ -154,7 +154,7 @@ record GlobalDef where
   visibility : Visibility
   totality : Totality
   flags : List DefFlag
-  refersTo : NameMap Bool 
+  refersToM : Maybe (NameMap Bool)
   noCycles : Bool -- for metavariables, whether they can be cyclic (this
                   -- would only be allowed when using a metavariable as a 
                   -- placeholder for a yet to be elaborated arguments, but
@@ -164,6 +164,10 @@ record GlobalDef where
   definition : Def
   compexpr : Maybe CDef
   sizeChange : List SCCall
+
+export
+refersTo : GlobalDef -> NameMap Bool
+refersTo def = maybe empty id (refersToM def)
 
 -- Label for array references
 export
@@ -603,6 +607,13 @@ HasNames SCCall where
   resolved gam sc = pure $ record { fnCall = !(resolved gam (fnCall sc)) } sc
 
 export
+HasNames a => HasNames (Maybe a) where
+  full gam Nothing = pure Nothing
+  full gam (Just x) = pure $ Just !(full gam x)
+  resolved gam Nothing = pure Nothing
+  resolved gam (Just x) = pure $ Just !(resolved gam x)
+
+export
 HasNames GlobalDef where
   full gam def 
       = do 
@@ -613,14 +624,14 @@ HasNames GlobalDef where
            pure $ record { type = !(full gam (type def)),
                            definition = !(full gam (definition def)),
                            totality = !(full gam (totality def)),
-                           refersTo = !(full gam (refersTo def)),
+                           refersToM = !(full gam (refersToM def)),
                            sizeChange = !(traverse (full gam) (sizeChange def))
                          } def
   resolved gam def
       = pure $ record { type = !(resolved gam (type def)),
                         definition = !(resolved gam (definition def)),
                         totality = !(resolved gam (totality def)),
-                        refersTo = !(resolved gam (refersTo def)), 
+                        refersToM = !(resolved gam (refersToM def)), 
                         sizeChange = !(traverse (resolved gam) (sizeChange def))
                       } def
 

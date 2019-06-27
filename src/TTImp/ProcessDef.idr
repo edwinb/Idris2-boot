@@ -534,6 +534,23 @@ compileRunTime
          defs <- get Ctxt
          put Ctxt (record { toCompile = [] } defs)
 
+-- Calculate references for the given name, and recursively if they haven't
+-- been calculated already
+calcRefs : {auto c : Ref Ctxt Defs} ->
+           (aTotal : Name) -> (fn : Name) -> Core ()
+calcRefs at fn
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact fn (gamma defs)
+              | _ => pure ()
+         let PMDef cargs tree_ct _ pats = definition gdef
+              | _ => pure () -- not a function definition
+         let Nothing = refersToM gdef
+              | Just _ => pure () -- already done
+         let metas = getMetas tree_ct
+         let refs = addRefs at metas tree_ct
+         addDef fn (record { refersToM = Just refs } gdef)
+         traverse_ (calcRefs at) (keys refs)
+
 toPats : Clause -> (vs ** (Env Term vs, Term vs, Term vs))
 toPats (MkClause {vars} env lhs rhs) 
     = (_ ** (env, lhs, rhs))
@@ -566,35 +583,38 @@ processDef opts nest env fc n_in cs_in
          logC 5 (do t <- toFullNames tree_ct
                     pure ("Case tree for " ++ show n ++ ": " ++ show t))
 
-         atotal <- toResolvedNames (NS ["Builtin"] (UN "assert_total"))
-         let refs = getRefs atotal tree_ct
-         let rmetas = getMetas tree_ct
-
          -- Add compile time tree as a placeholder for the runtime tree,
          -- but we'll rebuild that in a later pass once all the case
          -- blocks etc are resolved
-         addDef n (record { definition = PMDef cargs tree_ct tree_ct pats,
-                            refersTo = refs } gdef)
+         addDef (Resolved nidx)
+                  (record { definition = PMDef cargs tree_ct tree_ct pats
+                          } gdef)
 
+         let rmetas = getMetas tree_ct
          traverse_ addToSave (keys rmetas)
          addToSave n
          log 10 $ "Saving from " ++ show n ++ ": " ++ show (keys rmetas)
-
-         when (not (InCase `elem` opts)) $
-             do sc <- calculateSizeChange fc n
-                setSizeChange fc n sc
-
-         cov <- checkCoverage nidx mult cs tree_ct
-         setCovering fc n cov
 
          -- Flag this name as one which needs compiling
          defs <- get Ctxt
          put Ctxt (record { toCompile $= (n ::) } defs)
 
-         -- Then if we're not in a case tree, do all the outstanding case
+         when (not (InCase `elem` opts)) $
+             do atotal <- toResolvedNames (NS ["Builtin"] (UN "assert_total"))
+                calcRefs atotal (Resolved nidx)
+
+                sc <- calculateSizeChange fc n
+                setSizeChange fc n sc
+
+         -- If we're not in a case tree, compile all the outstanding case
          -- trees
          when (not (elem InCase opts)) $
            compileRunTime
+
+
+         cov <- checkCoverage nidx mult cs tree_ct
+         setCovering fc n cov
+
   where
     simplePat : Term vars -> Bool
     simplePat (Local _ _ _ _) = True
