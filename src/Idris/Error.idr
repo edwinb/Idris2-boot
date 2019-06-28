@@ -40,8 +40,12 @@ perror (CantSolveEq _ env l r)
     = pure $ "Can't solve constraint between:\n\t" ++ !(pshow env l) ++ 
       "\nand\n\t" ++ !(pshow env r)
 perror (PatternVariableUnifies _ env n tm)
-    = pure $ "Pattern variable " ++ show n ++ 
-      "unifies with:\n\t" ++ !(pshow env tm)
+    = pure $ "Pattern variable " ++ showPVar n ++ 
+      " unifies with:\n\t" ++ !(pshow env tm)
+  where
+    showPVar : Name -> String
+    showPVar (PV n _) = showPVar n
+    showPVar n = show n
 perror (CyclicMeta _ n)
     = pure $ "Cycle detected in solution of metavariable " ++ show n
 perror (WhenUnifying _ env x y err)

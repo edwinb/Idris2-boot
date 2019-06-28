@@ -592,6 +592,8 @@ processDef opts nest env fc n_in cs_in
 
          let rmetas = getMetas tree_ct
          traverse_ addToSave (keys rmetas)
+         let tymetas = getMetas (type gdef)
+         traverse_ addToSave (keys tymetas)
          addToSave n
          log 10 $ "Saving from " ++ show n ++ ": " ++ show (keys rmetas)
 

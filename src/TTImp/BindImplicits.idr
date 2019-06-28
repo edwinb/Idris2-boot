@@ -51,7 +51,12 @@ renameIBinds rs us (IDelay fc t)
 renameIBinds rs us (IForce fc t)
     = pure $ IForce fc !(renameIBinds rs us t)
 renameIBinds rs us (IAlternative fc u alts)
-    = pure $ IAlternative fc u !(traverse (renameIBinds rs us) alts)
+    = pure $ IAlternative fc !(renameAlt u)
+                             !(traverse (renameIBinds rs us) alts)
+  where
+    renameAlt : AltType -> State (List (String, String)) AltType
+    renameAlt (UniqueDefault t) = pure $ UniqueDefault !(renameIBinds rs us t)
+    renameAlt u = pure u
 renameIBinds rs us (IBindVar fc n)
     = if n `elem` rs
          then do let n' = getUnique (rs ++ us) n
@@ -93,7 +98,11 @@ doBind ns (IDelay fc tm)
 doBind ns (IForce fc tm)
     = IForce fc (doBind ns tm)
 doBind ns (IAlternative fc u alts)
-    = IAlternative fc u (map (doBind ns) alts)
+    = IAlternative fc (doBindAlt u) (map (doBind ns) alts)
+  where
+    doBindAlt : AltType -> AltType
+    doBindAlt (UniqueDefault t) = UniqueDefault (doBind ns t)
+    doBindAlt u = u
 doBind ns tm = tm
 
 export
