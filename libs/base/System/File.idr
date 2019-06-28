@@ -100,18 +100,6 @@ fEOF (FHandle f)
     = do res <- primIO (prim__eof f)
          pure (res /= 0)
     
--- %logging 10
--- read : List String -> File -> IO (Either FileError (List String))
--- read acc h
---         = do eof <- fEOF h
---              if eof
---                 then pure (Right (List.reverse acc))
---                 else ?whee
--- --                   do Right str <- fGetLine h
--- --                         | Left err => pure (Left err)
--- --                      read (str :: acc) h
--- %logging 0
-
 export
 readFile : String -> IO (Either FileError String)
 readFile file

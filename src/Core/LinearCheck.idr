@@ -472,7 +472,7 @@ mutual
       getPUsage ty (_ ** (penv, lhs, rhs))
           = do logEnv 10 "Env" penv
                logTerm 10 "LHS" lhs
-               logTerm 10 "RHS" rhs
+               logTerm 5 "Linear check in case RHS" rhs
                (rhs', _, used) <- lcheck rig False penv rhs
                let args = getArgs lhs
                checkEnvUsage {done = []} rig penv used args rhs'

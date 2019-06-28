@@ -580,7 +580,7 @@ dumpHole lvl hole
                  Nothing => pure ()
                  Just gdef => case (definition gdef, type gdef) of
                     (Guess tm constraints, ty) => 
-                         do log lvl $ "!" ++ show hole ++ " : " ++ 
+                         do log lvl $ "!" ++ show !(getFullName (Resolved hole)) ++ " : " ++ 
                                               show !(toFullNames !(normaliseHoles defs [] ty))
                             log lvl $ "\t  = " ++ show !(normaliseHoles defs [] tm)
                                             ++ "\n\twhen"

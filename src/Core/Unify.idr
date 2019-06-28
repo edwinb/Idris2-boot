@@ -181,13 +181,14 @@ unifyArgs mode loc env _ _ = ufail loc ""
 -- are not variables, fail if there's any repetition of variables
 -- We use this to check that the pattern unification rule is applicable
 -- when solving a metavariable applied to arguments
-getVarsBelow : Nat -> List (NF vars) -> Maybe (List (Var vars))
-getVarsBelow max [] = Just []
-getVarsBelow max (NApp fc (NLocal r idx v) [] :: xs) 
-    = if idx >= max then Nothing
-         else do xs' <- getVarsBelow idx xs
+getVars : List Nat -> List (NF vars) -> Maybe (List (Var vars))
+getVars got [] = Just []
+getVars got (NApp fc (NLocal r idx v) [] :: xs) 
+    = if idx `elem` got then Nothing
+         else do xs' <- getVars (idx :: got) xs
                  pure (MkVar v :: xs')
-getVarsBelow _ (_ :: xs) = Nothing
+getVars got (NAs _ _ p :: xs) = getVars got (p :: xs) 
+getVars _ (_ :: xs) = Nothing
 
 -- Make a sublist representing the variables used in the application.
 -- We'll use this to ensure that local variables which appear in a term
@@ -229,20 +230,18 @@ patternEnv : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              {vars : _} ->
              Env Term vars -> List (Closure vars) -> 
-             Core (Maybe (newvars ** (Maybe (List (Var newvars)),
+             Core (Maybe (newvars ** (List (Var newvars),
                                      SubVars newvars vars)))
 patternEnv {vars} env args
     = do defs <- get Ctxt
          empty <- clearDefs defs
          args' <- traverse (evalArg empty) args
-         case getVarsBelow 1000000 args' of
+         case getVars [] args' of
               Nothing => pure Nothing
               Just vs => 
                  let (newvars ** svs) = toSubVars _ vs in
                      pure (Just (newvars ** 
-                                     (if vars == newvars
-                                         then Nothing
-                                         else Just (updateVars vs svs), svs)))
+                                     (updateVars vs svs, svs)))
   where
     -- Update the variable list to point into the sub environment
     -- (All of these will succeed because the SubVars we have comes from
@@ -267,7 +266,7 @@ patternEnvTm : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
                {vars : _} ->
                Env Term vars -> List (Term vars) -> 
-               Core (Maybe (newvars ** (Maybe (List (Var newvars)),
+               Core (Maybe (newvars ** (List (Var newvars),
                                        SubVars newvars vars)))
 patternEnvTm {vars} env args
     = do defs <- get Ctxt
@@ -277,9 +276,7 @@ patternEnvTm {vars} env args
               Just vs => 
                  let (newvars ** svs) = toSubVars _ vs in
                      pure (Just (newvars ** 
-                                     (if vars == newvars
-                                         then Nothing
-                                         else Just (updateVars vs svs), svs)))
+                                     (updateVars vs svs, svs)))
   where
     -- Update the variable list to point into the sub environment
     -- (All of these will succeed because the SubVars we have comes from
@@ -300,7 +297,7 @@ instantiate : {auto c : Ref Ctxt Defs} ->
               {newvars : _} ->
               FC -> Env Term vars -> 
               (metavar : Name) -> (mref : Int) -> (mdef : GlobalDef) ->
-              Maybe (List (Var newvars)) -> -- Variable each argument maps to
+              List (Var newvars) -> -- Variable each argument maps to
               Term vars -> -- original, just for error message
               Term newvars -> -- shrunk environment
               Core ()
@@ -320,6 +317,7 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
                      (rewrite appendNilRightNeutral newvars in tm) 
                      ty
          logTerm 5 ("Instantiated: " ++ show mname) ty
+         log 5 ("From vars: " ++ show newvars)
          logTerm 5 "Definition" rhs
          let newdef = record { definition = 
                                  PMDef [] (STerm rhs) (STerm rhs) [] 
@@ -361,10 +359,10 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
 
     mkDef : (got : List Name) -> (vs : List Name) -> SnocList vs ->
             CompatibleVars got rest ->
-            Maybe (List (Var (vs ++ got))) -> Term (vs ++ got) -> 
+            List (Var (vs ++ got)) -> Term (vs ++ got) -> 
             Term ts -> Core (Term rest)
-    mkDef got [] Empty cvs locs tm ty 
-        = do let Just tm' = maybe (Just tm) (\lvs => updateLocs (reverse lvs) tm) locs
+    mkDef {rest} got [] Empty cvs locs tm ty 
+        = do let Just tm' = updateLocs (reverse locs) tm
                     | Nothing => ufail loc ("Can't make solution for " ++ show mname)
              pure (renameVars cvs tm')
     mkDef got vs rec cvs locs tm (Bind _ _ (Let _ _ _) sc)
@@ -563,7 +561,7 @@ mutual
               (metaname : Name) -> (metaref : Int) ->
               (margs : List (Closure vars)) ->
               (margs' : List (Closure vars)) ->
-              Maybe (List (Var newvars)) ->
+              List (Var newvars) ->
               SubVars newvars vars ->
               (solfull : Term vars) -> -- Original solution
               (soln : Term newvars) -> -- Solution with shrunk environment
