@@ -191,6 +191,7 @@ replaceDefaults : FC -> Defs -> NF vars -> List (CaseAlt vars) ->
 -- Leave it alone if it's a primitive type though, since we need the catch
 -- all case there
 replaceDefaults fc defs (NPrimVal _ _) cs = pure cs
+replaceDefaults fc defs (NType _) cs = pure cs
 replaceDefaults fc defs nfty cs 
     = do cs' <- traverse rep cs
          pure (dropRep (concat cs'))

@@ -164,7 +164,11 @@ mkPat' args orig (As fc _ ptm)
     = mkPat' [] orig ptm
 mkPat' args orig (TDelay fc r ty p) 
     = PDelay fc r (mkPat' [] orig ty) (mkPat' [] orig p)
-mkPat' args orig (PrimVal fc c) = PConst fc c
+mkPat' args orig (PrimVal fc c) 
+    = if constTag c == 0
+         then PConst fc c
+         else PTyCon fc (UN (show c)) 0 []
+mkPat' args orig (TType fc) = PTyCon fc (UN "Type") 0 []
 mkPat' args orig tm = PUnmatchable (getLoc orig) orig
 
 export

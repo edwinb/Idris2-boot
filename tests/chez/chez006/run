@@ -1,0 +1,4 @@
+$1 TypeCase.idr < input
+$1 TypeCase2.idr --check
+
+rm -rf build

@@ -620,6 +620,7 @@ processDef opts nest env fc n_in cs_in
     simplePat : Term vars -> Bool
     simplePat (Local _ _ _ _) = True
     simplePat (Erased _) = True
+    simplePat (As _ _ p) = simplePat p
     simplePat _ = False
 
     -- Is the clause returned from 'checkClause' a catch all clause, i.e.
