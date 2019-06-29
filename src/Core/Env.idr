@@ -87,6 +87,8 @@ abstractEnvType : FC -> Env Term vars -> (tm : Term vars) -> ClosedTerm
 abstractEnvType fc [] tm = tm
 abstractEnvType fc (Let c val ty :: env) tm
     = abstractEnvType fc env (Bind fc _ (Let c val ty) tm)
+abstractEnvType fc (Pi c e ty :: env) tm 
+    = abstractEnvType fc env (Bind fc _ (Pi c e ty) tm)
 abstractEnvType fc (b :: env) tm 
     = abstractEnvType fc env (Bind fc _ 
 						(Pi (multiplicity b) Explicit (binderType b)) tm)

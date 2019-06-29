@@ -202,18 +202,16 @@ strengthenedEState {n} {vars} c e fc env
              case (removeArg xnf, 
                    shrinkTerm ynf (DropCons SubRefl)) of
                (Just x', Just y') => pure (f, NameBinding c x' y')
-               _ => throw (GenericMsg fc ("Invalid unbound implicit " ++ 
-                               show f ++ " " ++ show xnf ++ " : " ++ show ynf))
+               _ => throw (BadUnboundImplicit fc env f y)
     strTms defs (f, AsBinding c x y z)
         = do xnf <- normaliseHoles defs env x
              ynf <- normaliseHoles defs env y
-             znf <- normaliseHoles defs env y
+             znf <- normaliseHoles defs env z
              case (shrinkTerm xnf (DropCons SubRefl), 
                    shrinkTerm ynf (DropCons SubRefl),
                    shrinkTerm znf (DropCons SubRefl)) of
                (Just x', Just y', Just z') => pure (f, AsBinding c x' y' z')
-               _ => throw (GenericMsg fc ("Invalid as binding " ++ 
-                               show f ++ " " ++ show xnf ++ " : " ++ show ynf))
+               _ => throw (BadUnboundImplicit fc env f y)
 
     dropTop : (Var (n :: vs)) -> Maybe (Var vs)
     dropTop (MkVar First) = Nothing

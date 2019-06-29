@@ -103,6 +103,7 @@ modules =
     TTImp.ProcessData,
     TTImp.ProcessDecls,
     TTImp.ProcessDef,
+    TTImp.ProcessParams,
     TTImp.ProcessRecord,
     TTImp.ProcessType,
     TTImp.TTImp,

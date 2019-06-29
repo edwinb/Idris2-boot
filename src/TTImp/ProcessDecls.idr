@@ -12,6 +12,7 @@ import TTImp.Elab.Check
 import TTImp.Parser
 import TTImp.ProcessData
 import TTImp.ProcessDef
+import TTImp.ProcessParams
 import TTImp.ProcessRecord
 import TTImp.ProcessType
 import TTImp.TTImp
@@ -30,7 +31,7 @@ process eopts nest env (IData fc vis ddef)
 process eopts nest env (IDef fc fname def) 
     = processDef eopts nest env fc fname def
 process eopts nest env (IParameters fc ps decls)
-    = throw (InternalError "Parameters blocks not yet implemented")
+    = processParams nest env fc ps decls
 process eopts nest env (IRecord fc vis rec)
     = processRecord eopts nest env vis rec
 process eopts nest env (INamespace fc ns decls)

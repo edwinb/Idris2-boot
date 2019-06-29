@@ -53,6 +53,7 @@ data Error
     | IncompatibleFieldUpdate FC (List String)
     | InvalidImplicits FC (Env Term vars) (List (Maybe Name)) (Term vars)
     | TryWithImplicits FC (Env Term vars) (List (Name, Term vars))
+    | BadUnboundImplicit FC (Env Term vars) Name (Term vars)
     | CantSolveGoal FC (Env Term vars) (Term vars)
     | DeterminingArg FC Name Int (Env Term vars) (Term vars)
     | UnsolvedHoles (List (FC, Name))
@@ -175,6 +176,9 @@ Show Error where
      = show fc ++ ":Need to bind implicits " 
           ++ showSep "," (map (\x => show (fst x) ++ " : " ++ show (snd x)) imps)
           ++ "\n(The front end should probably have done this for you. Please report!)"
+  show (BadUnboundImplicit fc env n ty)
+      = show fc ++ ":Can't bind name " ++ nameRoot n ++ 
+                   " with type " ++ show ty
   show (CantSolveGoal fc env g) 
       = show fc ++ ":Can't solve goal " ++ assert_total (show g)
   show (DeterminingArg fc n i env g)
@@ -271,6 +275,7 @@ getErrorLoc (NotRecordType loc _) = Just loc
 getErrorLoc (IncompatibleFieldUpdate loc _) = Just loc
 getErrorLoc (InvalidImplicits loc _ y tm) = Just loc
 getErrorLoc (TryWithImplicits loc _ _) = Just loc
+getErrorLoc (BadUnboundImplicit loc _ _ _) = Just loc
 getErrorLoc (CantSolveGoal loc _ tm) = Just loc
 getErrorLoc (DeterminingArg loc n y env tm) = Just loc
 getErrorLoc (UnsolvedHoles ((loc, _) :: xs)) = Just loc

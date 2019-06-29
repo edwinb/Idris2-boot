@@ -150,6 +150,9 @@ perror (TryWithImplicits _ env imps)
   where
     tshow : Env Term vars -> (Name, Term vars) -> Core String
     tshow env (n, ty) = pure $ show n ++ " : " ++ !(pshow env ty)
+perror (BadUnboundImplicit _ env n ty)
+    = pure $ "Can't bind name " ++ nameRoot n ++ " with type " ++ !(pshow env ty)
+               ++ " here. Try binding explicitly."
 perror (CantSolveGoal _ env g)
     = let (_ ** (env', g')) = dropPis env g in
           pure $ "Can't find an implementation for " ++ !(pshow env' g')

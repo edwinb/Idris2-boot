@@ -217,7 +217,6 @@ checkTermSub defining mode opts nest env env' sub tm ty
         = pure $ IPi loc Rig0 Implicit (Just n)
                      !(unelabNoSugar env ty) !(bindImps loc env ntys sc)
 
-
 export
 checkTerm : {vars : _} ->
             {auto c : Ref Ctxt Defs} ->
