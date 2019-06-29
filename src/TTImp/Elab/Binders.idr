@@ -41,14 +41,21 @@ checkPi : {vars : _} ->
           (expTy : Maybe (Glued vars)) ->
           Core (Term vars, Glued vars)
 checkPi rig elabinfo nest env fc rigf info n argTy retTy expTy
-    = do (tyv, tyt) <- check Rig0 (nextLevel elabinfo) nest env argTy 
+    = do let pirig = getRig (elabMode elabinfo)
+         (tyv, tyt) <- check pirig (nextLevel elabinfo) nest env argTy 
                              (Just (gType fc))
          let env' : Env Term (n :: _) = Pi rigf info tyv :: env
          let nest' = weaken (dropName n nest)
          (scopev, scopet) <- 
             inScope fc env' (\e' => 
-              check {e=e'} Rig0 (nextLevel elabinfo) nest' env' retTy (Just (gType fc)))
+              check {e=e'} pirig (nextLevel elabinfo) nest' env' retTy (Just (gType fc)))
          checkExp rig elabinfo env fc (Bind fc n (Pi rigf info tyv) scopev) (gType fc) expTy
+  where
+    -- Might want to match on the LHS, so use the context rig, otherwise
+    -- it's always erased
+    getRig : ElabMode -> RigCount
+    getRig (InLHS _) = rig
+    getRig _ = Rig0
 
 findLamRig : {auto c : Ref Ctxt Defs} ->
              Maybe (Glued vars) -> Core RigCount

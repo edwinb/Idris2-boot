@@ -27,7 +27,7 @@ idrisTests
        "basic006", "basic007", "basic008", "basic009", "basic010",
        "basic011", "basic012", "basic013", "basic014", "basic015",
        "basic016", "basic017", "basic018", "basic019", "basic020",
-       "basic021", "basic022", 
+       "basic021", "basic022",
        "coverage001", "coverage002", "coverage003", "coverage004",
        "error001", "error002", "error003", "error004", "error005",
        "error006",
@@ -48,7 +48,7 @@ idrisTests
 chezTests : List String
 chezTests
    = ["chez001", "chez002", "chez003", "chez004", 
-      "chez005", "chez006"]
+      "chez005", "chez006", "chez007"]
 
 chdir : String -> IO Bool
 chdir dir 
@@ -105,6 +105,9 @@ main
                         (\c => do putStrLn $ "Found Chez Scheme at " ++ c
                                   traverse (runTest "chez" idris2) chezTests)
                         chexec
+         let res = ttimps ++ idrs ++ chezs
+         putStrLn (show (length (filter id res)) ++ "/" ++ show (length res) 
+                       ++ " tests successful")
          if (any not (ttimps ++ idrs ++ chezs))
             then exitWith (ExitFailure 1)
             else exitWith ExitSuccess

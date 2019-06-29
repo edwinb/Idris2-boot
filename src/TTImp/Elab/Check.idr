@@ -167,12 +167,39 @@ strengthenedEState {n} {vars} c e fc env
     dropSub (DropCons sub) = pure sub
     dropSub _ = throw (InternalError "Badly formed weakened environment")
 
+    -- Remove any instance of the top level local variable from an
+    -- application. Fail if it turns out to be necessary.
+    -- NOTE: While this isn't strictly correct given the type of the hole
+    -- which stands for the unbound implicits, it's harmless because we
+    -- never actualy *use* that hole - this process is only to ensure that the
+    -- unbound implicit doesn't depend on any variables it doesn't have
+    -- in scope.
+    removeArgVars : List (Term (n :: vs)) -> Maybe (List (Term vs))
+    removeArgVars [] = pure []
+    removeArgVars (Local fc r _ (Later p) :: args) 
+        = do args' <- removeArgVars args
+             pure (Local fc r _ p :: args')
+    removeArgVars (Local fc r _ First :: args) 
+        = removeArgVars args
+    removeArgVars (a :: args)
+        = do a' <- shrinkTerm a (DropCons SubRefl)
+             args' <- removeArgVars args
+             pure (a' :: args')
+
+    removeArg : Term (n :: vs) -> Maybe (Term vs)
+    removeArg tm
+        = case getFnArgs tm of
+               (f, args) =>
+                   do args' <- removeArgVars args
+                      f' <- shrinkTerm f (DropCons SubRefl)
+                      pure (apply (getLoc f) f' args')
+
     strTms : Defs -> (Name, ImplBinding (n :: vars)) -> 
              Core (Name, ImplBinding vars)
     strTms defs (f, NameBinding c x y)
         = do xnf <- normaliseHoles defs env x
              ynf <- normaliseHoles defs env y
-             case (shrinkTerm xnf (DropCons SubRefl), 
+             case (removeArg xnf, 
                    shrinkTerm ynf (DropCons SubRefl)) of
                (Just x', Just y') => pure (f, NameBinding c x' y')
                _ => throw (GenericMsg fc ("Invalid unbound implicit " ++ 
