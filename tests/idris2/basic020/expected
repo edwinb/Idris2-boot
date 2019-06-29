@@ -1,0 +1,9 @@
+1/1: Building Mut (Mut.idr)
+Welcome to Idris 2 version 0.0. Enjoy yourself!
+Main> MyTrue
+Main> MyFalse
+Main> (True, False)
+Main> (False, True)
+Main> MkBox 40
+Main> MkBox 20
+Main> Bye for now!

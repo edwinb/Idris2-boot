@@ -359,7 +359,6 @@ readFromTTC loc reexp fname modNS importAs
          setNS (currentNS ttc)
          -- Set up typeHints and autoHints based on the loaded data
          traverse_ (addTypeHint loc) (typeHints ttc)
-         defs <- get Ctxt
          traverse_ addAutoHint (autoHints ttc)
          -- Set up pair/rewrite etc names
          updatePair (pairnames ttc)

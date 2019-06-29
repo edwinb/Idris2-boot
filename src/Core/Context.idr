@@ -1090,7 +1090,7 @@ getSearchData fc defaults target
     = do defs <- get Ctxt
          Just (TCon _ _ _ dets _ _) <- lookupDefExact target (gamma defs)
               | _ => throw (UndefinedName fc target)
-         let hs = case lookup target (typeHints defs) of
+         let hs = case lookup !(toFullNames target) (typeHints defs) of
                        Just hs => hs
                        Nothing => []
          if defaults
@@ -1166,7 +1166,10 @@ addHintFor : {auto c : Ref Ctxt Defs} ->
 					   FC -> Name -> Name -> Bool -> Bool -> Core ()
 addHintFor fc tyn_in hintn_in direct loading
     = do defs <- get Ctxt
-         tyn <- toResolvedNames tyn_in
+         tyn <- toFullNames tyn_in
+          -- ^ We have to index by full name because of the order we load -
+          -- the name may not be resolved yet when we load the hints.
+          -- Revisit if this turns out to be a bottleneck (it seems unlikely)
          hintn <- toResolvedNames hintn_in
 
          let hs = case lookup tyn (typeHints defs) of
