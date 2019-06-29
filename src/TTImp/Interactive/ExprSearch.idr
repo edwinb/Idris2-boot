@@ -227,7 +227,7 @@ tryRecursive fc rig opts env ty topty (Just rdata)
       -- one where there's a local in another, or that constructor applications
       -- differ somewhere)
       argDiff : Term vs -> Term vs' -> Bool
-      argDiff (Local _ _ _ _) (Local _ _ _ _) = False
+      argDiff (Local _ _ _ _) _ = False
       argDiff (Ref _ _ fn) (Ref _ _ fn') = fn /= fn'
       argDiff (Bind _ _ _ _) _ = False
       argDiff _ (Bind _ _ _ _) = False

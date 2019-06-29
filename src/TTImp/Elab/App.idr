@@ -197,24 +197,65 @@ mutual
 
   -- Defer elaborating anything which will be easier given a known target
   -- type (ambiguity, cases, etc)
-  needsDelay : {auto c : Ref Ctxt Defs} ->
-               (knownRet : Bool) -> RawImp ->
-               Core Bool
-  needsDelay False _ = pure False
-  needsDelay True (IVar fc n)
+  needsDelayExpr : {auto c : Ref Ctxt Defs} ->
+                   (knownRet : Bool) -> RawImp ->
+                   Core Bool
+  needsDelayExpr False _ = pure False
+  needsDelayExpr True (IVar fc n)
       = do defs <- get Ctxt
            case !(lookupCtxtName n (gamma defs)) of
                 [] => pure False
                 [x] => pure False
                 _ => pure True
-  needsDelay True (IApp _ f _) = needsDelay True f
-  needsDelay True (IImplicitApp _ f _ _) = needsDelay True f
-  needsDelay True (ICase _ _ _ _) = pure True
-  needsDelay True (ILocal _ _ _) = pure True
-  needsDelay True (IUpdate _ _ _) = pure True
-  needsDelay True (IAlternative _ _ _) = pure True
-  needsDelay True (ISearch _ _) = pure True
-  needsDelay True _ = pure False
+  needsDelayExpr True (IApp _ f _) = needsDelayExpr True f
+  needsDelayExpr True (IImplicitApp _ f _ _) = needsDelayExpr True f
+  needsDelayExpr True (ICase _ _ _ _) = pure True
+  needsDelayExpr True (ILocal _ _ _) = pure True
+  needsDelayExpr True (IUpdate _ _ _) = pure True
+  needsDelayExpr True (IAlternative _ _ _) = pure True
+  needsDelayExpr True (ISearch _ _) = pure True
+  needsDelayExpr True _ = pure False
+  
+  -- On the LHS, for any concrete thing, we need to make sure we know
+  -- its type before we proceed so that we can reject it if the type turns
+  -- out to be polymorphic
+  needsDelayLHS : {auto c : Ref Ctxt Defs} ->
+                  RawImp -> Core Bool
+  needsDelayLHS (IVar fc n) = pure True
+  needsDelayLHS (IApp _ f _) = needsDelayLHS f
+  needsDelayLHS (IImplicitApp _ f _ _) = needsDelayLHS f
+  needsDelayLHS (IAlternative _ _ _) = pure True
+  needsDelayLHS (ISearch _ _) = pure True
+  needsDelayLHS (IPrimVal _ _) = pure True
+  needsDelayLHS (IType _) = pure True
+  needsDelayLHS _ = pure False
+
+  onLHS : ElabMode -> Bool
+  onLHS (InLHS _) = True
+  onLHS _ = False
+
+  needsDelay : {auto c : Ref Ctxt Defs} ->
+               ElabMode ->
+               (knownRet : Bool) -> RawImp ->
+               Core Bool
+  needsDelay (InLHS _) _ tm = needsDelayLHS tm
+  needsDelay _ kr tm = needsDelayExpr kr tm
+
+  checkPatTyValid : {auto c : Ref Ctxt Defs} ->
+                    FC -> Defs -> Env Term vars ->
+                    NF vars -> Term vars -> Glued vars -> Core ()
+  checkPatTyValid fc defs env (NApp _ (NMeta n i _) _) arg got
+      = do Just gdef <- lookupCtxtExact (Resolved i) (gamma defs)
+                | Nothing => pure ()
+           case multiplicity gdef of
+                Rig0 =>
+                   do -- Argument is only valid if gotnf is not a concrete type
+                      gotnf <- getNF got
+                      if !(concrete defs env gotnf)
+                         then throw (MatchTooSpecific fc env arg)
+                         else pure ()
+                _ => pure ()
+  checkPatTyValid fc defs env _ _ _ = pure ()
 
   -- Check the rest of an application given the argument type and the
   -- raw argument. We choose elaboration order depending on whether we know
@@ -244,7 +285,7 @@ mutual
                    then pure True
                    else do sc' <- sc defs (toClosure defaultOpts env (Erased fc))
                            concrete defs env sc'
-          if !(needsDelay kr arg) then do
+          if !(needsDelay (elabMode elabinfo) kr arg) then do
              nm <- genMVName x
              empty <- clearDefs defs
              metaty <- quote empty env aty
@@ -260,6 +301,8 @@ mutual
              logNF 10 ("Now trying " ++ show nm ++ " " ++ show arg) env aty'
              (argv, argt) <- check argRig (nextLevel elabinfo)
                                    nest env arg (Just (glueBack defs env aty'))
+             when (onLHS (elabMode elabinfo)) $
+                  checkPatTyValid fc defs env aty' argv argt
              defs <- get Ctxt
              -- If we're on the LHS, reinstantiate it with 'argv' because it
              -- *may* have as patterns in it and we need to retain them.

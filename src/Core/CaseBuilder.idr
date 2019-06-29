@@ -592,16 +592,11 @@ sameType {ns} fc fn env (p :: xs)
 
 -- Check whether all the initial patterns are the same, or are all a variable.
 -- If so, we'll match it to refine later types and move on
-samePat : (allowRig0 : Bool) -> List (NamedPats ns (p :: ps)) -> Bool
-samePat allowRig0 [] = True
-samePat allowRig0 (pi :: xs) 
-    = if allowRig0
-         then samePatAs (dropAs (getFirstPat pi)) 
+samePat : List (NamedPats ns (p :: ps)) -> Bool
+samePat [] = True
+samePat (pi :: xs) 
+    = samePatAs (dropAs (getFirstPat pi)) 
                         (map (dropAs . getFirstPat) xs)
-         else case getFirstArgType pi of
-                   Known Rig0 _ => False
-                   _ => samePatAs (dropAs (getFirstPat pi)) 
-                                  (map (dropAs . getFirstPat) xs)
   where
     dropAs : Pat -> Pat
     dropAs (PAs _ _ p) = p
@@ -674,38 +669,26 @@ getScore fc name npss
                              CaseCompile _ _ err => pure (Left err)
                              _ => throw err)
 
-pickNext' : {auto i : Ref PName Int} ->
-            {auto c : Ref Ctxt Defs} ->
-            (allowRig0 : Bool) ->
-            FC -> Name -> List (NamedPats ns (p :: ps)) -> 
-            Core (Var (p :: ps))
--- last possible variable
-pickNext' {ps = []} allowRig0 fc fn npss 
-    = if samePat allowRig0 npss
-         then pure (MkVar First)
-         else do Right () <- getScore fc fn npss
-                       | Left err => throw (CaseCompile fc fn err)
-                 pure (MkVar First)
-pickNext' {ps = q :: qs} allowRig0 fc fn npss
-    = if samePat allowRig0 npss
-         then pure (MkVar First)
-         else  case !(getScore fc fn npss) of
-                    Right () => pure (MkVar First)
-                    _ => do (MkVar var) <- pickNext' allowRig0 fc fn (map tail npss)
-                            pure (MkVar (Later var))
-
--- Pick the leftmost matchable (non-Rig0) thing with all constructors in the
+-- Pick the leftmost matchable thing with all constructors in the
 -- same family, or all variables, or all the same type constructor.
--- Failing that, try again but allow Rig0 -- if the match needs to inspect
--- anything at that stage, we'll get an error.
 pickNext : {auto i : Ref PName Int} ->
            {auto c : Ref Ctxt Defs} ->
            FC -> Name -> List (NamedPats ns (p :: ps)) -> 
            Core (Var (p :: ps))
-pickNext fc fn npss
-    = pickNext' True fc fn npss
---     = catch (pickNext' False fc fn npss)
---             (\err => pickNext' True fc fn npss)
+-- last possible variable
+pickNext {ps = []} fc fn npss 
+    = if samePat npss
+         then pure (MkVar First)
+         else do Right () <- getScore fc fn npss
+                       | Left err => throw (CaseCompile fc fn err)
+                 pure (MkVar First)
+pickNext {ps = q :: qs} fc fn npss
+    = if samePat npss
+         then pure (MkVar First)
+         else  case !(getScore fc fn npss) of
+                    Right () => pure (MkVar First)
+                    _ => do (MkVar var) <- pickNext fc fn (map tail npss)
+                            pure (MkVar (Later var))
 
 moveFirst : {idx : Nat} -> .(el : IsVar name idx ps) -> NamedPats ns ps ->
             NamedPats ns (name :: dropVar ps el)

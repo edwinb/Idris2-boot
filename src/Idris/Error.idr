@@ -203,6 +203,9 @@ perror (BadDotPattern _ env reason x y)
     = pure $ "Can't match on " ++ !(pshow env x) ++
            (if reason /= "" then " (" ++ reason ++ ")" else "") ++ "\n" ++
            "It elaborates to: " ++ !(pshow env y)
+perror (MatchTooSpecific _ env tm)
+    = pure $ "Can't match on " ++ !(pshow env tm) ++ 
+             " as it has a polymorphic type"
 perror (BadImplicit _ str) 
     = pure $ "Can't infer type for unbound implicit name " ++ str ++ "\n" ++
              "Try making it a bound implicit."

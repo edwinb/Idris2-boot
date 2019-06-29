@@ -67,6 +67,7 @@ data Error
     | RewriteNoChange FC (Env Term vars) (Term vars) (Term vars)
     | NotRewriteRule FC (Env Term vars) (Term vars)
     | CaseCompile FC Name CaseError 
+    | MatchTooSpecific FC (Env Term vars) (Term vars)
     | BadDotPattern FC (Env Term vars) String (Term vars) (Term vars)
     | BadImplicit FC String
     | BadRunElab FC (Env Term vars) (Term vars)
@@ -205,6 +206,8 @@ Show Error where
   show (CaseCompile fc n (MatchErased (_ ** (env, tm))))
       = show fc ++ ":Attempt to match on erased argument " ++ show tm ++ 
                    " in " ++ show n
+  show (MatchTooSpecific fc env tm)
+      = show fc ++ ":Can't match on " ++ show tm ++ " as it is has a polymorphic type"
   show (BadDotPattern fc env reason x y)
       = show fc ++ ":Can't match on " ++ show x ++ 
            (if reason /= "" then " (" ++ reason ++ ")" else "") ++
@@ -283,6 +286,7 @@ getErrorLoc (NotFunctionType loc _ tm) = Just loc
 getErrorLoc (RewriteNoChange loc _ tm ty) = Just loc
 getErrorLoc (NotRewriteRule loc _ ty) = Just loc
 getErrorLoc (CaseCompile loc y z) = Just loc
+getErrorLoc (MatchTooSpecific loc y tm) = Just loc
 getErrorLoc (BadDotPattern loc _ y tm z) = Just loc
 getErrorLoc (BadImplicit loc y) = Just loc
 getErrorLoc (BadRunElab loc _ tm) = Just loc

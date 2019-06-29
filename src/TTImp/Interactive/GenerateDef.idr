@@ -54,10 +54,11 @@ expandClause loc n c
             | _ => throw (GenericMsg loc "No result found for search on RHS")
          defs <- get Ctxt
          rhsnf <- normaliseHoles defs [] rhs'
-         let (_ ** (env, rhsenv)) = dropLams locs [] rhsnf
+         let (_ ** (env', rhsenv)) = dropLams locs [] rhsnf
 
-         rhsraw <- unelab env rhsenv 
-         log 5 $ "Got clause " ++ show lhs ++ " = " ++ show rhsenv
+         rhsraw <- unelab env' rhsenv 
+         logTermNF 5 "Got clause" env lhs 
+         logTermNF 5 "        = " env' rhsenv
          pure [updateRHS c rhsraw]
   where
     updateRHS : ImpClause -> RawImp -> ImpClause

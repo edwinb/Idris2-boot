@@ -27,7 +27,7 @@ idrisTests
        "basic006", "basic007", "basic008", "basic009", "basic010",
        "basic011", "basic012", "basic013", "basic014", "basic015",
        "basic016",
-       "coverage001", "coverage002",
+       "coverage001", "coverage002", "coverage003", "coverage004",
        "error001", "error002", "error003", "error004", "error005",
        "error006",
        "interactive001", "interactive002", "interactive003", "interactive004",
