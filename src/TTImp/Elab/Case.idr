@@ -445,5 +445,14 @@ checkCase rig elabinfo nest env fc scr scrty_exp alts exp
                           e => throw e)
          scrty <- getTerm gscrty
          logTermNF 5 "Scrutinee type" env scrty
+         checkConcrete !(getNF gscrty)
          caseBlock rig elabinfo fc nest env scr scrtm_in scrty caseRig alts exp
+  where
+    -- For the moment, throw an error if we haven't been able to work out
+    -- the type of the case scrutinee, because we'll need it to build the
+    -- type of the case block. But (TODO) consider delaying on failure?
+    checkConcrete : NF vs -> Core ()
+    checkConcrete (NApp _ (NMeta n i _) _)
+        = throw (GenericMsg (getFC scr) "Can't infer type for case scrutinee")
+    checkConcrete _ = pure ()
 
