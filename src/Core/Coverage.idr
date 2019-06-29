@@ -81,30 +81,6 @@ getCons defs (NTCon _ tn _ _ _)
                   _ => pure Nothing
 getCons defs _ = pure []
 
-mutual
-  matchArgs : Defs -> List (Closure vars) -> List (Closure []) -> Core Bool
-  matchArgs defs [] [] = pure True
-  matchArgs defs (c :: cs) (c' :: cs') 
-      = do cnf <- evalClosure defs c 
-           cnf' <- evalClosure defs c'
-           pure $ !(matchNF defs cnf cnf') && !(matchArgs defs cs cs')
-  matchArgs defs _ _ = pure False
-
-  -- Is the first type a possible match for a constructor of the second type?
-  matchNF : Defs -> NF vars -> NF [] -> Core Bool
-  matchNF defs t (NBind fc x b sc)
-     = matchNF defs t !(sc defs (toClosure defaultOpts [] (Erased fc)))
-  matchNF defs (NDCon _ n t a args) (NDCon _ n' t' a' args')
-     = if t == t'
-          then matchArgs defs args args'
-          else pure False
-  matchNF defs (NTCon _ n t a args) (NTCon _ n' t' a' args')
-     = if n == n'
-          then matchArgs defs args args'
-          else pure False
-  matchNF defs (NPrimVal _ c) (NPrimVal _ c') = pure (c == c')
-  matchNF _ _ _ = pure True
-
 emptyRHS : FC -> CaseTree vars -> CaseTree vars
 emptyRHS fc (Case idx el sc alts) = Case idx el sc (map emptyRHSalt alts)
   where
@@ -153,9 +129,8 @@ getMissingAlts fc defs (NType _) alts
     isDefault _ = False
 getMissingAlts fc defs nfty alts
     = do allCons <- getCons defs nfty 
-         validCons <- filterM (\x => matchNF defs nfty (fst x)) allCons
          pure (filter (noneOf alts) 
-                 (map (mkAlt fc (Unmatched "Coverage check") . snd) validCons))
+                 (map (mkAlt fc (Unmatched "Coverage check") . snd) allCons))
   where
     -- Return whether the alternative c matches none of the given cases in alts
     noneOf : List (CaseAlt vars) -> CaseAlt vars -> Bool

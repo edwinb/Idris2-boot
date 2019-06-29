@@ -5,6 +5,5 @@ onlyOne _
 Main> Main.covered: All cases covered
 Main> Main.matchInt: All cases covered
 Main> Main.matchInt':
-matchInt' _ _ IsZero
-matchInt' _ _ IsSuc
+matchInt' _ _ _
 Main> Bye for now!

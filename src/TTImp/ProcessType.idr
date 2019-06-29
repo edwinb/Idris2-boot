@@ -63,6 +63,11 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
          log 1 $ "Processing " ++ show n
          log 5 $ "Checking type decl " ++ show n ++ " : " ++ show ty_raw
          idx <- resolveName n 
+
+         -- Check 'n' is undefined
+         defs <- get Ctxt
+         Nothing <- lookupCtxtExact (Resolved idx) (gamma defs)
+              | Just _ => throw (AlreadyDefined fc n)
          
          ty <- 
              wrapError (InType fc n) $

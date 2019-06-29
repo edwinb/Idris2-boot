@@ -613,7 +613,6 @@ processDef opts nest env fc n_in cs_in
          when (not (elem InCase opts)) $
            compileRunTime
 
-
          cov <- checkCoverage nidx mult cs tree_ct
          setCovering fc n cov
 

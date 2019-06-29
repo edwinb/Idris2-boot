@@ -421,7 +421,7 @@ groupCons fc fn pvars cs
     -- The type of 'ConGroup' ensures that we refer to the arguments by
     -- the same name in each of the clauses
     addConG {todo} n tag pargs pats rhs [] 
-        = do cty <- the (Core (NF vars)) $if n == UN "->"
+        = do cty <- the (Core (NF vars)) $ if n == UN "->"
                       then pure $ NBind fc (MN "_" 0) (Pi RigW Explicit (NType fc)) $
                               (\d, a => pure $ NBind fc (MN "_" 1) (Pi RigW Explicit (NErased fc))
                                 (\d, a => pure $ NType fc))
@@ -689,9 +689,10 @@ pickNext' {ps = []} allowRig0 fc fn npss
 pickNext' {ps = q :: qs} allowRig0 fc fn npss
     = if samePat allowRig0 npss
          then pure (MkVar First)
-         else
-            do (MkVar var) <- pickNext' allowRig0 fc fn (map tail npss)
-               pure (MkVar (Later var))
+         else  case !(getScore fc fn npss) of
+                    Right () => pure (MkVar First)
+                    _ => do (MkVar var) <- pickNext' allowRig0 fc fn (map tail npss)
+                            pure (MkVar (Later var))
 
 -- Pick the leftmost matchable (non-Rig0) thing with all constructors in the
 -- same family, or all variables, or all the same type constructor.
@@ -702,8 +703,9 @@ pickNext : {auto i : Ref PName Int} ->
            FC -> Name -> List (NamedPats ns (p :: ps)) -> 
            Core (Var (p :: ps))
 pickNext fc fn npss
-    = catch (pickNext' False fc fn npss)
-            (\err => pickNext' True fc fn npss)
+    = pickNext' True fc fn npss
+--     = catch (pickNext' False fc fn npss)
+--             (\err => pickNext' True fc fn npss)
 
 moveFirst : {idx : Nat} -> .(el : IsVar name idx ps) -> NamedPats ns ps ->
             NamedPats ns (name :: dropVar ps el)
