@@ -47,7 +47,7 @@ idrisTests
 
 typeddTests : List String
 typeddTests
-   = ["chapter001", "chapter002"]
+   = ["chapter01", "chapter02", "chapter03"]
 
 chezTests : List String
 chezTests
@@ -103,7 +103,7 @@ main
               | _ => do putStrLn "Usage: runtests [ttimp path]"
          ttimps <- traverse (runTest "ttimp" idris2) ttimpTests
          idrs <- traverse (runTest "idris2" idris2) idrisTests
-         typedds <- traverse (runTest "typedd" idris2) typeddTests
+         typedds <- traverse (runTest "typedd-book" idris2) typeddTests
          chexec <- findChez
          chezs <- maybe (do putStrLn "Chez Scheme not found"
                             pure [])

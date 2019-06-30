@@ -19,17 +19,23 @@ the base libraries instead. So:
 
 In `Average.idr`, add:
 
-import Data.Strings -- for `words`
-import Data.List -- for `length` on lists
+    import Data.Strings -- for `words`
+    import Data.List -- for `length` on lists
 
 In `AveMain.idr` and `Reverse.idr` add:
 
-import System.REPL -- for 'repl'
+    import System.REPL -- for 'repl'
 
 Chaoter 3
 ---------
 
-TODO
+Unbound implicits have multiplicity 0, so we can't match on them at run-time.
+Therefore, in `Matrix.idr`, we need to change the type of `createEmpties`
+and `transposeMat` so that the length of the inner vector is available to
+match on:
+
+    createEmpties : {n : _} -> Vect n (Vect 0 elem)
+    transposeMat : {n : _} -> Vect m (Vect n elem) -> Vect n (Vect m elem)
 
 Chaoter 4
 ---------
