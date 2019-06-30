@@ -475,8 +475,21 @@ TTC (PrimFn n) where
   toBuf b StrAppend = tag 16
   toBuf b StrReverse = tag 17
   toBuf b StrSubstr = tag 18
-  toBuf b (Cast x y) = do tag 19; toBuf b x; toBuf b y
-  toBuf b BelieveMe = tag 20
+
+  toBuf b DoubleExp = tag 19
+  toBuf b DoubleLog = tag 20
+  toBuf b DoubleSin = tag 22
+  toBuf b DoubleCos = tag 23
+  toBuf b DoubleTan = tag 24
+  toBuf b DoubleASin = tag 25
+  toBuf b DoubleACos = tag 26
+  toBuf b DoubleATan = tag 27
+  toBuf b DoubleSqrt = tag 32
+  toBuf b DoubleFloor = tag 33
+  toBuf b DoubleCeiling = tag 34
+
+  toBuf b (Cast x y) = do tag 99; toBuf b x; toBuf b y
+  toBuf b BelieveMe = tag 100
 
   fromBuf {n} b
       = case n of
@@ -494,7 +507,19 @@ TTC (PrimFn n) where
                  12 => pure StrHead
                  13 => pure StrTail
                  17 => pure StrReverse
-                 19 => do x <- fromBuf b; y <- fromBuf b; pure (Cast x y)
+                 19 => pure DoubleExp
+                 20 => pure DoubleLog
+                 22 => pure DoubleSin
+                 23 => pure DoubleCos
+                 24 => pure DoubleTan
+                 25 => pure DoubleASin
+                 26 => pure DoubleACos
+                 27 => pure DoubleATan
+                 32 => pure DoubleSqrt
+                 33 => pure DoubleFloor
+                 34 => pure DoubleCeiling
+
+                 99 => do x <- fromBuf b; y <- fromBuf b; pure (Cast x y)
                  _ => corrupt "PrimFn 1"
 
       fromBuf2 : Ref Bin Binary ->
@@ -521,7 +546,7 @@ TTC (PrimFn n) where
       fromBuf3 b
           = case !getTag of
                  18 => pure StrSubstr
-                 20 => pure BelieveMe
+                 100 => pure BelieveMe
                  _ => corrupt "PrimFn 3"
              
 mutual

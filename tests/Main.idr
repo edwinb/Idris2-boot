@@ -45,6 +45,10 @@ idrisTests
        "total001", "total002", "total003", "total004", "total005",
        "total006"]
 
+typeddTests : List String
+typeddTests
+   = ["chapter001", "chapter002"]
+
 chezTests : List String
 chezTests
    = ["chez001", "chez002", "chez003", "chez004", 
@@ -99,16 +103,17 @@ main
               | _ => do putStrLn "Usage: runtests [ttimp path]"
          ttimps <- traverse (runTest "ttimp" idris2) ttimpTests
          idrs <- traverse (runTest "idris2" idris2) idrisTests
+         typedds <- traverse (runTest "typedd" idris2) typeddTests
          chexec <- findChez
          chezs <- maybe (do putStrLn "Chez Scheme not found"
                             pure [])
                         (\c => do putStrLn $ "Found Chez Scheme at " ++ c
                                   traverse (runTest "chez" idris2) chezTests)
                         chexec
-         let res = ttimps ++ idrs ++ chezs
+         let res = ttimps ++ typedds ++ idrs ++ chezs
          putStrLn (show (length (filter id res)) ++ "/" ++ show (length res) 
                        ++ " tests successful")
-         if (any not (ttimps ++ idrs ++ chezs))
+         if (any not res)
             then exitWith (ExitFailure 1)
             else exitWith ExitSuccess
 

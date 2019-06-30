@@ -187,6 +187,43 @@ gt (Ch x) (Ch y) = pure $ toInt (x > y)
 gt (Db x) (Db y) = pure $ toInt (x > y)
 gt _ _ = Nothing
 
+doubleOp : (Double -> Double) -> Vect 1 (NF vars) -> Maybe (NF vars)
+doubleOp f [NPrimVal fc (Db x)] = Just (NPrimVal fc (Db (f x)))
+doubleOp f _ = Nothing
+
+doubleExp : Vect 1 (NF vars) -> Maybe (NF vars)
+doubleExp = doubleOp exp
+
+doubleLog : Vect 1 (NF vars) -> Maybe (NF vars)
+doubleLog = doubleOp log
+
+doubleSin : Vect 1 (NF vars) -> Maybe (NF vars)
+doubleSin = doubleOp sin
+
+doubleCos : Vect 1 (NF vars) -> Maybe (NF vars)
+doubleCos = doubleOp cos
+
+doubleTan : Vect 1 (NF vars) -> Maybe (NF vars)
+doubleTan = doubleOp tan
+
+doubleASin : Vect 1 (NF vars) -> Maybe (NF vars)
+doubleASin = doubleOp asin
+
+doubleACos : Vect 1 (NF vars) -> Maybe (NF vars)
+doubleACos = doubleOp acos
+
+doubleATan : Vect 1 (NF vars) -> Maybe (NF vars)
+doubleATan = doubleOp atan
+
+doubleSqrt : Vect 1 (NF vars) -> Maybe (NF vars)
+doubleSqrt = doubleOp sqrt
+
+doubleFloor : Vect 1 (NF vars) -> Maybe (NF vars)
+doubleFloor = doubleOp floor
+
+doubleCeiling : Vect 1 (NF vars) -> Maybe (NF vars)
+doubleCeiling = doubleOp ceiling
+
 -- Only reduce for concrete values
 believeMe : Vect 3 (NF vars) -> Maybe (NF vars)
 believeMe [_, _, val@(NDCon _ _ _ _ _)] = Just val
@@ -214,6 +251,9 @@ arithTy t = constTy t t t
 
 cmpTy : Constant -> ClosedTerm
 cmpTy t = constTy t t IntType
+
+doubleTy : ClosedTerm
+doubleTy = predTy DoubleType DoubleType
 
 believeMeTy : ClosedTerm
 believeMeTy 
@@ -255,6 +295,18 @@ getOp StrAppend = strAppend
 getOp StrReverse = strReverse
 getOp StrSubstr = strSubstr
 
+getOp DoubleExp = doubleExp
+getOp DoubleLog = doubleLog
+getOp DoubleSin = doubleSin
+getOp DoubleCos = doubleCos
+getOp DoubleTan = doubleTan
+getOp DoubleASin = doubleASin
+getOp DoubleACos = doubleACos
+getOp DoubleATan = doubleATan
+getOp DoubleSqrt = doubleSqrt
+getOp DoubleFloor = doubleFloor
+getOp DoubleCeiling = doubleCeiling
+
 getOp (Cast _ y) = castTo y
 getOp BelieveMe = believeMe
 
@@ -284,6 +336,17 @@ opName StrCons = prim "strCons"
 opName StrAppend = prim "strAppend"
 opName StrReverse = prim "strReverse"
 opName StrSubstr = prim "strSubstr"
+opName DoubleExp = prim "doubleExp"
+opName DoubleLog = prim "doubleLog"
+opName DoubleSin = prim "doubleSin"
+opName DoubleCos = prim "doubleCos"
+opName DoubleTan = prim "doubleTan"
+opName DoubleASin = prim "doubleASin"
+opName DoubleACos = prim "doubleACos"
+opName DoubleATan = prim "doubleATan"
+opName DoubleSqrt = prim "doubleSqrt"
+opName DoubleFloor = prim "doubleFloor"
+opName DoubleCeiling = prim "doubleCeiling"
 opName (Cast x y) = prim $ "cast_" ++ show x ++ show y
 opName BelieveMe = prim $ "believe_me"
 
@@ -312,6 +375,18 @@ allPrimitives =
      MkPrim StrReverse (predTy StringType StringType) isTotal,
      MkPrim StrSubstr (constTy3 IntType IntType StringType StringType) isTotal,
      MkPrim BelieveMe believeMeTy isTotal] ++
+
+    [MkPrim DoubleExp doubleTy isTotal,
+     MkPrim DoubleLog doubleTy isTotal,
+     MkPrim DoubleSin doubleTy isTotal,
+     MkPrim DoubleCos doubleTy isTotal,
+     MkPrim DoubleTan doubleTy isTotal,
+     MkPrim DoubleASin doubleTy isTotal,
+     MkPrim DoubleACos doubleTy isTotal,
+     MkPrim DoubleATan doubleTy isTotal,
+     MkPrim DoubleSqrt doubleTy isTotal,
+     MkPrim DoubleFloor doubleTy isTotal,
+     MkPrim DoubleCeiling doubleTy isTotal] ++
 
     map (\t => MkPrim (Cast t StringType) (predTy t StringType) isTotal) [IntType, IntegerType, CharType, DoubleType] ++
     map (\t => MkPrim (Cast t IntegerType) (predTy t IntegerType) isTotal) [StringType, IntType, CharType, DoubleType] ++

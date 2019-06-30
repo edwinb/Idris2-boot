@@ -16,6 +16,10 @@ data FilePtr : Type where
 %extern prim__writeLine : FilePtr -> String -> (1 x : %World) -> IORes (Either Int ())
 %extern prim__eof : FilePtr -> (1 x : %World) -> IORes Int
 
+%extern prim__stdin : FilePtr
+%extern prim__stdout : FilePtr
+%extern prim__stderr : FilePtr
+
 modeStr : Mode -> String
 modeStr Read              = "r"
 modeStr WriteTruncate     = "w"
@@ -61,6 +65,18 @@ File = FileT False
 public export
 BinaryFile : Type
 BinaryFile = FileT True
+
+export
+stdin : File
+stdin = FHandle prim__stdin
+
+export
+stdout : File
+stdout = FHandle prim__stdout
+
+export
+stderr : File
+stderr = FHandle prim__stderr
 
 export
 openFile : String -> Mode -> IO (Either FileError File)

@@ -19,9 +19,6 @@ badProcess : SP a b -> Stream a -> Stream b
 badProcess (Get f) (x :: xs) = badProcess (f x) xs
 badProcess (Put b sp) xs = badProcess sp xs
 
-Cast Nat Integer where
-  cast = natToInteger
-
 doubleInt : SP Nat Integer
 doubleInt = Get (\x => Put (the Integer (cast x))
                         (Put (the Integer (cast x) * 2) doubleInt))

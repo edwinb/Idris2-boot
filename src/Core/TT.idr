@@ -126,6 +126,18 @@ data PrimFn : Nat -> Type where
      StrReverse : PrimFn 1
      StrSubstr : PrimFn 3
 
+     DoubleExp : PrimFn 1
+     DoubleLog : PrimFn 1
+     DoubleSin : PrimFn 1
+     DoubleCos : PrimFn 1
+     DoubleTan : PrimFn 1
+     DoubleASin : PrimFn 1
+     DoubleACos : PrimFn 1
+     DoubleATan : PrimFn 1
+     DoubleSqrt : PrimFn 1
+     DoubleFloor : PrimFn 1
+     DoubleCeiling : PrimFn 1
+
      Cast : Constant -> Constant -> PrimFn 1
      BelieveMe : PrimFn 3
 
@@ -150,6 +162,17 @@ Show (PrimFn arity) where
   show StrAppend = "++"
   show StrReverse = "op_strrev"
   show StrSubstr = "op_strsubstr"
+  show DoubleExp = "op_doubleExp"
+  show DoubleLog = "op_doubleLog"
+  show DoubleSin = "op_doubleSin"
+  show DoubleCos = "op_doubleCos"
+  show DoubleTan = "op_doubleTan"
+  show DoubleASin = "op_doubleASin"
+  show DoubleACos = "op_doubleACos"
+  show DoubleATan = "op_doubleATan"
+  show DoubleSqrt = "op_doubleSqrt"
+  show DoubleFloor = "op_doubleFloor"
+  show DoubleCeiling = "op_doubleCeiling"
   show (Cast x y) = "cast-" ++ show x ++ "-" ++ show y
   show BelieveMe = "believe_me"
 

@@ -103,6 +103,18 @@ schOp StrAppend [x, y] = op "string-append" [x, y]
 schOp StrReverse [x] = op "string-reverse" [x]
 schOp StrSubstr [x, y, z] = op "string-substr" [x, y, z]
 
+schOp DoubleExp [x] = op "exp" [x]
+schOp DoubleLog [x] = op "log" [x]
+schOp DoubleSin [x] = op "sin" [x]
+schOp DoubleCos [x] = op "cos" [x]
+schOp DoubleTan [x] = op "tan" [x]
+schOp DoubleASin [x] = op "asin" [x]
+schOp DoubleACos [x] = op "asin" [x]
+schOp DoubleATan [x] = op "atan" [x]
+schOp DoubleSqrt [x] = op "sqrt" [x]
+schOp DoubleFloor [x] = op "floor" [x]
+schOp DoubleCeiling [x] = op "ceiling" [x]
+
 schOp (Cast IntType StringType) [x] = op "number->string" [x]
 schOp (Cast IntegerType StringType) [x] = op "number->string" [x]
 schOp (Cast DoubleType StringType) [x] = op "number->string" [x]
@@ -133,6 +145,7 @@ public export
 data ExtPrim = CCall | SchemeCall | PutStr | GetStr 
              | FileOpen | FileClose | FileReadLine | FileWriteLine | FileEOF
              | NewIORef | ReadIORef | WriteIORef
+             | Stdin | Stdout | Stderr
              | Unknown Name
 
 export
@@ -149,6 +162,9 @@ Show ExtPrim where
   show NewIORef = "NewIORef"
   show ReadIORef = "ReadIORef"
   show WriteIORef = "WriteIORef"
+  show Stdin = "Stdin"
+  show Stdout = "Stdout"
+  show Stderr = "Stderr"
   show (Unknown n) = "Unknown " ++ show n
 
 ||| Match on a user given name to get the scheme primitive
@@ -165,7 +181,10 @@ toPrim pn@(NS _ n)
             (n == UN "prim__eof", FileEOF),
             (n == UN "prim__newIORef", NewIORef),
             (n == UN "prim__readIORef", ReadIORef),
-            (n == UN "prim__writeIORef", WriteIORef)
+            (n == UN "prim__writeIORef", WriteIORef),
+            (n == UN "prim__stdin", Stdin),
+            (n == UN "prim__stdout", Stdout),
+            (n == UN "prim__stderr", Stderr)
             ]
            (Unknown pn)
 toPrim pn = Unknown pn
@@ -305,6 +324,9 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
                            ++ !(schExp i vs val) ++ ")"
   schExtCommon i vs (Unknown n) args 
       = throw (InternalError ("Can't compile unknown external primitive " ++ show n))
+  schExtCommon i vs Stdin [] = pure "(current-input-port)"
+  schExtCommon i vs Stdout [] = pure "(current-output-port)"
+  schExtCommon i vs Stderr [] = pure "(current-error-port)"
   schExtCommon i vs prim args 
       = throw (InternalError ("Badly formed external primitive " ++ show prim
                                 ++ " " ++ show args))
