@@ -58,9 +58,7 @@ absOthers {done} {vs = x :: vars} fc (b :: env) (DropCons sub) tm
   = let bindervs : Binder (Term (done ++ (x :: vars)))
                       = rewrite appendAssociative done [x] vars in
                                 map (weakenNs (done ++ [x])) b
-        b' = case bindervs of
-                  Let c val ty => Let c val ty
-                  _ => Pi (multiplicity b) Explicit (binderType bindervs)
+        b' = Pi (multiplicity b) Explicit (binderType bindervs)
         btm = Bind fc x b' 
                    (changeVar (findLater _ (x :: done)) (MkVar First) (weaken tm)) in
         rewrite appendAssociative done [x] vars in
@@ -345,13 +343,6 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
     addEnv : Env Term vs -> SubVars vs' vs -> List Name -> 
              (List (Maybe RawImp), List Name)
     addEnv [] sub used = ([], used)
-    -- Skip the let bindings, they were let bound in the case function type
-    addEnv (Let _ _ _ :: bs) SubRefl used 
-        = let (rest, used') = addEnv bs SubRefl used in
-              (Nothing :: rest, used')
-    addEnv (Let _ _ _ :: bs) (DropCons p) used 
-        = let (rest, used') = addEnv bs p used in
-              (Nothing :: rest, used')
     addEnv {vs = v :: vs} (b :: bs) SubRefl used
         = let (rest, used') = addEnv bs SubRefl used in
               (Nothing :: rest, used')

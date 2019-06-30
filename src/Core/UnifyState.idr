@@ -344,7 +344,7 @@ export
 applyToOthers : FC -> Term vars -> Env Term vars -> 
                 SubVars smaller vars -> Term vars
 applyToOthers {vars} fc tm env sub
-  = let args = reverse (mkConstantAppArgsOthers {done = []} False fc env sub []) in
+  = let args = reverse (mkConstantAppArgsOthers {done = []} True fc env sub []) in
         apply fc tm (rewrite sym (appendNilRightNeutral vars) in args)
 
 -- Create a new metavariable with the given name and return type,

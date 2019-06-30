@@ -3,11 +3,15 @@ package base
 modules = Control.WellFounded,
 
           Data.Buffer,
+          Data.Fin,
+          Data.Maybe,
           Data.Nat,
           Data.IORef,
           Data.List,
           Data.Strings,
           Data.Vect,
+          
+          Decidable.Equality,
 
           System,
           System.Concurrency.Raw,

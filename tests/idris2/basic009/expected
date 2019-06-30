@@ -5,11 +5,5 @@ Main>    y : Nat
    res : Nat
    x : Nat
 -------------------------------------
-foo : IsSuc (S (S x))
-Main>    x : Nat
-   res : Nat
-   y : Nat
-   ys : Vect (S Z) Nat
--------------------------------------
-bar : Nat
+foo : IsSuc y
 Main> Bye for now!

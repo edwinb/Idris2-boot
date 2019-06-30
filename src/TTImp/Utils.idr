@@ -270,10 +270,17 @@ mutual
       = if n == n' 
            then matchAll [(f, f'), (a, a')]
            else matchFail loc
+  -- It's okay to skip implicits
+  getMatch (IImplicitApp fc f n a) f' 
+      = getMatch f f;
+  getMatch f (IImplicitApp fc f' n a)
+      = getMatch f f;
   -- Alternatives are okay as long as all corresponding alternatives are okay
   getMatch (IAlternative _ _ as) (IAlternative _ _ as')
       = matchAll (zip as as')
-  -- TODO: IType, IAs (Q: how do as patterns work in 'with'???)
+  getMatch (IAs _ _ _ p) p' = getMatch p p'
+  getMatch p (IAs _ _ _ p') = getMatch p p'
+  getMatch (IType _) (IType _) = pure []
   getMatch pat spec = matchFail (getFC pat)
 
   matchAll : List (RawImp, RawImp) ->

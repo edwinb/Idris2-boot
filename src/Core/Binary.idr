@@ -264,7 +264,7 @@ writeToTTC extradata fname
                               (pairnames (options defs)) 
                               (rewritenames (options defs)) 
                               (primnames (options defs)) 
-                              (namedirectives (options defs)) 
+                              (namedirectives defs) 
                               (cgdirectives defs)
                               extradata)
          Right ok <- coreLift $ writeToFile fname !(get Bin)
@@ -323,7 +323,7 @@ updateNameDirectives : {auto c : Ref Ctxt Defs} ->
 updateNameDirectives [] = pure ()
 updateNameDirectives ((t, ns) :: nds)
     = do defs <- get Ctxt
-         put Ctxt (record { options $= addNameDirective (t, ns) } defs)
+         put Ctxt (record { namedirectives $= ((t, ns) ::) } defs)
          updateNameDirectives nds
 
 -- Add definitions from a binary file to the current context

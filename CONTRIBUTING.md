@@ -9,11 +9,15 @@ beyond work on the language core, are (in no particular order):
 * A better REPL, including:
   - `it` and `:let`
   - readline and tab completion
-  - :search and :apropos
+  - `:search` and `:apropos`
   - help commands
+* Some parts of the Idris 1 Prelude are not yet implemented and should be
+  added to base/
 * Further library support (please add initially into contrib/)
 * Partial evaluation, especially for specialisation of interface 
   implementations.
+* The lexer and parser are quite slow, new and faster versions with better
+  errors would be good.
 * An alternative, high performance, back end. OCaml seems worth a try.
 * JS and Node back ends would be nice.
 
@@ -31,6 +35,11 @@ notably:
 
 Other contributions are also welcome, but I (@edwinb) will need to be
 confident that I'll be able to maintain them!
+
+If you're editing the core system, or adding any features, please keep an
+eye on performance. In particular, check that the libraries build and tests
+run in approximately the same amount of time before and after the change.
+(Although running faster is fine as long as everything still works :))
 
 Some syntax that hasn't yet been implemented but will be:
 

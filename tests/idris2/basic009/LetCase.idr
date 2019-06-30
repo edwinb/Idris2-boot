@@ -11,6 +11,9 @@ test1 x = let y = S (S x) in
               case x of
                    res => pred y ?foo
 
+-- Propagating let binding's computational behaviour through case is
+-- not supported, sorry!
+{-
 data Vect : Nat -> Type -> Type where
      Nil : Vect Z a
      (::) : a -> Vect k a -> Vect (S k) a
@@ -22,3 +25,4 @@ test2 x@(S Z) y
                let fn : Vect (S Z) Nat -> Nat
                    fn ys = ?bar
                in pred x Yes
+-}

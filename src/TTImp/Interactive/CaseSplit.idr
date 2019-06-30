@@ -137,7 +137,7 @@ getArgName defs x allvars ty
     findNames : NF vars -> Core (List String)
     findNames (NBind _ x (Pi _ _ _) _) = pure ["f", "g"]
     findNames (NTCon _ n _ _ _)
-        = case !(lookupName n (namedirectives (options defs))) of
+        = case !(lookupName n (namedirectives defs)) of
                Nothing => pure defaultNames
                Just ns => pure ns
     findNames ty = pure defaultNames

@@ -662,6 +662,7 @@ record Defs where
      -- We don't look up anything in here, it's merely for saving out to TTC.
      -- We save the hints in the 'GlobalDef' itself for faster lookup.
   saveAutoHints : List (Name, Bool)
+  namedirectives : List (Name, List String)
   ifaceHash : Int
   importHashes : List (List String, Int)
      -- ^ interface hashes of imported modules
@@ -696,7 +697,7 @@ initDefs : Core Defs
 initDefs 
     = do gam <- initCtxt
          pure (MkDefs gam [] ["Main"] defaults empty 100 
-                      empty empty empty [] [] 5381 [] [] [] [] [] empty)
+                      empty empty empty [] [] [] 5381 [] [] [] [] [] empty)
       
 -- Reset the context, except for the options
 export
@@ -1632,7 +1633,7 @@ addNameDirective : {auto c : Ref Ctxt Defs} ->
 addNameDirective fc n ns
     = do defs <- get Ctxt
          n' <- checkUnambig fc n
-         put Ctxt (record { options $= addNameDirective (n', ns) } defs)
+         put Ctxt (record { namedirectives $= ((n', ns) ::) } defs)
 
 -- Checking special names from Options
 

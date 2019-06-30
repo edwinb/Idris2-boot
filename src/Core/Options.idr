@@ -102,7 +102,6 @@ record Options where
   pairnames : Maybe PairNames
   rewritenames : Maybe RewriteNames
   primnames : PrimNames
-  namedirectives : List (Name, List String)
   extensions : List LangExt
 
 defaultDirs : Dirs
@@ -122,7 +121,7 @@ defaults : Options
 defaults = MkOptions defaultDirs defaultPPrint defaultSession
                      defaultElab Nothing Nothing
                      (MkPrimNs Nothing Nothing Nothing)
-                     [] []
+                     []
 
 -- Reset the options which are set by source files
 export
@@ -130,7 +129,6 @@ clearNames : Options -> Options
 clearNames = record { pairnames = Nothing,
                       rewritenames = Nothing,
                       primnames = MkPrimNs Nothing Nothing Nothing,
-                      namedirectives = [],
                       extensions = []
                     }
 
@@ -154,10 +152,6 @@ setFromString n = record { primnames->fromStringName = Just n }
 export
 setFromChar : Name -> Options -> Options
 setFromChar n = record { primnames->fromCharName = Just n }
-
-export
-addNameDirective : (Name, List String) -> Options -> Options
-addNameDirective nd = record { namedirectives $= (nd ::) }
 
 export
 setExtension : LangExt -> Options -> Options

@@ -58,6 +58,25 @@ impossibleOK defs (NDCon _ _ xt _ xargs) (NDCon _ _ yt _ yargs)
          then pure True
          else anyM (mismatch defs) (zip xargs yargs)
 impossibleOK defs x y = pure False
+                           
+export
+impossibleErrOK : {auto c : Ref Ctxt Defs} ->
+                  Defs -> Error -> Core Bool
+impossibleErrOK defs (CantConvert fc env l r)
+    = do logTerm 10 "Impossible" !(normalise defs env l)
+         logTerm 10 "    ...and" !(normalise defs env r)
+         impossibleOK defs !(nf defs env l)
+                           !(nf defs env r)
+impossibleErrOK defs (CantSolveEq fc env l r)
+    = do logTerm 10 "Impossible" !(normalise defs env l)
+         logTerm 10 "    ...and" !(normalise defs env r)
+         impossibleOK defs !(nf defs env l)
+                           !(nf defs env r)
+impossibleErrOK defs (AllFailed errs)
+    = anyM (impossibleErrOK defs) (map snd errs)
+impossibleErrOK defs (WhenUnifying _ _ _ _ err)
+    = impossibleErrOK defs err
+impossibleErrOK defs _ = pure False
 
 -- Given a type checked LHS and its type, return the environment in which we
 -- should check the RHS, the LHS and its type in that environment,
@@ -304,15 +323,10 @@ checkClause mult hashit n opts nest env (ImpossibleClause fc lhs)
          (\err => 
             case err of
                  ValidCase _ _ _ => throw err
-                 WhenUnifying _ env l r err
-                     => do defs <- get Ctxt
-                           logTerm 10 "Impossible" !(normalise defs env l)
-                           logTerm 10 "    ...and" !(normalise defs env r)
-                           if !(impossibleOK defs !(nf defs env l)
-                                                  !(nf defs env r))
-                              then pure Nothing
-                              else throw (ValidCase fc env (Right err))
-                 _ => throw (ValidCase fc env (Right err)))
+                 _ => do defs <- get Ctxt
+                         if !(impossibleErrOK defs err)
+                            then pure Nothing
+                            else throw (ValidCase fc env (Right err)))
 checkClause {vars} mult hashit n opts nest env (PatClause fc lhs_in rhs)
     = do (vars'  ** (sub', env', nest', lhstm', lhsty')) <- 
              checkLHS mult hashit n opts nest env fc lhs_in

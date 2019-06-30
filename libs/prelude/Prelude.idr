@@ -98,8 +98,8 @@ public export
 -------------------
 
 public export
-cong : {0 f : t -> u} -> a = b -> f a = f b
-cong Refl = Refl
+cong : (f : t -> u) -> a = b -> f a = f b
+cong f Refl = Refl
 
 public export
 interface Uninhabited t where

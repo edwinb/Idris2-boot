@@ -50,6 +50,11 @@ hyper (S(S Z)) a Z      = Z
 hyper n        a Z      = S Z
 hyper (S pn)   a (S pb) = hyper pn a (hyper (S pn) a pb)
 
+public export
+pred : Nat -> Nat
+pred Z     = Z
+pred (S n) = n
+
 -- Comparisons
 
 public export

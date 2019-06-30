@@ -149,7 +149,7 @@ bindUnsolved {vars} fc elabmode _
     makeBoundVar n rig env sub subvars expected
         = case shrinkTerm expected sub of
                Nothing => do tmn <- toFullNames expected
-                             throw (GenericMsg fc ("Can't bind implicit of type " ++ show tmn))
+                             throw (GenericMsg fc ("Can't bind implicit " ++ show n ++ " of type " ++ show tmn))
                Just exp' => 
                     do impn <- genVarName (nameRoot n)
                        tm <- metaVar fc rig env impn exp'
