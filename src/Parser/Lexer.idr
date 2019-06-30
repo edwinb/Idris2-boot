@@ -158,9 +158,10 @@ rawTokens =
     stripQuotes = assert_total (strTail . reverse . strTail . reverse)
 
 export
-lex : String -> Either (Int, Int, String) (List (TokenData Token))
-lex str 
-    = case lex rawTokens str of
+lexTo : (TokenData Token -> Bool) ->
+        String -> Either (Int, Int, String) (List (TokenData Token))
+lexTo pred str 
+    = case lexTo pred rawTokens str of
            -- Add the EndInput token so that we'll have a line and column
            -- number to read when storing spans in the file
            (tok, (l, c, "")) => Right (filter notComment tok ++ 
@@ -173,5 +174,6 @@ lex str
                           DocComment _ => False -- TODO!
                           _ => True
 
-testLex : String -> String
-testLex inp = show (Lexer.lex inp)
+export
+lex : String -> Either (Int, Int, String) (List (TokenData Token))
+lex = lexTo (const False)

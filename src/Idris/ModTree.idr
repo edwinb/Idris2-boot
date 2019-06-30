@@ -53,9 +53,17 @@ readHeader loc mod
     = do path <- nsToSource loc mod
          Right res <- coreLift (readFile path)
             | Left err => throw (FileErr path err)
-         case runParser res (progHdr path) of
+         case runParserTo isColon res (progHdr path) of
               Left err => throw (ParseFail (getParseErrorLoc path err) err)
               Right mod => pure (path, mod)
+  where
+    -- Stop at the first :, that's definitely not part of the header, to
+    -- save lexing the whole file unnecessarily
+    isColon : TokenData Token -> Bool
+    isColon t 
+        = case tok t of
+               Symbol ":" => True
+               _ => False
 
 data AllMods : Type where
 

@@ -43,9 +43,10 @@ eoi
     isEOI _ = False
 
 export
-runParser : String -> Grammar (TokenData Token) e ty -> Either ParseError ty
-runParser str p 
-    = case lex str of
+runParserTo : (TokenData Token -> Bool) ->
+              String -> Grammar (TokenData Token) e ty -> Either ParseError ty
+runParserTo pred str p 
+    = case lexTo pred str of
            Left err => Left $ LexFail err
            Right toks => 
               case parse p toks of
@@ -55,6 +56,10 @@ runParser str p
                           Left $ ParseFail err (Just (line t, col t))
                                                (map tok (t :: ts))
                    Right (val, _) => Right val
+
+export
+runParser : String -> Grammar (TokenData Token) e ty -> Either ParseError ty
+runParser = runParserTo (const False)
 
 export
 parseFile : (fn : String) -> Rule ty -> IO (Either ParseError ty)

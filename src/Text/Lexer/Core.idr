@@ -154,14 +154,17 @@ fspan p xs
     = let (end, rest) = fspanEnd 0 p xs in
           (substr 0 end xs, rest)
 
-tokenise : (line : Int) -> (col : Int) ->
+tokenise : (TokenData a -> Bool) ->
+           (line : Int) -> (col : Int) ->
            List (TokenData a) -> TokenMap a ->
            StrLen -> (List (TokenData a), (Int, Int, StrLen))
-tokenise line col acc tmap str
+tokenise pred line col acc tmap str
     = case getFirstToken tmap str of
            Just (tok, line', col', rest) =>
            -- assert total because getFirstToken must consume something
-                assert_total (tokenise line' col' (tok :: acc) tmap rest)
+               if pred tok
+                  then (reverse acc, (line, col, MkStrLen "" 0))
+                  else assert_total (tokenise pred line' col' (tok :: acc) tmap rest)
            Nothing => (reverse acc, (line, col, str))
   where
     countNLs : List Char -> Nat
@@ -188,5 +191,13 @@ tokenise line col acc tmap str
 ||| string where there are no recognised tokens.
 export
 lex : TokenMap a -> String -> (List (TokenData a), (Int, Int, String))
-lex tmap str = let (ts, (l, c, str')) = tokenise 0 0 [] tmap (mkStr str) in
-                   (ts, (l, c, getString str'))
+lex tmap str 
+   = let (ts, (l, c, str')) = tokenise (const False) 0 0 [] tmap (mkStr str) in
+         (ts, (l, c, getString str'))
+
+export
+lexTo : (TokenData a -> Bool) ->
+        TokenMap a -> String -> (List (TokenData a), (Int, Int, String))
+lexTo pred tmap str 
+   = let (ts, (l, c, str')) = tokenise pred 0 0 [] tmap (mkStr str) in
+         (ts, (l, c, getString str'))
