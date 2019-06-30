@@ -3,7 +3,7 @@ Welcome to Idris 2 version 0.0. Enjoy yourself!
 Main> Main> Cons (S Z) (Cons (S (S Z)) []) : Vect (S (S Z)) Nat
 Main> (interactive):1:28--1:51:When unifying Vect (S (S Z)) Nat and Vect (S Z) Nat
 Mismatch between:
-	S ?k
+	S Z
 and
 	Z
 Main> Bye for now!

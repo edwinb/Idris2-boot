@@ -550,9 +550,7 @@ convertWithLazy withLazy fc elabinfo env x y
                   -- throwing because they may no longer be known
                   -- by the time we look at the error
                   defs <- get Ctxt
-                  throw (WhenUnifying fc env 
-                            !(normaliseHoles defs env xtm)
-                            !(normaliseHoles defs env ytm) err))
+                  throw !(normaliseErr (WhenUnifying fc env xtm ytm err)))
 
 export
 convert : {vars : _} ->

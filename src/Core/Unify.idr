@@ -1041,33 +1041,26 @@ retryGuess mode smode (hid, (loc, hname))
            Just def =>
              case definition def of
                BySearch rig depth defining =>
-                 case smode of
-                      LastChance =>
-                          do log 5 $ "Last chance at " ++ show hname
-                             tm <- search loc rig False depth defining (type def) []
-                             let gdef = record { definition = PMDef [] (STerm tm) (STerm tm) [] } def
-                             logTerm 5 ("Solved " ++ show hname) tm
-                             addDef (Resolved hid) gdef
-                             pure True
-                      _ => handleUnify
-                             (do tm <- search loc rig (smode == Defaults) depth defining
-                                              (type def) []
-                                 let gdef = record { definition = PMDef [] (STerm tm) (STerm tm) [] } def
-                                 logTerm 5 ("Solved " ++ show hname) tm
-                                 addDef (Resolved hid) gdef
-                                 removeGuess hid
-                                 pure True)
-                             (\err => case err of
-                                        DeterminingArg _ n i _ _ => 
-                                            do logTerm 5 ("Failed (det " ++ show hname ++ " " ++ show n ++ ")")
-                                                         (type def)
-                                               setInvertible loc i
-                                               pure False -- progress made!
-                                        _ => do logTerm 5 ("Search failed for " ++ show hname) 
-                                                          (type def)
-                                                case smode of
-                                                     LastChance => throw err
-                                                     _ => pure False) -- Postpone again
+                  handleUnify
+                     (do tm <- search loc rig (smode == Defaults) depth defining
+                                      (type def) []
+                         let gdef = record { definition = PMDef [] (STerm tm) (STerm tm) [] } def
+                         logTerm 5 ("Solved " ++ show hname) tm
+                         addDef (Resolved hid) gdef
+                         removeGuess hid
+                         pure True)
+                     (\err => case err of
+                                DeterminingArg _ n i _ _ => 
+                                    do logTerm 5 ("Failed (det " ++ show hname ++ " " ++ show n ++ ")")
+                                                 (type def)
+                                       setInvertible loc i
+                                       pure False -- progress made!
+                                _ => do logTerm 5 ("Search failed for " ++ show hname) 
+                                                  (type def)
+                                        case smode of
+                                             LastChance => 
+                                                 throw !(normaliseErr err)
+                                             _ => pure False) -- Postpone again
                Guess tm constrs => 
                  do cs' <- traverse (retry mode) constrs
                     let csAll = unionAll cs'

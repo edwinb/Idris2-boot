@@ -895,4 +895,34 @@ replace : Defs -> Env Term vars ->
           Core (Term vars)
 replace = replace' 0
 
+export
+normaliseErr : {auto c : Ref Ctxt Defs} ->
+               Error -> Core Error
+normaliseErr (CantConvert fc env l r)
+    = do defs <- get Ctxt
+         pure $ CantConvert fc env !(normaliseHoles defs env l)
+                                   !(normaliseHoles defs env r)
+normaliseErr (CantSolveEq fc env l r)
+    = do defs <- get Ctxt
+         pure $ CantSolveEq fc env !(normaliseHoles defs env l)
+                                   !(normaliseHoles defs env r)
+normaliseErr (WhenUnifying fc env l r err)
+    = do defs <- get Ctxt
+         pure $ WhenUnifying fc env !(normaliseHoles defs env l)
+                                    !(normaliseHoles defs env r)
+                                    !(normaliseErr err)
+normaliseErr (CantSolveGoal fc env g)
+    = do defs <- get Ctxt
+         pure $ CantSolveGoal fc env !(normaliseHoles defs env g)
+normaliseErr (AllFailed errs)
+    = pure $ AllFailed !(traverse (\x => pure (fst x, !(normaliseErr (snd x)))) errs)
+normaliseErr (InType fc n err)
+    = pure $ InType fc n !(normaliseErr err)
+normaliseErr (InCon fc n err)
+    = pure $ InCon fc n !(normaliseErr err)
+normaliseErr (InLHS fc n err)
+    = pure $ InLHS fc n !(normaliseErr err)
+normaliseErr (InRHS fc n err)
+    = pure $ InRHS fc n !(normaliseErr err)
+normaliseErr err = pure err
 
