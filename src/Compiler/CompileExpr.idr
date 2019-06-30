@@ -305,13 +305,17 @@ toCDef tags n (TCon tag arity _ _ _ _)
 -- We do want to be able to compile these, but also report an error at run time
 -- (and, TODO: warn at compile time)
 toCDef tags n (Hole _ _)
-    = pure $ MkError $ CCrash emptyFC ("Encountered unimplemented hole " ++ show n)
+    = pure $ MkError $ CCrash emptyFC ("Encountered unimplemented hole " ++ 
+                                       show !(getFullName n))
 toCDef tags n (Guess _ _)
-    = pure $ MkError $ CCrash emptyFC ("Encountered constrained hole " ++ show n)
+    = pure $ MkError $ CCrash emptyFC ("Encountered constrained hole " ++ 
+                                       show !(getFullName n))
 toCDef tags n (BySearch _ _ _)
-    = pure $ MkError $ CCrash emptyFC ("Encountered incomplete proof search " ++ show n)
+    = pure $ MkError $ CCrash emptyFC ("Encountered incomplete proof search " ++ 
+                                       show !(getFullName n))
 toCDef tags n def
-    = pure $ MkError $ CCrash emptyFC ("Encountered uncompilable name " ++ show (n, def))
+    = pure $ MkError $ CCrash emptyFC ("Encountered uncompilable name " ++ 
+                                       show (!(getFullName n), def))
 
 export
 compileExp : {auto c : Ref Ctxt Defs} -> 

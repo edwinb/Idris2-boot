@@ -548,6 +548,11 @@ calcRefs at fn
               | Just _ => pure () -- already done
          let metas = getMetas tree_ct
          let refs = addRefs at metas tree_ct
+         traverse_ addToSave (keys metas)
+
+         logC 5 (do fulln <- getFullName fn
+                    refns <- traverse getFullName (keys refs)
+                    pure (show fulln ++ " refers to " ++ show refns))
          addDef fn (record { refersToM = Just refs } gdef)
          traverse_ (calcRefs at) (keys refs)
 
