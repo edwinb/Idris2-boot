@@ -40,8 +40,14 @@ match on:
 Chapter 4
 ---------
 
-TODO
+For the reasons described above:
 
+In `DataStore.idr`, add `import System.REPL` and `import Data.Strings`
+In `SumInputs.idr`, add `import System.REPL`
+In `TryIndex.idr`, add an implicit argument:
+
+    tryIndex : {n : _} -> Integer -> Vect n a -> Maybe a
+    
 Chapter 5
 ---------
 

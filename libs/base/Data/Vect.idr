@@ -73,6 +73,7 @@ init (x::y::ys) = x :: init (y::ys)
 ||| ```idris example
 ||| index 1 [1,2,3,4]
 ||| ```
+export
 index : Fin len -> Vect len elem -> elem
 index FZ     (x::xs) = x
 index (FS k) (x::xs) = index k xs
@@ -82,6 +83,7 @@ index (FS k) (x::xs) = index k xs
 ||| ```idris example
 ||| insertAt 1 8 [1,2,3,4]
 ||| ```
+export
 insertAt : Fin (S len) -> elem -> Vect len elem -> Vect (S len) elem
 insertAt FZ     y xs      = y :: xs
 insertAt (FS k) y (x::xs) = x :: insertAt k y xs
@@ -92,6 +94,7 @@ insertAt (FS k) y []      = absurd k
 ||| ```idris example
 ||| deleteAt 1 [1,2,3,4]
 ||| ```
+export
 deleteAt : Fin (S len) -> Vect (S len) elem -> Vect len elem
 deleteAt             FZ     (x::xs) = xs
 deleteAt {len = S m} (FS k) (x::xs) = x :: deleteAt k xs
@@ -103,6 +106,7 @@ deleteAt             _      []      impossible
 ||| ```idris example
 ||| replaceAt 1 8 [1,2,3,4]
 ||| ```
+export
 replaceAt : Fin len -> elem -> Vect len elem -> Vect len elem
 replaceAt FZ     y (x::xs) = y :: xs
 replaceAt (FS k) y (x::xs) = x :: replaceAt k y xs
@@ -115,6 +119,7 @@ replaceAt (FS k) y (x::xs) = x :: replaceAt k y xs
 ||| ```idris example
 ||| updateAt 1 (+10) [1,2,3,4]
 ||| ```
+export
 updateAt : (i : Fin len) -> (f : elem -> elem) -> (xs : Vect len elem) -> Vect len elem
 updateAt FZ     f (x::xs) = f x :: xs
 updateAt (FS k) f (x::xs) = x :: updateAt k f xs
@@ -138,6 +143,7 @@ public export
 ||| ```idris example
 ||| replicate 4 1
 ||| ```
+public export
 replicate : (len : Nat) -> (x : elem) -> Vect len elem
 replicate Z     x = []
 replicate (S k) x = x :: replicate k x
@@ -147,6 +153,7 @@ replicate (S k) x = x :: replicate k x
 ||| ```idris example
 ||| mergeBy compare (fromList [1,3,5]) (fromList [2,3,4,5,6])
 ||| ```
+export
 mergeBy : (elem -> elem -> Ordering) -> (xs : Vect n elem) -> (ys : Vect m elem) -> Vect (n + m) elem
 mergeBy order [] [] = []
 mergeBy order [] (x :: xs) = x :: xs
@@ -158,6 +165,7 @@ mergeBy {n = S k} {m = S k'} order (x :: xs) (y :: ys)
             _  => rewrite sym (plusSuccRightSucc k k') in
                              y :: mergeBy order (x :: xs) ys
 
+export
 merge : Ord elem => Vect n elem -> Vect m elem -> Vect (n + m) elem
 merge = mergeBy compare
 
@@ -170,6 +178,7 @@ merge = mergeBy compare
 ||| ```idris example
 ||| reverse [1,2,3,4]
 ||| ```
+export
 reverse : Vect len elem -> Vect len elem
 reverse xs = go [] xs
   where go : Vect n elem -> Vect m elem -> Vect (n+m) elem
@@ -184,6 +193,7 @@ reverse xs = go [] xs
 ||| ```idris example
 ||| intersperse 0 [1,2,3,4]
 ||| ```
+export
 intersperse : (sep : elem) -> (xs : Vect len elem) -> Vect (len + pred len) elem
 intersperse sep []      = []
 intersperse sep (x::xs) = x :: intersperse' sep xs
@@ -197,6 +207,7 @@ intersperse sep (x::xs) = x :: intersperse' sep xs
 -- Conversion from list (toList is provided by Foldable)
 --------------------------------------------------------------------------------
 
+export
 fromList' : Vect len elem -> (l : List elem) -> Vect (length l + len) elem
 fromList' ys [] = ys
 fromList' {len} ys (x::xs) =
@@ -210,6 +221,7 @@ fromList' {len} ys (x::xs) =
 ||| ```idris example
 ||| fromList [1,2,3,4]
 ||| ```
+export
 fromList : (l : List elem) -> Vect (length l) elem
 fromList l =
   rewrite (sym $ plusZeroRightNeutral (length l)) in
@@ -228,6 +240,7 @@ fromList l =
 ||| ```idris example
 ||| zipWith (+) (fromList [1,2,3,4]) (fromList [5,6,7,8])
 ||| ```
+public export
 zipWith : (f : a -> b -> c) -> (xs : Vect n a) -> (ys : Vect n b) -> Vect n c
 zipWith f []      []      = []
 zipWith f (x::xs) (y::ys) = f x y :: zipWith f xs ys
@@ -237,6 +250,7 @@ zipWith f (x::xs) (y::ys) = f x y :: zipWith f xs ys
 ||| ```idris example
 ||| zipWith3 (\x,y,z => x+y+z) (fromList [1,2,3,4]) (fromList [5,6,7,8]) (fromList [1,1,1,1])
 ||| ```
+public export
 zipWith3 : (a -> b -> c -> d) -> (xs : Vect n a) -> (ys : Vect n b) -> (zs : Vect n c) -> Vect n d
 zipWith3 f []      []      []      = []
 zipWith3 f (x::xs) (y::ys) (z::zs) = f x y z :: zipWith3 f xs ys zs
@@ -246,6 +260,7 @@ zipWith3 f (x::xs) (y::ys) (z::zs) = f x y z :: zipWith3 f xs ys zs
 ||| ```idris example
 ||| zip (fromList [1,2,3,4]) (fromList [1,2,3,4])
 ||| ```
+public export
 zip : (xs : Vect n a) -> (ys : Vect n b) -> Vect n (a, b)
 zip = zipWith (\x,y => (x,y))
 
@@ -254,6 +269,7 @@ zip = zipWith (\x,y => (x,y))
 ||| ```idris example
 ||| zip3 (fromList [1,2,3,4]) (fromList [1,2,3,4]) (fromList [1,2,3,4])
 ||| ```
+public export
 zip3 : (xs : Vect n a) -> (ys : Vect n b) -> (zs : Vect n c) -> Vect n (a, b, c)
 zip3 = zipWith3 (\x,y,z => (x,y,z))
 
@@ -262,6 +278,7 @@ zip3 = zipWith3 (\x,y,z => (x,y,z))
 ||| ```idris example
 ||| unzip (fromList [(1,2), (1,2)])
 ||| ```
+export
 unzip : (xs : Vect n (a, b)) -> (Vect n a, Vect n b)
 unzip []           = ([], [])
 unzip ((l, r)::xs) with (unzip xs)
@@ -272,6 +289,7 @@ unzip ((l, r)::xs) with (unzip xs)
 ||| ```idris example
 ||| unzip3 (fromList [(1,2,3), (1,2,3)])
 ||| ```
+export
 unzip3 : (xs : Vect n (a, b, c)) -> (Vect n a, Vect n b, Vect n c)
 unzip3 []            = ([], [], [])
 unzip3 ((l,c,r)::xs) with (unzip3 xs)
@@ -282,6 +300,7 @@ unzip3 ((l,c,r)::xs) with (unzip3 xs)
 -- Equality
 --------------------------------------------------------------------------------
 
+export
 implementation (Eq elem) => Eq (Vect len elem) where
   (==) []      []      = True
   (==) (x::xs) (y::ys) = x == y && xs == ys
@@ -291,6 +310,7 @@ implementation (Eq elem) => Eq (Vect len elem) where
 -- Order
 --------------------------------------------------------------------------------
 
+export
 implementation Ord elem => Ord (Vect len elem) where
   compare []      []      = EQ
   compare (x::xs) (y::ys) 
@@ -302,6 +322,7 @@ implementation Ord elem => Ord (Vect len elem) where
 -- Maps
 --------------------------------------------------------------------------------
 
+export
 implementation Functor (Vect n) where
   map f []        = []
   map f (x::xs) = f x :: map f xs
@@ -319,6 +340,7 @@ implementation Functor (Vect n) where
 ||| ```idris example
 ||| mapMaybe ((find (=='a')) . unpack) (fromList ["abc","ade","bgh","xyz"])
 ||| ```
+export
 mapMaybe : (f : a -> Maybe b) -> (xs : Vect len a) -> (m : Nat ** Vect m b)
 mapMaybe f []      = (_ ** [])
 mapMaybe f (x::xs) =
@@ -331,10 +353,12 @@ mapMaybe f (x::xs) =
 -- Folds
 --------------------------------------------------------------------------------
 
+public export
 foldrImpl : (t -> acc -> acc) -> acc -> (acc -> acc) -> Vect n t -> acc
 foldrImpl f e go [] = go e
 foldrImpl f e go (x::xs) = foldrImpl f e (go . (f x)) xs
 
+export
 implementation Foldable (Vect n) where
   foldr f e xs = foldrImpl f e id xs
 
@@ -347,6 +371,7 @@ implementation Foldable (Vect n) where
 ||| ```idris example
 ||| concat [[1,2,3], [4,5,6]]
 ||| ```
+public export
 concat : (xss : Vect m (Vect n elem)) -> Vect (m * n) elem
 concat []      = []
 concat (v::vs) = v ++ Vect.concat vs
@@ -356,6 +381,7 @@ concat (v::vs) = v ++ Vect.concat vs
 ||| ```idris example
 ||| foldr1 (-) (fromList [1,2,3])
 ||| ```
+public export
 foldr1 : (t -> t -> t) -> Vect (S n) t -> t
 foldr1 f [x]        = x
 foldr1 f (x::y::xs) = f x (foldr1 f (y::xs))
@@ -365,6 +391,7 @@ foldr1 f (x::y::xs) = f x (foldr1 f (y::xs))
 ||| ```idris example
 ||| foldl1 (-) (fromList [1,2,3])
 ||| ```
+public export
 foldl1 : (t -> t -> t) -> Vect (S n) t -> t
 foldl1 f (x::xs) = foldl f x xs
 --------------------------------------------------------------------------------
@@ -377,6 +404,7 @@ foldl1 f (x::xs) = foldl f x xs
 ||| ```idris example
 ||| scanl (-) 0 (fromList [1,2,3])
 ||| ```
+public export
 scanl : (res -> elem -> res) -> res -> Vect len elem -> Vect (S len) res
 scanl f q []      = [q]
 scanl f q (x::xs) = q :: scanl f (f q x) xs
@@ -389,6 +417,7 @@ scanl f q (x::xs) = q :: scanl f (f q x) xs
 ||| ```idris example
 ||| scanl1 (-) (fromList [1,2,3])
 ||| ```
+public export
 scanl1 : (elem -> elem -> elem) -> Vect len elem -> Vect len elem
 scanl1 f [] = []
 scanl1 f (x::xs) = scanl f x xs
@@ -405,6 +434,7 @@ scanl1 f (x::xs) = scanl f x xs
 ||| ```idris example
 ||| elemBy (==) 2 [1,2,3,4]
 ||| ```
+public export
 elemBy : (p : elem -> elem -> Bool) -> (e : elem) -> (xs : Vect len elem) -> Bool
 elemBy p e []      = False
 elemBy p e (x::xs) = p e x || elemBy p e xs
@@ -416,6 +446,7 @@ elemBy p e (x::xs) = p e x || elemBy p e xs
 ||| ```idris example
 ||| elem 3 [1,2,3,4]
 ||| ```
+public export
 elem : Eq elem => (x : elem) -> (xs : Vect len elem) -> Bool
 elem = elemBy (==)
 
@@ -426,6 +457,7 @@ elem = elemBy (==)
 ||| ```idris example
 ||| lookupBy (==) 2 [(1, 'a'), (2, 'b'), (3, 'c')]
 ||| ```
+public export
 lookupBy : (p : key -> key -> Bool) -> (e : key) -> (xs : Vect n (key, val)) -> Maybe val
 lookupBy p e []           = Nothing
 lookupBy p e ((l, r)::xs) = if p e l then Just r else lookupBy p e xs
@@ -435,6 +467,7 @@ lookupBy p e ((l, r)::xs) = if p e l then Just r else lookupBy p e xs
 ||| ```idris example
 ||| lookup 3 [(1, 'a'), (2, 'b'), (3, 'c')]
 ||| ```
+public export
 lookup : Eq key => key -> Vect n (key, val) -> Maybe val
 lookup = lookupBy (==)
 
@@ -446,6 +479,7 @@ lookup = lookupBy (==)
 ||| ```idris example
 ||| hasAnyBy (==) [2,5] [1,2,3,4]
 ||| ```
+public export
 hasAnyBy : (p : elem -> elem -> Bool) -> (elems : Vect m elem) -> (xs : Vect len elem) -> Bool
 hasAnyBy p elems []      = False
 hasAnyBy p elems (x::xs) = elemBy p x elems || hasAnyBy p elems xs
@@ -455,6 +489,7 @@ hasAnyBy p elems (x::xs) = elemBy p x elems || hasAnyBy p elems xs
 ||| ```idris example
 ||| hasAny [2,5] [1,2,3,4]
 ||| ```
+public export
 hasAny : Eq elem => Vect m elem -> Vect len elem -> Bool
 hasAny = hasAnyBy (==)
 
@@ -468,6 +503,7 @@ hasAny = hasAnyBy (==)
 ||| ```idris example
 ||| find (== 3) [1,2,3,4]
 ||| ```
+public export
 find : (p : elem -> Bool) -> (xs : Vect len elem) -> Maybe elem
 find p []      = Nothing
 find p (x::xs) = if p x then Just x else find p xs
@@ -477,6 +513,7 @@ find p (x::xs) = if p x then Just x else find p xs
 ||| ```idris example
 ||| findIndex (== 3) [1,2,3,4]
 ||| ```
+public export
 findIndex : (elem -> Bool) -> Vect len elem -> Maybe (Fin len)
 findIndex p []        = Nothing
 findIndex p (x :: xs) = if p x then Just FZ else map FS (findIndex p xs)
@@ -486,6 +523,7 @@ findIndex p (x :: xs) = if p x then Just FZ else map FS (findIndex p xs)
 ||| ```idris example
 ||| findIndices (< 3) [1,2,3,4]
 ||| ```
+public export
 findIndices : (elem -> Bool) -> Vect m elem -> List (Fin m)
 findIndices p []        = []
 findIndices p (x :: xs) 
@@ -497,6 +535,7 @@ findIndices p (x :: xs)
 ||| ```idris example
 ||| elemIndexBy (==) 3 [1,2,3,4]
 ||| ```
+public export
 elemIndexBy : (elem -> elem -> Bool) -> elem -> Vect m elem -> Maybe (Fin m)
 elemIndexBy p e = findIndex $ p e
 
@@ -505,6 +544,7 @@ elemIndexBy p e = findIndex $ p e
 ||| ```idris example
 ||| elemIndex 3 [1,2,3,4]
 ||| ```
+public export
 elemIndex : Eq elem => elem -> Vect m elem -> Maybe (Fin m)
 elemIndex = elemIndexBy (==)
 
@@ -513,6 +553,7 @@ elemIndex = elemIndexBy (==)
 ||| ```idris example
 ||| elemIndicesBy (<=) 3 [1,2,3,4]
 ||| ```
+public export
 elemIndicesBy : (elem -> elem -> Bool) -> elem -> Vect m elem -> List (Fin m)
 elemIndicesBy p e = findIndices $ p e
 
@@ -521,6 +562,7 @@ elemIndicesBy p e = findIndices $ p e
 ||| ```idris example
 ||| elemIndices 3 [1,2,3,4,3]
 ||| ```
+public export
 elemIndices : Eq elem => elem -> Vect m elem -> List (Fin m)
 elemIndices = elemIndicesBy (==)
 

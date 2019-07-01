@@ -13,7 +13,6 @@ beyond work on the language core, are (in no particular order):
   - help commands
 * Some parts of the Idris 1 Prelude are not yet implemented and should be
   added to base/
-* Further library support (please add initially into contrib/)
 * Partial evaluation, especially for specialisation of interface 
   implementations.
 * The lexer and parser are quite slow, new and faster versions with better
@@ -40,6 +39,22 @@ If you're editing the core system, or adding any features, please keep an
 eye on performance. In particular, check that the libraries build and tests
 run in approximately the same amount of time before and after the change.
 (Although running faster is fine as long as everything still works :))
+
+Libraries
+---------
+
+Further library support would be very welcome, but unless it's adding something
+that was in `prelude/` or `base/` in Idris 1, please add it initially into
+`contrib/`. (We'll reorganise things at some point, but it will need some
+thought and discussion).
+
+Think about whether definitions should be `export` or `public export`. As
+a general rule so far, type synonyms and anything where the evaluation
+behaviour might be useful in a proof (so very small definitions) are
+`public export` and everything else which is exported is `export`.
+
+Syntax
+------
 
 Some syntax that hasn't yet been implemented but will be:
 

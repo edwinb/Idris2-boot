@@ -43,3 +43,32 @@ ltrim xs = pack (ltrimChars (unpack xs))
 export
 trim : String -> String
 trim = ltrim . reverse . ltrim . reverse
+
+||| Splits the string into a part before the predicate
+||| returns False and the rest of the string.
+|||
+||| ```idris example
+||| span (/= 'C') "ABCD"
+||| ```
+||| ```idris example
+||| span (/= 'C') "EFGH"
+||| ```
+export
+span : (Char -> Bool) -> String -> (String, String)
+span p xs
+    = case span p (unpack xs) of
+           (x, y) => (pack x, pack y)
+
+||| Splits the string into a part before the predicate
+||| returns True and the rest of the string.
+|||
+||| ```idris example
+||| break (== 'C') "ABCD"
+||| ```
+||| ```idris example
+||| break (== 'C') "EFGH"
+||| ```
+public export
+break : (Char -> Bool) -> String -> (String, String)
+break p = span (not . p)
+
