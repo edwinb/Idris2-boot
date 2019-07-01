@@ -363,16 +363,18 @@ parameters (defs : Defs, topopts : EvalOpts)
               RigCount -> Def -> List DefFlag -> 
               Stack free -> (def : Lazy (NF free)) ->
               Core (NF free)
-    evalDef {vars} env locs opts meta fc rigd (PMDef args tree _ _) flags stk def
+    evalDef {vars} env locs opts meta fc rigd (PMDef r args tree _ _) flags stk def
        -- If evaluating the definition fails (e.g. due to a case being
        -- stuck) return the default.
        -- We can use the definition if one of the following is true:
+       --   + The 'alwayReduce' flag (r) is set
        --   + We're not in 'holesOnly', 'argHolesOnly' or 'tcInline'
        --         (that's the default mode)
        --   + It's a metavariable and not in Rig0
        --   + It's a metavariable and we're not in 'argHolesOnly'
        --   + It's inlinable and and we're in 'tcInline'
-        = if (not (holesOnly opts) && not (argHolesOnly opts) && not (tcInline opts))
+        = if r 
+             || (not (holesOnly opts) && not (argHolesOnly opts) && not (tcInline opts))
              || (meta && rigd /= Rig0)
              || (meta && holesOnly opts)
              || (tcInline opts && elem TCInline flags)

@@ -522,14 +522,14 @@ mkRunTime n
     = do defs <- get Ctxt
          Just gdef <- lookupCtxtExact n (gamma defs)
               | _ => pure ()
-         let PMDef cargs tree_ct _ pats = definition gdef
+         let PMDef r cargs tree_ct _ pats = definition gdef
               | _ => pure () -- not a function definition
          let ty = type gdef
          (rargs ** tree_rt) <- getPMDef (location gdef) RunTime n ty 
                                         !(traverse (toClause (location gdef)) pats)
          let Just Refl = nameListEq cargs rargs
                  | Nothing => throw (InternalError "WAT")
-         addDef n (record { definition = PMDef cargs tree_ct tree_rt pats 
+         addDef n (record { definition = PMDef r cargs tree_ct tree_rt pats 
                           } gdef)
          pure ()
   where
@@ -556,7 +556,7 @@ calcRefs at fn
     = do defs <- get Ctxt
          Just gdef <- lookupCtxtExact fn (gamma defs)
               | _ => pure ()
-         let PMDef cargs tree_ct _ pats = definition gdef
+         let PMDef r cargs tree_ct _ pats = definition gdef
               | _ => pure () -- not a function definition
          let Nothing = refersToM gdef
               | Just _ => pure () -- already done
@@ -606,7 +606,7 @@ processDef opts nest env fc n_in cs_in
          -- but we'll rebuild that in a later pass once all the case
          -- blocks etc are resolved
          addDef (Resolved nidx)
-                  (record { definition = PMDef cargs tree_ct tree_ct pats
+                  (record { definition = PMDef False cargs tree_ct tree_ct pats
                           } gdef)
 
          let rmetas = getMetas tree_ct

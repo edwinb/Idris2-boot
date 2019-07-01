@@ -384,7 +384,7 @@ getToBind {vars} fc elabmode impmode env excepts
              List (Name, ImplBinding vars)
     insert h ns sofar [] = [h]
     insert (hn, bty) ns sofar ((hn', bty') :: rest)
-        = let used = filter (\n => elem n ns) (map fst (toList (bindingMetas bty'))) in
+        = let used = filter (\n => elem n ns) (keys (bindingMetas bty')) in
               -- 'used' is to make sure we're only worrying about metavariables
               -- introduced in *this* expression (there may be others unresolved
               -- from elsewhere, for type inference purposes)

@@ -46,7 +46,7 @@ mutual
       = do defs <- get Ctxt
            Just glob <- lookupCtxtExact n (gamma defs)
                 | Nothing => pure orig
-           let PMDef pargs treect _ pats = definition glob
+           let PMDef _ pargs treect _ pats = definition glob
                 | _ => pure orig
            let Just argpos = findArgPos treect
                 | _ => pure orig

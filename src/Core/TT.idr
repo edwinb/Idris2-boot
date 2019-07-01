@@ -727,11 +727,12 @@ renameLocalRef : CompatibleVars xs ys ->
                  {idx : Nat} -> 
                  .(IsVar name idx xs) -> 
                  Var ys
-renameLocalRef CompatPre First = (MkVar First)
-renameLocalRef (CompatExt x) First = (MkVar First)
-renameLocalRef CompatPre (Later p) = (MkVar (Later p))
-renameLocalRef (CompatExt y) (Later p) 
-    = let (MkVar p') = renameLocalRef y p in MkVar (Later p')
+renameLocalRef prf p = believe_me (MkVar p)
+-- renameLocalRef CompatPre First = (MkVar First)
+-- renameLocalRef (CompatExt x) First = (MkVar First)
+-- renameLocalRef CompatPre (Later p) = (MkVar (Later p))
+-- renameLocalRef (CompatExt y) (Later p) 
+--     = let (MkVar p') = renameLocalRef y p in MkVar (Later p')
 
 renameVarList : CompatibleVars xs ys -> Var xs -> Var ys
 renameVarList prf (MkVar p) = renameLocalRef prf p

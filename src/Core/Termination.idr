@@ -188,7 +188,7 @@ mutual
                                          List (Nat, Term vs), Term vs))))
   getCasePats {vars} defs n pats args
       = case !(lookupDefExact n (gamma defs)) of
-             Just (PMDef _ _ _ pdefs)
+             Just (PMDef _ _ _ _ pdefs)
                 => pure $ Just (map matchArgs pdefs)
              _ => pure Nothing
     where
@@ -310,7 +310,7 @@ findCalls defs (_ ** (env, lhs, rhs_in))
 
 getSC : {auto c : Ref Ctxt Defs} ->
         Defs -> Def -> Core (List SCCall)
-getSC defs (PMDef args _ _ pats) 
+getSC defs (PMDef _ args _ _ pats) 
    = do sc <- traverse (findCalls defs) pats
         pure (concat sc)
 getSC defs _ = pure []

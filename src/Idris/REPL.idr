@@ -180,7 +180,7 @@ displayPats : {auto c : Ref Ctxt Defs} ->
               Core String
 displayPats defs (n, idx, gdef)
     = case definition gdef of
-           PMDef _ _ _ pats
+           PMDef _ _ _ _ pats
                => do ty <- displayType defs (n, idx, gdef)
                      ps <- traverse (displayClause defs) pats
                      pure (ty ++ "\n" ++ showSep "\n" ps)

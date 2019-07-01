@@ -23,7 +23,9 @@ import System
 public export
 data Def : Type where
     None : Def -- Not yet defined
-    PMDef : (args : List Name) ->
+    PMDef : (alwaysReduce : Bool) -> -- always reduce, even when quoting etc
+                 -- typically for inlinable metavariable solutions
+            (args : List Name) ->
             (treeCT : CaseTree args) ->
             (treeRT : CaseTree args) ->
             (pats : List (vs ** (Env Term vs, Term vs, Term vs))) ->
@@ -53,7 +55,7 @@ data Def : Type where
 export
 Show Def where
   show None = "undefined"
-  show (PMDef args ct rt pats) 
+  show (PMDef _ args ct rt pats) 
       = show args ++ "; " ++ show ct
   show (DCon t a) = "DataCon " ++ show t ++ " " ++ show a
   show (TCon t a ps ds ms cons) 
@@ -206,6 +208,7 @@ record Context where
     -- access in a program - in all other cases, we'll assume everything is
     -- visible
     visibleNS : List (List String)
+    inlineOnly : Bool -- only return things with the 'alwaysReduce' flag
 
 export
 getContent : Context -> Ref Arr (IOArray ContextEntry)
@@ -227,7 +230,7 @@ initCtxtS : Int -> Core Context
 initCtxtS s
     = do arr <- coreLift $ newArray s
          aref <- newRef Arr arr
-         pure (MkContext 0 0 empty empty aref 0 empty [])
+         pure (MkContext 0 0 empty empty aref 0 empty [] False)
 
 export
 initCtxt : Core Context
@@ -301,17 +304,25 @@ addEntry n entry ctxt_in
          else do (idx, ctxt) <- getPosition n ctxt_in
                  pure (idx, record { staging $= insert idx entry } ctxt)
 
+returnDef : Bool -> Int -> GlobalDef -> Maybe (Int, GlobalDef)
+returnDef False idx def = Just (idx, def)
+returnDef True idx def 
+    = case definition def of
+           PMDef True _ _ _ _ => Just (idx, def)
+           _ => Nothing
+
 export
 lookupCtxtExactI : Name -> Context -> Core (Maybe (Int, GlobalDef))
 lookupCtxtExactI (Resolved idx) ctxt
     = case lookup idx (staging ctxt) of
-           Just val => pure (Just (idx, !(decode ctxt idx val)))
+           Just val => 
+                 pure $ returnDef (inlineOnly ctxt) idx !(decode ctxt idx val)
            Nothing =>
               do let a = content ctxt
                  arr <- get Arr
                  Just def <- coreLift (readArray arr idx)
                       | Nothing => pure Nothing
-                 pure (Just (idx, !(decode ctxt idx def)))
+                 pure $ returnDef (inlineOnly ctxt) idx !(decode ctxt idx def)
 lookupCtxtExactI n ctxt
     = do let Just idx = lookup n (resolvedAs ctxt)
                   | Nothing => pure Nothing
@@ -321,13 +332,20 @@ export
 lookupCtxtExact : Name -> Context -> Core (Maybe GlobalDef)
 lookupCtxtExact (Resolved idx) ctxt
     = case lookup idx (staging ctxt) of
-           Just res => pure (Just !(decode ctxt idx res))
+           Just res => 
+                do def <- decode ctxt idx res
+                   case returnDef (inlineOnly ctxt) idx def of
+                        Nothing => pure Nothing
+                        Just (_, def) => pure (Just def)
            Nothing =>
               do let a = content ctxt
                  arr <- get Arr
-                 Just def <- coreLift (readArray arr idx)
+                 Just res <- coreLift (readArray arr idx)
                       | Nothing => pure Nothing
-                 pure (Just !(decode ctxt idx def))
+                 def <- decode ctxt idx res
+                 case returnDef (inlineOnly ctxt) idx def of
+                      Nothing => pure Nothing
+                      Just (_, def) => pure (Just def)
 lookupCtxtExact n ctxt
     = do Just (i, def) <- lookupCtxtExactI n ctxt
               | Nothing => pure Nothing
@@ -515,8 +533,8 @@ HasNames (Env Term vars) where
 
 export
 HasNames Def where
-  full gam (PMDef args ct rt pats) 
-      = pure $ PMDef args !(full gam ct) !(full gam rt)
+  full gam (PMDef r args ct rt pats) 
+      = pure $ PMDef r args !(full gam ct) !(full gam rt)
                      !(traverse fullNamesPat pats)
     where
       fullNamesPat : (vs ** (Env Term vs, Term vs, Term vs)) ->
@@ -531,8 +549,8 @@ HasNames Def where
       = pure $ Guess !(full gam tm) cs
   full gam t = pure t
   
-  resolved gam (PMDef args ct rt pats) 
-      = pure $ PMDef args !(resolved gam ct) !(resolved gam rt)
+  resolved gam (PMDef r args ct rt pats) 
+      = pure $ PMDef r args !(resolved gam ct) !(resolved gam rt)
                      !(traverse resolvedNamesPat pats)
     where
       resolvedNamesPat : (vs ** (Env Term vs, Term vs, Term vs)) ->
@@ -689,8 +707,7 @@ data Ctxt : Type where
 export
 clearDefs : Defs -> Core Defs
 clearDefs defs
-    = do gam <- initCtxtS 1
-         pure (record { gamma = gam } defs)
+    = pure (record { gamma->inlineOnly = True } defs)
 
 export
 initDefs : Core Defs
@@ -743,7 +760,7 @@ addDef n def
     = do defs <- get Ctxt
          (idx, gam') <- addCtxt n def (gamma defs)
          case definition def of
-              PMDef _ _ _ _ => clearUserHole n
+              PMDef _ _ _ _ _ => clearUserHole n
               _ => pure ()
          put Ctxt (record { gamma = gam' } defs)
          pure idx

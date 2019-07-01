@@ -149,7 +149,7 @@ mutual
              (Ref _ _ fn, args) => 
                 do aup <- updateHoleUsageArgs useInHole var args
                    defs <- get Ctxt
-                   Just (NS _ (CaseBlock _ _), PMDef _ _ _ pats) <- 
+                   Just (NS _ (CaseBlock _ _), PMDef _ _ _ _ pats) <- 
                          lookupExactBy (\d => (fullname d, definition d))
                                        fn (gamma defs)
                        | _ => pure aup
@@ -527,7 +527,7 @@ mutual
            if linearChecked def 
               then pure (type def)
               else do case definition def of
-                        PMDef _ _ _ pats => 
+                        PMDef _ _ _ _ pats => 
                             do u <- getArgUsage (getLoc (type def))
                                                 rig (type def) pats
                                let ty' = updateUsage u (type def)
@@ -555,7 +555,7 @@ mutual
                RigCount -> (erase : Bool) -> Env Term vars -> 
                Name -> Int -> Def -> List (Term vars) ->
                Core (Term vars, Glued vars, Usage vars)
-  expandMeta rig erase env n idx (PMDef [] (STerm fn) _ _) args
+  expandMeta rig erase env n idx (PMDef _ [] (STerm fn) _ _) args
       = do tm <- substMeta (embed fn) args []
            lcheck rig erase env tm
     where

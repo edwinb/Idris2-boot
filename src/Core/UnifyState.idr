@@ -593,7 +593,7 @@ dumpHole lvl hole
                     (BySearch _ _ _, ty) =>
                          log lvl $ "Search " ++ show hole ++ " : " ++ 
                                            show !(normaliseHoles defs [] ty)
-                    (PMDef args t _ _, ty) =>
+                    (PMDef _ args t _ _, ty) =>
                          log 4 $ "Solved: " ++ show hole ++ " : " ++ 
                                        show !(normalise defs [] ty) ++
                                        " = " ++ show !(normalise defs [] (Ref emptyFC Func (Resolved hole)))

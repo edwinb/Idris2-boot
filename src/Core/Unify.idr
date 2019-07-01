@@ -326,12 +326,22 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
          logTerm 5 ("Instantiated: " ++ show mname) ty
          log 5 ("From vars: " ++ show newvars)
          logTerm 5 "Definition" rhs
+         let simpleDef = isSimple rhs
          let newdef = record { definition = 
-                                 PMDef [] (STerm rhs) (STerm rhs) [] 
+                                 PMDef simpleDef [] (STerm rhs) (STerm rhs) [] 
                              } mdef
          addDef (Resolved mref) newdef
          removeHole mref
   where
+    isSimple : Term vs -> Bool
+    isSimple (Local _ _ _ _) = True
+    isSimple (Ref _ _ _) = True
+    isSimple (Meta _ _ _ _) = True
+    isSimple (Bind _ _ (Lam _ _ _) sc) = isSimple sc
+    isSimple (PrimVal _ _) = True
+    isSimple (TType _) = True
+    isSimple _ = False
+
     updateLoc : {v : Nat} -> List (Var vs) -> .(IsVar name v vs') -> 
                 Maybe (Var vs)
     updateLoc [] el = Nothing
@@ -1051,7 +1061,7 @@ retryGuess mode smode (hid, (loc, hname))
                   handleUnify
                      (do tm <- search loc rig (smode == Defaults) depth defining
                                       (type def) []
-                         let gdef = record { definition = PMDef [] (STerm tm) (STerm tm) [] } def
+                         let gdef = record { definition = PMDef False [] (STerm tm) (STerm tm) [] } def
                          logTerm 5 ("Solved " ++ show hname) tm
                          addDef (Resolved hid) gdef
                          removeGuess hid
@@ -1075,7 +1085,7 @@ retryGuess mode smode (hid, (loc, hname))
                          -- All constraints resolved, so turn into a
                          -- proper definition and remove it from the
                          -- hole list
-                         [] => do let gdef = record { definition = PMDef [] (STerm tm) (STerm tm) [] } def
+                         [] => do let gdef = record { definition = PMDef True [] (STerm tm) (STerm tm) [] } def
                                   logTerm 5 ("Resolved " ++ show hname) tm
                                   addDef (Resolved hid) gdef
                                   removeGuess hid

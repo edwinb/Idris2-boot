@@ -43,7 +43,7 @@ getNameType rigc env fc x
                       | ns => throw (AmbiguousName fc (map fst ns))
                  checkVisibleNS !(getFullName pname) (visibility def)
                  let nt = case definition def of
-                               PMDef _ _ _ _ => Func
+                               PMDef _ _ _ _ _ => Func
                                DCon t a => DataCon t a
                                TCon t a _ _ _ _ => TyCon t a
                                _ => Func
@@ -88,7 +88,7 @@ getVarType rigc nest env fc x
                       Nothing => throw (UndefinedName fc n')
                       Just ndef =>
                          let nt = case definition ndef of
-                                       PMDef _ _ _ _ => Func
+                                       PMDef _ _ _ _ _ => Func
                                        DCon t a => DataCon t a
                                        TCon t a _ _ _ _ => TyCon t a
                                        _ => Func

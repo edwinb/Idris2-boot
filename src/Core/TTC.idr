@@ -700,7 +700,7 @@ TTC PrimNames where
 export
 TTC Def where
   toBuf b None = tag 0
-  toBuf b (PMDef args ct rt pats) 
+  toBuf b (PMDef r args ct rt pats) 
       = do tag 1; toBuf b args; toBuf b ct; toBuf b rt; toBuf b pats
   toBuf b (ExternDef a)
       = do tag 2; toBuf b a
@@ -724,7 +724,7 @@ TTC Def where
                      ct <- fromBuf b
                      rt <- fromBuf b
                      pats <- fromBuf b
-                     pure (PMDef args ct rt pats)
+                     pure (PMDef False args ct rt pats)
              2 => do a <- fromBuf b
                      pure (ExternDef a)
              3 => do t <- fromBuf b; a <- fromBuf b

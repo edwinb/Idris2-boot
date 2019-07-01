@@ -88,7 +88,7 @@ retryDelayed ((i, elab) :: ds)
               | _ => retryDelayed ds
          tm <- elab
          updateDef (Resolved i) (const (Just 
-              (PMDef [] (STerm tm) (STerm tm) [])))
+              (PMDef True [] (STerm tm) (STerm tm) [])))
          logTerm 5 ("Resolved delayed hole " ++ show i) tm
          removeHole i
          retryDelayed ds

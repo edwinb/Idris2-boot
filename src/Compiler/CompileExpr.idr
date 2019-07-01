@@ -25,7 +25,7 @@ numArgs defs (Ref _ (DataCon tag arity) n) = pure arity
 numArgs defs (Ref _ (TyCon tag arity) n) = pure arity
 numArgs defs (Ref _ _ n)
     = case !(lookupDefExact n (gamma defs)) of
-           Just (PMDef args _ _ _) => pure (length args)
+           Just (PMDef _ args _ _ _) => pure (length args)
            Just (ExternDef arity) => pure arity
            Just (Builtin {arity} f) => pure arity
            _ => pure 0
@@ -272,7 +272,7 @@ toCDef : {auto c : Ref Ctxt Defs} ->
          Core CDef
 toCDef tags n None
     = pure $ MkError $ CCrash emptyFC ("Encountered undefined name " ++ show !(getFullName n))
-toCDef tags n (PMDef args _ tree _)
+toCDef tags n (PMDef _ args _ tree _)
     = pure $ MkFun _ !(toCExpTree tags n tree)
 toCDef tags n (ExternDef arity)
     = let (ns ** args) = mkArgList 0 arity in
