@@ -73,9 +73,15 @@ parameters (defs : Defs, topopts : EvalOpts)
         = evalLocal env fc mrig idx prf stk locs 
     eval env locs (Ref fc nt fn) stk 
         = evalRef env locs False fc nt fn stk (NApp fc (NRef nt fn) stk)
-    eval env locs (Meta fc name idx args) stk
-        = do let args' = map (MkClosure topopts locs env) args
-             evalMeta env locs fc name idx args' stk
+    eval {vars} {free} env locs (Meta fc name idx args) stk
+        = evalMeta env locs fc name idx (closeArgs args) stk
+      where
+        -- Yes, it's just a map, but specialising it by hand since we
+        -- use this a *lot* and it saves the run time overhead of making
+        -- a closure and calling APPLY.
+        closeArgs : List (Term (vars ++ free)) -> List (Closure free)
+        closeArgs [] = []
+        closeArgs (t :: ts) = MkClosure topopts locs env t :: closeArgs ts
     eval env locs (Bind fc x (Lam r _ ty) scope) (thunk :: stk)
         = eval env (thunk :: locs) scope stk
     eval env locs (Bind fc x b@(Let r val ty) scope) stk
@@ -463,19 +469,22 @@ mutual
       addLater (x :: xs) isv 
           = let MkVar isv' = addLater xs isv in
                 MkVar (Later isv')
-  quoteHead q defs fc bounds env (NRef Bound n) 
+  quoteHead q defs fc bounds env (NRef Bound (MN n i)) 
       = case findName bounds of
              Just (MkVar p) => pure $ Local fc Nothing _ (varExtend p)
-             Nothing => pure $ Ref fc Bound n
+             Nothing => pure $ Ref fc Bound (MN n i)
     where
       findName : Bounds bound' -> Maybe (Var bound')
       findName None = Nothing
-      findName (Add x n' ns) 
-          = case nameEq n n' of
-                 Just Refl => Just (MkVar First)
-                 Nothing => 
-                    do (MkVar p) <- findName ns
+      findName (Add x (MN n' i') ns) 
+          = if i == i' -- this uniquely identifies it, given how we
+                       -- generated the names, and is a faster test!
+               then Just (MkVar First)
+               else do MkVar p <-findName ns
                        Just (MkVar (Later p))
+      findName (Add x _ ns)
+          = do MkVar p <-findName ns
+               Just (MkVar (Later p))
   quoteHead q defs fc bounds env (NRef nt n) = pure $ Ref fc nt n
   quoteHead q defs fc bounds env (NMeta n i args)
       = do args' <- quoteArgs q defs bounds env args

@@ -184,9 +184,16 @@ unifyArgs mode loc env _ _ = ufail loc ""
 getVars : List Nat -> List (NF vars) -> Maybe (List (Var vars))
 getVars got [] = Just []
 getVars got (NApp fc (NLocal r idx v) [] :: xs) 
-    = if idx `elem` got then Nothing
+    = if inArgs idx got then Nothing
          else do xs' <- getVars (idx :: got) xs
                  pure (MkVar v :: xs')
+  where
+    -- Save the overhead of the call to APPLY, and the fact that == on
+    -- Nat is linear time in Idris 1!
+    inArgs : Nat -> List Nat -> Bool
+    inArgs n [] = False
+    inArgs n (n' :: ns) 
+        = if toIntegerNat n == toIntegerNat n' then True else inArgs n ns
 getVars got (NAs _ _ p :: xs) = getVars got (p :: xs) 
 getVars _ (_ :: xs) = Nothing
 

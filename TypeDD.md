@@ -4,7 +4,7 @@ Type Driven Development with Idris
 The code in the book "Type Driven Development with Idris" by Edwin Brady,
 published by Manning, will mostly work in Idris 2, with some small changes
 as detailed in this document. The updated code is also [going to be] part
-of the test suite (see tests/typedd).
+of the test suite (see tests/typedd-book).
 
 Chapter 1
 ---------

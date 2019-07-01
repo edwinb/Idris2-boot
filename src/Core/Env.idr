@@ -126,10 +126,13 @@ mutual
 	-- Quicker, if less safe, to store variables as a Nat, for quick comparison
   findUsed : Env Term vars -> List Nat -> Term vars -> List Nat
   findUsed env used (Local fc r idx p) 
-      = if elem idx used 
+      = if elemBy eqNat idx used 
            then used
            else assert_total (findUsedInBinder env (idx :: used)
                                                (getBinder p env))
+    where
+      eqNat : Nat -> Nat -> Bool
+      eqNat i j = toIntegerNat i == toIntegerNat j
   findUsed env used (Meta _ _ _ args)
       = findUsedArgs env used args
     where
