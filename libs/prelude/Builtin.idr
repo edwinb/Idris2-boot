@@ -35,17 +35,10 @@ snd (x, y) = y
 
 namespace DPair
   public export
-  data DPair : (a : Type) -> (a -> Type) -> Type where
-       MkDPair : {0 a : Type} -> {0 p : a -> Type} -> 
-                 (1 x : a) -> (1 y : p x)-> DPair a p
-
-  public export
-  fst : DPair a p -> a
-  fst (MkDPair x y) = x
-
-  public export
-  snd : (x : DPair a p) -> p (fst x)
-  snd (MkDPair x y) = y
+  record DPair a (p : a -> Type) where
+    constructor MkDPair
+    fst : a
+    snd : p fst
 
 -- The empty type
 

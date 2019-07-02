@@ -76,6 +76,41 @@ delayOnFailure fc rig env expected pred elab
                   else throw err)
 
 export
+delayElab : {auto c : Ref Ctxt Defs} -> 
+            {auto m : Ref MD Metadata} ->
+            {auto u : Ref UST UState} ->
+            {auto e : Ref EST (EState vars)} -> 
+            FC -> RigCount -> Env Term vars ->
+            (expected : Maybe (Glued vars)) ->
+            Core (Term vars, Glued vars) ->
+            Core (Term vars, Glued vars)
+delayElab {vars} fc rig env exp elab 
+    = do est <- get EST
+         nm <- genName "delayed"
+         expected <- mkExpected exp
+         (ci, dtm) <- newDelayed fc Rig1 env nm !(getTerm expected)
+         logGlueNF 5 ("Postponing elaborator " ++ show nm ++ 
+                      " for") env expected
+         ust <- get UST
+         put UST (record { delayedElab $= 
+                 ((ci, mkClosedElab fc env 
+                           (do est <- get EST
+                               put EST (record { allowDelay = False } est)
+                               tm <- elab
+                               est <- get EST
+                               put EST (record { allowDelay = True } est)
+                               pure tm)) :: ) } 
+                         ust)
+         pure (dtm, expected)
+  where
+    mkExpected : Maybe (Glued vars) -> Core (Glued vars)
+    mkExpected (Just ty) = pure ty
+    mkExpected Nothing
+        = do nm <- genName "delayTy"
+             ty <- metaVar fc Rig0 env nm (TType fc)
+             pure (gnf env ty)
+
+export
 retryDelayed : {auto c : Ref Ctxt Defs} -> 
                {auto u : Ref UST UState} ->
                {auto e : Ref EST (EState vars)} -> 

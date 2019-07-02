@@ -10,6 +10,7 @@ import Core.TT
 import Core.Value
 
 import TTImp.Elab.Check
+import TTImp.Elab.Delayed
 import TTImp.Elab.ImplicitBind
 import TTImp.TTImp
 
@@ -418,26 +419,27 @@ checkCase : {vars : _} ->
             Maybe (Glued vars) ->
             Core (Term vars, Glued vars)
 checkCase rig elabinfo nest env fc scr scrty_exp alts exp
-    = do (scrtyv, scrtyt) <- check Rig0 elabinfo nest env scrty_exp 
-                                   (Just (gType fc))
-                                   
-         logTerm 10 "Expected scrutinee type" scrtyv
-         -- Try checking at the given multiplicity; if that doesn't work,
-         -- try checking at Rig1 (meaning that we're using a linear variable
-         -- so the scrutinee should be linear)
-         (scrtm_in, gscrty, caseRig) <- handle
-            (do c <- check RigW elabinfo nest env scr (Just (gnf env scrtyv))
-                pure (fst c, snd c, RigW))
-            (\err => case err of
-                          LinearMisuse _ _ Rig1 _
-                            => do c <- check Rig1 elabinfo nest env scr 
-                                             (Just (gnf env scrtyv))
-                                  pure (fst c, snd c, Rig1)
-                          e => throw e)
-         scrty <- getTerm gscrty
-         logTermNF 5 "Scrutinee type" env scrty
-         checkConcrete !(getNF gscrty)
-         caseBlock rig elabinfo fc nest env scr scrtm_in scrty caseRig alts exp
+    = delayElab fc rig env exp $
+        do (scrtyv, scrtyt) <- check Rig0 elabinfo nest env scrty_exp 
+                                     (Just (gType fc))
+                                     
+           logTerm 10 "Expected scrutinee type" scrtyv
+           -- Try checking at the given multiplicity; if that doesn't work,
+           -- try checking at Rig1 (meaning that we're using a linear variable
+           -- so the scrutinee should be linear)
+           (scrtm_in, gscrty, caseRig) <- handle
+              (do c <- check RigW elabinfo nest env scr (Just (gnf env scrtyv))
+                  pure (fst c, snd c, RigW))
+              (\err => case err of
+                            LinearMisuse _ _ Rig1 _
+                              => do c <- check Rig1 elabinfo nest env scr 
+                                               (Just (gnf env scrtyv))
+                                    pure (fst c, snd c, Rig1)
+                            e => throw e)
+           scrty <- getTerm gscrty
+           logTermNF 5 "Scrutinee type" env scrty
+           checkConcrete !(getNF gscrty)
+           caseBlock rig elabinfo fc nest env scr scrtm_in scrty caseRig alts exp
   where
     -- For the moment, throw an error if we haven't been able to work out
     -- the type of the case scrutinee, because we'll need it to build the

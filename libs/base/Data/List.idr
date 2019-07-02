@@ -99,3 +99,9 @@ data NonEmpty : (xs : List a) -> Type where
 export
 Uninhabited (NonEmpty []) where
   uninhabited IsNonEmpty impossible
+
+||| Convert any Foldable structure to a list.
+export
+toList : Foldable t => t a -> List a
+toList = foldr (::) []
+

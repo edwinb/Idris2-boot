@@ -425,7 +425,7 @@ successful ((tm, elab) :: elabs)
                            put MD md
                            put Ctxt defs
                            elabs' <- successful elabs
-                           pure (Left (tm, err) :: elabs'))
+                           pure (Left (tm, !(normaliseErr err)) :: elabs'))
 
 export
 exactlyOne : {vars : _} ->

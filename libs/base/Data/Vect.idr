@@ -4,6 +4,8 @@ import Data.List
 import Data.Nat
 import public Data.Fin
 
+import Decidable.Equality
+
 public export
 data Vect : (len : Nat) -> (elem : Type) -> Type where
   ||| Empty vector
@@ -566,5 +568,252 @@ public export
 elemIndices : Eq elem => elem -> Vect m elem -> List (Fin m)
 elemIndices = elemIndicesBy (==)
 
+--------------------------------------------------------------------------------
+-- Filters
+--------------------------------------------------------------------------------
+
+||| Find all elements of a vector that satisfy some test
+|||
+||| ```idris example
+||| filter (< 3) (fromList [1,2,3,4])
+||| ```
+filter : (elem -> Bool) -> Vect len elem -> (p ** Vect p elem)
+filter p []      = ( _ ** [] )
+filter p (x::xs) =
+  let (_ ** tail) = filter p xs
+   in if p x then
+        (_ ** x::tail)
+      else
+        (_ ** tail)
+
+||| Make the elements of some vector unique by some test
+|||
+||| ```idris example
+||| nubBy (==) (fromList [1,2,2,3,4,4])
+||| ```
+-- nubBy : (elem -> elem -> Bool) -> Vect len elem -> (p ** Vect p elem)
+-- nubBy = nubBy' []
+--   where
+--     nubBy' : forall len . Vect m elem -> (elem -> elem -> Bool) -> Vect len elem -> (p ** Vect p elem)
+--     nubBy' acc p []      = (_ ** [])
+--     nubBy' acc p (x::xs) with (elemBy p x acc)
+--       nubBy' acc p (x :: xs) | True  = nubBy' acc p xs
+--       nubBy' acc p (x :: xs) | False with (nubBy' (x::acc) p xs)
+--         nubBy' acc p (x :: xs) | False | (_ ** tail) = (_ ** x::tail)
+-- 
+-- ||| Make the elements of some vector unique by the default Boolean equality
+-- |||
+-- ||| ```idris example
+-- ||| nub (fromList [1,2,2,3,4,4])
+-- ||| ```
+-- nub : Eq elem => Vect len elem -> (p ** Vect p elem)
+-- nub = nubBy (==)
+
+||| Delete first element from list according to some test
+|||
+||| ```idris example
+||| deleteBy (<) 3 (fromList [1,2,2,3,4,4])
+||| ```
+deleteBy : {len : _} -> -- needed for the dependent pair
+           (elem -> elem -> Bool) -> elem -> Vect len elem -> (p ** Vect p elem)
+deleteBy _  _ []      = (_ ** [])
+deleteBy eq x (y::ys) =
+  let (len ** zs) = deleteBy eq x ys
+  in if x `eq` y then (_ ** ys) else (S len ** y ::zs)
+
+||| Delete first element from list equal to the given one
+|||
+||| ```idris example
+||| delete 2 (fromList [1,2,2,3,4,4])
+||| ```
+delete : {len : _} ->
+         Eq elem => elem -> Vect len elem -> (p ** Vect p elem)
+delete = deleteBy (==)
+
+--------------------------------------------------------------------------------
+-- Splitting and breaking lists
+--------------------------------------------------------------------------------
+
+||| A tuple where the first element is a `Vect` of the `n` first elements and
+||| the second element is a `Vect` of the remaining elements of the original.
+||| It is equivalent to `(take n xs, drop n xs)` (`splitAtTakeDrop`),
+||| but is more efficient.
+|||
+||| @ n   the index to split at
+||| @ xs  the `Vect` to split in two
+|||
+||| ```idris example
+||| splitAt 2 (fromList [1,2,3,4])
+||| ```
+splitAt : (n : Nat) -> (xs : Vect (n + m) elem) -> (Vect n elem, Vect m elem)
+splitAt Z xs = ([], xs)
+splitAt (S k) (x :: xs) with (splitAt k {m} xs)
+  splitAt (S k) (x :: xs) | (tk, dr) = (x :: tk, dr)
+
+||| A tuple where the first element is a `Vect` of the `n` elements passing given test
+||| and the second element is a `Vect` of the remaining elements of the original.
+|||
+||| ```idris example
+||| partition (== 2) (fromList [1,2,3,2,4])
+||| ```
+partition : (elem -> Bool) -> Vect len elem -> ((p ** Vect p elem), (q ** Vect q elem))
+partition p []      = ((_ ** []), (_ ** []))
+partition p (x::xs) =
+  let ((leftLen ** lefts), (rightLen ** rights)) = partition p xs in
+    if p x then
+      ((S leftLen ** x::lefts), (rightLen ** rights))
+    else
+      ((leftLen ** lefts), (S rightLen ** x::rights))
+
+--------------------------------------------------------------------------------
+-- Predicates
+--------------------------------------------------------------------------------
+
+||| Verify vector prefix
+|||
+||| ```idris example
+||| isPrefixOfBy (==) (fromList [1,2]) (fromList [1,2,3,4])
+||| ```
+isPrefixOfBy : (elem -> elem -> Bool) -> Vect m elem -> Vect len elem -> Bool
+isPrefixOfBy p [] right        = True
+isPrefixOfBy p left []         = False
+isPrefixOfBy p (x::xs) (y::ys) = p x y && isPrefixOfBy p xs ys
+
+||| Verify vector prefix
+|||
+||| ```idris example
+||| isPrefixOf (fromList [1,2]) (fromList [1,2,3,4])
+||| ```
+isPrefixOf : Eq elem => Vect m elem -> Vect len elem -> Bool
+isPrefixOf = isPrefixOfBy (==)
+
+||| Verify vector suffix
+|||
+||| ```idris example
+||| isSuffixOfBy (==) (fromList [3,4]) (fromList [1,2,3,4])
+||| ```
+isSuffixOfBy : (elem -> elem -> Bool) -> Vect m elem -> Vect len elem -> Bool
+isSuffixOfBy p left right = isPrefixOfBy p (reverse left) (reverse right)
+
+||| Verify vector suffix
+|||
+||| ```idris example
+||| isSuffixOf (fromList [3,4]) (fromList [1,2,3,4])
+||| ```
+isSuffixOf : Eq elem => Vect m elem -> Vect len elem -> Bool
+isSuffixOf = isSuffixOfBy (==)
+
+--------------------------------------------------------------------------------
+-- Conversions
+--------------------------------------------------------------------------------
+
+||| Convert Maybe type into Vect
+|||
+||| ```idris example
+||| maybeToVect (Just 2)
+||| ```
+maybeToVect : Maybe elem -> (p ** Vect p elem)
+maybeToVect Nothing  = (_ ** [])
+maybeToVect (Just j) = (_ ** [j])
+
+||| Convert first element of Vect (if exists) into Maybe.
+|||
+||| ```idris example
+||| vectToMaybe [2]
+||| ```
+vectToMaybe : Vect len elem -> Maybe elem
+vectToMaybe []      = Nothing
+vectToMaybe (x::xs) = Just x
+
+--------------------------------------------------------------------------------
+-- Misc
+--------------------------------------------------------------------------------
+
+||| Filter out Nothings from Vect
+|||
+||| ```idris example
+||| catMaybes [Just 1, Just 2, Nothing, Nothing, Just 5]
+||| ```
+catMaybes : Vect n (Maybe elem) -> (p ** Vect p elem)
+catMaybes []             = (_ ** [])
+catMaybes (Nothing::xs)  = catMaybes xs
+catMaybes ((Just j)::xs) =
+  let (_ ** tail) = catMaybes xs
+   in (_ ** j::tail)
+
+||| Get diagonal elements
+|||
+||| ```idris example
+||| diag [[1,2,3], [4,5,6], [7,8,9]]
+||| ```
+diag : Vect len (Vect len elem) -> Vect len elem
+diag []             = []
+diag ((x::xs)::xss) = x :: diag (map tail xss)
+
+range : {len : Nat} -> Vect len (Fin len)
+range {len=Z}   = []
+range {len=S _} = FZ :: map FS range
+
+||| Transpose a `Vect` of `Vect`s, turning rows into columns and vice versa.
+|||
+||| This is like zipping all the inner `Vect`s together and is equivalent to `traverse id` (`transposeTraverse`).
+|||
+||| As the types ensure rectangularity, this is an involution, unlike `Prelude.List.transpose`.
+|||
+||| ```idris example
+||| transpose [[1,2], [3,4], [5,6], [7,8]]
+||| ```
+transpose : {n : _} -> Vect m (Vect n elem) -> Vect n (Vect m elem)
+transpose []        = replicate _ []                -- = [| [] |]
+transpose (x :: xs) = zipWith (::) x (transpose xs) -- = [| x :: xs |]
+
+--------------------------------------------------------------------------------
+-- Applicative/Monad/Traversable
+--------------------------------------------------------------------------------
+
+-- implementation Applicative (Vect k) where
+--     pure = replicate _
+--     fs <*> vs = zipWith apply fs vs
+-- 
+-- ||| This monad is different from the List monad, (>>=)
+-- ||| uses the diagonal.
+-- implementation Monad (Vect len) where
+--     m >>= f = diag (map f m)
+-- 
+-- implementation Traversable (Vect n) where
+--     traverse f []        = pure []
+--     traverse f (x :: xs) = pure (::) <*> (f x) <*> (traverse f xs)
+
+--------------------------------------------------------------------------------
+-- Show
+--------------------------------------------------------------------------------
+
+export
+implementation Show elem => Show (Vect len elem) where
+    show = show . toList
+
+-- Some convenience functions for testing lengths
+
+-- Needs to be Maybe rather than Dec, because if 'n' is unequal to m, we
+-- only know we don't know how to make a Vect n a, not that one can't exist.
+export
+exactLength : {m : Nat} -> -- expected at run-time
+              (len : Nat) -> (xs : Vect m a) -> Maybe (Vect len a)
+exactLength {m} len xs with (decEq m len)
+  exactLength {m = m} m xs | (Yes Refl) = Just xs
+  exactLength {m = m} len xs | (No contra) = Nothing
+
+||| If the given Vect is at least the required length, return a Vect with
+||| at least that length in its type, otherwise return Nothing
+||| @len the required length
+||| @xs the vector with the desired length
+-- overLength : {m : Nat} -> -- expected at run-time
+--              (len : Nat) -> (xs : Vect m a) -> Maybe (p ** Vect (plus p len) a)
+-- overLength {m} n xs with (cmp m n)
+--   overLength {m = m} (plus m (S y)) xs | (CmpLT y) = Nothing
+--   overLength {m = m} m xs | CmpEQ
+--          = Just (0 ** xs)
+--   overLength {m = plus n (S x)} n xs | (CmpGT x)
+--          = Just (S x ** rewrite plusCommutative (S x) n in xs)
 
 

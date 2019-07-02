@@ -252,10 +252,10 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
          let solvemode = case elabMode elabinfo of
                               InLHS c => InLHS
                               _ => InTerm
-         solveConstraints solvemode Normal
          delayOnFailure fc rig env expected ambiguous $ 
             (\delayed => 
-               do defs <- get Ctxt
+               do solveConstraints solvemode Normal
+                  defs <- get Ctxt
                   alts' <- pruneByType !(getNF expected) alts
                   if delayed -- use the default if there's still ambiguity
                      then try 
@@ -278,10 +278,10 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
          let solvemode = case elabMode elabinfo of
                               InLHS c => InLHS
                               _ => InTerm
-         solveConstraints solvemode Normal
          delayOnFailure fc rig env expected ambiguous $ 
             (\delayed => 
-               do defs <- get Ctxt
+               do solveConstraints solvemode Normal
+                  defs <- get Ctxt
                   alts' <- pruneByType !(getNF expected) alts
                   exp <- getTerm expected
                   -- If we don't know the target type on the first attempt, 

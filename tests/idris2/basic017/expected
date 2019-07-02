@@ -1,6 +1,8 @@
 1/1: Building CaseInf (CaseInf.idr)
 CaseInf.idr:6:17--6:24:While processing right hand side of Main.test3bad at CaseInf.idr:6:1--9:1:
-Can't infer type for case scrutinee
+Ambiguous elaboration. Possible correct results:
+	Builtin.Pair (Prelude.fromInteger 1) (Prelude.fromInteger 2)
+	Builtin.MkPair (Prelude.fromInteger 1) (Prelude.fromInteger 2)
 Welcome to Idris 2 version 0.0. Enjoy yourself!
 Main> S (S (S Z))
 Main> Bye for now!

@@ -89,6 +89,9 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
          oldhs <- if not incase
                      then saveHoles
                      else pure empty
+         ust <- get UST
+         let olddelayed = delayedElab ust
+         put UST (record { delayedElab = [] } ust)
 
          defs <- get Ctxt
          e <- newRef EST (initEStateSub defining env' sub)
@@ -108,8 +111,10 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
          catch (retryDelayed (delayedElab ust))
                (\err =>
                   do ust <- get UST
-                     put UST (record { delayedElab = [] } ust)
+                     put UST (record { delayedElab = olddelayed } ust)
                      throw err)
+         ust <- get UST
+         put UST (record { delayedElab = olddelayed } ust)
          -- As long as we're not in a case block, finish off constraint solving
          when (not incase) $
            -- resolve any default hints

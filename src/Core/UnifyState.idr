@@ -592,7 +592,7 @@ dumpHole lvl hole
                                            ++ if inj then " (Invertible)" else ""
                     (BySearch _ _ _, ty) =>
                          log lvl $ "Search " ++ show hole ++ " : " ++ 
-                                           show !(normaliseHoles defs [] ty)
+                                           show !(toFullNames !(normaliseHoles defs [] ty))
                     (PMDef _ args t _ _, ty) =>
                          log 4 $ "Solved: " ++ show hole ++ " : " ++ 
                                        show !(normalise defs [] ty) ++

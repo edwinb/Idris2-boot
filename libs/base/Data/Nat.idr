@@ -232,6 +232,25 @@ lcm _ Z     = Z
 lcm Z _     = Z
 lcm a (S b) = divNat (a * (S b)) (gcd a (S b))
 
+--------------------------------------------------------------------------------
+-- An informative comparison view
+--------------------------------------------------------------------------------
+public export
+data CmpNat : Nat -> Nat -> Type where
+     CmpLT : (y : _) -> CmpNat x (x + S y)
+     CmpEQ : CmpNat x x
+     CmpGT : (x : _) -> CmpNat (y + S x) y
+
+export
+total cmp : (x, y : Nat) -> CmpNat x y
+cmp Z Z     = CmpEQ
+cmp Z (S k) = CmpLT _
+cmp (S k) Z = CmpGT _
+cmp (S x) (S y) with (cmp x y)
+  cmp (S x) (S (x + (S k))) | CmpLT k = CmpLT k
+  cmp (S x) (S x)           | CmpEQ   = CmpEQ
+  cmp (S (y + (S k))) (S y) | CmpGT k = CmpGT k
+
 -- Proofs on +
 
 export
@@ -397,3 +416,5 @@ multOneRightNeutral (S left) =
   let inductiveHypothesis = multOneRightNeutral left in
     rewrite inductiveHypothesis in
             Refl
+
+
