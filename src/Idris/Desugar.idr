@@ -119,9 +119,11 @@ mutual
                                       !(desugar side (n :: ps) scope)
   desugar side ps (PLam fc rig p (PImplicit _) argTy scope) 
       = pure $ ILam fc rig p Nothing !(desugar side ps argTy) 
-                                      !(desugar side ps scope)
+                                     !(desugar side ps scope)
   desugar side ps (PLam fc rig p pat argTy scope)
-      = throw (GenericMsg fc "Pattern matching lambda not implemented")
+      = pure $ ILam fc rig p (Just (MN "lamc" 0)) !(desugar side ps argTy) $
+                 ICase fc (IVar fc (MN "lamc" 0)) (Implicit fc False)
+                     [!(desugarClause ps True (MkPatClause fc pat scope []))]
   desugar side ps (PLet fc rig (PRef _ n) nTy nVal scope [])
       = pure $ ILet fc rig n !(desugar side ps nTy) !(desugar side ps nVal) 
                              !(desugar side (n :: ps) scope)
