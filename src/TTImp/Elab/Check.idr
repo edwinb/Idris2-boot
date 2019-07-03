@@ -406,6 +406,7 @@ successful ((tm, elab) :: elabs)
          md <- get MD
          defs <- branch
          catch (do -- Run the elaborator 
+                   log 5 $ "Running " ++ show tm
                    res <- elab
                    -- Record post-elaborator state
                    ust' <- get UST

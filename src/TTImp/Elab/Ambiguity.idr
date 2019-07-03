@@ -177,6 +177,11 @@ couldBe {vars} defs ty@(NPrimVal _ _) app
           Concrete => pure $ Just (True, app)
           Poly => pure $ Just (False, app)
           NoMatch => pure Nothing
+couldBe {vars} defs ty@(NType _) app 
+   = case !(couldBeFn {vars} defs ty (getFn app)) of
+          Concrete => pure $ Just (True, app)
+          Poly => pure $ Just (False, app)
+          NoMatch => pure Nothing
 couldBe defs ty app = pure $ Just (False, app)
 
 
@@ -257,18 +262,30 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
                do solveConstraints solvemode Normal
                   defs <- get Ctxt
                   alts' <- pruneByType !(getNF expected) alts
+                  
+                  -- We can't just use the old NF on the second attempt, 
+                  -- because we might know more now, so recalculate it
+                  exp <- getTerm expected
+                  let exp' = if delayed 
+                                then gnf env exp
+                                else expected
+
+                  logGlueNF 5 ("Ambiguous elaboration " ++ show alts' ++ 
+                               " at " ++ show fc ++
+                               "\nWith default. Target type ") env exp'
                   if delayed -- use the default if there's still ambiguity
                      then try 
                             (exactlyOne fc env 
                                 (map (\t => 
                                    (getName t, 
                                     checkImp rig elabinfo nest env t 
-                                             (Just expected))) alts'))
-                            (checkImp rig elabinfo nest env def (Just expected))
+                                             (Just exp'))) alts'))
+                            (do log 5 "All failed, running default"
+                                checkImp rig elabinfo nest env def (Just exp'))
                      else exactlyOne fc env
                            (map (\t => 
                              (getName t, 
-                              checkImp rig elabinfo nest env t (Just expected)))
+                              checkImp rig elabinfo nest env t (Just exp')))
                               alts'))
 checkAlternative rig elabinfo nest env fc uniq alts mexpected
     = do expected <- maybe (do nm <- genName "altTy"

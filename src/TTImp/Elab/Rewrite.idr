@@ -58,7 +58,7 @@ elabRewrite : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} -> 
               FC -> Env Term vars ->
-              (expected : Glued vars) -> 
+              (expected : Term vars) -> 
               (rulety : Term vars) ->
               Core (Name, Term vars, Term vars)
 elabRewrite loc env expected rulety
@@ -68,20 +68,27 @@ elabRewrite loc env expected rulety
          (lt, rt, lty) <- getRewriteTerms loc defs tynf (NotRewriteRule loc env rulety)
          lemn <- findRewriteLemma loc rulety
 
-         rwexp_sc <- replace defs env lt (Ref loc Bound parg) 
-                                        !(getNF expected)
+         -- Need to normalise again, since we might have been delayed and
+         -- the metavariables might have been updated
+         expnf <- nf defs env expected
+
+         logNF 5 "Rewriting" env lt 
+         logNF 5 "Rewriting in" env expnf
+         rwexp_sc <- replace defs env lt (Ref loc Bound parg) expnf
+         logTerm 5 "Rewritten to" rwexp_sc
+
          empty <- clearDefs defs
          let pred = Bind loc parg (Lam RigW Explicit 
                           !(quote empty env lty))
                           (refsToLocals (Add parg parg None) rwexp_sc)
          gpredty <- getType env pred
          predty <- getTerm gpredty
-         exptm <- getTerm expected
+         exptm <- quote defs env expected
 
          -- if the rewritten expected type converts with the original,
          -- then the rewrite did nothing, which is an error
          when !(convert defs env rwexp_sc exptm) $
-             throw (RewriteNoChange loc env rulety exptm)
+                throw (RewriteNoChange loc env rulety exptm)
          pure (lemn, pred, predty)
 
 export
@@ -101,7 +108,8 @@ checkRewrite {vars} rigc elabinfo nest env fc rule tm (Just expected)
         do (rulev, grulet) <- check Rig0 elabinfo nest env rule Nothing
            rulet <- getTerm grulet
            expTy <- getTerm expected
-           (lemma, pred, predty) <- elabRewrite fc env expected rulet
+           when delayed $ log 5 "Retrying rewrite"
+           (lemma, pred, predty) <- elabRewrite fc env expTy rulet
 
            rname <- genVarName "_"
            pname <- genVarName "_"

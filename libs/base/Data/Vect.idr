@@ -807,13 +807,13 @@ exactLength {m} len xs with (decEq m len)
 ||| at least that length in its type, otherwise return Nothing
 ||| @len the required length
 ||| @xs the vector with the desired length
--- overLength : {m : Nat} -> -- expected at run-time
---              (len : Nat) -> (xs : Vect m a) -> Maybe (p ** Vect (plus p len) a)
--- overLength {m} n xs with (cmp m n)
---   overLength {m = m} (plus m (S y)) xs | (CmpLT y) = Nothing
---   overLength {m = m} m xs | CmpEQ
---          = Just (0 ** xs)
---   overLength {m = plus n (S x)} n xs | (CmpGT x)
---          = Just (S x ** rewrite plusCommutative (S x) n in xs)
+overLength : {m : Nat} -> -- expected at run-time
+             (len : Nat) -> (xs : Vect m a) -> Maybe (p ** Vect (plus p len) a)
+overLength {m} n xs with (cmp m n)
+  overLength {m = m} (plus m (S y)) xs | (CmpLT y) = Nothing
+  overLength {m = m} m xs | CmpEQ
+         = Just (0 ** xs)
+  overLength {m = plus n (S x)} n xs | (CmpGT x)
+         = Just (S x ** rewrite plusCommutative (S x) n in xs)
 
 

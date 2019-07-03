@@ -214,6 +214,7 @@ mutual
   needsDelayExpr True (IUpdate _ _ _) = pure True
   needsDelayExpr True (IAlternative _ _ _) = pure True
   needsDelayExpr True (ISearch _ _) = pure True
+  needsDelayExpr True (IRewrite _ _ _) = pure True
   needsDelayExpr True _ = pure False
   
   -- On the LHS, for any concrete thing, we need to make sure we know

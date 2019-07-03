@@ -72,3 +72,6 @@ public export
 break : (Char -> Bool) -> String -> (String, String)
 break p = span (not . p)
 
+export
+stringToNatOrZ : String -> Nat
+stringToNatOrZ = fromInteger . prim__cast_StringInteger
