@@ -146,20 +146,18 @@ mutual
            unelabBinder umode fc env x b sc sc' scty
   unelabTy' umode env (App fc fn arg)
       = do (fn', fnty) <- unelabTy umode env fn
-           case fn' of
-               IHole _ _ => pure (fn', Erased fc)
-               _ => do (arg', argty) <- unelabTy umode env arg
-                       defs <- get Ctxt
-                       case !(nf defs env fnty) of
-                            NBind _ x (Pi rig Explicit ty) sc
-                              => do sc' <- sc defs (toClosure defaultOpts env arg)
-                                    pure (IApp fc fn' arg',
-                                            !(quote defs env sc'))
-                            NBind _ x (Pi rig p ty) sc
-                              => do sc' <- sc defs (toClosure defaultOpts env arg)
-                                    pure (IImplicitApp fc fn' (Just x) arg',
-                                            !(quote defs env sc'))
-                            _ => pure (IApp fc fn' arg', Erased fc)
+           (arg', argty) <- unelabTy umode env arg
+           defs <- get Ctxt
+           case !(nf defs env fnty) of
+                NBind _ x (Pi rig Explicit ty) sc
+                  => do sc' <- sc defs (toClosure defaultOpts env arg)
+                        pure (IApp fc fn' arg',
+                                !(quote defs env sc'))
+                NBind _ x (Pi rig p ty) sc
+                  => do sc' <- sc defs (toClosure defaultOpts env arg)
+                        pure (IImplicitApp fc fn' (Just x) arg',
+                                !(quote defs env sc'))
+                _ => pure (IApp fc fn' arg', Erased fc)
   unelabTy' umode env (As fc p tm)
       = do (p', _) <- unelabTy' umode env p 
            (tm', ty) <- unelabTy' umode env tm

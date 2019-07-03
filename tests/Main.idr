@@ -30,7 +30,7 @@ idrisTests
        "basic021", "basic022", "basic023", "basic024",
        "coverage001", "coverage002", "coverage003", "coverage004",
        "error001", "error002", "error003", "error004", "error005",
-       "error006",
+       "error006", "error007",
        "import001", "import002",
        "interactive001", "interactive002", "interactive003", "interactive004",
        "interactive005", "interactive006", "interactive007", "interactive008",
