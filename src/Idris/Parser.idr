@@ -321,17 +321,17 @@ mutual
            = PPi fc rig p n ty (pibindAll fc p rest scope)
 
   bindList : FileName -> FilePos -> IndentInfo -> 
-             Rule (List (RigCount, Name, PTerm))
+             Rule (List (RigCount, PTerm, PTerm))
   bindList fname start indents
       = sepBy1 (symbol ",")
                (do rigc <- multiplicity
-                   n <- unqualifiedName
+                   pat <- simpleExpr fname indents
                    ty <- option 
                             (PInfer (MkFC fname start start))
                             (do symbol ":"
                                 opExpr EqOK fname indents)
                    rig <- getMult rigc
-                   pure (rig, UN n, ty))
+                   pure (rig, pat, ty))
 
   pibindList : FileName -> FilePos -> IndentInfo -> 
                Rule (List (RigCount, Maybe Name, PTerm))
@@ -420,10 +420,10 @@ mutual
            end <- location
            pure (bindAll (MkFC fname start end) binders scope)
      where
-       bindAll : FC -> List (RigCount, Name, PTerm) -> PTerm -> PTerm
+       bindAll : FC -> List (RigCount, PTerm, PTerm) -> PTerm -> PTerm
        bindAll fc [] scope = scope
-       bindAll fc ((rig, n, ty) :: rest) scope
-           = PLam fc rig Explicit n ty (bindAll fc rest scope)
+       bindAll fc ((rig, pat, ty) :: rest) scope
+           = PLam fc rig Explicit pat ty (bindAll fc rest scope)
 
   letBinder : FileName -> IndentInfo -> 
               Rule (FilePos, FilePos, RigCount, PTerm, PTerm, List PClause)

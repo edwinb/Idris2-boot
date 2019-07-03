@@ -111,9 +111,17 @@ mutual
       = let ps' = maybe ps (:: ps) mn in
             pure $ IPi fc rig p mn !(desugar side ps argTy) 
                                    !(desugar side ps' retTy)
-  desugar side ps (PLam fc rig p n argTy scope) 
+  desugar side ps (PLam fc rig p (PRef _ n@(UN _)) argTy scope) 
       = pure $ ILam fc rig p (Just n) !(desugar side ps argTy) 
                                       !(desugar side (n :: ps) scope)
+  desugar side ps (PLam fc rig p (PRef _ n@(MN _ _)) argTy scope) 
+      = pure $ ILam fc rig p (Just n) !(desugar side ps argTy) 
+                                      !(desugar side (n :: ps) scope)
+  desugar side ps (PLam fc rig p (PImplicit _) argTy scope) 
+      = pure $ ILam fc rig p Nothing !(desugar side ps argTy) 
+                                      !(desugar side ps scope)
+  desugar side ps (PLam fc rig p pat argTy scope)
+      = throw (GenericMsg fc "Pattern matching lambda not implemented")
   desugar side ps (PLet fc rig (PRef _ n) nTy nVal scope [])
       = pure $ ILet fc rig n !(desugar side ps nTy) !(desugar side ps nVal) 
                              !(desugar side (n :: ps) scope)
@@ -132,7 +140,7 @@ mutual
       = pure $ IUpdate pfc !(traverse (desugarUpdate side ps) fs)
                            !(desugar side ps rec)
   desugar side ps (PUpdate fc fs)
-      = desugar side ps (PLam fc RigW Explicit (MN "rec" 0) (PImplicit fc)
+      = desugar side ps (PLam fc RigW Explicit (PRef fc (MN "rec" 0)) (PImplicit fc)
                             (PApp fc (PUpdate fc fs) (PRef fc (MN "rec" 0))))
   desugar side ps (PApp fc x y) 
       = pure $ IApp fc !(desugar side ps x) !(desugar side ps y)
@@ -161,11 +169,11 @@ mutual
            -- so check that first, otherwise desugar as a lambda
            case lookup (nameRoot op) (prefixes syn) of
                 Nothing => 
-                   desugar side ps (PLam fc RigW Explicit (MN "arg" 0) (PImplicit fc)
+                   desugar side ps (PLam fc RigW Explicit (PRef fc (MN "arg" 0)) (PImplicit fc)
                                (POp fc op (PRef fc (MN "arg" 0)) arg))
                 Just prec => desugar side ps (PPrefixOp fc op arg)
   desugar side ps (PSectionR fc arg op)
-      = desugar side ps (PLam fc RigW Explicit (MN "arg" 0) (PImplicit fc)
+      = desugar side ps (PLam fc RigW Explicit (PRef fc (MN "arg" 0)) (PImplicit fc)
                  (POp fc op arg (PRef fc (MN "arg" 0))))
   desugar side ps (PSearch fc depth) = pure $ ISearch fc depth
   desugar side ps (PPrimVal fc (BI x))

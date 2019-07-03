@@ -36,7 +36,7 @@ mutual
        PRef : FC -> Name -> PTerm
        PPi : FC -> RigCount -> PiInfo -> Maybe Name -> 
              (argTy : PTerm) -> (retTy : PTerm) -> PTerm
-       PLam : FC -> RigCount -> PiInfo -> Name ->
+       PLam : FC -> RigCount -> PiInfo -> PTerm ->
               (argTy : PTerm) -> (scope : PTerm) -> PTerm
        PLet : FC -> RigCount -> (pat : PTerm) -> 
               (nTy : PTerm) -> (nVal : PTerm) -> (scope : PTerm) -> 

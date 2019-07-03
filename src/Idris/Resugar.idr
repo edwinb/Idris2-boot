@@ -97,7 +97,7 @@ sugarApp (PApp fc (PApp _ (PRef _ (UN "MkPair")) l) r)
 sugarApp tm@(PApp fc (PApp _ (PRef _ (UN "DPair")) l) rb)
     = case unbracket rb of
            PLam _ _ _ n _ r
-               => PDPair fc (PRef fc n) (unbracket l) (unbracket r)
+               => PDPair fc n (unbracket l) (unbracket r)
            _ => tm
 sugarApp (PApp fc (PApp _ (PRef _ (UN "MkDPair")) l) r)
     = PDPair fc (unbracket l) (PImplicit fc) (unbracket r)
@@ -153,7 +153,7 @@ mutual
            arg' <- if imp then toPTerm tyPrec arg
                           else pure (PImplicit fc)
            sc' <- toPTerm p sc
-           bracket p startPrec (PLam fc rig pt n arg' sc')
+           bracket p startPrec (PLam fc rig pt (PRef fc n) arg' sc')
   toPTerm p (ILet fc rig n ty val sc)
       = do imp <- showImplicits
            ty' <- if imp then toPTerm startPrec ty

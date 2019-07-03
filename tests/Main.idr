@@ -47,7 +47,7 @@ idrisTests
 
 typeddTests : List String
 typeddTests
-   = ["chapter01", "chapter02", "chapter03", "chapter04"]
+   = ["chapter01", "chapter02", "chapter03", "chapter04", "chapter05"]
 
 chezTests : List String
 chezTests
