@@ -62,7 +62,14 @@ In `Loops.idr` and `ReadNum.idr` add `import Data.Strings` and change `cast` to
 Chapter 6
 ---------
 
-TODO
+In `DataStore.idr` and `DataStoreHoles.idr`, add `import Data.Strings` and
+`import System.REPL`
+In `DataStore.idr`, the `schema` argument to `display` is required for
+matching, so change the type to:
+
+    display : {schema : _} -> SchemaType schema -> String
+
+In `TypeFuns.idr` add `import Data.Strings`
 
 Chapter 7
 ---------

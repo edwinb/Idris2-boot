@@ -18,13 +18,13 @@ import Data.List.Views
 public export
 data UnifyMode = InLHS
                | InTerm
-               | InDot
+               | InMatch
                | InSearch
 
 Eq UnifyMode where
    InLHS == InLHS = True
    InTerm == InTerm = True
-   InDot == InDot = True
+   InMatch == InMatch = True
    InSearch == InSearch = True
    _ == _ = False
 
@@ -756,14 +756,14 @@ mutual
       = if hdx == hdy
            then unifyArgs InSearch loc env xargs yargs
            else unifyApp False InSearch loc env xfc fx xargs (NApp yfc fy yargs)
-  doUnifyBothApps InDot loc env xfc fx@(NRef xt hdx) xargs yfc fy@(NRef yt hdy) yargs
+  doUnifyBothApps InMatch loc env xfc fx@(NRef xt hdx) xargs yfc fy@(NRef yt hdy) yargs
       = if hdx == hdy
            then do logC 5 (do defs <- get Ctxt
                               xs <- traverse (quote defs env) xargs
                               ys <- traverse (quote defs env) yargs
-                              pure ("Unifying dot pattern args " ++ show xs ++ " " ++ show ys))
-                   unifyArgs InDot loc env xargs yargs
-           else unifyApp False InDot loc env xfc fx xargs (NApp yfc fy yargs)
+                              pure ("Matching args " ++ show xs ++ " " ++ show ys))
+                   unifyArgs InMatch loc env xargs yargs
+           else unifyApp False InMatch loc env xfc fx xargs (NApp yfc fy yargs)
   doUnifyBothApps mode loc env xfc fx ax yfc fy ay
       = unifyApp False mode loc env xfc fx ax (NApp yfc fy ay)
 
@@ -1090,7 +1090,10 @@ retryGuess mode smode (hid, (loc, hname))
                                                  throw !(normaliseErr err)
                                              _ => pure False) -- Postpone again
                Guess tm constrs => 
-                 do cs' <- traverse (retry mode) constrs
+                 do let umode = case smode of
+                                     LastChance => InMatch
+                                     _ => mode
+                    cs' <- traverse (retry umode) constrs
                     let csAll = unionAll cs'
                     case constraints csAll of
                          -- All constraints resolved, so turn into a
@@ -1154,7 +1157,7 @@ checkDots
              -- A dot is okay if the constraint is solvable *without solving
              -- any additional holes*
              catch
-               (do cs <- unify InDot fc env x y
+               (do cs <- unify InMatch fc env x y
                    defs <- get Ctxt
                    Just ndef <- lookupDefExact n (gamma defs)
                         | Nothing => throw (UndefinedName fc n)

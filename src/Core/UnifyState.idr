@@ -383,8 +383,8 @@ newMeta fc r env n ty cyc = newMetaLets fc r env n ty cyc False
 
 mkConstant : FC -> Env Term vars -> Term vars -> ClosedTerm
 mkConstant fc [] tm = tm
-mkConstant {vars = x :: _} fc (Let c val ty :: env) tm
-    = mkConstant fc env (Bind fc x (Let c val ty) tm)
+-- mkConstant {vars = x :: _} fc (Let c val ty :: env) tm
+--     = mkConstant fc env (Bind fc x (Let c val ty) tm)
 mkConstant {vars = x :: _} fc (b :: env) tm 
     = let ty = binderType b in
           mkConstant fc env (Bind fc x (Lam (multiplicity b) Explicit ty) tm)
@@ -401,7 +401,7 @@ newConstant : {auto u : Ref UST UState} ->
               Core (Term vars)
 newConstant {vars} fc rig env tm ty constrs
     = do let def = mkConstant fc env tm
-         let defty = abstractEnvType fc env ty
+         let defty = abstractFullEnvType fc env ty
          cn <- genName "postpone"
          let guess = newDef fc cn rig [] defty Public (Guess def constrs)
          log 5 $ "Adding new constant " ++ show (cn, fc, rig)
@@ -411,7 +411,7 @@ newConstant {vars} fc rig env tm ty constrs
          pure (Meta fc cn idx envArgs)
   where
     envArgs : List (Term vars)
-    envArgs = let args = reverse (mkConstantAppArgs {done = []} False fc env []) in
+    envArgs = let args = reverse (mkConstantAppArgs {done = []} True fc env []) in
                   rewrite sym (appendNilRightNeutral vars) in args
 
 -- Create a new search with the given name and return type,

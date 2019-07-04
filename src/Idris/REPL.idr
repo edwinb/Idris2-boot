@@ -456,7 +456,7 @@ process Edit
               Nothing => do coreLift $ putStrLn "No file loaded"
                             pure True
               Just f =>
-                do let line = maybe "" (\i => " +" ++ show i) (errorLine opts)
+                do let line = maybe "" (\i => " +" ++ show (i + 1)) (errorLine opts)
                    coreLift $ system (editor opts ++ " " ++ f ++ line)
                    loadMainFile f
                    pure True
