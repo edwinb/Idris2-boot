@@ -10,10 +10,10 @@ data Baz : Nat -> Type where
      AddThings : (x : Nat) -> (y : Nat) -> Baz (plus x y)
 
 addBaz : (x : Nat) -> Baz x -> Nat
-addBaz (plus $x $y) (AddThings $x $y) = plus x y
+addBaz (plus x y) (AddThings x y) = plus x y
 
--- Can't unify arguments of plus with the AddThings arguments (we'd need to
--- match rather than unify)
+-- Can't unify because holes are solved as part of the dot pattern (plus x x)
+-- which would accidentally lead to a non-linear pattern
 addBaz3 : (x : Nat) -> Baz x -> Nat
-addBaz3 (plus $x $y) (AddThings _ _) = plus x y
+addBaz3 (plus x x) (AddThings _ _) = plus x x
 

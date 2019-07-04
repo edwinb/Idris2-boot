@@ -205,10 +205,9 @@ mutual
            Just gdef <- lookupCtxtExact (Resolved idx) (gamma defs)
                 | _ => throw (UndefinedName fc n)
            let expand = case (definition gdef, rig) of
-                             (Hole _ _, _) => False
-                             (Guess _ _, _) => False
                              (_, Rig0) => False
-                             _ => True
+                             (PMDef _ _ _ _ _, _) => True
+                             _ => False
            if expand
               then expandMeta rig erase env n idx (definition gdef) args
               else do let ty : ClosedTerm
