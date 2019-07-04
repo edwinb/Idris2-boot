@@ -312,7 +312,7 @@ argVar : {auto c : Ref Ctxt Defs} ->
          FC -> RigCount ->
          Env Term vars -> Name -> Term vars -> Core (Int, Term vars)
 argVar fc rig env n ty
-    = newMeta fc rig env n ty False
+    = newMetaLets fc rig env n ty False True
 
 export
 searchVar : {auto c : Ref Ctxt Defs} ->

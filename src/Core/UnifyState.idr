@@ -350,13 +350,17 @@ applyToOthers {vars} fc tm env sub
 -- Create a new metavariable with the given name and return type,
 -- and return a term which is the metavariable applied to the environment
 -- (and which has the given type)
+-- Flag whether cycles are allowed in the result, and whether to abstract
+-- over lets
 export
-newMeta : {auto c : Ref Ctxt Defs} ->
-          {auto u : Ref UST UState} ->
-          FC -> RigCount ->
-          Env Term vars -> Name -> Term vars -> Bool -> Core (Int, Term vars)
-newMeta {vars} fc rig env n ty nocyc
-    = do let hty = abstractEnvType fc env ty
+newMetaLets : {auto c : Ref Ctxt Defs} ->
+              {auto u : Ref UST UState} ->
+              FC -> RigCount ->
+              Env Term vars -> Name -> Term vars -> Bool -> Bool ->
+              Core (Int, Term vars)
+newMetaLets {vars} fc rig env n ty nocyc lets
+    = do let hty = if lets then abstractFullEnvType fc env ty
+                           else abstractEnvType fc env ty
          let hole = record { noCycles = nocyc }
                            (newDef fc n rig [] hty Public (Hole (length env) False))
          log 5 $ "Adding new meta " ++ show (n, fc, rig)
@@ -367,8 +371,15 @@ newMeta {vars} fc rig env n ty nocyc
          pure (idx, Meta fc n idx envArgs)
   where
     envArgs : List (Term vars)
-    envArgs = let args = reverse (mkConstantAppArgs {done = []} False fc env []) in
+    envArgs = let args = reverse (mkConstantAppArgs {done = []} lets fc env []) in
                   rewrite sym (appendNilRightNeutral vars) in args
+
+export
+newMeta : {auto c : Ref Ctxt Defs} ->
+          {auto u : Ref UST UState} ->
+          FC -> RigCount ->
+          Env Term vars -> Name -> Term vars -> Bool -> Core (Int, Term vars)
+newMeta fc r env n ty cyc = newMetaLets fc r env n ty cyc False
 
 mkConstant : FC -> Env Term vars -> Term vars -> ClosedTerm
 mkConstant fc [] tm = tm
