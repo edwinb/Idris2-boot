@@ -206,6 +206,7 @@ mutual
                 | _ => throw (UndefinedName fc n)
            let expand = case (definition gdef, rig) of
                              (Hole _ _, _) => False
+                             (Guess _ _, _) => False
                              (_, Rig0) => False
                              _ => True
            if expand
