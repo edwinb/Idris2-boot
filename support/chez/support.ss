@@ -38,6 +38,11 @@
   (lambda (x)
     (vector 1 #f #f x)))
 
+(define blodwen-error-quit
+  (lambda (msg)
+    (display msg)
+    (exit 1)))
+
 ;; Buffers
 
 (define (blodwen-new-buffer size)

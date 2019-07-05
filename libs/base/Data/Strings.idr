@@ -75,3 +75,11 @@ break p = span (not . p)
 export
 stringToNatOrZ : String -> Nat
 stringToNatOrZ = fromInteger . prim__cast_StringInteger
+
+export
+toUpper : String -> String
+toUpper str = pack (map toUpper (unpack str))
+
+export
+toLower : String -> String
+toLower str = pack (map toLower (unpack str))

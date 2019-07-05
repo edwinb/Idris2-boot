@@ -19,6 +19,7 @@ beyond work on the language core, are (in no particular order):
   implementations.
 * The lexer and parser are quite slow, new and faster versions with better
   errors would be good.
+* Windows support - it is tested on macOS and Linux only so far.
 * An alternative, high performance, back end. OCaml seems worth a try.
 * JS and Node back ends would be nice.
 

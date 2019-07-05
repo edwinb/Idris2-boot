@@ -112,7 +112,18 @@ In `ReverseVec.idr`, add `import Data.Nat` for the `Nat` proofs.
 Chapter 9
 ---------
 
-TODO
++ In `ElemType.idr`, add `import Decidable.Equality`
+
+In `Hangman.idr`:
+
++ Add `import Decidable.Equality` and `import Data.Strings`
++ `guesses` and `letters` are implicit arguments to `game`, but are used by the
+  definition, so add them to its type:
+
+    game : {guesses : _} -> {letters : _} ->
+           WordState (S guesses) (S letters) -> IO Finished
+  
+
 
 Chapter 10
 ----------

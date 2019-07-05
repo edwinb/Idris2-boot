@@ -31,7 +31,7 @@ processDecl decl
     = catch (do impdecls <- desugarDecl [] decl 
                 traverse (Check.processDecl [] (MkNested []) []) impdecls
                 pure Nothing)
-            (\err => do giveUpSearch -- or we'll keep trying...
+            (\err => do giveUpConstraints -- or we'll keep trying...
                         pure (Just err))
 
 processDecls : {auto c : Ref Ctxt Defs} ->

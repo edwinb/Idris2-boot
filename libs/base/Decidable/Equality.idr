@@ -83,7 +83,63 @@ implementation (DecEq t) => DecEq (Maybe t) where
   decEq Nothing (Just _) = No nothingNotJust
   decEq (Just _) Nothing = No (negEqSym nothingNotJust)
 
--- TODO: Primitives and other prelude data types
+-- TODO: Other prelude data types
 
+-- For the primitives, we have to cheat because we don't have access to their
+-- internal implementations. We use believe_me for the inequality proofs 
+-- because we don't them to reduce (and they should never be needed anyway...)
+-- A postulate would be better, but erasure analysis may think they're needed
+-- for computation in a higher order setting.
 
+--------------------------------------------------------------------------------
+-- Int
+--------------------------------------------------------------------------------
+
+implementation DecEq Int where
+    decEq x y = case x == y of -- Blocks if x or y not concrete
+                     True => Yes primitiveEq 
+                     False => No primitiveNotEq
+       where primitiveEq : forall x, y . x = y
+             primitiveEq = believe_me (Refl {x})
+             primitiveNotEq : forall x, y . x = y -> Void
+             primitiveNotEq prf = believe_me {b = Void} ()
+
+--------------------------------------------------------------------------------
+-- Char
+--------------------------------------------------------------------------------
+
+implementation DecEq Char where
+    decEq x y = case x == y of -- Blocks if x or y not concrete
+                     True => Yes primitiveEq 
+                     False => No primitiveNotEq
+       where primitiveEq : forall x, y . x = y
+             primitiveEq = believe_me (Refl {x})
+             primitiveNotEq : forall x, y . x = y -> Void
+             primitiveNotEq prf = believe_me {b = Void} ()
+
+--------------------------------------------------------------------------------
+-- Integer
+--------------------------------------------------------------------------------
+
+implementation DecEq Integer where
+    decEq x y = case x == y of -- Blocks if x or y not concrete
+                     True => Yes primitiveEq 
+                     False => No primitiveNotEq
+       where primitiveEq : forall x, y . x = y
+             primitiveEq = believe_me (Refl {x})
+             primitiveNotEq : forall x, y . x = y -> Void
+             primitiveNotEq prf = believe_me {b = Void} ()
+
+--------------------------------------------------------------------------------
+-- String
+--------------------------------------------------------------------------------
+
+implementation DecEq String where
+    decEq x y = case x == y of -- Blocks if x or y not concrete
+                     True => Yes primitiveEq 
+                     False => No primitiveNotEq
+       where primitiveEq : forall x, y . x = y
+             primitiveEq = believe_me (Refl {x})
+             primitiveNotEq : forall x, y . x = y -> Void
+             primitiveNotEq prf = believe_me {b = Void} ()
 

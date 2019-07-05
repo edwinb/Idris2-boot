@@ -1123,21 +1123,22 @@ solveConstraints umode smode
 -- Replace any 'BySearch' with 'Hole', so that we don't keep searching 
 -- fruitlessly while elaborating the rest of a source file
 export
-giveUpSearch : {auto c : Ref Ctxt Defs} ->
+giveUpConstraints : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
                Core ()
-giveUpSearch
+giveUpConstraints
     = do ust <- get UST
-         traverse_ searchToHole (toList (guesses ust))
+         traverse_ constraintToHole (toList (guesses ust))
   where
-    searchToHole : (Int, (FC, Name)) -> Core ()
-    searchToHole (hid, (_, _))
+    constraintToHole : (Int, (FC, Name)) -> Core ()
+    constraintToHole (hid, (_, _))
         = do defs <- get Ctxt
              case !(lookupDefExact (Resolved hid) (gamma defs)) of
                   Just (BySearch _ _ _) =>
                          updateDef (Resolved hid) (const (Just (Hole 0 False False)))
+                  Just (Guess _ _) =>
+                         updateDef (Resolved hid) (const (Just (Hole 0 False False)))
                   _ => pure ()
-
 
 export
 checkDots : {auto u : Ref UST UState} ->

@@ -38,6 +38,11 @@
   (lambda (x)
     (vector 1 #f #f x)))
 
+(define blodwen-error-quit
+  (lambda (msg)
+    (display msg)
+    (exit 1)))
+
 ;; Files : Much of the following adapted from idris-chez, thanks to Niklas
 ;; Larsson
 

@@ -136,7 +136,7 @@ schOp (Cast StringType DoubleType) [x] = op "cast-string-double" [x]
 
 schOp (Cast IntType CharType) [x] = op "integer->char" [x]
 
-schOp (Cast from to) [x] = "(error \"Invalid cast " ++ show from ++ "->" ++ show to ++ "\")"
+schOp (Cast from to) [x] = "(blodwen-error-quit \"Invalid cast " ++ show from ++ "->" ++ show to ++ "\")"
 
 schOp BelieveMe [_,_,x] = x
 
@@ -146,7 +146,7 @@ data ExtPrim = CCall | SchemeCall | PutStr | GetStr
              | FileOpen | FileClose | FileReadLine | FileWriteLine | FileEOF
              | NewIORef | ReadIORef | WriteIORef
              | Stdin | Stdout | Stderr
-             | Unknown Name
+             | VoidElim | Unknown Name
 
 export
 Show ExtPrim where
@@ -165,6 +165,7 @@ Show ExtPrim where
   show Stdin = "Stdin"
   show Stdout = "Stdout"
   show Stderr = "Stderr"
+  show VoidElim = "VoidElim"
   show (Unknown n) = "Unknown " ++ show n
 
 ||| Match on a user given name to get the scheme primitive
@@ -184,7 +185,8 @@ toPrim pn@(NS _ n)
             (n == UN "prim__writeIORef", WriteIORef),
             (n == UN "prim__stdin", Stdin),
             (n == UN "prim__stdout", Stdout),
-            (n == UN "prim__stderr", Stderr)
+            (n == UN "prim__stderr", Stderr),
+            (n == UN "void", VoidElim)
             ]
            (Unknown pn)
 toPrim pn = Unknown pn
@@ -275,7 +277,7 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
                       ++ schCaseDef defc ++ "))"
     schExp i vs (CPrimVal fc c) = pure $ schConstant c
     schExp i vs (CErased fc) = pure "'()"
-    schExp i vs (CCrash fc msg) = pure $ "(error " ++ show msg ++ ")"
+    schExp i vs (CCrash fc msg) = pure $ "(blodwen-error-quit " ++ show msg ++ ")"
 
   -- Need to convert the argument (a list of scheme arguments that may
   -- have been constructed at run time) to a scheme list to be passed to apply
@@ -322,6 +324,8 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
       = pure $ mkWorld $ "(set-box! " 
                            ++ !(schExp i vs ref) ++ " " 
                            ++ !(schExp i vs val) ++ ")"
+  schExtCommon i vs VoidElim [_, _]
+      = pure "(display \"Error: Executed 'void'\")"
   schExtCommon i vs (Unknown n) args 
       = throw (InternalError ("Can't compile unknown external primitive " ++ show n))
   schExtCommon i vs Stdin [] = pure "(current-input-port)"
