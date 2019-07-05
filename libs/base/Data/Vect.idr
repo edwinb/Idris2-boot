@@ -770,6 +770,7 @@ transpose (x :: xs) = zipWith (::) x (transpose xs) -- = [| x :: xs |]
 --------------------------------------------------------------------------------
 -- Applicative/Monad/Traversable
 --------------------------------------------------------------------------------
+-- TODO: Need to work out how to deal with name visibility here
 
 -- implementation Applicative (Vect k) where
 --     pure = replicate _
@@ -783,6 +784,67 @@ transpose (x :: xs) = zipWith (::) x (transpose xs) -- = [| x :: xs |]
 -- implementation Traversable (Vect n) where
 --     traverse f []        = pure []
 --     traverse f (x :: xs) = pure (::) <*> (f x) <*> (traverse f xs)
+
+--------------------------------------------------------------------------------
+-- Elem
+--------------------------------------------------------------------------------
+
+||| A proof that some element is found in a vector
+public export
+data Elem : a -> Vect k a -> Type where
+     Here : Elem x (x::xs)
+     There : (later : Elem x xs) -> Elem x (y::xs)
+
+||| Nothing can be in an empty Vect
+export
+noEmptyElem : forall x . Elem x [] -> Void
+noEmptyElem Here impossible
+
+export
+Uninhabited (Elem x []) where
+  uninhabited = noEmptyElem
+
+||| An item not in the head and not in the tail is not in the Vect at all
+export
+neitherHereNorThere : {x, y : a} -> {xs : Vect n a} -> Not (x = y) -> Not (Elem x xs) -> Not (Elem x (y :: xs))
+neitherHereNorThere xneqy xninxs Here = xneqy Refl
+neitherHereNorThere xneqy xninxs (There xinxs) = xninxs xinxs
+
+||| A decision procedure for Elem
+export
+isElem : DecEq a => (x : a) -> (xs : Vect n a) -> Dec (Elem x xs)
+isElem x [] = No noEmptyElem
+isElem x (y :: xs) with (decEq x y)
+  isElem x (x :: xs) | (Yes Refl) = Yes Here
+  isElem x (y :: xs) | (No xneqy) with (isElem x xs)
+    isElem x (y :: xs) | (No xneqy) | (Yes xinxs) = Yes (There xinxs)
+    isElem x (y :: xs) | (No xneqy) | (No xninxs) = No (neitherHereNorThere xneqy xninxs)
+
+export
+replaceElem : (xs : Vect k t) -> Elem x xs -> (y : t) -> (ys : Vect k t ** Elem y ys)
+replaceElem (x::xs) Here y = (y :: xs ** Here)
+replaceElem (x::xs) (There xinxs) y with (replaceElem xs xinxs y)
+  replaceElem (x::xs) (There xinxs) y | (ys ** yinys) = (x :: ys ** There yinys)
+
+export
+replaceByElem : (xs : Vect k t) -> Elem x xs -> t -> Vect k t
+replaceByElem (x::xs) Here y = y :: xs
+replaceByElem (x::xs) (There xinxs) y = x :: replaceByElem xs xinxs y
+
+export
+mapElem : forall k . {0 xs : Vect k t} -> {0 f : t -> u} -> 
+          Elem x xs -> Elem (f x) (map f xs)
+mapElem Here = Here
+mapElem (There e) = There (mapElem e)
+
+||| Remove the element at the given position.
+|||
+||| @xs The vector to be removed from
+||| @p A proof that the element to be removed is in the vector
+export
+dropElem : (xs : Vect (S k) t) -> (p : Elem x xs) -> Vect k t
+dropElem (x :: ys) Here = ys
+dropElem {k = (S k)} (x :: ys) (There later) = x :: dropElem ys later
 
 --------------------------------------------------------------------------------
 -- Show

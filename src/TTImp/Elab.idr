@@ -115,6 +115,8 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
                      throw err)
          ust <- get UST
          put UST (record { delayedElab = olddelayed } ust)
+         solveConstraints solvemode MatchArgs
+
          -- As long as we're not in a case block, finish off constraint solving
          when (not incase) $
            -- resolve any default hints

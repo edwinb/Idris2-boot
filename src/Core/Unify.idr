@@ -1025,6 +1025,7 @@ setInvertible loc i
 public export
 data SolveMode = Normal -- during elaboration: unifies and searches
                | Defaults -- unifies and searches for default hints only
+               | MatchArgs -- match rather than unify
                | LastChance -- as normal, but any failure throws rather than delays
 
 Eq SolveMode where
@@ -1091,7 +1092,7 @@ retryGuess mode smode (hid, (loc, hname))
                                              _ => pure False) -- Postpone again
                Guess tm constrs => 
                  do let umode = case smode of
-                                     LastChance => InMatch
+                                     MatchArgs => InMatch
                                      _ => mode
                     cs' <- traverse (retry umode) constrs
                     let csAll = unionAll cs'
