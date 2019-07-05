@@ -160,6 +160,7 @@ couldBeName defs target n
 
 couldBeFn : Defs -> NF vars -> RawImp -> Core TypeMatch
 couldBeFn defs ty (IVar _ n) = couldBeName defs ty n
+couldBeFn defs ty (IAlternative _ _ _) = pure Concrete
 couldBeFn defs ty _ = pure Poly
 
 -- Returns Nothing if there's no possibility the expression's type matches

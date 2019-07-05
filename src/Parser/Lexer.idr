@@ -117,7 +117,7 @@ symbols
     = [".(", -- for things such as Foo.Bar.(+)
        "@{",
        "(", ")", "{", "}", "[", "]", ",", ";", "_", 
-       "`(", "`", "~"]
+       "`(", "`"]
 
 export
 opChars : String

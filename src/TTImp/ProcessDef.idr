@@ -57,6 +57,9 @@ impossibleOK defs (NDCon _ _ xt _ xargs) (NDCon _ _ yt _ yargs)
     = if xt /= yt
          then pure True
          else anyM (mismatch defs) (zip xargs yargs)
+impossibleOK defs (NPrimVal _ x) (NPrimVal _ y) = pure (x /= y)
+impossibleOK defs (NDCon _ _ _ _ _) (NPrimVal _ _) = pure True
+impossibleOK defs (NPrimVal _ _) (NDCon _ _ _ _ _) = pure True
 impossibleOK defs x y = pure False
                            
 export
@@ -72,6 +75,7 @@ impossibleErrOK defs (CantSolveEq fc env l r)
          logTerm 10 "    ...and" !(normalise defs env r)
          impossibleOK defs !(nf defs env l)
                            !(nf defs env r)
+impossibleErrOK defs (CyclicMeta _ _) = pure True
 impossibleErrOK defs (AllFailed errs)
     = anyM (impossibleErrOK defs) (map snd errs)
 impossibleErrOK defs (WhenUnifying _ _ _ _ err)

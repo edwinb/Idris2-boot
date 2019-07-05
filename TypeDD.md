@@ -42,9 +42,9 @@ Chapter 4
 
 For the reasons described above:
 
-In `DataStore.idr`, add `import System.REPL` and `import Data.Strings`
-In `SumInputs.idr`, add `import System.REPL`
-In `TryIndex.idr`, add an implicit argument:
++ In `DataStore.idr`, add `import System.REPL` and `import Data.Strings`
++ In `SumInputs.idr`, add `import System.REPL`
++ In `TryIndex.idr`, add an implicit argument:
 
     tryIndex : {n : _} -> Integer -> Vect n a -> Maybe a
     
@@ -87,7 +87,27 @@ implementation of `Abs` as follows:
 Chapter 8
 ---------
 
-TODO
+In `AppendVec.idr`, add `import Data.Nat` for the `Nat` proofs
+
+`cong` now takes an explicit argument for the function to apply. So, in
+`CheckEqMaybe.idr` change the last case to:
+
+    checkEqNat (S k) (S j) = case checkEqNat k j of
+                                  Nothing => Nothing
+                                  Just prf => Just (cong S prf)
+
+A similar change is necessary in `CheckEqDec.idr`.
+
+In `ExactLength.idr`, the `m` argument to `exactLength` is needed at run time,
+so change its type to:
+
+    exactLength : {m : _} ->
+                  (len : Nat) -> (input : Vect m a) -> Maybe (Vect len a)
+
+A similar change is necessary in `ExactLengthDec.idr`. Also, `DecEq` is no
+longer part of the prelude, so add `import Decidable.Equality`.
+
+In `ReverseVec.idr`, add `import Data.Nat` for the `Nat` proofs.
 
 Chapter 9
 ---------

@@ -52,6 +52,16 @@ public export
 data Equal : a -> b -> Type where
      Refl : {0 x : a} -> Equal x x
 
+infix 9 ===, ~=~
+
+public export
+(===) : (x : a) -> (y : a) -> Type
+(===) = Equal
+
+public export
+(~=~) : (x : a) -> (y : b) -> Type
+(~=~) = Equal
+
 public export
 data Unit = MkUnit
 

@@ -157,7 +157,9 @@ mutual
   desugar side ps (PEq fc l r)
       = do l' <- desugar side ps l
            r' <- desugar side ps r
-           pure $ apply (IVar fc (UN "Equal")) [l', r']
+           pure $ IAlternative fc FirstSuccess
+                     [apply (IVar fc (UN "===")) [l', r'],
+                      apply (IVar fc (UN "~=~")) [l', r']]
   desugar side ps (PBracketed fc e) = desugar side ps e
   desugar side ps (POp fc op l r) 
       = do ts <- toTokList (POp fc op l r)
@@ -355,7 +357,9 @@ mutual
   desugarTree side ps (Inf loc (UN "=") l r) -- special case since '=' is special syntax
       = do l' <- desugarTree side ps l
            r' <- desugarTree side ps r
-           pure (IApp loc (IApp loc (IVar loc (UN "Equal")) l') r')
+           pure (IAlternative loc FirstSuccess
+                     [apply (IVar loc (UN "===")) [l', r'],
+                      apply (IVar loc (UN "~=~")) [l', r']])
   desugarTree side ps (Inf loc (UN "$") l r) -- special case since '$' is special syntax
       = do l' <- desugarTree side ps l
            r' <- desugarTree side ps r
