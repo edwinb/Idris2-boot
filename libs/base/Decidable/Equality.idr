@@ -94,7 +94,7 @@ implementation (DecEq t) => DecEq (Maybe t) where
 --------------------------------------------------------------------------------
 -- Int
 --------------------------------------------------------------------------------
-
+export
 implementation DecEq Int where
     decEq x y = case x == y of -- Blocks if x or y not concrete
                      True => Yes primitiveEq 
@@ -107,7 +107,7 @@ implementation DecEq Int where
 --------------------------------------------------------------------------------
 -- Char
 --------------------------------------------------------------------------------
-
+export
 implementation DecEq Char where
     decEq x y = case x == y of -- Blocks if x or y not concrete
                      True => Yes primitiveEq 
@@ -120,7 +120,7 @@ implementation DecEq Char where
 --------------------------------------------------------------------------------
 -- Integer
 --------------------------------------------------------------------------------
-
+export
 implementation DecEq Integer where
     decEq x y = case x == y of -- Blocks if x or y not concrete
                      True => Yes primitiveEq 
@@ -133,7 +133,7 @@ implementation DecEq Integer where
 --------------------------------------------------------------------------------
 -- String
 --------------------------------------------------------------------------------
-
+export
 implementation DecEq String where
     decEq x y = case x == y of -- Blocks if x or y not concrete
                      True => Yes primitiveEq 
