@@ -69,7 +69,7 @@ mkOuterHole loc rig n topenv (Just expty_in)
               Nothing => mkOuterHole loc rig n topenv Nothing
               Just exp' => 
                   do let env = outerEnv est
-                     tm <- metaVar loc rig env n exp'
+                     tm <- implBindVar loc rig env n exp'
                      pure (embedSub sub tm, embedSub sub exp')
 mkOuterHole loc rig n topenv Nothing
     = do est <- get EST
@@ -79,7 +79,7 @@ mkOuterHole loc rig n topenv Nothing
          ty <- metaVar loc Rig0 env nm (TType loc)
          log 10 $ "Made metavariable for type of " ++ show n ++ ": " ++ show nm
          put EST (addBindIfUnsolved nm rig topenv (embedSub sub ty) (TType loc) est)
-         tm <- metaVar loc rig env n ty
+         tm <- implBindVar loc rig env n ty
          pure (embedSub sub tm, embedSub sub ty)
 
 -- Make a hole standing for the pattern variable, which we'll instantiate
@@ -105,7 +105,7 @@ mkPatternHole {vars} loc rig n topenv imode (Just expty_in)
          case bindInner topenv expected sub of
               Nothing => mkPatternHole loc rig n topenv imode Nothing
               Just exp' =>
-                  do tm <- metaVar loc rig env n exp'
+                  do tm <- implBindVar loc rig env n exp'
                      pure (apply loc (embedSub sub tm) (mkArgs sub), 
                            expected,
                            embedSub sub exp')
@@ -164,7 +164,7 @@ bindUnsolved {vars} fc elabmode _
                      (Env Term vars', Term vars', Term vars', SubVars outer vars'))) -> 
                  Core ()
     mkImplicit defs outerEnv subEnv (n, rig, (vs ** (env, tm, exp, sub)))
-        = do Just (Hole _ _) <- lookupDefExact n (gamma defs)
+        = do Just (Hole _ _ _) <- lookupDefExact n (gamma defs)
                   | _ => pure ()
              bindtm <- makeBoundVar n rig outerEnv
                                     sub subEnv
@@ -304,7 +304,7 @@ implicitBind : {auto c : Ref Ctxt Defs} ->
                Name -> Core ()
 implicitBind n 
     = do defs <- get Ctxt
-         Just (Hole _ _) <- lookupDefExact n (gamma defs)
+         Just (Hole _ _ _) <- lookupDefExact n (gamma defs)
              | _ => pure ()
          updateDef n (const (Just ImpBind))
          removeHoleName n

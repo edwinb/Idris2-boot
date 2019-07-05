@@ -404,7 +404,7 @@ solveIfUndefined : {vars : _} ->
                    Env Term vars -> Term vars -> Term vars -> Core Bool
 solveIfUndefined env (Meta fc mname idx args) soln
     = do defs <- get Ctxt
-         Just (Hole _ _) <- lookupDefExact (Resolved idx) (gamma defs)
+         Just (Hole _ _ _) <- lookupDefExact (Resolved idx) (gamma defs)
               | pure False
          case !(patternEnvTm env args) of
               Nothing => pure False
@@ -423,7 +423,7 @@ isDefInvertible : {auto c : Ref Ctxt Defs} ->
                   Int -> Core Bool
 isDefInvertible i
     = do defs <- get Ctxt
-         Just (Hole _ t) <- lookupDefExact (Resolved i) (gamma defs)
+         Just (Hole _ _ t) <- lookupDefExact (Resolved i) (gamma defs)
               | _ => pure False
          pure t
 
@@ -542,7 +542,7 @@ mutual
            Just mdef <- lookupCtxtExact (Resolved i) (gamma defs)
                 | Nothing => throw (UndefinedName nfc mname)
            let inv = case definition mdef of
-                          Hole _ i => i
+                          Hole _ _ i => i
                           _ => isPatName n
            if inv
               then unifyInvertible mode loc env mname mref margs margs' Nothing
@@ -631,7 +631,7 @@ mutual
                               " with " ++ show qtm)
            case !(patternEnv env args) of
                 Nothing => 
-                  do Just (Hole _ inv) <- lookupDefExact (Resolved mref) (gamma defs)
+                  do Just (Hole _ _ inv) <- lookupDefExact (Resolved mref) (gamma defs)
                         | _ => unifyPatVar mode loc env mname mref margs margs' tmnf
                      if inv
                         then unifyHoleApp mode loc env mname mref margs margs' tmnf
@@ -1019,7 +1019,7 @@ setInvertible : {auto c : Ref Ctxt Defs} ->
 setInvertible loc i
     = updateDef (Resolved i)
            (\old => case old of
-                         Hole locs _ => Just (Hole locs True)
+                         Hole locs p _ => Just (Hole locs p True)
                          _ => Nothing)
 
 public export
@@ -1135,7 +1135,7 @@ giveUpSearch
         = do defs <- get Ctxt
              case !(lookupDefExact (Resolved hid) (gamma defs)) of
                   Just (BySearch _ _ _) =>
-                         updateDef (Resolved hid) (const (Just (Hole 0 False)))
+                         updateDef (Resolved hid) (const (Just (Hole 0 False False)))
                   _ => pure ()
 
 
@@ -1163,7 +1163,7 @@ checkDots
                    Just ndef <- lookupDefExact n (gamma defs)
                         | Nothing => throw (UndefinedName fc n)
                    let h = case ndef of
-                                Hole _ _ => True
+                                Hole _ _ _ => True
                                 _ => False
                    
                    when (not (isNil (constraints cs)) || holesSolved cs || h) $

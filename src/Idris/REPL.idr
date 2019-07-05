@@ -65,7 +65,7 @@ showInfo (n, idx, d)
 isHole : GlobalDef -> Maybe Nat
 isHole def
     = case definition def of
-           Hole locs _ => Just locs
+           Hole locs _ _ => Just locs
            _ => Nothing
     
 showCount : RigCount -> String
@@ -294,7 +294,7 @@ processEdit (ExprSearch line name hints all)
          syn <- get Syn
          let brack = elemBy (\x, y => dropNS x == dropNS y) name (bracketholes syn)
          case !(lookupDefName name (gamma defs)) of
-              [(n, nidx, Hole locs _)] =>
+              [(n, nidx, Hole locs _ _)] =>
                   do tms <- exprSearch replFC name []
                      defs <- get Ctxt
                      restms <- traverse (normaliseHoles defs []) tms
@@ -337,7 +337,7 @@ processEdit (MakeLemma line name)
          syn <- get Syn
          let brack = elemBy (\x, y => dropNS x == dropNS y) name (bracketholes syn)
          case !(lookupDefTyName name (gamma defs)) of
-              [(n, nidx, Hole locs _, ty)] =>
+              [(n, nidx, Hole locs _ _, ty)] =>
                   do (lty, lapp) <- makeLemma replFC name locs ty
                      pty <- pterm lty
                      papp <- pterm lapp

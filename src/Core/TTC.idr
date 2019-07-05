@@ -710,7 +710,9 @@ TTC Def where
   toBuf b (TCon t arity parampos detpos ms datacons) 
       = do tag 4; toBuf b t; toBuf b arity; toBuf b parampos
            toBuf b detpos; toBuf b ms; toBuf b datacons
-  toBuf b (Hole locs invertible) = do tag 5; toBuf b locs; toBuf b invertible
+  toBuf b (Hole locs p invertible) 
+      = do tag 5; toBuf b locs; toBuf b p
+           toBuf b invertible
   toBuf b (BySearch c depth def) 
       = do tag 6; toBuf b c; toBuf b depth; toBuf b def
   toBuf b (Guess guess constraints) = do tag 7; toBuf b guess; toBuf b constraints
@@ -734,8 +736,9 @@ TTC Def where
                      ms <- fromBuf b; cs <- fromBuf b
                      pure (TCon t a ps dets ms cs)
              5 => do l <- fromBuf b
+                     p <- fromBuf b
                      i <- fromBuf b
-                     pure (Hole l i)
+                     pure (Hole l p i)
              6 => do c <- fromBuf b; depth <- fromBuf b
                      def <- fromBuf b
                      pure (BySearch c depth def)

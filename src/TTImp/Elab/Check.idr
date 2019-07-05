@@ -295,7 +295,16 @@ metaVar : {auto c : Ref Ctxt Defs} ->
           FC -> RigCount ->
           Env Term vars -> Name -> Term vars -> Core (Term vars)
 metaVar fc rig env n ty
-    = do (_, tm) <- newMeta fc rig env n ty True
+    = do (_, tm) <- newMeta fc rig env n ty (Hole (length env) False False) True
+         pure tm
+
+export
+implBindVar : {auto c : Ref Ctxt Defs} ->
+              {auto u : Ref UST UState} ->
+              FC -> RigCount ->
+              Env Term vars -> Name -> Term vars -> Core (Term vars)
+implBindVar fc rig env n ty
+    = do (_, tm) <- newMeta fc rig env n ty (Hole (length env) True False) True
          pure tm
 
 export
@@ -304,7 +313,7 @@ metaVarI : {auto c : Ref Ctxt Defs} ->
           FC -> RigCount ->
           Env Term vars -> Name -> Term vars -> Core (Int, Term vars)
 metaVarI fc rig env n ty
-    = newMeta fc rig env n ty True
+    = newMeta fc rig env n ty (Hole (length env) False False) True
 
 export
 argVar : {auto c : Ref Ctxt Defs} ->
@@ -312,7 +321,7 @@ argVar : {auto c : Ref Ctxt Defs} ->
          FC -> RigCount ->
          Env Term vars -> Name -> Term vars -> Core (Int, Term vars)
 argVar fc rig env n ty
-    = newMetaLets fc rig env n ty False True
+    = newMetaLets fc rig env n ty (Hole (length env) False False) False True
 
 export
 searchVar : {auto c : Ref Ctxt Defs} ->

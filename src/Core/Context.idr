@@ -42,7 +42,11 @@ data Def : Type where
            (mutwith : List Name) ->
            (datacons : List Name) ->
            Def
-    Hole : (numlocs : Nat) -> (invertible : Bool) -> Def
+    Hole : (numlocs : Nat) -> -- Number of locals in scope at binding point
+                              -- (mostly to help display)
+           (implbind : Bool) -> -- Does this stand for an implicitly bound name
+           (invertible : Bool) -> -- Can we invert it during unification?
+           Def
     BySearch : RigCount -> (maxdepth : Nat) -> (defining : Name) -> Def
     -- Constraints are integer references into the current map of
     -- constraints in the UnifyState (see Core.UnifyState)
@@ -64,7 +68,8 @@ Show Def where
         " mutual with: " ++ show ms
   show (ExternDef arity) = "<external def with arith " ++ show arity ++ ">"
   show (Builtin {arity} _) = "<builtin with arith " ++ show arity ++ ">"
-  show (Hole _ inv) = "Hole"
+  show (Hole _ p inv) = "Hole" ++ if p then " [impl]" else ""
+                               ++ if inv then " [invertible]" else ""
   show (BySearch c depth def) = "Search in " ++ show def
   show (Guess tm cs) = "Guess " ++ show tm ++ " when " ++ show cs
   show ImpBind = "Bound name"

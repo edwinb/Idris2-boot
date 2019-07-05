@@ -356,13 +356,14 @@ export
 newMetaLets : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               FC -> RigCount ->
-              Env Term vars -> Name -> Term vars -> Bool -> Bool ->
+              Env Term vars -> Name -> Term vars -> Def ->
+              Bool -> Bool ->
               Core (Int, Term vars)
-newMetaLets {vars} fc rig env n ty nocyc lets
+newMetaLets {vars} fc rig env n ty def nocyc lets
     = do let hty = if lets then abstractFullEnvType fc env ty
                            else abstractEnvType fc env ty
          let hole = record { noCycles = nocyc }
-                           (newDef fc n rig [] hty Public (Hole (length env) False))
+                           (newDef fc n rig [] hty Public def)
          log 5 $ "Adding new meta " ++ show (n, fc, rig)
          logTerm 10 ("New meta type " ++ show n) hty
          defs <- get Ctxt
@@ -378,8 +379,10 @@ export
 newMeta : {auto c : Ref Ctxt Defs} ->
           {auto u : Ref UST UState} ->
           FC -> RigCount ->
-          Env Term vars -> Name -> Term vars -> Bool -> Core (Int, Term vars)
-newMeta fc r env n ty cyc = newMetaLets fc r env n ty cyc False
+          Env Term vars -> Name -> Term vars -> Def -> 
+          Bool ->
+          Core (Int, Term vars)
+newMeta fc r env n ty def cyc = newMetaLets fc r env n ty def cyc False
 
 mkConstant : FC -> Env Term vars -> Term vars -> ClosedTerm
 mkConstant fc [] tm = tm
@@ -597,9 +600,10 @@ dumpHole lvl hole
                                             ++ "\n\twhen"
                             traverse dumpConstraint constraints 
                             pure ()
-                    (Hole _ inj, ty) =>
+                    (Hole _ p inj, ty) =>
                          log lvl $ "?" ++ show (fullname gdef) ++ " : " ++ 
                                            show !(normaliseHoles defs [] ty)
+                                           ++ if p then " (ImplBind)" else ""
                                            ++ if inj then " (Invertible)" else ""
                     (BySearch _ _ _, ty) =>
                          log lvl $ "Search " ++ show hole ++ " : " ++ 

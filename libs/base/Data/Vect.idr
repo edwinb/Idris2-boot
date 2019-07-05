@@ -832,7 +832,7 @@ replaceByElem (x::xs) Here y = y :: xs
 replaceByElem (x::xs) (There xinxs) y = x :: replaceByElem xs xinxs y
 
 export
-mapElem : forall k . {0 xs : Vect k t} -> {0 f : t -> u} -> 
+mapElem : {0 xs : Vect k t} -> {0 f : t -> u} -> 
           Elem x xs -> Elem (f x) (map f xs)
 mapElem Here = Here
 mapElem (There e) = There (mapElem e)
