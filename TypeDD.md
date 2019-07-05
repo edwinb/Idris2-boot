@@ -63,9 +63,8 @@ Chapter 6
 ---------
 
 In `DataStore.idr` and `DataStoreHoles.idr`, add `import Data.Strings` and
-`import System.REPL`
-In `DataStore.idr`, the `schema` argument to `display` is required for
-matching, so change the type to:
+`import System.REPL`. Also in `DataStore.idr`, the `schema` argument to
+`display` is required for matching, so change the type to:
 
     display : {schema : _} -> SchemaType schema -> String
 
@@ -74,7 +73,16 @@ In `TypeFuns.idr` add `import Data.Strings`
 Chapter 7
 ---------
 
-TODO
+`Abs` is now a separate interface from `Neg`. So, change the type of `eval`
+to include `Abs` specifically:
+
+    eval : (Abs num, Neg num, Integral num) => Expr num -> num
+
+Also, take `abs` out of the `Neg` implementation for `Expr` and add an
+implementation of `Abs` as follows:
+
+    Abs ty => Abs (Expr ty) where
+        abs = Abs
 
 Chapter 8
 ---------

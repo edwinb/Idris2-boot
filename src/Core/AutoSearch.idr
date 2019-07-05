@@ -104,6 +104,16 @@ successful (elab :: elabs)
                            elabs' <- successful elabs
                            pure (Left err :: elabs'))
 
+anyOne : {vars : _} ->
+         {auto c : Ref Ctxt Defs} ->
+         {auto u : Ref UST UState} ->
+         FC -> Env Term vars -> (topTy : ClosedTerm) ->
+         List (Core (Term vars)) ->
+         Core (Term vars)
+anyOne fc env top [] = throw (CantSolveGoal fc [] top)
+anyOne fc env top (elab :: elabs)
+    = tryUnify elab (anyOne fc env top elabs)
+
 exactlyOne : {vars : _} ->
              {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
@@ -115,7 +125,7 @@ exactlyOne fc env top [elab]
          (\err => case err of
                        CantSolveGoal _ _ _ => throw err
                        _ => throw (CantSolveGoal fc [] top))
-exactlyOne fc env top all
+exactlyOne {vars} fc env top all
     = do elabs <- successful all
          case rights elabs of
               [(res, defs, ust)] => 
@@ -124,7 +134,11 @@ exactlyOne fc env top all
                        commit
                        pure res
               [] => throw (CantSolveGoal fc [] top)
-              rs => throw (AmbiguousSearch fc env (map fst rs))
+              rs => throw (AmbiguousSearch fc env 
+                             !(traverse normRes rs))
+  where
+    normRes : (Term vars, Defs, UState) -> Core (Term vars)
+    normRes (tm, defs, _) = normaliseHoles defs env tm
 
 -- We can only resolve things which are at any multiplicity. Expression
 -- search happens before linearity checking and we can't guarantee that just
@@ -313,16 +327,18 @@ searchNames : {auto c : Ref Ctxt Defs} ->
               (defaults : Bool) -> List (Term vars) ->
               (depth : Nat) ->
               (defining : Name) -> (topTy : ClosedTerm) ->
-              Env Term vars -> List Name -> 
+              Env Term vars -> Bool -> List Name -> 
               (target : NF vars) -> Core (Term vars)
-searchNames fc rigc defaults trying depth defining topty env [] target
+searchNames fc rigc defaults trying depth defining topty env ambig [] target
     = throw (CantSolveGoal fc [] topty)
-searchNames fc rigc defaults trying depth defining topty env (n :: ns) target
+searchNames fc rigc defaults trying depth defining topty env ambig (n :: ns) target
     = do defs <- get Ctxt
          visnsm <- traverse (visible (gamma defs) (currentNS defs)) (n :: ns)
          let visns = mapMaybe id visnsm
-         exactlyOne fc env topty 
-            (map (searchName fc rigc defaults trying depth defining topty env target) visns)
+         let elabs = map (searchName fc rigc defaults trying depth defining topty env target) visns
+         if ambig
+            then anyOne fc env topty elabs
+            else exactlyOne fc env topty elabs
   where
     visible : Context -> 
               List String -> Name -> Core (Maybe (Name, GlobalDef))
@@ -429,15 +445,15 @@ searchType {vars} fc rigc defaults trying depth def top env target
     ambig (AmbiguousSearch _ _ _) = True
     ambig _ = False
     
-    tryGroups : NF vars -> List (List Name) -> Core (Term vars)
+    tryGroups : NF vars -> List (Bool, List Name) -> Core (Term vars)
     tryGroups nty [] = throw (CantSolveGoal fc [] top)
-    tryGroups nty (g :: gs)
+    tryGroups nty ((ambigok, g) :: gs)
         = handleUnify
              (do logC 5 (do gn <- traverse getFullName g
                             pure ("Search: Trying " ++ show (length gn) ++
                                            " names " ++ show gn))
                  logNF 5 "For target" env nty
-                 searchNames fc rigc defaults (target :: trying) depth def top env g nty)
+                 searchNames fc rigc defaults (target :: trying) depth def top env ambigok g nty)
              (\err => if ambig err || isNil gs
                          then throw err
                          else tryGroups nty gs)

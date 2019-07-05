@@ -384,7 +384,7 @@ searchType fc rig opts env defining topty _ ty
                 do defs <- get Ctxt
                    if length args == ar
                      then do sd <- getSearchData fc False n
-                             let allHints = concat (hintGroups sd)
+                             let allHints = concat (map snd (hintGroups sd))
                              -- Solutions is either:
                              -- First try the locals,
                              -- Then try the hints in order

@@ -1085,7 +1085,8 @@ public export
 record SearchData where
   constructor MkSearchData
   detArgs : List Nat -- determining argument positions
-  hintGroups : List (List Name) -- names of functions to use as hints.
+  hintGroups : List (Bool, List Name) 
+       -- names of functions to use as hints, and whether ambiguity is allowed
     {- In proof search, for every group of names
         * If exactly one succeeds, use it
         * If more than one succeeds, report an ambiguity error
@@ -1114,14 +1115,17 @@ getSearchData fc defaults target
          if defaults
             then let defns = map fst (filter isDefault
                                              (toList (autoHints defs))) in
-                     pure (MkSearchData [] [defns])
+                     pure (MkSearchData [] [(False, defns)])
             else let opens = map fst (toList (openHints defs))
                      autos = map fst (filter (not . isDefault) 
                                              (toList (autoHints defs)))
                      tyhs = map fst (filter direct hs) 
                      chasers = map fst (filter (not . direct) hs) in
-                     pure (MkSearchData dets (filter isCons 
-                               [opens, autos, tyhs, chasers]))
+                     pure (MkSearchData dets (filter (isCons . snd)
+                               [(False, opens), 
+                                (False, autos), 
+                                (False, tyhs), 
+                                (True, chasers)]))
   where
     isDefault : (Name, Bool) -> Bool
     isDefault = snd
