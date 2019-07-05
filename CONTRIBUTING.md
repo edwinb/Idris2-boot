@@ -6,6 +6,8 @@ beyond work on the language core, are (in no particular order):
 
 * CI integration.
 * Documentation string support (at the REPL and IDE mode).
+* Generating HTML documentation from documentation strings (and possibly other
+  formations)
 * A better REPL, including:
   - `it` and `:let`
   - readline and tab completion
