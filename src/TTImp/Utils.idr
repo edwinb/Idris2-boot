@@ -38,6 +38,8 @@ findBindableNames arg env used (IApp fc fn av)
     = findBindableNames False env used fn ++ findBindableNames True env used av
 findBindableNames arg env used (IImplicitApp fc fn n av)
     = findBindableNames False env used fn ++ findBindableNames True env used av
+findBindableNames arg env used (IWithApp fc fn av)
+    = findBindableNames False env used fn ++ findBindableNames True env used av
 findBindableNames arg env used (IAs fc _ (UN n) pat)
     = (n, getUnique used n) :: findBindableNames arg env used pat
 findBindableNames arg env used (IAs fc _ n pat)
@@ -90,6 +92,8 @@ mutual
       = IApp fc (substNames bound ps fn) (substNames bound ps arg)
   substNames bound ps (IImplicitApp fc fn y arg)
       = IImplicitApp fc (substNames bound ps fn) y (substNames bound ps arg)
+  substNames bound ps (IWithApp fc fn arg) 
+      = IWithApp fc (substNames bound ps fn) (substNames bound ps arg)
   substNames bound ps (IAlternative fc y xs) 
       = IAlternative fc y (map (substNames bound ps) xs)
   substNames bound ps (ICoerced fc y) 
@@ -170,6 +174,8 @@ mutual
       = IApp fc' (substLoc fc' fn) (substLoc fc' arg)
   substLoc fc' (IImplicitApp fc fn y arg)
       = IImplicitApp fc' (substLoc fc' fn) y (substLoc fc' arg)
+  substLoc fc' (IWithApp fc fn arg) 
+      = IWithApp fc' (substLoc fc' fn) (substLoc fc' arg)
   substLoc fc' (IAlternative fc y xs) 
       = IAlternative fc' y (map (substLoc fc') xs)
   substLoc fc' (ICoerced fc y) 
@@ -270,6 +276,8 @@ mutual
       = if n == n' 
            then matchAll [(f, f'), (a, a')]
            else matchFail loc
+  getMatch (IWithApp _ f a) (IWithApp loc f' a')
+      = matchAll [(f, f'), (a, a')]
   -- It's okay to skip implicits
   getMatch (IImplicitApp fc f n a) f' 
       = getMatch f f;

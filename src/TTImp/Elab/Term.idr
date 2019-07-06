@@ -112,6 +112,8 @@ checkTerm rig elabinfo nest env (IUpdate fc upds rec) exp
     = checkUpdate rig elabinfo nest env fc upds rec exp
 checkTerm rig elabinfo nest env (IApp fc fn arg) exp 
     = checkApp rig elabinfo nest env fc fn [arg] [] exp
+checkTerm rig elabinfo nest env (IWithApp fc fn arg) exp 
+    = throw (GenericMsg fc "with application not implemented yet")
 checkTerm rig elabinfo nest env (IImplicitApp fc fn nm arg) exp
     = checkApp rig elabinfo nest env fc fn [] [(nm, arg)] exp
 checkTerm rig elabinfo nest env (ISearch fc depth) (Just gexpty)

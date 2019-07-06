@@ -182,10 +182,14 @@ mutual
       = do ds' <- traverse toPFieldUpdate ds
            f' <- toPTerm argPrec f
            bracket p startPrec (PApp fc (PUpdate fc ds') f')
-  toPTerm p tm@(IApp fc fn arg)
+  toPTerm p (IApp fc fn arg)
       = do arg' <- toPTerm argPrec arg
            app <- toPTermApp fn [(fc, Nothing, arg')]
            bracket p appPrec app
+  toPTerm p (IWithApp fc fn arg)
+      = do arg' <- toPTerm startPrec arg
+           fn' <- toPTerm startPrec fn
+           bracket p appPrec (PWithApp fc fn' arg')
   toPTerm p (IImplicitApp fc fn n arg) 
       = do arg' <- toPTerm startPrec arg
            app <- toPTermApp fn [(fc, Just n, arg')]

@@ -59,6 +59,8 @@ mutual
 
        IApp : FC -> RawImp -> RawImp -> RawImp
        IImplicitApp : FC -> RawImp -> Maybe Name -> RawImp -> RawImp
+       IWithApp : FC -> RawImp -> RawImp -> RawImp
+
        ISearch : FC -> (depth : Nat) -> RawImp
        IAlternative : FC -> AltType -> List RawImp -> RawImp
        IRewrite : FC -> RawImp -> RawImp -> RawImp
@@ -123,6 +125,8 @@ mutual
          = "(" ++ show f ++ " " ++ show a ++ ")"
       show (IImplicitApp fc f n a)
          = "(" ++ show f ++ " [" ++ show n ++ " = " ++ show a ++ "])"
+      show (IWithApp fc f a)
+         = "(" ++ show f ++ " | " ++ show a ++ ")"
       show (ISearch fc d)
          = "%search"
       show (IAlternative fc ty alts)
@@ -315,6 +319,9 @@ lhsInCurrentNS nest (IApp loc f a)
 lhsInCurrentNS nest (IImplicitApp loc f n a)
     = do f' <- lhsInCurrentNS nest f
          pure (IImplicitApp loc f' n a)
+lhsInCurrentNS nest (IWithApp loc f a)
+    = do f' <- lhsInCurrentNS nest f
+         pure (IWithApp loc f' a)
 lhsInCurrentNS nest tm@(IVar loc (NS _ _)) = pure tm -- leave explicit NS alone
 lhsInCurrentNS nest (IVar loc n)
     = case lookup n (names nest) of
@@ -336,6 +343,8 @@ findIBinds (ILam fc rig p n aty sc)
 findIBinds (IApp fc fn av)
     = findIBinds fn ++ findIBinds av
 findIBinds (IImplicitApp fc fn n av)
+    = findIBinds fn ++ findIBinds av
+findIBinds (IWithApp fc fn av)
     = findIBinds fn ++ findIBinds av
 findIBinds (IAs fc _ n pat)
     = findIBinds pat
@@ -363,6 +372,8 @@ findImplicits (ILam fc rig p n aty sc)
 findImplicits (IApp fc fn av)
     = findImplicits fn ++ findImplicits av
 findImplicits (IImplicitApp fc fn n av)
+    = findImplicits fn ++ findImplicits av
+findImplicits (IWithApp fc fn av)
     = findImplicits fn ++ findImplicits av
 findImplicits (IAs fc _ n pat)
     = findImplicits pat
@@ -392,6 +403,9 @@ implicitsAs defs ns tm = setAs (ns ++ map UN (findIBinds tm)) tm
         = do let is' = maybe is (\n' => n' :: is) n
              f' <- setAs is' f
              pure $ IImplicitApp loc f' n a
+    setAs is (IWithApp loc f a)
+        = do f' <- setAs is f
+             pure $ IWithApp loc f' a
     setAs is (IVar loc n)
         = case !(lookupTyExact n (gamma defs)) of
                Nothing => pure $ IVar loc n
@@ -440,6 +454,7 @@ getFC (ILocal x _ _) = x
 getFC (IUpdate x _ _) = x
 getFC (IApp x _ _) = x
 getFC (IImplicitApp x _ _ _) = x
+getFC (IWithApp x _ _) = x
 getFC (ISearch x _) = x
 getFC (IAlternative x _ _) = x
 getFC (IRewrite x _ _) = x
@@ -464,6 +479,7 @@ apply f (x :: xs) = apply (IApp (getFC f) f x) xs
 export
 getFn : RawImp -> RawImp
 getFn (IApp _ f arg) = getFn f
+getFn (IWithApp _ f arg) = getFn f
 getFn (IImplicitApp _ f _ _) = getFn f
 getFn f = f
 
@@ -492,41 +508,43 @@ mutual
         = do tag 7; toBuf b fc; toBuf b fn; toBuf b arg
     toBuf b (IImplicitApp fc fn y arg) 
         = do tag 8; toBuf b fc; toBuf b fn; toBuf b y; toBuf b arg
+    toBuf b (IWithApp fc fn arg) 
+        = do tag 9; toBuf b fc; toBuf b fn; toBuf b arg
     toBuf b (ISearch fc depth) 
-        = do tag 9; toBuf b fc; toBuf b depth
+        = do tag 10; toBuf b fc; toBuf b depth
     toBuf b (IAlternative fc y xs) 
-        = do tag 10; toBuf b fc; toBuf b y; toBuf b xs
+        = do tag 11; toBuf b fc; toBuf b y; toBuf b xs
     toBuf b (IRewrite fc x y) 
-        = do tag 11; toBuf b fc; toBuf b x; toBuf b y
+        = do tag 12; toBuf b fc; toBuf b x; toBuf b y
     toBuf b (ICoerced fc y) 
-        = do tag 12; toBuf b fc; toBuf b y
+        = do tag 13; toBuf b fc; toBuf b y
 
     toBuf b (IBindHere fc m y)
-        = do tag 13; toBuf b fc; toBuf b m; toBuf b y
+        = do tag 14; toBuf b fc; toBuf b m; toBuf b y
     toBuf b (IBindVar fc y)
-        = do tag 14; toBuf b fc; toBuf b y
+        = do tag 15; toBuf b fc; toBuf b y
     toBuf b (IAs fc s y pattern)
-        = do tag 15; toBuf b fc; toBuf b s; toBuf b y; toBuf b pattern
+        = do tag 16; toBuf b fc; toBuf b s; toBuf b y; toBuf b pattern
     toBuf b (IMustUnify fc r pattern)
         -- No need to record 'r', it's for type errors only
-        = do tag 16; toBuf b fc; toBuf b pattern
+        = do tag 17; toBuf b fc; toBuf b pattern
 
     toBuf b (IDelayed fc r y)
-        = do tag 17; toBuf b fc; toBuf b r; toBuf b y
+        = do tag 18; toBuf b fc; toBuf b r; toBuf b y
     toBuf b (IDelay fc t)
-        = do tag 18; toBuf b fc; toBuf b t
-    toBuf b (IForce fc t)
         = do tag 19; toBuf b fc; toBuf b t
+    toBuf b (IForce fc t)
+        = do tag 20; toBuf b fc; toBuf b t
 
     toBuf b (IPrimVal fc y)
-        = do tag 20; toBuf b fc; toBuf b y
+        = do tag 21; toBuf b fc; toBuf b y
     toBuf b (IType fc)
-        = do tag 21; toBuf b fc
+        = do tag 22; toBuf b fc
     toBuf b (IHole fc y)
-        = do tag 22; toBuf b fc; toBuf b y
+        = do tag 23; toBuf b fc; toBuf b y
 
     toBuf b (Implicit fc i)
-        = do tag 23; toBuf b fc; toBuf b i
+        = do tag 24; toBuf b fc; toBuf b i
 
     fromBuf b
         = case !getTag of
@@ -561,42 +579,45 @@ mutual
                8 => do fc <- fromBuf b; fn <- fromBuf b
                        y <- fromBuf b; arg <- fromBuf b
                        pure (IImplicitApp fc fn y arg)
-               9 => do fc <- fromBuf b; depth <- fromBuf b
-                       pure (ISearch fc depth)
-               10 => do fc <- fromBuf b; y <- fromBuf b
+               9 => do fc <- fromBuf b; fn <- fromBuf b
+                       arg <- fromBuf b
+                       pure (IWithApp fc fn arg)
+               10 => do fc <- fromBuf b; depth <- fromBuf b
+                        pure (ISearch fc depth)
+               11 => do fc <- fromBuf b; y <- fromBuf b
                         xs <- fromBuf b
                         pure (IAlternative fc y xs)
-               11 => do fc <- fromBuf b; x <- fromBuf b; y <- fromBuf b
+               12 => do fc <- fromBuf b; x <- fromBuf b; y <- fromBuf b
                         pure (IRewrite fc x y)
-               12 => do fc <- fromBuf b; y <- fromBuf b
+               13 => do fc <- fromBuf b; y <- fromBuf b
                         pure (ICoerced fc y)
-               13 => do fc <- fromBuf b; m <- fromBuf b; y <- fromBuf b
+               14 => do fc <- fromBuf b; m <- fromBuf b; y <- fromBuf b
                         pure (IBindHere fc m y)
-               14 => do fc <- fromBuf b; y <- fromBuf b
+               15 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IBindVar fc y)
-               15 => do fc <- fromBuf b; side <- fromBuf b
+               16 => do fc <- fromBuf b; side <- fromBuf b
                         y <- fromBuf b
                         pattern <- fromBuf b
                         pure (IAs fc side y pattern)
-               16 => do fc <- fromBuf b
+               17 => do fc <- fromBuf b
                         pattern <- fromBuf b
                         pure (IMustUnify fc "" pattern)
 
-               17 => do fc <- fromBuf b; r <- fromBuf b
+               18 => do fc <- fromBuf b; r <- fromBuf b
                         y <- fromBuf b
                         pure (IDelayed fc r y)
-               18 => do fc <- fromBuf b; y <- fromBuf b
-                        pure (IDelay fc y)
                19 => do fc <- fromBuf b; y <- fromBuf b
+                        pure (IDelay fc y)
+               20 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IForce fc y)
 
-               20 => do fc <- fromBuf b; y <- fromBuf b
+               21 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IPrimVal fc y)
-               21 => do fc <- fromBuf b
+               22 => do fc <- fromBuf b
                         pure (IType fc)
-               22 => do fc <- fromBuf b; y <- fromBuf b
+               23 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IHole fc y)
-               23 => do fc <- fromBuf b
+               24 => do fc <- fromBuf b
                         i <- fromBuf b
                         pure (Implicit fc i)
                _ => corrupt "RawImp"

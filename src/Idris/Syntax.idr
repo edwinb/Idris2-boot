@@ -45,6 +45,7 @@ mutual
        PLocal : FC -> List PDecl -> (scope : PTerm) -> PTerm
        PUpdate : FC -> List PFieldUpdate -> PTerm
        PApp : FC -> PTerm -> PTerm -> PTerm
+       PWithApp : FC -> PTerm -> PTerm -> PTerm
        PImplicitApp : FC -> PTerm -> (argn : Maybe Name) -> PTerm -> PTerm
 
        PDelayed : FC -> LazyReason -> PTerm -> PTerm
@@ -365,6 +366,7 @@ mutual
     show (PUpdate _ fs)
         = "record { " ++ showSep ", " (map showUpdate fs) ++ " }"
     show (PApp _ f a) = show f ++ " " ++ show a
+    show (PWithApp _ f a) = show f ++ " | " ++ show a
     show (PImplicitApp _ f Nothing a) 
         = show f ++ " @{" ++ show a ++ "}"
     show (PDelayed _ LInf ty)

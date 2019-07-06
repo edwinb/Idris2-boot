@@ -146,6 +146,8 @@ mutual
                             (PApp fc (PUpdate fc fs) (PRef fc (MN "rec" 0))))
   desugar side ps (PApp fc x y) 
       = pure $ IApp fc !(desugar side ps x) !(desugar side ps y)
+  desugar side ps (PWithApp fc x y) 
+      = pure $ IWithApp fc !(desugar side ps x) !(desugar side ps y)
   desugar side ps (PImplicitApp fc x argn y) 
       = pure $ IImplicitApp fc !(desugar side ps x) argn !(desugar side ps y)
   desugar side ps (PDelayed fc r ty)
