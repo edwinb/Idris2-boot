@@ -42,13 +42,13 @@ checkPi : {vars : _} ->
           Core (Term vars, Glued vars)
 checkPi rig elabinfo nest env fc rigf info n argTy retTy expTy
     = do let pirig = getRig (elabMode elabinfo)
-         (tyv, tyt) <- check pirig (nextLevel elabinfo) nest env argTy 
+         (tyv, tyt) <- check pirig elabinfo nest env argTy 
                              (Just (gType fc))
          let env' : Env Term (n :: _) = Pi rigf info tyv :: env
          let nest' = weaken (dropName n nest)
          (scopev, scopet) <- 
             inScope fc env' (\e' => 
-              check {e=e'} pirig (nextLevel elabinfo) nest' env' retTy (Just (gType fc)))
+              check {e=e'} pirig elabinfo nest' env' retTy (Just (gType fc)))
          checkExp rig elabinfo env fc (Bind fc n (Pi rigf info tyv) scopev) (gType fc) expTy
   where
     -- Might want to match on the LHS, so use the context rig, otherwise
@@ -81,11 +81,11 @@ inferLambda : {vars : _} ->
 inferLambda rig elabinfo nest env fc rigl info n argTy scope expTy
     = do rigb_in <- findLamRig expTy
          let rigb = min rigb_in rigl
-         (tyv, tyt) <- check Rig0 (nextLevel elabinfo) nest env argTy (Just (gType fc))
+         (tyv, tyt) <- check Rig0 elabinfo nest env argTy (Just (gType fc))
          let env' : Env Term (n :: _) = Lam rigb info tyv :: env
          let nest' = weaken (dropName n nest)
          (scopev, scopet) <- inScope fc env' (\e' =>
-                                check {e=e'} rig (nextLevel elabinfo) 
+                                check {e=e'} rig elabinfo 
                                       nest' env' scope Nothing)
          let lamty = gnf env (Bind fc n (Pi rigb info tyv) !(getTerm scopet))
          logGlue 5 "Inferred lambda type" env lamty
@@ -125,7 +125,7 @@ checkLambda rig_in elabinfo nest env fc rigl info n argTy scope (Just expty_in)
          defs <- get Ctxt
          case exptynf of
               Bind bfc bn (Pi c _ pty) psc =>
-                 do (tyv, tyt) <- check Rig0 (nextLevel elabinfo) nest env 
+                 do (tyv, tyt) <- check Rig0 elabinfo nest env 
                                         argTy (Just (gType fc))
                     let rigb = min rigl c
                     let env' : Env Term (n :: _) = Lam rigb info tyv :: env
@@ -133,7 +133,7 @@ checkLambda rig_in elabinfo nest env fc rigl info n argTy scope (Just expty_in)
                     let nest' = weaken (dropName n nest)
                     (scopev, scopet) <-
                        inScope fc env' (\e' =>
-                          check {e=e'} rig (nextLevel elabinfo) nest' env' scope 
+                          check {e=e'} rig elabinfo nest' env' scope 
                                 (Just (gnf env' (renameTop n psc))))
                     logTermNF 10 "Lambda type" env exptynf
                     logGlueNF 10 "Got scope type" env' scopet
@@ -167,17 +167,17 @@ checkLet : {vars : _} ->
            Core (Term vars, Glued vars)
 checkLet rigc_in elabinfo nest env fc rigl n nTy nVal scope expty
     = do let rigc = if rigc_in == Rig0 then Rig0 else Rig1
-         (tyv, tyt) <- check Rig0 (nextLevel elabinfo) nest env nTy (Just (gType fc))
+         (tyv, tyt) <- check Rig0 elabinfo nest env nTy (Just (gType fc))
          -- Try checking at the given multiplicity; if that doesn't work,
          -- try checking at Rig1 (meaning that we're using a linear variable
          -- so the resulting binding should be linear)
          (valv, valt, rigb) <- handle
-              (do c <- check (rigMult rigl rigc) (nextLevel elabinfo)
+              (do c <- check (rigMult rigl rigc) elabinfo
                              nest env nVal (Just (gnf env tyv))
                   pure (fst c, snd c, rigMult rigl rigc))
               (\err => case err of
                             LinearMisuse _ _ Rig1 _
-                              => do c <- check Rig1 (nextLevel elabinfo) 
+                              => do c <- check Rig1 elabinfo 
                                                nest env nVal (Just (gnf env tyv))
                                     pure (fst c, snd c, Rig1)
                             e => throw e)
@@ -186,7 +186,7 @@ checkLet rigc_in elabinfo nest env fc rigl n nTy nVal scope expty
          expScope <- weakenExp env' expty 
          (scopev, gscopet) <- 
             inScope fc env' (\e' => 
-              check {e=e'} rigc (nextLevel elabinfo) nest' env' scope expScope)
+              check {e=e'} rigc elabinfo nest' env' scope expScope)
          scopet <- getTerm gscopet
          checkExp rigc elabinfo env fc
                   (Bind fc n (Let rigb valv tyv) scopev)

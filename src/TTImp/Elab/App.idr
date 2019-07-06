@@ -300,7 +300,7 @@ mutual
              defs <- get Ctxt
              aty' <- nf defs env metaty
              logNF 10 ("Now trying " ++ show nm ++ " " ++ show arg) env aty'
-             (argv, argt) <- check argRig (nextLevel elabinfo)
+             (argv, argt) <- check argRig elabinfo
                                    nest env arg (Just (glueBack defs env aty'))
              when (onLHS (elabMode elabinfo)) $
                   checkPatTyValid fc defs env aty' argv argt
@@ -333,7 +333,7 @@ mutual
                                      (\t => pure (Just !(toFullNames!(getTerm t))))
                                      expty
                          pure ("Overall expected type: " ++ show ety))
-             (argv, argt) <- check argRig (nextLevel elabinfo)
+             (argv, argt) <- check argRig elabinfo
                                    nest env arg (Just (glueBack defs env aty))
              logGlueNF 10 "Got arg type" env argt
              defs <- get Ctxt
@@ -457,7 +457,7 @@ mutual
            retTy <- metaVar -- {vars = argn :: vars}
                             fc Rig0 env -- (Pi RigW Explicit argTy :: env) 
                             retn (TType fc)
-           (argv, argt) <- check rig (nextLevel elabinfo)
+           (argv, argt) <- check rig elabinfo
                                  nest env arg (Just argTyG)
            let fntm = App fc tm argv
            defs <- get Ctxt

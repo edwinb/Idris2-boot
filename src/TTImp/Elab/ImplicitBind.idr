@@ -490,7 +490,8 @@ checkBindHere rig elabinfo nest env fc bindmode tm exp
          -- Set the binding environment in the elab state - unbound
          -- implicits should have access to whatever is in scope here
          put EST (updateEnv env SubRefl [] est)
-         (tmv, tmt) <- check rig (record { implicitMode = bindmode }
+         (tmv, tmt) <- check rig (record { implicitMode = bindmode,
+                                           bindingVars = True }
                                          elabinfo)
                              nest env tm exp
          solveConstraints (case elabMode elabinfo of

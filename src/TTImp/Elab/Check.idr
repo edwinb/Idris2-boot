@@ -338,22 +338,11 @@ record ElabInfo where
   constructor MkElabInfo
   elabMode : ElabMode
   implicitMode : BindMode
-  level : Nat
+  bindingVars : Bool
 
 export
 initElabInfo : ElabMode -> ElabInfo
-initElabInfo m = MkElabInfo m NONE 0
-
-export
-nextLevel : ElabInfo -> ElabInfo
-nextLevel = record { level $= (+1) }
-
-export
-bindingVars : ElabInfo -> Bool
-bindingVars e
-    = case elabMode e of
-           InExpr => False
-           _ => True
+initElabInfo m = MkElabInfo m NONE False
 
 export
 tryError : {vars : _} ->
