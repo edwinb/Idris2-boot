@@ -13,6 +13,6 @@
 :total qsortBad
 :total qsort
 :total qsort'
-:total sorted
-:total mergeBy
+:total mySorted
+:total myMergeBy
 :q

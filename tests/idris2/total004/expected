@@ -15,6 +15,6 @@ Main> Main.size is total
 Main> Main.qsortBad is not terminating due to recursive path Main.qsortBad -> Main.qsortBad
 Main> Main.qsort is total
 Main> Main.qsort' is total
-Main> Main.sorted is total
-Main> Main.mergeBy is total
+Main> Main.mySorted is total
+Main> Main.myMergeBy is total
 Main> Bye for now!

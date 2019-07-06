@@ -111,17 +111,17 @@ qsort' (x :: xs)
     partition : a -> List a -> (List a, List a)
     partition x xs = (filter (< x) xs, filter (>= x) xs)
 
-sorted : Ord a => List a -> Bool
-sorted []      = True
-sorted (x::xs) =
+mySorted : Ord a => List a -> Bool
+mySorted []      = True
+mySorted (x::xs) =
   case xs of
     Nil     => True
-    (y::ys) => x <= y && sorted (y::ys)
+    (y::ys) => x <= y && mySorted (y::ys)
 
-mergeBy : (a -> a -> Ordering) -> List a -> List a -> List a
-mergeBy order []      right   = right
-mergeBy order left    []      = left
-mergeBy order (x::xs) (y::ys) =
+myMergeBy : (a -> a -> Ordering) -> List a -> List a -> List a
+myMergeBy order []      right   = right
+myMergeBy order left    []      = left
+myMergeBy order (x::xs) (y::ys) =
   case order x y of
-       LT => x :: mergeBy order xs (y::ys)
-       _  => y :: mergeBy order (x::xs) ys
+       LT => x :: myMergeBy order xs (y::ys)
+       _  => y :: myMergeBy order (x::xs) ys
