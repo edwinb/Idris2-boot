@@ -105,3 +105,58 @@ export
 toList : Foldable t => t a -> List a
 toList = foldr (::) []
 
+--------------------------------------------------------------------------------
+-- Sorting
+--------------------------------------------------------------------------------
+
+||| Check whether a list is sorted with respect to the default ordering for the type of its elements.
+export
+sorted : Ord a => List a -> Bool
+sorted []      = True
+sorted (x::xs) =
+  case xs of
+    Nil     => True
+    (y::ys) => x <= y && sorted (y::ys)
+
+||| Merge two sorted lists using an arbitrary comparison
+||| predicate. Note that the lists must have been sorted using this
+||| predicate already.
+export
+mergeBy : (a -> a -> Ordering) -> List a -> List a -> List a
+mergeBy order []      right   = right
+mergeBy order left    []      = left
+mergeBy order (x::xs) (y::ys) =
+  case order x y of
+       LT => x :: mergeBy order xs (y::ys)
+       _  => y :: mergeBy order (x::xs) ys
+
+||| Merge two sorted lists using the default ordering for the type of their elements.
+export
+merge : Ord a => List a -> List a -> List a
+merge = mergeBy compare
+
+||| Sort a list using some arbitrary comparison predicate.
+|||
+||| @ cmp how to compare elements
+||| @ xs the list to sort
+export
+sortBy : (cmp : a -> a -> Ordering) -> (xs : List a) -> List a
+sortBy cmp []  = []
+sortBy cmp [x] = [x]
+sortBy cmp xs  = let (x, y) = split xs in
+    mergeBy cmp
+          (sortBy cmp (assert_smaller xs x))
+          (sortBy cmp (assert_smaller xs y)) -- not structurally smaller, hence assert
+  where
+    splitRec : List a -> List a -> (List a -> List a) -> (List a, List a)
+    splitRec (_::_::xs) (y::ys) zs = splitRec xs ys (zs . ((::) y))
+    splitRec _          ys      zs = (zs [], ys)
+
+    split : List a -> (List a, List a)
+    split xs = splitRec xs xs id
+
+||| Sort a list using the default ordering for the type of its elements.
+export
+sort : Ord a => List a -> List a
+sort = sortBy compare
+
