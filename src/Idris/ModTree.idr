@@ -145,7 +145,10 @@ buildMod loc num len mod
    = do clearCtxt; addPrimitives
         let src = buildFile mod
         mttc <- getTTCFileName src ".ttc"
-        depFiles <- traverse (nsToPath loc) (imports mod)
+        -- We'd expect any errors in nsToPath to have been caught by now
+        -- since the imports have been built! But we still have to check.
+        depFilesE <- traverse (nsToPath loc) (imports mod)
+        let (ferrs, depFiles) = getEithers depFilesE
         ttcTime <- catch (do t <- fnameModified mttc
                              pure (Just t))
                          (\err => pure Nothing)
@@ -167,10 +170,22 @@ buildMod loc num len mod
                                    ": Building " ++ showMod ++
                                    " (" ++ src ++ ")"
                    [] <- process {u} {m} msg src
-                      | errs => do traverse emitError errs
-                                   pure errs
-                   pure []
-           else pure []
+                      | errs => do traverse emitError (ferrs ++ errs)
+                                   pure (ferrs ++ errs)
+                   traverse_ emitError ferrs
+                   pure ferrs
+           else do traverse_ emitError ferrs
+                   pure ferrs
+  where
+    getEithers : List (Either a b) -> (List a, List b)
+    getEithers [] = ([], [])
+    getEithers (Left x :: es)
+        = let (ls, rs) = getEithers es in
+              (x :: ls, rs)
+    getEithers (Right y :: es)
+        = let (ls, rs) = getEithers es in
+              (ls, y :: rs)
+
 
 buildMods : {auto c : Ref Ctxt Defs} ->
             {auto s : Ref Syn SyntaxInfo} ->

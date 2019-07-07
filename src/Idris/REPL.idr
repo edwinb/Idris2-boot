@@ -373,9 +373,10 @@ loadMainFile : {auto c : Ref Ctxt Defs} ->
                String -> Core ()
 loadMainFile f
     = do resetContext
-         updateErrorLine !(buildDeps f)
          Right res <- coreLift (readFile f)
-            | Left err => setSource ""
+            | Left err => do emitError (FileErr f err)
+                             setSource ""
+         updateErrorLine !(buildDeps f)
          setSource res
 
 -- Returns 'True' if the REPL should continue

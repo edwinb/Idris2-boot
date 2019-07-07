@@ -58,7 +58,8 @@ readModule : {auto c : Ref Ctxt Defs} ->
              (as : List String) -> -- Namespace to import into
              Core ()
 readModule top loc vis reexp imp as
-    = do fname <- nsToPath loc imp
+    = do Right fname <- nsToPath loc imp
+               | Left err => throw err
          Just (syn, hash, more) <- logTime ("Reading " ++ show imp) $
                                          readFromTTC {extra = SyntaxInfo} 
                                                   loc vis fname imp as
@@ -89,7 +90,8 @@ readHash : {auto c : Ref Ctxt Defs} ->
            {auto u : Ref UST UState} ->
            Import -> Core (List String, Int)
 readHash imp
-    = do fname <- nsToPath (loc imp) (path imp)
+    = do Right fname <- nsToPath (loc imp) (path imp)
+               | Left err => throw err
          h <- readIFaceHash fname
          -- If the import is a 'public' import, then it forms part of
          -- our own interface so add its hash to our hash

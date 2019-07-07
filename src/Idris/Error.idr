@@ -217,7 +217,7 @@ perror (BadRunElab _ env script)
 perror (GenericMsg _ str) = pure str
 perror (TTCError msg) = pure $ "Error in TTC file: " ++ show msg
 perror (FileErr fname err) 
-    = pure $ "File error in " ++ show fname ++ ": " ++ show err
+    = pure $ "File error in " ++ fname ++ ": " ++ show err
 perror (ParseFail _ err)
     = pure $ show err
 perror (ModuleNotFound _ ns)

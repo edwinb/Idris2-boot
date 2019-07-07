@@ -57,15 +57,15 @@ readDataFile fname
 -- looking first in the build directory then in the extra_dirs
 export
 nsToPath : {auto c : Ref Ctxt Defs} ->
-           FC -> List String -> Core String
+           FC -> List String -> Core (Either Error String)
 nsToPath loc ns
     = do d <- getDirs
          let fnameBase = showSep (cast sep) (reverse ns)
          let fs = map (\p => p ++ cast sep ++ fnameBase ++ ".ttc")
                       (build_dir d :: extra_dirs d)
          Just f <- firstAvailable fs
-            | Nothing => throw (ModuleNotFound loc ns)
-         pure f
+            | Nothing => pure (Left (ModuleNotFound loc ns))
+         pure (Right f)
 
 -- Given a namespace, return the full path to the source module (if it
 -- exists in the working directory)
