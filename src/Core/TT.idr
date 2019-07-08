@@ -259,8 +259,10 @@ data Binder : Type -> Type where
      Let : RigCount -> (val : type) -> (ty : type) -> Binder type
 		 -- Forall/pi bound variables with their implicitness
      Pi : RigCount -> PiInfo -> (ty : type) -> Binder type
-		 -- pattern bound variables
-     PVar : RigCount -> (ty : type) -> Binder type 
+		 -- pattern bound variables. The PiInfo gives the implicitness at the
+     -- point it was bound (Explicit if it was explicitly named in the
+     -- program)
+     PVar : RigCount -> PiInfo -> (ty : type) -> Binder type 
 		 -- variable bound for an as pattern (Like a let, but no computational
      -- force, and only used on the lhs. Converted to a let on the rhs because
      -- we want the computational behaviour.)
@@ -273,7 +275,7 @@ binderType : Binder tm -> tm
 binderType (Lam _ x ty) = ty
 binderType (Let _ val ty) = ty
 binderType (Pi _ x ty) = ty
-binderType (PVar _ ty) = ty
+binderType (PVar _ _ ty) = ty
 binderType (PLet _ val ty) = ty
 binderType (PVTy _ ty) = ty
 
@@ -282,7 +284,7 @@ multiplicity : Binder tm -> RigCount
 multiplicity (Lam c x ty) = c
 multiplicity (Let c val ty) = c
 multiplicity (Pi c x ty) = c
-multiplicity (PVar c ty) = c
+multiplicity (PVar c p ty) = c
 multiplicity (PLet c val ty) = c
 multiplicity (PVTy c ty) = c
   
@@ -291,7 +293,7 @@ setMultiplicity : Binder tm -> RigCount -> Binder tm
 setMultiplicity (Lam c x ty) c' = Lam c' x ty
 setMultiplicity (Let c val ty) c' = Let c' val ty
 setMultiplicity (Pi c x ty) c' = Pi c' x ty
-setMultiplicity (PVar c ty) c' = PVar c' ty
+setMultiplicity (PVar c p ty) c' = PVar c' p ty
 setMultiplicity (PLet c val ty) c' = PLet c' val ty
 setMultiplicity (PVTy c ty) c' = PVTy c' ty
 
@@ -304,7 +306,7 @@ Show ty => Show (Binder ty) where
 	show (Lam c _ t) = "\\" ++ showCount c ++ show t
 	show (Pi c _ t) = "Pi " ++ showCount c ++ show t
 	show (Let c v t) = "let " ++ showCount c ++ show v ++ " : " ++ show t
-	show (PVar c t) = "pat " ++ showCount c ++ show t
+	show (PVar c _ t) = "pat " ++ showCount c ++ show t
 	show (PLet c v t) = "plet " ++ showCount c ++ show v ++ " : " ++ show t
 	show (PVTy c t) = "pty " ++ showCount c ++ show t
 
@@ -313,7 +315,7 @@ setType : Binder tm -> tm -> Binder tm
 setType (Lam c x _) ty = Lam c x ty
 setType (Let c val _) ty = Let c val ty
 setType (Pi c x _) ty = Pi c x ty
-setType (PVar c _) ty = PVar c ty
+setType (PVar c p _) ty = PVar c p ty
 setType (PLet c val _) ty = PLet c val ty
 setType (PVTy c _) ty = PVTy c ty
 
@@ -322,7 +324,7 @@ Functor Binder where
   map func (Lam c x ty) = Lam c x (func ty)
   map func (Let c val ty) = Let c (func val) (func ty)
   map func (Pi c x ty) = Pi c x (func ty)
-  map func (PVar c ty) = PVar c (func ty)
+  map func (PVar c p ty) = PVar c p (func ty)
   map func (PLet c val ty) = PLet c (func val) (func ty)
   map func (PVTy c ty) = PVTy c (func ty)
 
@@ -432,7 +434,7 @@ Eq a => Eq (Binder a) where
   (Lam c p ty) == (Lam c' p' ty') = c == c' && p == p' && ty == ty'
   (Let c v ty) == (Let c' v' ty') = c == c' && v == v' && ty == ty'
   (Pi c p ty) == (Pi c' p' ty') = c == c' && p == p' && ty == ty'
-  (PVar c ty) == (PVar c' ty') = c == c' && ty == ty'
+  (PVar c p ty) == (PVar c' p' ty') = c == c' && p == p' && ty == ty'
   (PLet c v ty) == (PLet c' v' ty') = c == c' && v == v' && ty == ty'
   (PVTy c ty) == (PVTy c' ty') = c == c' && ty == ty'
   _ == _ = False
@@ -799,8 +801,8 @@ mutual
       = Just (Let c !(shrinkTerm val prf) !(shrinkTerm ty prf))
   shrinkBinder (Pi c p ty) prf
       = Just (Pi c p !(shrinkTerm ty prf))
-  shrinkBinder (PVar c ty) prf
-      = Just (PVar c !(shrinkTerm ty prf))
+  shrinkBinder (PVar c p ty) prf
+      = Just (PVar c p !(shrinkTerm ty prf))
   shrinkBinder (PLet c val ty) prf
       = Just (PLet c !(shrinkTerm val prf) !(shrinkTerm ty prf))
   shrinkBinder (PVTy c ty) prf
@@ -1109,9 +1111,15 @@ export Show (Term vars) where
       showApp (Bind _ x (Pi c AutoImplicit ty) sc) [] 
           = "{auto" ++ showCount c ++ show x ++ " : " ++ show ty ++ 
             "} -> " ++ show sc
-      showApp (Bind _ x (PVar c ty) sc) [] 
+      showApp (Bind _ x (PVar c Explicit ty) sc) [] 
           = "pat " ++ showCount c ++ show x ++ " : " ++ show ty ++ 
             " => " ++ show sc
+      showApp (Bind _ x (PVar c Implicit ty) sc) [] 
+          = "{pat " ++ showCount c ++ show x ++ " : " ++ show ty ++ 
+            "} => " ++ show sc
+      showApp (Bind _ x (PVar c AutoImplicit ty) sc) [] 
+          = "{auto pat " ++ showCount c ++ show x ++ " : " ++ show ty ++ 
+            "} => " ++ show sc
       showApp (Bind _ x (PLet c val ty) sc) [] 
           = "plet " ++ showCount c ++ show x ++ " : " ++ show ty ++ 
             " = " ++ show val ++ " in " ++ show sc

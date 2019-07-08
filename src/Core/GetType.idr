@@ -90,7 +90,7 @@ mutual
       = Bind fc n (Let c val ty) scopety
   discharge fc n (Pi c x ty) bindty scopety 
       = bindty
-  discharge fc n (PVar c ty) bindty scopety 
+  discharge fc n (PVar c p ty) bindty scopety 
       = Bind fc n (PVTy c ty) scopety
   discharge fc n (PLet c val ty) bindty scopety
       = Bind fc n (PLet c val ty) scopety

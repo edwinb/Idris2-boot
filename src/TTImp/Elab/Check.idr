@@ -36,21 +36,21 @@ Eq ElabOpt where
 -- or a binding of an @-pattern which has an associated pattern.
 public export
 data ImplBinding : List Name -> Type where
-     NameBinding : RigCount -> (elabAs : Term vars) -> (expTy : Term vars) ->
+     NameBinding : RigCount -> PiInfo -> (elabAs : Term vars) -> (expTy : Term vars) ->
                    ImplBinding vars
-     AsBinding : RigCount -> (elabAs : Term vars) -> (expTy : Term vars) ->
+     AsBinding : RigCount -> PiInfo -> (elabAs : Term vars) -> (expTy : Term vars) ->
                  (pat : Term vars) ->
                  ImplBinding vars
 
 export
 Show (ImplBinding vars) where
-  show (NameBinding c p ty) = show (p, ty)
-  show (AsBinding c p ty tm) = show (p, ty) ++ "@" ++ show tm
+  show (NameBinding c p tm ty) = show (tm, ty)
+  show (AsBinding c p tm ty pat) = show (tm, ty) ++ "@" ++ show tm
 
 export
 bindingMetas : ImplBinding vars -> NameMap Bool
-bindingMetas (NameBinding c tm ty) = getMetas ty
-bindingMetas (AsBinding c tm ty pat) 
+bindingMetas (NameBinding c p tm ty) = getMetas ty
+bindingMetas (AsBinding c p tm ty pat) 
     = insertAll (toList (getMetas ty)) (getMetas pat)
   where
     insertAll : List (Name, Bool) -> NameMap Bool -> NameMap Bool
@@ -60,20 +60,25 @@ bindingMetas (AsBinding c tm ty pat)
 -- Get the type of an implicit name binding
 export
 bindingType : ImplBinding vars -> Term vars
-bindingType (NameBinding _ _ ty) = ty
-bindingType (AsBinding _ _ ty _) = ty
+bindingType (NameBinding _ _ _ ty) = ty
+bindingType (AsBinding _ _ _ ty _) = ty
 
 -- Get the term (that is, the expanded thing it elaborates to, of the name
 -- applied to the context) from an implicit binding
 export
 bindingTerm : ImplBinding vars -> Term vars
-bindingTerm (NameBinding _ tm _) = tm
-bindingTerm (AsBinding _ tm _ _) = tm
+bindingTerm (NameBinding _ _ tm _) = tm
+bindingTerm (AsBinding _ _ tm _ _) = tm
 
 export
 bindingRig : ImplBinding vars -> RigCount
-bindingRig (NameBinding c _ _) = c
-bindingRig (AsBinding c _ _ _) = c
+bindingRig (NameBinding c _ _ _) = c
+bindingRig (AsBinding c _ _ _ _) = c
+
+export
+bindingPiInfo : ImplBinding vars -> PiInfo
+bindingPiInfo (NameBinding _ p _ _) = p
+bindingPiInfo (AsBinding _ p _ _ _) = p
 
 -- Current elaboration state (preserved/updated throughout elaboration)
 public export
@@ -91,8 +96,10 @@ record EState (vars : List Name) where
                   -- term/type they elaborated to
   toBind : List (Name, ImplBinding vars)
                   -- implicit pattern/type variables which haven't been
-                  -- bound yet.
-  bindIfUnsolved : List (Name, RigCount,
+                  -- bound yet. Record how they're bound (auto-implicit bound
+                  -- pattern vars need to be dealt with in with-application on
+                  -- the RHS)
+  bindIfUnsolved : List (Name, RigCount, PiInfo,
                           (vars' ** (Env Term vars', Term vars', Term vars', 
                                           SubVars outer vars'))) 
                   -- names to add as unbound implicits if they are still holes
@@ -137,9 +144,9 @@ weakenedEState {e}
   where
     wknTms : (Name, ImplBinding vs) -> 
              (Name, ImplBinding (n :: vs))
-    wknTms (f, NameBinding c x y) = (f, NameBinding c (weaken x) (weaken y))
-    wknTms (f, AsBinding c x y z)
-        = (f, AsBinding c (weaken x) (weaken y) (weaken z))
+    wknTms (f, NameBinding c p x y) = (f, NameBinding c p (weaken x) (weaken y))
+    wknTms (f, AsBinding c p x y z)
+        = (f, AsBinding c p (weaken x) (weaken y) (weaken z))
 
 strengthenedEState : Ref Ctxt Defs ->
                      Ref EST (EState (n :: vars)) ->
@@ -196,21 +203,21 @@ strengthenedEState {n} {vars} c e fc env
 
     strTms : Defs -> (Name, ImplBinding (n :: vars)) -> 
              Core (Name, ImplBinding vars)
-    strTms defs (f, NameBinding c x y)
+    strTms defs (f, NameBinding c p x y)
         = do xnf <- normaliseHoles defs env x
              ynf <- normaliseHoles defs env y
              case (removeArg xnf, 
                    shrinkTerm ynf (DropCons SubRefl)) of
-               (Just x', Just y') => pure (f, NameBinding c x' y')
+               (Just x', Just y') => pure (f, NameBinding c p x' y')
                _ => throw (BadUnboundImplicit fc env f y)
-    strTms defs (f, AsBinding c x y z)
+    strTms defs (f, AsBinding c p x y z)
         = do xnf <- normaliseHoles defs env x
              ynf <- normaliseHoles defs env y
              znf <- normaliseHoles defs env z
              case (shrinkTerm xnf (DropCons SubRefl), 
                    shrinkTerm ynf (DropCons SubRefl),
                    shrinkTerm znf (DropCons SubRefl)) of
-               (Just x', Just y', Just z') => pure (f, AsBinding c x' y' z')
+               (Just x', Just y', Just z') => pure (f, AsBinding c p x' y' z')
                _ => throw (BadUnboundImplicit fc env f y)
 
     dropTop : (Var (n :: vs)) -> Maybe (Var vs)
@@ -232,7 +239,7 @@ inScope {c} {e} fc env elab
 
 export
 updateEnv : Env Term new -> SubVars new vars -> 
-            List (Name, RigCount, (vars' ** (Env Term vars', Term vars', Term vars', SubVars new vars'))) ->
+            List (Name, RigCount, PiInfo, (vars' ** (Env Term vars', Term vars', Term vars', SubVars new vars'))) ->
             EState vars -> EState vars
 updateEnv env sub bif st
     = MkEState (defining st) env sub
@@ -243,13 +250,14 @@ updateEnv env sub bif st
                (linearUsed st)
 
 export
-addBindIfUnsolved : Name -> RigCount -> Env Term vars -> Term vars -> Term vars ->
+addBindIfUnsolved : Name -> RigCount -> PiInfo ->
+                    Env Term vars -> Term vars -> Term vars ->
                     EState vars -> EState vars
-addBindIfUnsolved hn r env tm ty st
+addBindIfUnsolved hn r p env tm ty st
     = MkEState (defining st)
                (outerEnv st) (subEnv st)
                (boundNames st) (toBind st) 
-               ((hn, r, (_ ** (env, tm, ty, subEnv st))) :: bindIfUnsolved st)
+               ((hn, r, p, (_ ** (env, tm, ty, subEnv st))) :: bindIfUnsolved st)
                (lhsPatVars st)
                (allPatVars st)
                (allowDelay st)

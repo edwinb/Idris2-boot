@@ -506,9 +506,9 @@ mutual
   quoteBinder q defs bounds env (Pi r p ty)
       = do ty' <- quoteGenNF q defs bounds env ty
            pure (Pi r p ty')
-  quoteBinder q defs bounds env (PVar r ty)
+  quoteBinder q defs bounds env (PVar r p ty)
       = do ty' <- quoteGenNF q defs bounds env ty
-           pure (PVar r ty')
+           pure (PVar r p ty')
   quoteBinder q defs bounds env (PLet r val ty)
       = do val' <- quoteGenNF q defs bounds env val
            ty' <- quoteGenNF q defs bounds env ty

@@ -331,9 +331,9 @@ mutual
   lcheckBinder rig erase env (Pi c x ty)
       = do (tyv, tyt, _) <- lcheck Rig0 erase env ty
            pure (Pi c x tyv, tyt, [])
-  lcheckBinder rig erase env (PVar c ty)
+  lcheckBinder rig erase env (PVar c p ty)
       = do (tyv, tyt, _) <- lcheck Rig0 erase env ty
-           pure (PVar c tyv, tyt, [])
+           pure (PVar c p tyv, tyt, [])
   lcheckBinder rig erase env (PLet rigc val ty)
       = do (tyv, tyt, _) <- lcheck Rig0 erase env ty
            (valv, valt, vs) <- lcheck (rigMult rig rigc) erase env val
@@ -356,9 +356,9 @@ mutual
                   gnf env (Bind fc nm (Let c val ty) scty), used)
   discharge defs env fc nm (Pi c x ty) gbindty scope gscopety used
        = pure (Bind fc nm (Pi c x ty) scope, gbindty, used)
-  discharge defs env fc nm (PVar c ty) gbindty scope gscopety used
+  discharge defs env fc nm (PVar c p ty) gbindty scope gscopety used
        = do scty <- getTerm gscopety
-            pure (Bind fc nm (PVar c ty) scope,
+            pure (Bind fc nm (PVar c p ty) scope,
                   gnf env (Bind fc nm (PVTy c ty) scty), used)
   discharge defs env fc nm (PLet c val ty) gbindty scope gscopety used
        = do scty <- getTerm gscopety

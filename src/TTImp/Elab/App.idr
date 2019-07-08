@@ -148,7 +148,7 @@ mutual
            fnty <- sc defs (toClosure defaultOpts env metaval)
            when (bindingVars elabinfo) $
                 do est <- get EST
-                   put EST (addBindIfUnsolved nm argRig env metaval metaty est)
+                   put EST (addBindIfUnsolved nm argRig Implicit env metaval metaty est)
            checkAppWith rig elabinfo nest env fc
                         fntm fnty expargs impargs kr expty
 
@@ -179,7 +179,7 @@ mutual
                    let fntm = App fc tm metaval
                    fnty <- sc defs (toClosure defaultOpts env metaval)
                    est <- get EST
-                   put EST (addBindIfUnsolved nm argRig env metaval metaty est)
+                   put EST (addBindIfUnsolved nm argRig AutoImplicit env metaval metaty est)
                    checkAppWith rig elabinfo nest env fc
                                 fntm fnty expargs impargs kr expty
              _ =>

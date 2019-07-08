@@ -369,7 +369,7 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
         updateLocsB (Lam c p t) = Just (Lam c p !(updateLocs locs t))
         updateLocsB (Let c v t) = Just (Let c !(updateLocs locs v) !(updateLocs locs t))
         updateLocsB (Pi c p t) = Just (Pi c p !(updateLocs locs t))
-        updateLocsB (PVar c t) = Just (PVar c !(updateLocs locs t))
+        updateLocsB (PVar c p t) = Just (PVar c p !(updateLocs locs t))
         updateLocsB (PLet c v t) = Just (PLet c !(updateLocs locs v) !(updateLocs locs t))
         updateLocsB (PVTy c t) = Just (PVTy c !(updateLocs locs t))
 

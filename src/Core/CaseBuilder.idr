@@ -84,7 +84,7 @@ updatePats env nf (p :: ps)
 
 mkEnv : FC -> (vs : List Name) -> Env Term vs
 mkEnv fc [] = []
-mkEnv fc (n :: ns) = PVar RigW (Erased fc) :: mkEnv fc ns
+mkEnv fc (n :: ns) = PVar RigW Explicit (Erased fc) :: mkEnv fc ns
 
 substInPatInfo : {auto c : Ref Ctxt Defs} ->
                  FC -> Name -> Term vars -> PatInfo pvar vars -> 

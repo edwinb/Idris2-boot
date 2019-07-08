@@ -62,14 +62,14 @@ Show a => Show (SplitResult a) where
 findTyName : {auto c : Ref Ctxt Defs} ->
              Defs -> Env Term vars -> Name -> Term vars -> 
              Core (Maybe Name)
-findTyName defs env n (Bind _ x (PVar c ty) sc)
+findTyName defs env n (Bind _ x (PVar c p ty) sc)
       -- Take the first one, which is the most recently bound
     = if n == x
          then do tynf <- nf defs env ty
                  case tynf of
                       NTCon _ tyn _ _ _ => pure $ Just tyn
                       _ => pure Nothing
-         else findTyName defs (PVar c ty :: env) n sc
+         else findTyName defs (PVar c p ty :: env) n sc
 findTyName defs env n (Bind _ x b sc) = findTyName defs (b :: env) n sc
 findTyName _ _ _ _ = pure Nothing
 
@@ -101,7 +101,7 @@ findCons n lhs
                              pure (OK (fn, tyn, cons))
 
 findAllVars : Term vars -> List Name
-findAllVars (Bind _ x (PVar c ty) sc)
+findAllVars (Bind _ x (PVar c p ty) sc)
     = x :: findAllVars sc
 findAllVars _ = []
 

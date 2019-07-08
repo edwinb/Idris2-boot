@@ -128,15 +128,15 @@ updateMults (MkVar p :: us) env = updateMults us (toRig0 p env)
 
 shrinkImp : SubVars outer vars -> 
             (Name, ImplBinding vars) -> Maybe (Name, ImplBinding outer)
-shrinkImp sub (n, NameBinding c tm ty)
+shrinkImp sub (n, NameBinding c p tm ty)
     = do tm' <- shrinkTerm tm sub
          ty' <- shrinkTerm ty sub
-         pure (n, NameBinding c tm' ty')
-shrinkImp sub (n, AsBinding c tm ty pat)
+         pure (n, NameBinding c p tm' ty')
+shrinkImp sub (n, AsBinding c p tm ty pat)
     = do tm' <- shrinkTerm tm sub
          ty' <- shrinkTerm ty sub
          pat' <- shrinkTerm pat sub
-         pure (n, AsBinding c tm' ty' pat')
+         pure (n, AsBinding c p tm' ty' pat')
 
 findImpsIn : FC -> Env Term vars -> List (Name, Term vars) -> Term vars ->
              Core ()

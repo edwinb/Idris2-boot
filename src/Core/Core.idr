@@ -403,7 +403,7 @@ namespace Binder
   traverse f (Lam c p ty) = pure $ Lam c p !(f ty)
   traverse f (Let c val ty) = pure $ Let c !(f val) !(f ty)
   traverse f (Pi c p ty) = pure $ Pi c p !(f ty)
-  traverse f (PVar c ty) = pure $ PVar c !(f ty)
+  traverse f (PVar c p ty) = pure $ PVar c p !(f ty)
   traverse f (PLet c val ty) = pure $ PLet c !(f val) !(f ty)
   traverse f (PVTy c ty) = pure $ PVTy c !(f ty)
 

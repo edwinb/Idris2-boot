@@ -59,7 +59,7 @@ isEmpty defs _ = pure False
 -- Need this to get a NF from a Term; the names are free in any case
 freeEnv : FC -> (vs : List Name) -> Env Term vs
 freeEnv fc [] = []
-freeEnv fc (n :: ns) = PVar RigW (Erased fc) :: freeEnv fc ns
+freeEnv fc (n :: ns) = PVar RigW Explicit (Erased fc) :: freeEnv fc ns
 
 -- Given a normalised type, get all the possible constructors for that
 -- type family, with their type, name, tag, and arity

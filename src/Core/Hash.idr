@@ -85,8 +85,8 @@ Hashable ty => Hashable (Binder ty) where
       = h `hashWithSalt` 1 `hashWithSalt` c `hashWithSalt` val `hashWithSalt` ty
   hashWithSalt h (Pi c p ty)
       = h `hashWithSalt` 2 `hashWithSalt` c `hashWithSalt` p `hashWithSalt` ty
-  hashWithSalt h (PVar c ty)
-      = h `hashWithSalt` 3 `hashWithSalt` c `hashWithSalt` ty
+  hashWithSalt h (PVar c p ty)
+      = h `hashWithSalt` 3 `hashWithSalt` c `hashWithSalt` p `hashWithSalt` ty
   hashWithSalt h (PLet c val ty)
       = h `hashWithSalt` 4 `hashWithSalt` c `hashWithSalt` val `hashWithSalt` ty
   hashWithSalt h (PVTy c ty)

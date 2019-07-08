@@ -181,7 +181,7 @@ mutual
     toBuf b (Lam c x ty) = do tag 0; toBuf b c; toBuf b x; -- toBuf b ty
     toBuf b (Let c val ty) = do tag 1; toBuf b c; toBuf b val -- ; toBuf b ty
     toBuf b (Pi c x ty) = do tag 2; toBuf b c; toBuf b x; toBuf b ty
-    toBuf b (PVar c ty) = do tag 3; toBuf b c; toBuf b ty
+    toBuf b (PVar c p ty) = do tag 3; toBuf b c; toBuf b p; toBuf b ty
     toBuf b (PLet c val ty) = do tag 4; toBuf b c; toBuf b val -- ; toBuf b ty
     toBuf b (PVTy c ty) = do tag 5; toBuf b c -- ; toBuf b ty
 
@@ -190,7 +190,7 @@ mutual
                0 => do c <- fromBuf b; x <- fromBuf b; pure (Lam c x (Erased emptyFC))
                1 => do c <- fromBuf b; x <- fromBuf b; pure (Let c x (Erased emptyFC))
                2 => do c <- fromBuf b; x <- fromBuf b; y <- fromBuf b; pure (Pi c x y)
-               3 => do c <- fromBuf b; ty <- fromBuf b; pure (PVar c ty)
+               3 => do c <- fromBuf b; p <- fromBuf b; ty <- fromBuf b; pure (PVar c p ty)
                4 => do c <- fromBuf b; x <- fromBuf b; pure (PLet c x (Erased emptyFC))
                5 => do c <- fromBuf b; pure (PVTy c (Erased emptyFC))
                _ => corrupt "Binder"

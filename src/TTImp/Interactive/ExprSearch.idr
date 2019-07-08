@@ -450,7 +450,7 @@ getLHSData defs Nothing = pure Nothing
 getLHSData defs (Just tm) = pure $ getLHS !(normaliseHoles defs [] tm)
   where
     getLHS : Term vars -> Maybe RecData
-    getLHS (Bind _ _ (PVar _ _) sc) = getLHS sc
+    getLHS (Bind _ _ (PVar _ _ _) sc) = getLHS sc
     getLHS (Bind _ _ (PLet _ _ _) sc) = getLHS sc
     getLHS sc 
         = case getFn sc of

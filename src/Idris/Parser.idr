@@ -160,7 +160,7 @@ mutual
            pure (ImpArg (fst arg) (snd arg))
     <|> if withOK q
            then do symbol "|"
-                   arg <- expr q fname indents
+                   arg <- expr (record { withOK = False} q) fname indents
                    pure (WithArg arg)
            else fail "| not allowed here"
 

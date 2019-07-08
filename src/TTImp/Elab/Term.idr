@@ -165,7 +165,8 @@ checkTerm rig elabinfo nest env (Implicit fc b) (Just gexpty)
          when (b && bindingVars elabinfo) $
             do est <- get EST
                expty <- getTerm gexpty
-               put EST (addBindIfUnsolved nm rig env metaval expty est)
+               -- Explicit because it's an explicitly given thing!
+               put EST (addBindIfUnsolved nm rig Explicit env metaval expty est)
          pure (metaval, gexpty)
 checkTerm rig elabinfo nest env (Implicit fc b) Nothing
     = do nmty <- genName "impTy"
@@ -175,7 +176,7 @@ checkTerm rig elabinfo nest env (Implicit fc b) Nothing
          -- Add to 'bindIfUnsolved' if 'b' set
          when (b && bindingVars elabinfo) $
             do est <- get EST
-               put EST (addBindIfUnsolved nm rig env metaval ty est)
+               put EST (addBindIfUnsolved nm rig Explicit env metaval ty est)
          pure (metaval, gnf env ty)
 
 -- Declared in TTImp.Elab.Check

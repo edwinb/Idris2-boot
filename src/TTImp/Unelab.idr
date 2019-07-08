@@ -204,7 +204,7 @@ mutual
            let nm = if used 0 sctm || rig /= RigW
                        then Just x else Nothing
            pure (IPi fc rig p nm ty' sc, TType fc)
-  unelabBinder umode fc env x (PVar rig ty) sctm sc scty
+  unelabBinder umode fc env x (PVar rig _ ty) sctm sc scty
       = do (ty', _) <- unelabTy umode env ty
            pure (sc, Bind fc x (PVTy rig ty) scty)
   unelabBinder umode fc env x (PLet rig val ty) sctm sc scty

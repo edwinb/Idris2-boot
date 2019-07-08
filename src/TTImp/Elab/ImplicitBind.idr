@@ -78,7 +78,7 @@ mkOuterHole loc rig n topenv Nothing
          nm <- genName "impty"
          ty <- metaVar loc Rig0 env nm (TType loc)
          log 10 $ "Made metavariable for type of " ++ show n ++ ": " ++ show nm
-         put EST (addBindIfUnsolved nm rig topenv (embedSub sub ty) (TType loc) est)
+         put EST (addBindIfUnsolved nm rig Explicit topenv (embedSub sub ty) (TType loc) est)
          tm <- implBindVar loc rig env n ty
          pure (embedSub sub tm, embedSub sub ty)
 
@@ -143,10 +143,10 @@ bindUnsolved {vars} fc elabmode _
          log 5 $ "Bindable unsolved implicits: " ++ show (map fst bifs)
          traverse_ (mkImplicit defs (outerEnv est) (subEnv est)) (bindIfUnsolved est)
   where
-    makeBoundVar : Name -> RigCount -> Env Term outer ->
+    makeBoundVar : Name -> RigCount -> PiInfo -> Env Term outer ->
                    SubVars outer vs -> SubVars outer vars ->
                    Term vs -> Core (Term vs)
-    makeBoundVar n rig env sub subvars expected
+    makeBoundVar n rig p env sub subvars expected
         = case shrinkTerm expected sub of
                Nothing => do tmn <- toFullNames expected
                              throw (GenericMsg fc ("Can't bind implicit " ++ show n ++ " of type " ++ show tmn))
@@ -154,19 +154,19 @@ bindUnsolved {vars} fc elabmode _
                     do impn <- genVarName (nameRoot n)
                        tm <- metaVar fc rig env impn exp'
                        est <- get EST
-                       put EST (record { toBind $= ((impn, NameBinding rig
+                       put EST (record { toBind $= ((impn, NameBinding rig p
                                                              (embedSub subvars tm)
                                                              (embedSub subvars exp')) ::) } est)
                        pure (embedSub sub tm)
 
     mkImplicit : Defs -> Env Term outer -> SubVars outer vars ->
-                 (Name, RigCount, (vars' ** 
+                 (Name, RigCount, PiInfo, (vars' ** 
                      (Env Term vars', Term vars', Term vars', SubVars outer vars'))) -> 
                  Core ()
-    mkImplicit defs outerEnv subEnv (n, rig, (vs ** (env, tm, exp, sub)))
+    mkImplicit defs outerEnv subEnv (n, rig, p, (vs ** (env, tm, exp, sub)))
         = do Just (Hole _ _ _) <- lookupDefExact n (gamma defs)
                   | _ => pure ()
-             bindtm <- makeBoundVar n rig outerEnv
+             bindtm <- makeBoundVar n rig p outerEnv
                                     sub subEnv
                                     !(normaliseHoles defs env exp)
              logTerm 5 ("Added unbound implicit") bindtm
@@ -257,7 +257,7 @@ bindImplVars {vars} fc mode gam env imps_in scope scty
                Bounds new -> (tm : Term vs) -> (ty : Term vs) ->
                (Term (new ++ vs), Term (new ++ vs))
     getBinds [] bs tm ty = (refsToLocals bs tm, refsToLocals bs ty)
-    getBinds ((n, metan, NameBinding c _ bty) :: imps) bs tm ty
+    getBinds ((n, metan, NameBinding c p _ bty) :: imps) bs tm ty
         = let (tm', ty') = getBinds imps (Add n metan bs) tm ty 
               bty' = refsToLocals bs bty in
               case mode of
@@ -265,9 +265,9 @@ bindImplVars {vars} fc mode gam env imps_in scope scty
                       (Bind fc _ (Pi c Implicit bty') tm', 
                        TType fc)
                    _ =>
-                      (Bind fc _ (PVar c bty') tm', 
+                      (Bind fc _ (PVar c p bty') tm', 
                        Bind fc _ (PVTy c bty') ty')
-    getBinds ((n, metan, AsBinding c _ bty bpat) :: imps) bs tm ty
+    getBinds ((n, metan, AsBinding c _ _ bty bpat) :: imps) bs tm ty
         = let (tm', ty') = getBinds imps (Add n metan bs) tm ty 
               bty' = refsToLocals bs bty
               bpat' = refsToLocals bs bpat in
@@ -293,10 +293,10 @@ bindImplicits {vars} fc mode defs env hs tm ty
         pure $ liftImps mode $ bindImplVars fc mode defs env hs' tm ty
   where
     nHoles : (Name, ImplBinding vars) -> Core (Name, ImplBinding vars)
-    nHoles (n, NameBinding c tm ty)
-        = pure (n, NameBinding c tm !(normaliseHolesScope defs env ty))
-    nHoles (n, AsBinding c tm ty pat)
-        = pure (n, AsBinding c tm !(normaliseHolesScope defs env ty) pat)
+    nHoles (n, NameBinding c p tm ty)
+        = pure (n, NameBinding c p tm !(normaliseHolesScope defs env ty))
+    nHoles (n, AsBinding c p tm ty pat)
+        = pure (n, AsBinding c p tm !(normaliseHolesScope defs env ty) pat)
 
 export
 implicitBind : {auto c : Ref Ctxt Defs} ->
@@ -345,11 +345,11 @@ getToBind {vars} fc elabmode impmode env excepts
          pure res'
   where
     normBindingTy : Defs -> ImplBinding vars -> Core (ImplBinding vars)
-    normBindingTy defs (NameBinding c tm ty)
-        = pure $ NameBinding c tm !(normaliseHoles defs env ty)
-    normBindingTy defs (AsBinding c tm ty pat)
-        = pure $ AsBinding c tm !(normaliseHoles defs env ty) 
-                                !(normaliseHoles defs env pat)
+    normBindingTy defs (NameBinding c p tm ty)
+        = pure $ NameBinding c p tm !(normaliseHoles defs env ty)
+    normBindingTy defs (AsBinding c p tm ty pat)
+        = pure $ AsBinding c p tm !(normaliseHoles defs env ty) 
+                                  !(normaliseHoles defs env pat)
 
     normImps : Defs -> List Name -> List (Name, ImplBinding vars) -> 
                Core (List (Name, ImplBinding vars))
@@ -433,8 +433,8 @@ checkBindVar rig elabinfo nest env fc str topexp
                    log 5 $ "Added Bound implicit " ++ show (n, (rig, tm, exp, bty))
                    defs <- get Ctxt
                    est <- get EST
-                   put EST (record { boundNames $= ((n, NameBinding rig tm exp) ::),
-                                     toBind $= ((n, NameBinding rig tm bty) :: ) } est)
+                   put EST (record { boundNames $= ((n, NameBinding rig Explicit tm exp) ::),
+                                     toBind $= ((n, NameBinding rig Explicit tm bty) :: ) } est)
                    addNameType fc (UN str) env exp
                    checkExp rig elabinfo env fc tm (gnf env exp) topexp
               Just bty =>
@@ -454,8 +454,8 @@ checkBindVar rig elabinfo nest env fc str topexp
     updateRig n c ((bn, r) :: bs)
         = if n == bn
              then case r of
-                  NameBinding _ tm ty => (bn, NameBinding c tm ty) :: bs
-                  AsBinding _ tm ty p => (bn, AsBinding c tm ty p) :: bs
+                  NameBinding _ p tm ty => (bn, NameBinding c p tm ty) :: bs
+                  AsBinding _ p tm ty pat => (bn, AsBinding c p tm ty pat) :: bs
              else (bn, r) :: updateRig n c bs
 
     combine : Name -> RigCount -> RigCount -> Core ()

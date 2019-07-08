@@ -69,7 +69,7 @@ addLHS loc outerenvlen env tm
                     } meta)
   where
     toPat : Env Term vs -> Env Term vs
-    toPat (Lam c p ty :: bs) = PVar c ty :: toPat bs
+    toPat (Lam c p ty :: bs) = PVar c p ty :: toPat bs
     toPat (b :: bs) = b :: toPat bs
     toPat [] = []
 

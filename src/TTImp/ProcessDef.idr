@@ -95,11 +95,11 @@ extendEnv : Env Term vars -> SubVars inner vars ->
                     (SubVars inner vars',
                      Env Term vars', NestedNames vars', 
                      Term vars', Term vars'))
-extendEnv env p nest (Bind _ n (PVar c tmty) sc) (Bind _ n' (PVTy _ _) tysc) with (nameEq n n')
-  extendEnv env p nest (Bind _ n (PVar c tmty) sc) (Bind _ n' (PVTy _ _) tysc) | Nothing
+extendEnv env p nest (Bind _ n (PVar c pi tmty) sc) (Bind _ n' (PVTy _ _) tysc) with (nameEq n n')
+  extendEnv env p nest (Bind _ n (PVar c pi tmty) sc) (Bind _ n' (PVTy _ _) tysc) | Nothing
       = throw (InternalError "Can't happen: names don't match in pattern type")
-  extendEnv env p nest (Bind _ n (PVar c tmty) sc) (Bind _ n (PVTy _ _) tysc) | (Just Refl)
-      = extendEnv (PVar c tmty :: env) (DropCons p) (weaken nest) sc tysc
+  extendEnv env p nest (Bind _ n (PVar c pi tmty) sc) (Bind _ n (PVTy _ _) tysc) | (Just Refl)
+      = extendEnv (PVar c pi tmty :: env) (DropCons p) (weaken nest) sc tysc
 extendEnv env p nest (Bind _ n (PLet c tmval tmty) sc) (Bind _ n' (PLet _ _ _) tysc) with (nameEq n n')
   extendEnv env p nest (Bind _ n (PLet c tmval tmty) sc) (Bind _ n' (PLet _ _ _) tysc) | Nothing
       = throw (InternalError "Can't happen: names don't match in pattern type")
@@ -156,10 +156,10 @@ findLinear top bound rig tm
       findLinArg _ _ [] = pure []
 
 setLinear : List (Name, RigCount) -> Term vars -> Term vars
-setLinear vs (Bind fc x (PVar c ty) sc)
+setLinear vs (Bind fc x (PVar c p ty) sc)
     = case lookup x vs of
-           Just c' => Bind fc x (PVar c' ty) (setLinear vs sc)
-           _ => Bind fc x (PVar c ty) (setLinear vs sc)
+           Just c' => Bind fc x (PVar c' p ty) (setLinear vs sc)
+           _ => Bind fc x (PVar c p ty) (setLinear vs sc)
 setLinear vs (Bind fc x (PVTy c ty) sc)
     = case lookup x vs of
            Just c' => Bind fc x (PVTy c' ty) (setLinear vs sc)
@@ -251,39 +251,37 @@ checkLHS {vars} mult hashit n opts nest env fc lhs_in
 
          extendEnv env SubRefl nest lhstm_lin lhsty_lin
 
+plicit : Binder (Term vars) -> PiInfo
+plicit (Pi _ p _) = p
+plicit (PVar _ p _) = p
+plicit _ = Explicit
+
 bindNotReq : FC -> Int -> Env Term vs -> (sub : SubVars pre vs) -> 
-             Term vs -> Term pre
-bindNotReq fc i [] SubRefl tm = embed tm
-bindNotReq fc i (b :: env) SubRefl tm 
+             List (PiInfo, Name) ->
+             Term vs -> (List (PiInfo, Name), Term pre)
+bindNotReq fc i [] SubRefl ns tm = (ns, embed tm)
+bindNotReq fc i (b :: env) SubRefl ns tm 
    = let tmptm = subst (Ref fc Bound (MN "arg" i)) tm 
-         btm = bindNotReq fc (1 + i) env SubRefl tmptm in
-         refToLocal (MN "arg" i) _ btm
-bindNotReq fc i (b :: env) (KeepCons p) tm 
+         (ns', btm) = bindNotReq fc (1 + i) env SubRefl ns tmptm in
+         (ns', refToLocal (MN "arg" i) _ btm)
+bindNotReq fc i (b :: env) (KeepCons p) ns tm 
    = let tmptm = subst (Ref fc Bound (MN "arg" i)) tm 
-         btm = bindNotReq fc (1 + i) env p tmptm in
-         refToLocal (MN "arg" i) _ btm
-bindNotReq fc i (b :: env) (DropCons p) tm 
-   = bindNotReq fc i env p 
+         (ns', btm) = bindNotReq fc (1 + i) env p ns tmptm in
+         (ns', refToLocal (MN "arg" i) _ btm)
+bindNotReq {vs = n :: _} fc i (b :: env) (DropCons p) ns tm 
+   = bindNotReq fc i env p ((plicit b, n) :: ns)
        (Bind fc _ (Pi (multiplicity b) Explicit (binderType b)) tm)
 
 bindReq : FC -> Env Term vs -> (sub : SubVars pre vs) -> 
-          Term pre -> Maybe ClosedTerm
-bindReq fc env SubRefl tm = pure (bindEnv fc env tm)
-bindReq fc (b :: env) (KeepCons p) tm 
+          List (PiInfo, Name) ->
+          Term pre -> Maybe (List (PiInfo, Name), ClosedTerm)
+bindReq fc env SubRefl ns tm = pure (ns, bindEnv fc env tm)
+bindReq fc {vs = n :: _} (b :: env) (KeepCons p) ns tm 
    = do b' <- shrinkBinder b p
-        bindReq fc env p 
+        bindReq fc env p ((plicit b, n) :: ns)
            (Bind fc _ (Pi (multiplicity b) Explicit (binderType b')) tm)
-bindReq fc (b :: env) (DropCons p) tm = bindReq fc env p tm
-
-getReq : (vs : List Name) -> SubVars pre vs -> List Name
-getReq vs SubRefl = vs
-getReq _ (DropCons p) = getReq _ p
-getReq (v :: vs) (KeepCons p) = v :: getReq _ p
-
-getNotReq : (vs : List Name) -> SubVars pre vs -> List Name
-getNotReq vs SubRefl = []
-getNotReq (v :: vs) (DropCons p) = v :: getNotReq _ p
-getNotReq _ (KeepCons p) = getNotReq _ p
+bindReq fc (b :: env) (DropCons p) ns tm 
+    = bindReq fc env p ns tm
 
 -- Return whether any of the pattern variables are in a trivially empty
 -- type, where trivally empty means one of:
@@ -291,24 +289,30 @@ getNotReq _ (KeepCons p) = getNotReq _ p
 --  * Every constructor of the family has a return type which conflicts with 
 --    the given constructor's type
 hasEmptyPat : Defs -> Env Term vars -> Term vars -> Core Bool
-hasEmptyPat defs env (Bind fc x (PVar c ty) sc)
+hasEmptyPat defs env (Bind fc x (PVar c p ty) sc)
    = pure $ !(isEmpty defs !(nf defs env ty)) 
-            || !(hasEmptyPat defs (PVar c ty :: env) sc)
+            || !(hasEmptyPat defs (PVar c p ty :: env) sc)
 hasEmptyPat defs env _ = pure False
     
 -- Get the arguments for the rewritten pattern clause of a with by looking
 -- up how the argument names matched
-getArgMatch : FC -> RawImp -> List (String, RawImp) ->
-              Maybe Name -> RawImp
-getArgMatch ploc warg ms Nothing = warg
-getArgMatch ploc warg ms (Just (UN n))
+getArgMatch : FC -> Bool -> RawImp -> List (String, RawImp) ->
+              Maybe (PiInfo, Name) -> RawImp
+getArgMatch ploc search warg ms Nothing = warg
+getArgMatch ploc True warg ms (Just (AutoImplicit, UN n))
+    = case lookup n ms of
+           Nothing => ISearch ploc 500
+           Just tm => tm
+getArgMatch ploc True warg ms (Just (AutoImplicit, _))
+    = ISearch ploc 500
+getArgMatch ploc search warg ms (Just (_, UN n))
     = case lookup n ms of
            Nothing => Implicit ploc True
            Just tm => tm
-getArgMatch ploc warg ms _ = Implicit ploc True
+getArgMatch ploc search warg ms _ = Implicit ploc True
     
 getNewLHS : {auto c : Ref Ctxt Defs} ->
-            FC -> (drop : Nat) -> Name -> List (Maybe Name) ->
+            FC -> (drop : Nat) -> Name -> List (Maybe (PiInfo, Name)) ->
             RawImp -> RawImp -> Core RawImp
 getNewLHS ploc drop wname wargnames lhs_raw patlhs
     = do (mlhs_raw, wrest) <- dropWithArgs drop patlhs
@@ -325,8 +329,8 @@ getNewLHS ploc drop wname wargnames lhs_raw patlhs
          ms <- getMatch lhs mlhs
          log 10 $ "Matches: " ++ show ms
          let newlhs = apply (IVar ploc wname)
-                            (map (getArgMatch ploc warg ms) wargnames ++ rest)
-         log 5 $ "New LHS: " ++ show newlhs
+                            (map (getArgMatch ploc False warg ms) wargnames ++ rest)
+         log 10 $ "New LHS: " ++ show newlhs
          pure newlhs
   where
     dropWithArgs : Nat -> RawImp -> 
@@ -341,7 +345,7 @@ getNewLHS ploc drop wname wargnames lhs_raw patlhs
         
 -- Find a 'with' application on the RHS and update it
 withRHS : {auto c : Ref Ctxt Defs} ->
-          FC -> (drop : Nat) -> Name -> List (Maybe Name) ->
+          FC -> (drop : Nat) -> Name -> List (Maybe (PiInfo, Name)) ->
           RawImp -> RawImp -> 
           Core RawImp
 withRHS fc drop wname wargnames tm toplhs
@@ -356,33 +360,43 @@ withRHS fc drop wname wargnames tm toplhs
     updateWith fc tm []
         = throw (GenericMsg fc "Badly formed 'with' application")
     updateWith fc tm (arg :: args)
-        = do ms <- getMatch toplhs tm
+        = do log 10 $ "With-app: Matching " ++ show toplhs ++ " against " ++ show tm
+             ms <- getMatch toplhs tm
+             log 10 $ "Result: " ++ show ms
              let newrhs = apply (IVar fc wname)
-                                (map (getArgMatch fc arg ms) wargnames)
+                                (map (getArgMatch fc True arg ms) wargnames)
+             log 10 $ "With args for RHS: " ++ show wargnames
+             log 10 $ "New RHS: " ++ show newrhs
              pure (withApply fc newrhs args)
 
-    wrhs : RawImp -> Core RawImp
-    wrhs (IPi fc c p n ty sc)
-        = pure $ IPi fc c p n !(wrhs ty) !(wrhs sc)
-    wrhs (ILam fc c p n ty sc)
-        = pure $ ILam fc c p n !(wrhs ty) !(wrhs sc)
-    wrhs (ILet fc c n ty val sc)
-        = pure $ ILet fc c n !(wrhs ty) !(wrhs val) !(wrhs sc)
-    wrhs (ICase fc sc ty clauses)
-        = pure $ ICase fc !(wrhs sc) !(wrhs ty) clauses -- TODO!
-    wrhs (ILocal fc decls sc)
-        = pure $ ILocal fc decls !(wrhs sc) -- TODO!
-    wrhs (IUpdate fc upds tm)
-        = pure $ IUpdate fc upds !(wrhs tm) -- TODO!
-    wrhs (IApp fc f a)
-        = pure $ IApp fc !(wrhs f) !(wrhs a)
-    wrhs (IImplicitApp fc f n a)
-        = pure $ IImplicitApp fc !(wrhs f) n !(wrhs a)
-    wrhs (IWithApp fc f a) = updateWith fc f [a]
-    wrhs (IDelayed fc r tm) = pure $ IDelayed fc r !(wrhs tm)
-    wrhs (IDelay fc tm) = pure $ IDelay fc !(wrhs tm)
-    wrhs (IForce fc tm) = pure $ IForce fc !(wrhs tm)
-    wrhs tm = pure tm
+    mutual
+      wrhs : RawImp -> Core RawImp
+      wrhs (IPi fc c p n ty sc)
+          = pure $ IPi fc c p n !(wrhs ty) !(wrhs sc)
+      wrhs (ILam fc c p n ty sc)
+          = pure $ ILam fc c p n !(wrhs ty) !(wrhs sc)
+      wrhs (ILet fc c n ty val sc)
+          = pure $ ILet fc c n !(wrhs ty) !(wrhs val) !(wrhs sc)
+      wrhs (ICase fc sc ty clauses)
+          = pure $ ICase fc !(wrhs sc) !(wrhs ty) !(traverse wrhsC clauses)
+      wrhs (ILocal fc decls sc)
+          = pure $ ILocal fc decls !(wrhs sc) -- TODO!
+      wrhs (IUpdate fc upds tm)
+          = pure $ IUpdate fc upds !(wrhs tm) -- TODO!
+      wrhs (IApp fc f a)
+          = pure $ IApp fc !(wrhs f) !(wrhs a)
+      wrhs (IImplicitApp fc f n a)
+          = pure $ IImplicitApp fc !(wrhs f) n !(wrhs a)
+      wrhs (IWithApp fc f a) = updateWith fc f [a]
+      wrhs (IRewrite fc rule tm) = pure $ IRewrite fc !(wrhs rule) !(wrhs tm)
+      wrhs (IDelayed fc r tm) = pure $ IDelayed fc r !(wrhs tm)
+      wrhs (IDelay fc tm) = pure $ IDelay fc !(wrhs tm)
+      wrhs (IForce fc tm) = pure $ IForce fc !(wrhs tm)
+      wrhs tm = pure tm
+
+      wrhsC : ImpClause -> Core ImpClause
+      wrhsC (PatClause fc lhs rhs) = pure $ PatClause fc lhs !(wrhs rhs)
+      wrhsC c = pure c
 
 -- Check a pattern clause, returning the component of the 'Case' expression it
 -- represents, or Nothing if it's an impossible clause
@@ -480,21 +494,25 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
          let wargn = MN "warg" 0
          let scenv = Pi RigW Explicit wvalTy :: wvalEnv
 
+         let bnr = bindNotReq fc 0 env' withSub [] reqty
+         let notreqns = fst bnr
+         let notreqty = snd bnr
+
          wtyScope <- replace defs scenv !(nf defs scenv (weaken wval))
                             (Local fc (Just False) _ First)
                             !(nf defs scenv 
-                                 (weaken (bindNotReq fc 0 env' withSub reqty)))
+                                 (weaken {n=wargn} notreqty))
          let bNotReq = Bind fc wargn (Pi RigW Explicit wvalTy) wtyScope
 
-         let Just wtype = bindReq fc env' withSub bNotReq
+         let Just (reqns, wtype) = bindReq fc env' withSub [] bNotReq
              | Nothing => throw (InternalError "Impossible happened: With abstraction failure #4")
 
          -- list of argument names - 'Just' means we need to match the name
          -- in the with clauses to find out what the pattern should be.
          -- 'Nothing' means it's the with pattern (so wargn)
          let wargNames 
-                 = map Just (reverse (getReq _ withSub)) ++ 
-                   Nothing :: reverse (map Just (getNotReq _ withSub))
+                 = map Just reqns ++ 
+                   Nothing :: map Just notreqns
 
          logTerm 5 "With function type" wtype 
          log 5 $ "Argument names " ++ show wargNames
@@ -502,7 +520,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
          wname <- genWithName n
          widx <- addDef wname (newDef fc wname mult vars wtype Private None)
          let rhs_in = apply (IVar fc wname)
-                        (map (maybe wval_raw (IVar fc)) wargNames)
+                        (map (maybe wval_raw (\pn => IVar fc (snd pn))) wargNames)
 
          rhs <- wrapError (InRHS fc !(getFullName (Resolved n))) $
              checkTermSub n wmode opts nest' env' env sub' rhs_in 
@@ -540,7 +558,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
     -- Rewrite the clauses in the block to use an updated LHS.
     -- 'drop' is the number of additional with arguments we expect (i.e.
     -- the things to drop from the end before matching LHSs)
-    mkClauseWith : (drop : Nat) -> Name -> List (Maybe Name) ->
+    mkClauseWith : (drop : Nat) -> Name -> List (Maybe (PiInfo, Name)) ->
                    RawImp -> ImpClause -> 
                    Core ImpClause
     mkClauseWith drop wname wargnames lhs (PatClause ploc patlhs rhs)

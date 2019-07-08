@@ -170,7 +170,7 @@ buildMod loc num len mod
                                    ": Building " ++ showMod ++
                                    " (" ++ src ++ ")"
                    [] <- process {u} {m} msg src
-                      | errs => do traverse emitError (ferrs ++ errs)
+                      | errs => do traverse emitError errs
                                    pure (ferrs ++ errs)
                    traverse_ emitError ferrs
                    pure ferrs
