@@ -113,11 +113,11 @@ sugarApp tm@(PApp fc (PApp _ (PRef _ (UN "::")) x) xs)
 sugarApp tm = tm
 
 export
-sugarName : Name -> Name
-sugarName (MN n _) = UN n
+sugarName : Name -> String
+sugarName (MN n _) = "(implicit) " ++ n
 sugarName (PV n _) = sugarName n
-sugarName (DN n _) = UN n
-sugarName x = x
+sugarName (DN n _) = n
+sugarName x = show x
 
 mutual
   toPTerm : {auto c : Ref Ctxt Defs} ->

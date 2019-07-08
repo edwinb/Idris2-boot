@@ -79,9 +79,9 @@ perror (NotCovering fc n (NonCoveringCall ns))
 perror (NotTotal fc n r)
     = pure $ show n ++ " is not total"
 perror (LinearUsed fc count n)
-    = pure $ "There are " ++ show count ++ " uses of linear name " ++ show n
+    = pure $ "There are " ++ show count ++ " uses of linear name " ++ sugarName n
 perror (LinearMisuse fc n exp ctx)
-    = pure $ "Trying to use " ++ showRig exp ++ " name " ++ show n ++
+    = pure $ "Trying to use " ++ showRig exp ++ " name " ++ sugarName n ++
                  " in " ++ showRel ctx ++ " context"
   where
     showRig : RigCount -> String
@@ -180,9 +180,9 @@ perror (SolvedNamedHole _ env h tm)
     = pure $ "Named hole " ++ show h ++ " has been solved by unification\n"
               ++ "Result: " ++ !(pshow env tm)
 perror (VisibilityError fc vx x vy y)
-    = pure $ show vx ++ " " ++ show (sugarName x) ++ 
-             " cannot refer to " ++ show vy ++ " " ++ show (sugarName y)
-perror (NonLinearPattern _ n) = pure $ "Non linear pattern " ++ show (sugarName n)
+    = pure $ show vx ++ " " ++ sugarName x ++ 
+             " cannot refer to " ++ show vy ++ " " ++ sugarName y
+perror (NonLinearPattern _ n) = pure $ "Non linear pattern " ++ sugarName n
 perror (BadPattern _ n) = pure $ "Pattern not allowed here: " ++ show n
 perror (NoDeclaration _ n) = pure $ "No type declaration for " ++ show n
 perror (AlreadyDefined _ n) = pure $ show n ++ " is already defined"
@@ -231,16 +231,16 @@ perror ForceNeeded = pure "Internal error when resolving implicit laziness"
 perror (InternalError str) = pure $ "INTERNAL ERROR: " ++ str
 
 perror (InType fc n err)
-    = pure $ "While processing type of " ++ show (sugarName !(getFullName n)) ++ 
+    = pure $ "While processing type of " ++ sugarName !(getFullName n) ++ 
              " at " ++ show fc ++ ":\n" ++ !(perror err)
 perror (InCon fc n err)
-    = pure $ "While processing constructor " ++ show (sugarName !(getFullName n)) ++ 
+    = pure $ "While processing constructor " ++ sugarName !(getFullName n) ++ 
              " at " ++ show fc ++ ":\n" ++ !(perror err)
 perror (InLHS fc n err)
-    = pure $ "While processing left hand side of " ++ show (sugarName !(getFullName n)) ++ 
+    = pure $ "While processing left hand side of " ++ sugarName !(getFullName n) ++ 
              " at " ++ show fc ++ ":\n" ++ !(perror err)
 perror (InRHS fc n err)
-    = pure $ "While processing right hand side of " ++ show (sugarName !(getFullName n)) ++ 
+    = pure $ "While processing right hand side of " ++ sugarName !(getFullName n) ++ 
              " at " ++ show fc ++ ":\n" ++ !(perror err)
 
 export

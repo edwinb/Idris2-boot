@@ -213,7 +213,7 @@ In `TestStore.idr`:
 + In `filterKeys`, there is an error in the `SNil` case, which wasn't caught
   because of the type of `SNil` above. It should be:
 
-    filterKeys test DataStore.empty | SNil = []
+      filterKeys test DataStore.empty | SNil = []
 
 Chapter 11
 ----------
