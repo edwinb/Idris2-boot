@@ -13,12 +13,19 @@ beyond work on the language core, are (in no particular order):
   - readline and tab completion
   - `:search` and `:apropos`
   - help commands
+  - code colouring
+* IDE mode improvements
+  - Syntax highlighting support for output 
+  - Several functions from the version 1 IDE protocol are not yet implemented,
+    and I haven't confirmed it works in everything.
 * Some parts of the Idris 1 Prelude are not yet implemented and should be
   added to base/
 * Partial evaluation, especially for specialisation of interface 
   implementations.
 * The lexer and parser are quite slow, new and faster versions with better
   errors would be good.
+  - In particular, large sections commented out with {- -} can take a while
+    to lex!
 * Windows support - it is tested on macOS and Linux only so far.
 * An alternative, high performance, back end. OCaml seems worth a try.
 * JS and Node back ends would be nice.
