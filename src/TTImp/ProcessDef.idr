@@ -256,7 +256,8 @@ plicit (Pi _ p _) = p
 plicit (PVar _ p _) = p
 plicit _ = Explicit
 
-bindNotReq : FC -> Int -> Env Term vs -> (sub : SubVars pre vs) -> 
+bindNotReq : {vs : _} ->
+             FC -> Int -> Env Term vs -> (sub : SubVars pre vs) -> 
              List (PiInfo, Name) ->
              Term vs -> (List (PiInfo, Name), Term pre)
 bindNotReq fc i [] SubRefl ns tm = (ns, embed tm)
@@ -272,14 +273,16 @@ bindNotReq {vs = n :: _} fc i (b :: env) (DropCons p) ns tm
    = bindNotReq fc i env p ((plicit b, n) :: ns)
        (Bind fc _ (Pi (multiplicity b) Explicit (binderType b)) tm)
 
-bindReq : FC -> Env Term vs -> (sub : SubVars pre vs) -> 
+bindReq : {vs : _} ->
+          FC -> Env Term vs -> (sub : SubVars pre vs) -> 
           List (PiInfo, Name) ->
-          Term pre -> Maybe (List (PiInfo, Name), ClosedTerm)
-bindReq fc env SubRefl ns tm = pure (ns, bindEnv fc env tm)
-bindReq fc {vs = n :: _} (b :: env) (KeepCons p) ns tm 
-   = do b' <- shrinkBinder b p
-        bindReq fc env p ((plicit b, n) :: ns)
-           (Bind fc _ (Pi (multiplicity b) Explicit (binderType b')) tm)
+          Term pre -> Maybe (List (PiInfo, Name), List Name, ClosedTerm)
+bindReq {vs} fc env SubRefl ns tm 
+    = pure (ns, reverse vs, abstractEnvType fc env tm)
+bindReq {vs = n :: _} fc (b :: env) (KeepCons p) ns tm 
+    = do b' <- shrinkBinder b p
+         bindReq fc env p ((plicit b, n) :: ns)
+            (Bind fc _ (Pi (multiplicity b) Explicit (binderType b')) tm)
 bindReq fc (b :: env) (DropCons p) ns tm 
     = bindReq fc env p ns tm
 
@@ -397,6 +400,16 @@ withRHS fc drop wname wargnames tm toplhs
       wrhsC : ImpClause -> Core ImpClause
       wrhsC (PatClause fc lhs rhs) = pure $ PatClause fc lhs !(wrhs rhs)
       wrhsC c = pure c
+    
+-- For checking with blocks as nested names
+applyEnv : {auto c : Ref Ctxt Defs} ->
+           Env Term vars -> Name -> 
+           Core (Name, (Maybe Name, FC -> NameType -> Term vars))
+applyEnv env withname
+    = do n' <- resolveName withname
+         pure (withname, (Just withname, 
+                  \fc, nt => applyTo fc 
+                         (Ref fc nt (Resolved n')) env))
 
 -- Check a pattern clause, returning the component of the 'Case' expression it
 -- represents, or Nothing if it's an impossible clause
@@ -457,6 +470,7 @@ checkClause {vars} mult hashit n opts nest env (PatClause fc lhs_in rhs)
               _ => pure ()
 
          pure (Just (MkClause env' lhstm' rhstm))
+-- TODO: (to decide) With is complicated. Move this into its own module?
 checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs)
     = do (vars'  ** (sub', env', nest', lhspat, reqty)) <- 
              checkLHS mult hashit n opts nest env fc lhs_in
@@ -470,7 +484,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
          clearHoleLHS
          
          logTerm 5 "With value" wval
-         logTerm 5 "Required type" reqty
+         logTerm 3 "Required type" reqty
          wvalTy <- getTerm gwvalTy
          defs <- get Ctxt
          wval <- normaliseHoles defs env' wval
@@ -504,7 +518,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
                                  (weaken {n=wargn} notreqty))
          let bNotReq = Bind fc wargn (Pi RigW Explicit wvalTy) wtyScope
 
-         let Just (reqns, wtype) = bindReq fc env' withSub [] bNotReq
+         let Just (reqns, envns, wtype) = bindReq fc env' withSub [] bNotReq
              | Nothing => throw (InternalError "Impossible happened: With abstraction failure #4")
 
          -- list of argument names - 'Just' means we need to match the name
@@ -514,24 +528,30 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
                  = map Just reqns ++ 
                    Nothing :: map Just notreqns
 
-         logTerm 5 "With function type" wtype 
+         logTerm 3 "With function type" wtype 
          log 5 $ "Argument names " ++ show wargNames
 
          wname <- genWithName n
          widx <- addDef wname (newDef fc wname mult vars wtype Private None)
          let rhs_in = apply (IVar fc wname)
-                        (map (maybe wval_raw (\pn => IVar fc (snd pn))) wargNames)
+                        (map (IVar fc) envns ++
+                         map (maybe wval_raw (\pn => IVar fc (snd pn))) wargNames)
 
+         log 3 $ "Applying to with argument " ++ show rhs_in
          rhs <- wrapError (InRHS fc !(getFullName (Resolved n))) $
              checkTermSub n wmode opts nest' env' env sub' rhs_in 
                           (gnf env' reqty)
 
          -- Generate new clauses by rewriting the matched arguments
          cs' <- traverse (mkClauseWith 1 wname wargNames lhs_in) cs
+         log 3 $ "With clauses: " ++ show cs'
 
          -- Elaborate the new definition here
+         nestname <- applyEnv env wname
+         let nest'' = record { names $= (nestname ::) } nest
+
          let wdef = IDef fc wname cs'
-         processDecl [] nest env wdef
+         processDecl [] nest'' env wdef
 
          pure (Just (MkClause env' lhspat rhs))
   where
@@ -554,7 +574,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
     keepOldEnv (KeepCons p) (KeepCons p')
         = let (_ ** rest) = keepOldEnv p p' in
               (_ ** KeepCons rest)
-
+      
     -- Rewrite the clauses in the block to use an updated LHS.
     -- 'drop' is the number of additional with arguments we expect (i.e.
     -- the things to drop from the end before matching LHSs)

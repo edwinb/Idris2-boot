@@ -170,6 +170,8 @@
         (micro (mod s 1000000)))
        (sleep (make-time 'time-duration (* 1000 micro) sec))))
 
+(define (blodwen-time) (time-second (current-time)))
+
 (define (blodwen-args)
   (define (blodwen-build-args args)
     (if (null? args)
