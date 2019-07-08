@@ -367,7 +367,7 @@ mutual
            checkRestApp rig argRig elabinfo nest env fc 
                         tm x aty sc arg expargs impargs kr expty
   -- Function type is delayed, so force the term and continue
-  checkAppWith rig elabinfo nest env fc tm (NDelayed dfc r ty) expargs impargs kr expty
+  checkAppWith rig elabinfo nest env fc tm (NDelayed dfc r ty@(NBind _ _ (Pi _ _ _) sc)) expargs impargs kr expty
       = checkAppWith rig elabinfo nest env fc (TForce dfc tm) ty expargs impargs kr expty
   -- If there's no more arguments given, and the plicities of the type and
   -- the expected type line up, stop
