@@ -12,7 +12,7 @@ exceptions. The most notable user visible differences, which might cause Idris
 + Simplified resolution of ambiguous names, which might mean you need to
   explicitly disambiguate more often. As a general rule, Idris 2 will be able
   to disambiguate between names which have different concrete return types
-  (such as data constructores), or which have different concrete argument
+  (such as data constructors), or which have different concrete argument
   types (such as record projections). It may struggle to resolve ambiguities
   if one name requires an interface to be resolved.
 + Minor differences in the meaning of export modifiers `private`, `export`,
