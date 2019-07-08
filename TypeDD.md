@@ -218,7 +218,24 @@ In `TestStore.idr`:
 Chapter 11
 ----------
 
-TODO
+Remove `%default total` throughout - it's not yet implemented.
+
+In `Streams.idr` add `import Data.Stream` for `iterate`.
+
+In `Arith.idr` and `ArithTotal.idr`, the `Divides` view now has explicit
+arguments for the dividend and remainder, so they need to be explicit in
+`bound`:
+
+    bound : Int -> Int
+    bound x with (divides x 12)
+      bound ((12 * div) + rem) | (DivBy div rem prf) = rem + 1
+
+In `ArithCmd.idr`, update `DivBy` as above. Also add `import Data.Strings` for
+`Strings.toLower`.
+
+In `ArithCmd.idr`, update `DivBy` and `import Data.Strings` as above. Also,
+since export rules are per-namespace now, rather than per-file, you need to
+export `(>>=)` from the namespaces `CommandDo` and `ConsoleDo`.
 
 Chapter 12
 ----------

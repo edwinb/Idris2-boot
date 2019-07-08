@@ -110,6 +110,8 @@ data PrimFn : Nat -> Type where
      Div : (ty : Constant) -> PrimFn 2
      Mod : (ty : Constant) -> PrimFn 2
      Neg : (ty : Constant) -> PrimFn 1
+     ShiftL : (ty : Constant) -> PrimFn 2
+     ShiftR : (ty : Constant) -> PrimFn 2
 
      LT  : (ty : Constant) -> PrimFn 2
      LTE : (ty : Constant) -> PrimFn 2
@@ -149,6 +151,8 @@ Show (PrimFn arity) where
   show (Div ty) = "/" ++ show ty
   show (Mod ty) = "%" ++ show ty
   show (Neg ty) = "neg " ++ show ty
+  show (ShiftL ty) = "shl " ++ show ty
+  show (ShiftR ty) = "shr " ++ show ty
   show (LT ty) = "<" ++ show ty
   show (LTE ty) = "<=" ++ show ty
   show (EQ ty) = "==" ++ show ty

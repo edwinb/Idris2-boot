@@ -16,3 +16,6 @@ export
 getArgs : IO (List String)
 getArgs = schemeCall (List String) "blodwen-args" []
 
+export
+time : IO Integer
+time = schemeCall Integer "blodwen-time" []

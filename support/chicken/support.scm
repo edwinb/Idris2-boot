@@ -7,6 +7,10 @@
 (define b- (lambda (x y bits) (remainder (- x y) (expt 2 bits))))
 (define b* (lambda (x y bits) (remainder (* x y) (expt 2 bits))))
 (define b/ (lambda (x y bits) (remainder (/ x y) (expt 2 bits))))
+
+(define blodwen-shl (lambda (x y) (arithmetic-shift x y)))
+(define blodwen-shr (lambda (x y) (arithmetic-shift x (- y))))
+
 (define cast-num 
   (lambda (x) 
     (if (number? x) x 0)))

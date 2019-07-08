@@ -418,6 +418,14 @@ public export
 interface Semigroup ty => Monoid ty where
   neutral : ty
 
+export
+shiftL : Int -> Int -> Int
+shiftL = prim__shl_Int
+
+export
+shiftR : Int -> Int -> Int
+shiftR = prim__shr_Int
+
 ---------------------------------
 -- FUNCTOR, APPLICATIVE, MONAD --
 ---------------------------------

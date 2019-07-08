@@ -137,6 +137,14 @@ mod (I x) (I 0) = Nothing
 mod (I x) (I y) = pure $ I (assert_total (x `mod` y))
 mod _ _ = Nothing
 
+shiftl : Constant -> Constant -> Maybe Constant
+shiftl (I x) (I y) = pure $ I (shiftL x y)
+shiftl _ _ = Nothing
+
+shiftr : Constant -> Constant -> Maybe Constant
+shiftr (I x) (I y) = pure $ I (shiftR x y)
+shiftr _ _ = Nothing
+
 neg : Constant -> Maybe Constant
 neg (BI x) = pure $ BI (-x)
 neg (I x) = pure $ I (-x)
@@ -279,6 +287,8 @@ getOp (Mul ty) = binOp mul
 getOp (Div ty) = binOp div
 getOp (Mod ty) = binOp mod
 getOp (Neg ty) = unaryOp neg
+getOp (ShiftL ty) = binOp shiftl
+getOp (ShiftR ty) = binOp shiftr
 
 getOp (LT ty) = binOp lt
 getOp (LTE ty) = binOp lte
@@ -323,6 +333,8 @@ opName (Mul ty) = prim $ "mul_" ++ show ty
 opName (Div ty) = prim $ "div_" ++ show ty
 opName (Mod ty) = prim $ "mod_" ++ show ty
 opName (Neg ty) = prim $ "negate_" ++ show ty
+opName (ShiftL ty) = prim $ "shl_" ++ show ty
+opName (ShiftR ty) = prim $ "shr_" ++ show ty
 opName (LT ty) = prim $ "lt_" ++ show ty
 opName (LTE ty) = prim $ "lte_" ++ show ty
 opName (EQ ty) = prim $ "eq_" ++ show ty
@@ -359,6 +371,8 @@ allPrimitives =
     map (\t => MkPrim (Div t) (arithTy t) notCovering) [IntType, IntegerType, DoubleType] ++
     map (\t => MkPrim (Mod t) (arithTy t) notCovering) [IntType, IntegerType] ++
     map (\t => MkPrim (Neg t) (predTy t t) isTotal) [IntType, IntegerType, DoubleType] ++
+    map (\t => MkPrim (ShiftL t) (arithTy t) notCovering) [IntType] ++
+    map (\t => MkPrim (ShiftR t) (arithTy t) notCovering) [IntType] ++
     
     map (\t => MkPrim (LT t) (cmpTy t) isTotal) [IntType, IntegerType, CharType, DoubleType, StringType] ++
     map (\t => MkPrim (LTE t) (cmpTy t) isTotal) [IntType, IntegerType, CharType, DoubleType, StringType] ++

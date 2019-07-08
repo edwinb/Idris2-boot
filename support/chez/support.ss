@@ -6,7 +6,11 @@
 (define b+ (lambda (x y bits) (remainder (+ x y) (expt 2 bits))))
 (define b- (lambda (x y bits) (remainder (- x y) (expt 2 bits))))
 (define b* (lambda (x y bits) (remainder (* x y) (expt 2 bits))))
-(define b/ (lambda (x y bits) (remainder (/ x y) (expt 2 bits))))
+(define b/ (lambda (x y bits) (remainder (floor (/ x y)) (expt 2 bits))))
+
+(define blodwen-shl (lambda (x y) (ash x y)))
+(define blodwen-shr (lambda (x y) (ash x (- y))))
+
 (define cast-num 
   (lambda (x) 
     (if (number? x) x 0)))
