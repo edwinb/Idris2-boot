@@ -23,6 +23,11 @@ beyond work on the language core, are (in no particular order):
 * An alternative, high performance, back end. OCaml seems worth a try.
 * JS and Node back ends would be nice.
 
+The default Prelude describes the rationale for what gets included and what
+doesn't. Mostly what is there is copied from Idris 1, but it's not impossible
+I've made some silly mistakes on the way. If you find any, please let me know
+(or even better, submit a PR and a test case!).
+
 Some language extensions from Idris 1 have not yet been implemented. Most
 notably:
 

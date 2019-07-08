@@ -11,6 +11,7 @@ modules = Control.WellFounded,
           Data.Nat.Views,
           Data.IORef,
           Data.So,
+          Data.Stream,
           Data.Strings,
           Data.Vect,
           

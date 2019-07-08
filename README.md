@@ -84,7 +84,8 @@ Things still missing
 
 + Some high level syntax, notably numeric ranges
 + 'using' blocks
-+ Cumulativity
++ Cumulativity (so we currently have Type : Type! Bear that in mind when you
+  think you've proved something :))
 + 'rewrite' doesn't yet work on dependent types
 + Some details of 'with' not yet done (notably recursive with call syntax)
 + Parts of the ide-mode, particularly syntax highlighting
