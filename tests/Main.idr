@@ -70,7 +70,7 @@ runTest : String -> String -> String -> IO Bool
 runTest dir prog test
     = do chdir (dir ++ "/" ++ test)
          putStr $ dir ++ "/" ++ test ++ ": "
-         system $ "sh ./run " ++ prog ++ " > output"
+         system $ "sh ./run " ++ prog ++ " | tr -d \\r > output"
          Right out <- readFile "output"
                | Left err => do print err
                                 pure False
@@ -96,8 +96,11 @@ firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
 
 findChez : IO (Maybe String)
 findChez
-    = firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
-                            x <- ["scheme", "chez", "chezscheme9.5"]]
+    = do env <- getEnv "CHEZ"
+         case env of
+            Just n => pure $ Just n
+            Nothing => firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
+                                    x <- ["scheme", "chez", "chezscheme9.5"]]
 
 main : IO ()
 main

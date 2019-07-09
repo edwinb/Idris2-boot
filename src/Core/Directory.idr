@@ -11,14 +11,18 @@ import System.Info
 %default total
 
 isWindows : Bool
-isWindows = os `elem` ["win32", "mingw32", "cygwin32"]
+isWindows = os `elem` ["windows", "mingw32", "cygwin32"]
 
 sep : Char
-sep = if isWindows then '\\' else '/'
+sep = '/'
 
 export
 dirSep : String
 dirSep = cast sep
+
+export
+pathSep : Char
+pathSep = if isWindows then ';' else ':'
 
 fullPath : String -> List String
 fullPath fp = filter (/="") $ split (==sep) fp

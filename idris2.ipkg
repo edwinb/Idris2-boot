@@ -121,6 +121,7 @@ executable = idris2
 -- opts = "--cg-opt -O2 --partial-eval"
 -- opts = "--cg-opt -pg --partial-eval"
 opts = "--partial-eval"
+-- opts = "--partial-eval --cg-opt -lws2_32" -- windows
 
 main = Idris.Main
 
