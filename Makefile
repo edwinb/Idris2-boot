@@ -4,7 +4,7 @@ export IDRIS2_DATA = ${CURDIR}/support
 
 .PHONY: ttimp idris2 prelude test base clean lib_clean
 
-all: idris2 test
+all: idris2 libs test
 
 idris2: src/YafflePaths.idr
 	idris --build idris2.ipkg
