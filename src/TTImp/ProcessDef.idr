@@ -278,7 +278,12 @@ bindReq : {vs : _} ->
           List (PiInfo, Name) ->
           Term pre -> Maybe (List (PiInfo, Name), List Name, ClosedTerm)
 bindReq {vs} fc env SubRefl ns tm 
-    = pure (ns, reverse vs, abstractEnvType fc env tm)
+    = pure (ns, notLets [] _ env, abstractEnvType fc env tm)
+  where
+    notLets : List Name -> (vars : List Name) -> Env Term vars -> List Name
+    notLets acc [] _ = acc
+    notLets acc (v :: vs) (Let _ _ _ :: env) = notLets acc vs env
+    notLets acc (v :: vs) (_ :: env) = notLets (v :: acc) vs env
 bindReq {vs = n :: _} fc (b :: env) (KeepCons p) ns tm 
     = do b' <- shrinkBinder b p
          bindReq fc env p ((plicit b, n) :: ns)
