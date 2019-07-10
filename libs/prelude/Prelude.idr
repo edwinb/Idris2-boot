@@ -522,6 +522,36 @@ public export
 product : (Foldable t, Num a) => t a -> a
 product = foldr (*) 1
 
+public export
+traverse_ : (Foldable t, Applicative f) => (a -> f b) -> t a -> f ()
+traverse_ f = foldr ((*>) . f) (pure ())
+
+||| Evaluate each computation in a structure and discard the results
+public export
+sequence_ : (Foldable t, Applicative f) => t (f a) -> f ()
+sequence_ = foldr (*>) (pure ())
+
+||| Like `traverse_` but with the arguments flipped
+public export
+for_ : (Foldable t, Applicative f) => t a -> (a -> f b) -> f ()
+for_ = flip traverse_
+
+public export
+interface (Functor t, Foldable t) => Traversable (t : Type -> Type) where
+  ||| Map each element of a structure to a computation, evaluate those
+  ||| computations and combine the results.
+  traverse : Applicative f => (a -> f b) -> t a -> f (t b)
+
+||| Evaluate each computation in a structure and collect the results
+public export
+sequence : (Traversable t, Applicative f) => t (f a) -> f (t a)
+sequence = traverse id
+
+||| Like `traverse` but with the arguments flipped
+public export
+for : (Traversable t, Applicative f) => t a -> (a -> f b) -> f (t b)
+for = flip traverse
+
 -----------
 -- NATS ---
 -----------
@@ -640,6 +670,11 @@ Foldable Maybe where
   foldr _ z Nothing  = z
   foldr f z (Just x) = f x z
 
+public export
+Traversable Maybe where
+  traverse f Nothing = pure Nothing
+  traverse f (Just x) = (pure Just) <*> (f x)
+
 ---------
 -- DEC --
 ---------
@@ -752,6 +787,11 @@ Alternative List where
 public export
 Monad List where
   m >>= f = concatMap f m
+
+public export
+Traversable List where
+  traverse f [] = pure []
+  traverse f (x::xs) = pure (::) <*> (f x) <*> (traverse f xs)
 
 public export
 elem : Eq a => a -> List a -> Bool

@@ -146,6 +146,7 @@ elabImplementation {vars} fc vis pass env nest cons iname ps impln mbody
                -- parent constraints, then the method implementations
                defs <- get Ctxt
                let fldTys = getFieldArgs !(normaliseHoles defs [] conty)
+               log 5 $ "Field types " ++ show fldTys
                let irhs = apply (IVar fc con)
                                 (map (const (ISearch fc 500)) (parents cdata)
                                  ++ map (mkMethField impsp fldTys) fns)
@@ -198,7 +199,9 @@ elabImplementation {vars} fc vis pass env nest cons iname ps impln mbody
     applyTo fc tm [] = tm
     applyTo fc tm ((x, c, Explicit) :: xs)
         = applyTo fc (IApp fc tm (IVar fc x)) xs
-    applyTo fc tm ((x, c, _) :: xs)
+    applyTo fc tm ((x, c, AutoImplicit) :: xs)
+        = applyTo fc (IImplicitApp fc tm Nothing (IVar fc x)) xs
+    applyTo fc tm ((x, c, Implicit) :: xs)
         = applyTo fc (IImplicitApp fc tm (Just x) (IVar fc x)) xs
 
     -- When applying the method in the field for the record, eta expand
