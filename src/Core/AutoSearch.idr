@@ -303,7 +303,8 @@ searchName : {auto c : Ref Ctxt Defs} ->
              Core (Term vars)
 searchName fc rigc defaults trying depth def top env target (n, ndef)
     = do defs <- get Ctxt
-         when (not (visibleIn !getNS (fullname ndef) (visibility ndef))) $
+         when (not (visibleInAny (!getNS :: !getNestedNS) 
+                                 (fullname ndef) (visibility ndef))) $
             throw (CantSolveGoal fc [] top)
          let ty = type ndef
          let namety : NameType
@@ -334,7 +335,7 @@ searchNames fc rigc defaults trying depth defining topty env ambig [] target
     = throw (CantSolveGoal fc [] topty)
 searchNames fc rigc defaults trying depth defining topty env ambig (n :: ns) target
     = do defs <- get Ctxt
-         visnsm <- traverse (visible (gamma defs) (currentNS defs)) (n :: ns)
+         visnsm <- traverse (visible (gamma defs) (currentNS defs :: nestedNS defs)) (n :: ns)
          let visns = mapMaybe id visnsm
          let elabs = map (searchName fc rigc defaults trying depth defining topty env target) visns
          if ambig
@@ -342,11 +343,11 @@ searchNames fc rigc defaults trying depth defining topty env ambig (n :: ns) tar
             else exactlyOne fc env topty elabs
   where
     visible : Context -> 
-              List String -> Name -> Core (Maybe (Name, GlobalDef))
+              List (List String) -> Name -> Core (Maybe (Name, GlobalDef))
     visible gam nspace n
         = do Just def <- lookupCtxtExact n gam
                   | Nothing => pure Nothing
-             if visibleIn nspace n (visibility def)
+             if visibleInAny nspace n (visibility def)
                 then pure $ Just (n, def)
                 else pure $ Nothing
 

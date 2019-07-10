@@ -107,7 +107,8 @@ searchName : {auto c : Ref Ctxt Defs} ->
              Maybe RecData -> (Name, GlobalDef) -> Core (List (Term vars))
 searchName fc rigc opts env target topty defining (n, ndef)
     = do defs <- get Ctxt
-         let True = visibleIn !getNS (fullname ndef) (visibility ndef)
+         let True = visibleInAny (!getNS :: !getNestedNS) 
+                                 (fullname ndef) (visibility ndef)
              | _ => pure []
          let ty = type ndef
          let namety : NameType
@@ -188,19 +189,19 @@ searchNames fc rig opts env ty topty defining []
     = pure []
 searchNames fc rig opts env ty topty defining (n :: ns)
     = do defs <- get Ctxt
-         vis <- traverse (visible (gamma defs) (currentNS defs)) (n :: ns)
+         vis <- traverse (visible (gamma defs) (currentNS defs :: nestedNS defs)) (n :: ns)
          let visns = mapMaybe id vis
          nfty <- nf defs env ty
          logTerm 10 ("Searching " ++ show (map fst visns) ++ " for ") ty
          getSuccessful fc rig opts False env ty topty defining
             (map (searchName fc rig opts env nfty topty defining) visns)
   where
-    visible : Context -> List String -> Name -> 
+    visible : Context -> List (List String) -> Name -> 
               Core (Maybe (Name, GlobalDef))
     visible gam nspace n
         = do Just def <- lookupCtxtExact n gam
                   | Nothing => pure Nothing
-             if visibleIn nspace n (visibility def)
+             if visibleInAny nspace n (visibility def)
                 then pure (Just (n, def))
                 else pure Nothing
 

@@ -193,9 +193,9 @@ parameters (defs : Defs, topopts : EvalOpts)
         = do Just res <- lookupCtxtExact n (gamma defs)
                   | Nothing => pure def 
              let redok = evalAll topopts ||
-                         reducibleIn (currentNS defs) 
-                                     (fullname res) 
-                                     (visibility res)
+                         reducibleInAny (currentNS defs :: nestedNS defs) 
+                                        (fullname res) 
+                                        (visibility res)
              if redok
                 then do
                    opts' <- if noCycles res

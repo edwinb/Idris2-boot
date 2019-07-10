@@ -63,7 +63,7 @@ getNameType rigc env fc x
     checkVisibleNS : Name -> Visibility -> Core ()
     checkVisibleNS (NS ns x) vis
         = if !(isVisible ns)
-             then if visibleIn !getNS (NS ns x) vis
+             then if visibleInAny (!getNS :: !getNestedNS) (NS ns x) vis
                      then pure ()
                      else throw $ InvisibleName fc (NS ns x) Nothing
              else throw $ InvisibleName fc (NS ns x) (Just ns)

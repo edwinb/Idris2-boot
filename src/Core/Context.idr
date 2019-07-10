@@ -664,6 +664,7 @@ record Defs where
   gamma : Context
   mutData : List Name -- Currently declared but undefined data types
   currentNS : List String -- namespace for current definitions
+  nestedNS : List (List String) -- other nested namespaces we can look in
   options : Options
   toSave : NameMap ()
   nextTag : Int
@@ -718,7 +719,7 @@ export
 initDefs : Core Defs
 initDefs 
     = do gam <- initCtxt
-         pure (MkDefs gam [] ["Main"] defaults empty 100 
+         pure (MkDefs gam [] ["Main"] [] defaults empty 100 
                       empty empty empty [] [] [] 5381 [] [] [] [] [] empty)
       
 -- Reset the context, except for the options
@@ -928,17 +929,23 @@ lookupDefTyExact = lookupExactBy (\g => (definition g, type g))
 -- is the current namespace (or an outer one)
 -- that is: given that most recent namespace is first in the list,
 -- the namespace of 'n' is a suffix of nspace
-export
 visibleIn : (nspace : List String) -> Name -> Visibility -> Bool
 visibleIn nspace (NS ns n) Private = isSuffixOf ns nspace
 -- Public and Export names are always visible
 visibleIn nspace n _ = True
 
 export
+visibleInAny : (nspace : List (List String)) -> Name -> Visibility -> Bool
+visibleInAny nss n vis = any (\ns => visibleIn ns n vis) nss
+
 reducibleIn : (nspace : List String) -> Name -> Visibility -> Bool
 reducibleIn nspace (NS ns (UN n)) Export = isSuffixOf ns nspace
 reducibleIn nspace (NS ns (UN n)) Private = isSuffixOf ns nspace
 reducibleIn nspace n _ = True
+
+export
+reducibleInAny : (nspace : List (List String)) -> Name -> Visibility -> Bool
+reducibleInAny nss n vis = any (\ns => reducibleIn ns n vis) nss
 
 export
 toFullNames : {auto c : Ref Ctxt Defs} ->
@@ -1249,6 +1256,14 @@ setNS ns
     = do defs <- get Ctxt
          put Ctxt (record { currentNS = ns } defs)
 
+-- Set the nested namespaces we're allowed to look inside
+export
+setNestedNS : {auto c : Ref Ctxt Defs} ->
+              List (List String) -> Core ()
+setNestedNS ns
+    = do defs <- get Ctxt
+         put Ctxt (record { nestedNS = ns } defs)
+
 -- Get the default namespace for new definitions
 export
 getNS : {auto c : Ref Ctxt Defs} ->
@@ -1256,6 +1271,14 @@ getNS : {auto c : Ref Ctxt Defs} ->
 getNS
     = do defs <- get Ctxt
          pure (currentNS defs)
+
+-- Get the nested namespaces we're allowed to look inside
+export
+getNestedNS : {auto c : Ref Ctxt Defs} ->
+              Core (List (List String))
+getNestedNS
+    = do defs <- get Ctxt
+         pure (nestedNS defs)
 
 -- Add the module name, and namespace, of an imported module
 -- (i.e. for "import X as Y", it's (X, Y)
@@ -1456,7 +1479,9 @@ isVisible : {auto c : Ref Ctxt Defs} ->
             (nspace : List String) -> Core Bool
 isVisible nspace
     = do defs <- get Ctxt
-         pure (any visible (allParents (currentNS defs) ++ visibleNS (gamma defs)))
+         pure (any visible (allParents (currentNS defs) ++ 
+                            nestedNS defs ++
+                            visibleNS (gamma defs)))
   where
     allParents : List String -> List (List String)
     allParents [] = []

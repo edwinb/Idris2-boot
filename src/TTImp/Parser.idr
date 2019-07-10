@@ -638,7 +638,7 @@ topDecl fname indents
          ns <- namespaceDecl
          ds <- assert_total (nonEmptyBlock (topDecl fname))
          end <- location
-         pure (INamespace (MkFC fname start end) ns ds)
+         pure (INamespace (MkFC fname start end) False ns ds)
   <|> do start <- location
          visOpts <- many visOpt
          vis <- getVisibility Nothing visOpts
@@ -669,8 +669,8 @@ collectDefs (IDef loc fn cs :: ds)
     isClause n (IDef _ n' cs) 
         = if n == n' then Just cs else Nothing
     isClause n _ = Nothing
-collectDefs (INamespace loc ns nds :: ds)
-    = INamespace loc ns (collectDefs nds) :: collectDefs ds
+collectDefs (INamespace loc nest ns nds :: ds)
+    = INamespace loc nest ns (collectDefs nds) :: collectDefs ds
 collectDefs (d :: ds)
     = d :: collectDefs ds
 

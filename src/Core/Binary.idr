@@ -27,7 +27,7 @@ import Data.Buffer
 -- TTC files can only be compatible if the version number is the same
 export
 ttcVersion : Int
-ttcVersion = 2
+ttcVersion = 3
 
 export
 checkTTCVersion : Int -> Int -> Core ()
@@ -52,6 +52,7 @@ record TTCFile extra where
   imported : List (List String, Bool, List String)
   nextVar : Int
   currentNS : List String
+  nestedNS : List (List String)
   pairnames : Maybe PairNames
   rewritenames : Maybe RewriteNames
   primnames : PrimNames
@@ -83,7 +84,7 @@ HasNames e => HasNames (TTCFile e) where
                       holes guesses constraints
                       context 
                       autoHints typeHints
-                      imported nextVar currentNS 
+                      imported nextVar currentNS nestedNS
                       pairnames rewritenames primnames
                       namedirectives cgdirectives
                       extra)
@@ -92,7 +93,7 @@ HasNames e => HasNames (TTCFile e) where
                          context
                          !(traverse (full gam) autoHints)
                          !(traverse (full gam) typeHints)
-                         imported nextVar currentNS
+                         imported nextVar currentNS nestedNS
                          !(fullPair gam pairnames)
                          !(fullRW gam rewritenames)
                          !(fullPrim gam primnames)
@@ -122,7 +123,7 @@ HasNames e => HasNames (TTCFile e) where
                       holes guesses constraints
                       context 
                       autoHints typeHints
-                      imported nextVar currentNS 
+                      imported nextVar currentNS nestedNS
                       pairnames rewritenames primnames
                       namedirectives cgdirectives
                       extra)
@@ -131,7 +132,7 @@ HasNames e => HasNames (TTCFile e) where
                          context
                          !(traverse (resolved gam) autoHints)
                          !(traverse (resolved gam) typeHints)
-                         imported nextVar currentNS
+                         imported nextVar currentNS nestedNS
                          !(resolvedPair gam pairnames)
                          !(resolvedRW gam rewritenames)
                          !(resolvedPrim gam primnames)
@@ -181,6 +182,7 @@ writeTTCFile b file_in
            toBuf b (imported file)
            toBuf b (nextVar file)
            toBuf b (currentNS file)
+           toBuf b (nestedNS file)
            toBuf b (pairnames file)
            toBuf b (rewritenames file)
            toBuf b (primnames file)
@@ -213,6 +215,7 @@ readTTCFile modns as b
            imp <- fromBuf b
            nextv <- fromBuf b
            cns <- fromBuf b
+           nns <- fromBuf b
            pns <- fromBuf b
            rws <- fromBuf b
            prims <- fromBuf b
@@ -221,7 +224,7 @@ readTTCFile modns as b
            ex <- fromBuf b
            pure (MkTTCFile ver ifaceHash importHashes
                            [] [] [] defs -- holes guesses constraints defs 
-                           autohs typehs imp nextv cns 
+                           autohs typehs imp nextv cns nns
                            pns rws prims nds cgds ex)
 -- Pull out the list of GlobalDefs that we want to save
 getSaveDefs : List Name -> List (Name, Binary) -> Defs -> 
@@ -261,6 +264,7 @@ writeToTTC extradata fname
                               (imported defs)
                               (nextName ust)
                               (currentNS defs)
+                              (nestedNS defs)
                               (pairnames (options defs)) 
                               (rewritenames (options defs)) 
                               (primnames (options defs)) 
@@ -357,6 +361,7 @@ readFromTTC loc reexp fname modNS importAs
          ttc <- readTTCFile modNS as bin
          logTime "Adding defs" $ traverse (addGlobalDef modNS as) (context ttc)
          setNS (currentNS ttc)
+         setNestedNS (nestedNS ttc)
          -- Set up typeHints and autoHints based on the loaded data
          traverse_ (addTypeHint loc) (typeHints ttc)
          traverse_ addAutoHint (autoHints ttc)

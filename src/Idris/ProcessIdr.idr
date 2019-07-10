@@ -123,6 +123,7 @@ readAsMain fname
                                              toplevelFC True fname [] []
               | Nothing => throw (InternalError "Already loaded")
          replNS <- getNS
+         replNestedNS <- getNestedNS
          extendAs replNS replNS syn
 
          ustm <- get UST
@@ -140,6 +141,7 @@ readAsMain fname
          put UST (record { nextName = nextName ustm } ust)
 
          setNS replNS
+         setNestedNS replNestedNS
 
 addPrelude : List Import -> List Import
 addPrelude imps 

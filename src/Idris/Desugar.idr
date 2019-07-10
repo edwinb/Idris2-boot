@@ -456,7 +456,7 @@ mutual
   getDecl AsType d = Nothing
 
   getDecl AsDef (PClaim _ _ _ _) = Nothing
-  getDecl AsDef (PData fc vis (MkPLater dfc tyn tyc)) = Nothing
+  getDecl AsDef d@(PData fc vis (MkPLater dfc tyn tyc)) = Just d
   getDecl AsDef (PInterface fc vis cons n ps det cname ds) = Nothing
   getDecl AsDef (PRecord fc vis n ps con fs) = Nothing
   getDecl AsDef (PFixity _ _ _ _) = Nothing
@@ -566,7 +566,10 @@ mutual
            let paramsb = map (\ (n, tm) => (n, doBind bnames tm)) params'
            fields' <- traverse (desugarField (ps ++ map fname fields ++
                                               map fst params)) fields
-           pure [IRecord fc vis (MkImpRecord fc tn paramsb conname fields')]
+           -- True flag set so that the parent namespace can look inside the
+           -- record definition
+           pure [INamespace fc True [nameRoot tn]
+                  [IRecord fc vis (MkImpRecord fc tn paramsb conname fields')]]
     where
       fname : PField -> Name
       fname (MkField _ _ _ n _) = n
@@ -586,7 +589,7 @@ mutual
            pure (concat mds')
   desugarDecl ps (PNamespace fc ns decls)
       = do ds <- traverse (desugarDecl ps) decls
-           pure [INamespace fc ns (concat ds)]
+           pure [INamespace fc False ns (concat ds)]
   desugarDecl ps (PDirective fc d) 
       = case d of
              Hide n => pure [IPragma (\c, nest, env => hide fc n)]

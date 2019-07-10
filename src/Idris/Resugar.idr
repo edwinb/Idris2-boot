@@ -334,7 +334,7 @@ mutual
   toPDecl (IRecord fc vis r)
       = do (n, ps, con, fs) <- toPRecord r
            pure (Just (PRecord fc vis n ps con fs))
-  toPDecl (INamespace fc ns ds)
+  toPDecl (INamespace fc _ ns ds)
       = do ds' <- traverse toPDecl ds
            pure (Just (PNamespace fc ns (mapMaybe id ds')))
   toPDecl (IPragma _) = pure Nothing
