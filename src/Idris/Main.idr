@@ -45,12 +45,12 @@ updatePaths
          defs <- get Ctxt
          bpath <- coreLift $ getEnv "IDRIS2_PATH"
          case bpath of
-              Just path => do traverse addExtraDir (map trim (split (==':') path))
+              Just path => do traverse addExtraDir (map trim (split (==pathSep) path))
                               pure ()
               Nothing => pure ()
          bdata <- coreLift $ getEnv "IDRIS2_DATA"
          case bdata of
-              Just path => do traverse addDataDir (map trim (split (==':') path))
+              Just path => do traverse addDataDir (map trim (split (==pathSep) path))
                               pure ()
               Nothing => pure ()
          -- BLODWEN_PATH goes first so that it overrides this if there's
