@@ -26,6 +26,9 @@ Chez Scheme is available to build from source:
 
 Many popular package managers will provide a binary distribution for Chez.
 
+**Note**: If you install ChezScheme from source files, building it locally, make sure
+you run `./configure --threads` to build multithreading support in.
+
 ### Chicken
 
 Chicken scheme offers binary distributions (and source tar balls) from
