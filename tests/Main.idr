@@ -70,7 +70,7 @@ runTest : String -> String -> String -> IO Bool
 runTest dir prog test
     = do chdir (dir ++ "/" ++ test)
          putStr $ dir ++ "/" ++ test ++ ": "
-         system $ "sh ./run " ++ prog ++ " | tr -d \\r > output"
+         system $ "sh ./run " ++ prog ++ " | tr -d '\\r' > output"
          Right out <- readFile "output"
                | Left err => do print err
                                 pure False

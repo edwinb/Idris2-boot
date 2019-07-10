@@ -49,7 +49,7 @@ escapeQuotes s = pack $ foldr escape [] $ unpack s
 
 schHeader : String -> List String -> String
 schHeader chez libs
-  = if os /= "windows" then "#!" ++ chez ++ " --script\n\n" else "" ++
+  = (if os /= "windows" then "#!" ++ chez ++ " --script\n\n" else "") ++
     "(import (chezscheme))\n" ++
     "(case (machine-type)\n" ++
     "  [(i3le ti3le a6le ta6le) (load-shared-object \"libc.so.6\")]\n" ++
