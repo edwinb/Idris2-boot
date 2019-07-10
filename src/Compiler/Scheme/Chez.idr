@@ -24,9 +24,12 @@ firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
 
 findChez : IO String
 findChez
-    = do e <- firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
+    = do env <- getEnv "CHEZ"
+         case env of
+            Just n => pure n
+            Nothing => do e <- firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
                                     x <- ["scheme", "chez", "chezscheme9.5"]]
-         maybe (pure "/usr/bin/env scheme") pure e
+                          maybe (pure "/usr/bin/env scheme") pure e
 
 findLibs : List String -> List String
 findLibs = mapMaybe (isLib . trim)
@@ -46,11 +49,12 @@ escapeQuotes s = pack $ foldr escape [] $ unpack s
 
 schHeader : String -> List String -> String
 schHeader chez libs
-  = "#!" ++ chez ++ " --script\n\n" ++
+  = if os /= "windows" then "#!" ++ chez ++ " --script\n\n" else "" ++
     "(import (chezscheme))\n" ++
     "(case (machine-type)\n" ++
     "  [(i3le ti3le a6le ta6le) (load-shared-object \"libc.so.6\")]\n" ++
     "  [(i3osx ti3osx a6osx ta6osx) (load-shared-object \"libc.dylib\")]\n" ++
+    "  [(i3nt ti3nt a6nt ta6nt) (load-shared-object \"msvcrt.dll\")]\n" ++
     "  [else (load-shared-object \"libc.so\")])\n\n" ++
     showSep "\n" (map (\x => "(load-shared-object \"" ++ escapeQuotes x ++ "\")") libs) ++ "\n\n" ++
     "(let ()\n"

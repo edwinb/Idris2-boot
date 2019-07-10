@@ -1,6 +1,8 @@
-PREFIX = ${HOME}/.idris2
+PREFIX ?= ${HOME}/.idris2
 export IDRIS2_PATH = ${CURDIR}/libs/prelude/build:${CURDIR}/libs/base/build
 export IDRIS2_DATA = ${CURDIR}/support
+
+-include custom.mk
 
 .PHONY: ttimp idris2 prelude test base clean lib_clean
 
