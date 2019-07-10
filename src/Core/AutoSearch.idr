@@ -442,7 +442,7 @@ searchType {vars} fc rigc defaults trying depth def top env target
                                                (NTCon tfc tyn t a args)
                              tryUnify
                                (searchLocal fc rigc defaults trying' depth def top env nty)
-                               (tryGroups nty (hintGroups sd))
+                               (tryGroups Nothing nty (hintGroups sd))
                      else throw (CantSolveGoal fc [] top)
               _ => do logNF 10 "Next target: " env nty
                       searchLocal fc rigc defaults trying' depth def top env nty
@@ -451,18 +451,21 @@ searchType {vars} fc rigc defaults trying depth def top env target
     ambig (AmbiguousSearch _ _ _) = True
     ambig _ = False
     
-    tryGroups : NF vars -> List (Bool, List Name) -> Core (Term vars)
-    tryGroups nty [] = throw (CantSolveGoal fc [] top)
-    tryGroups nty ((ambigok, g) :: gs)
+    -- Take the earliest error message (that's when we look inside pairs,
+    -- typically, and it's best to be more precise)
+    tryGroups : Maybe Error ->
+                NF vars -> List (Bool, List Name) -> Core (Term vars)
+    tryGroups (Just err) nty [] = throw err
+    tryGroups Nothing nty [] = throw (CantSolveGoal fc [] top)
+    tryGroups merr nty ((ambigok, g) :: gs)
         = handleUnify
              (do logC 5 (do gn <- traverse getFullName g
                             pure ("Search: Trying " ++ show (length gn) ++
                                            " names " ++ show gn))
                  logNF 5 "For target" env nty
                  searchNames fc rigc defaults (target :: trying) depth def top env ambigok g nty)
-             (\err => if ambig err || isNil gs
-                         then throw err
-                         else tryGroups nty gs)
+             (\err => if ambig err then throw err
+                         else tryGroups (maybe (Just err) Just merr) nty gs)
 
 -- Declared in Core.Unify as:
 -- search : {auto c : Ref Ctxt Defs} ->
