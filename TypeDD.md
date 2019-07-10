@@ -240,7 +240,14 @@ export `(>>=)` from the namespaces `CommandDo` and `ConsoleDo`.
 Chapter 12
 ----------
 
-TODO
+Remove `%default total` throughout, at least until it's implemented.
+
+For reasons described above: In `ArithState.idr`, add `import Data.Strings`.
+Also the `(>>=)` operators need to be set as `export` since they are in their
+own namespaces, and in `getRandom`, `DivBy` needs to take additional
+arguments `div` and `rem`.
+
+Some still TODO, due to missing syntax for list ranges.
 
 Chapter 13
 ----------

@@ -1,6 +1,9 @@
 package base
 
-modules = Control.WellFounded,
+modules = Control.Monad.Identity,
+          Control.Monad.State,
+          Control.Monad.Trans,
+          Control.WellFounded,
 
           Data.Buffer,
           Data.Fin,

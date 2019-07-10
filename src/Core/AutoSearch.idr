@@ -232,7 +232,10 @@ searchLocalWith {vars} fc rigc defaults trying depth def top env ((prf, ty) :: r
                 then do      
                    let candidate = apply fc (f prf) (map metaApp args)
                    logTermNF 10 "Candidate " env candidate
-                   traverse (searchIfHole fc defaults trying False depth def top env) args
+                   -- Work right to left, because later arguments may solve
+                   -- earlier ones by unification
+                   traverse (searchIfHole fc defaults trying False depth def top env) 
+                            (reverse args)
                    pure candidate
                 else do logNF 10 "Can't use " env ty
                         throw (CantSolveGoal fc [] top)
@@ -313,6 +316,7 @@ searchName fc rigc defaults trying depth def top env target (n, ndef)
                         TCon tag arity _ _ _ _ => TyCon tag arity
                         _ => Func
          nty <- nf defs env (embed ty)
+         logNF 10 ("Searching Name " ++ show n) env nty
          (args, appTy) <- mkArgs fc rigc env nty
          ures <- unify InTerm fc env target appTy
          let [] = constraints ures
@@ -320,7 +324,10 @@ searchName fc rigc defaults trying depth def top env target (n, ndef)
          ispair <- isPairNF env nty defs
          let candidate = apply fc (Ref fc namety n) (map metaApp args)
          logTermNF 10 "Candidate " env candidate
-         traverse (searchIfHole fc defaults trying ispair depth def top env) args
+         -- Work right to left, because later arguments may solve earlier
+         -- dependencies by unification
+         traverse (searchIfHole fc defaults trying ispair depth def top env) 
+                  (reverse args)
          pure candidate
 
 searchNames : {auto c : Ref Ctxt Defs} ->

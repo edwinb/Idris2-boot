@@ -1,4 +1,4 @@
-showIfEq : (Eq a, Show a) => a -> a -> String
+showIfEq : (Show a, Eq a) => a -> a -> String
 showIfEq x y = if x == y then show x else "Nope"
 
 topeq : Eq a => a -> a -> Bool
