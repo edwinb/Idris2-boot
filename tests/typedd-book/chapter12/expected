@@ -1,5 +1,6 @@
 1/1: Building ArithState (ArithState.idr)
 1/1: Building DataStore (DataStore.idr)
 1/1: Building Record (Record.idr)
+1/1: Building State (State.idr)
 1/1: Building StateMonad (StateMonad.idr)
 1/1: Building Traverse (Traverse.idr)

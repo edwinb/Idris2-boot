@@ -82,6 +82,10 @@ mutual
        PIfThenElse : FC -> PTerm -> PTerm -> PTerm -> PTerm
        PComprehension : FC -> PTerm -> List PDo -> PTerm
        PRewrite : FC -> PTerm -> PTerm -> PTerm
+       -- A list range  [x,y..z]
+       PRange : FC -> PTerm -> Maybe PTerm -> PTerm -> PTerm
+       -- A stream range [x,y..]
+       PRangeStream : FC -> PTerm -> Maybe PTerm -> PTerm
 
        -- TODO: Ranges, idiom brackets (?), 
        -- 'with' disambiguation
@@ -425,6 +429,14 @@ mutual
         deGuard tm = tm
     show (PRewrite _ rule tm)
         = "rewrite " ++ show rule ++ " in " ++ show tm
+    show (PRange _ start Nothing end)
+        = "[" ++ show start ++ " .. " ++ show end ++ "]"
+    show (PRange _ start (Just next) end)
+        = "[" ++ show start ++ ", " ++ show next ++ " .. " ++ show end ++ "]"
+    show (PRangeStream _ start Nothing)
+        = "[" ++ show start ++ " .. ]"
+    show (PRangeStream _ start (Just next))
+        = "[" ++ show start ++ ", " ++ show next ++ " .. ]"
 
 public export
 record IFaceInfo where

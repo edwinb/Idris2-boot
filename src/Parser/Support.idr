@@ -360,6 +360,7 @@ init = 0
 continueF : EmptyRule () -> (indent : IndentInfo) -> EmptyRule ()
 continueF err indent
     = do eoi; err
+  <|> do keyword "where"; err
   <|> do col <- column
          if (col <= indent)
             then err
@@ -409,6 +410,7 @@ isTerminator (Symbol "}") = True
 isTerminator (Symbol ")") = True
 isTerminator (Symbol "|") = True
 isTerminator (Keyword "in") = True
+isTerminator (Keyword "where") = True
 isTerminator EndInput = True
 isTerminator _ = False
 
@@ -426,6 +428,17 @@ atEnd indent
          if (col <= indent)
             then pure ()
             else fail "Not the end of a block entry"
+
+-- Check we're at the end, but only by looking at indentation
+export
+atEndIndent : (indent : IndentInfo) -> EmptyRule ()
+atEndIndent indent
+    = eoi
+  <|> do col <- column
+         if (col <= indent)
+            then pure ()
+            else fail "Not the end of a block entry"
+
 
 -- Parse a terminator, return where the next block entry
 -- must start, given where the current block entry started

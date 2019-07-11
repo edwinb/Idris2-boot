@@ -32,12 +32,6 @@ isItSucc Z = No absurd
 isItSucc (S n) = Yes ItIsSucc
 
 public export
-minus : Nat -> Nat -> Nat
-minus Z        right     = Z
-minus left     Z         = left
-minus (S left) (S right) = minus left right
-
-public export
 power : Nat -> Nat -> Nat
 power base Z       = S Z
 power base (S exp) = base * (power base exp)

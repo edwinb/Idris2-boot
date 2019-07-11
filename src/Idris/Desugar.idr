@@ -270,6 +270,23 @@ mutual
       toPure tm = DoExp fc (PApp fc (PRef fc (UN "pure")) tm)
   desugar side ps (PRewrite fc rule tm)
       = pure $ IRewrite fc !(desugar side ps rule) !(desugar side ps tm)
+  desugar side ps (PRange fc start next end)
+      = case next of
+             Nothing =>
+                desugar side ps (PApp fc 
+                                    (PApp fc (PRef fc (UN "rangeFromTo"))
+                                          start) end)
+             Just n =>
+                desugar side ps (PApp fc 
+                                    (PApp fc 
+                                        (PApp fc (PRef fc (UN "rangeFromThenTo"))
+                                              start) n) end)
+  desugar side ps (PRangeStream fc start next)
+      = case next of
+             Nothing =>
+                desugar side ps (PApp fc (PRef fc (UN "rangeFrom")) start)
+             Just n =>
+                desugar side ps (PApp fc (PApp fc (PRef fc (UN "rangeFromThen")) start) n)
 
   desugarUpdate : {auto s : Ref Syn SyntaxInfo} ->
                   {auto c : Ref Ctxt Defs} ->

@@ -823,7 +823,7 @@ dataOpt
 dataBody : FileName -> Int -> FilePos -> Name -> IndentInfo -> PTerm -> 
            EmptyRule PDataDecl
 dataBody fname mincol start n indents ty
-    = do atEnd indents
+    = do atEndIndent indents
          end <- location
          pure (MkPLater (MkFC fname start end) n ty)
   <|> do keyword "where"

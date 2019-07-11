@@ -575,6 +575,12 @@ plus Z y = y
 plus (S k) y = S (plus k y)
 
 public export
+minus : Nat -> Nat -> Nat
+minus Z        right     = Z
+minus left     Z         = left
+minus (S left) (S right) = minus left right
+
+public export
 mult : Nat -> Nat -> Nat
 mult Z y = Z
 mult (S k) y = plus y (mult k y)
@@ -1297,4 +1303,81 @@ Cast String Double where
 export
 Cast Nat Double where
   cast = prim__cast_IntegerDouble . natToInteger
+
+------------
+-- RANGES --
+------------
+
+countFrom : n -> (n -> n) -> Stream n
+countFrom start diff = start :: countFrom (diff start) diff
+
+partial
+takeUntil : (n -> Bool) -> Stream n -> List n
+takeUntil p (x :: xs)
+    = if p x
+         then [x]
+         else x :: takeUntil p xs
+
+partial
+takeBefore : (n -> Bool) -> Stream n -> List n
+takeBefore p (x :: xs)
+    = if p x
+         then []
+         else x :: takeBefore p xs
+
+public export 
+interface Range a where
+  rangeFromTo : a -> a -> List a
+  rangeFromThenTo : a -> a -> a -> List a
+
+  rangeFrom : a -> Stream a
+  rangeFromThen : a -> a -> Stream a
+
+-- Idris 1 went to great lengths to prove that these were total. I don't really
+-- think it's worth going to those lengths! Let's keep it simple and assert.
+export
+Range Nat where
+  rangeFromTo x y 
+      = if y > x
+           then assert_total $ takeUntil (>= y) (countFrom x S)
+           else if x > y
+                   then assert_total $ takeUntil (<= y) (countFrom x (\n => minus n 1))
+                   else [x]
+  rangeFromThenTo x y z 
+      = if y > x
+           then (if z > x
+                    then assert_total $ takeBefore (> z) (countFrom x (plus (minus y x)))
+                    else [])
+           else (if x == y 
+                    then (if x == z then [x] else [])
+                    else assert_total $ takeBefore (< z) (countFrom x (\n => minus n (minus x y))))
+  rangeFrom x = countFrom x S
+  rangeFromThen x y 
+      = if y > x 
+           then countFrom x (plus (minus y x))
+           else countFrom x (\n => minus n (minus x y))
+           
+export
+(Integral a, Ord a, Neg a) => Range a where
+  rangeFromTo x y 
+      = if y > x
+           then assert_total $ takeUntil (>= y) (countFrom x (+1))
+           else if x > y
+                   then assert_total $ takeUntil (<= y) (countFrom x (\x => x-1))
+                   else [x]
+  rangeFromThenTo x y z 
+      = if (z - x) > (z - y)
+           then -- go up
+             assert_total $ takeBefore (> z) (countFrom x (+ (y-x)))
+           else if (z - x) < (z - y)
+                then -- go down
+                     assert_total $ takeBefore (< z) (countFrom x (\n => n - (x - y)))
+                else -- meaningless
+                  if x == y && y == z
+                     then [x] else []
+  rangeFrom x = countFrom x (1+)
+  rangeFromThen x y 
+      = if y > x 
+           then countFrom x (+ (y - x))
+           else countFrom x (\n => n - (x - y))
 
