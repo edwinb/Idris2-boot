@@ -36,7 +36,9 @@ test:
 	idris --build tests.ipkg
 	make -C tests
 
-install: all
+install: all install-libs
+
+install-libs: libs
 	mkdir -p ${PREFIX}/bin
 	mkdir -p ${PREFIX}/idris2/support/chez
 	mkdir -p ${PREFIX}/idris2/support/chicken
