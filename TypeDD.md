@@ -146,7 +146,7 @@ views explicit:
 In `SnocList.idr`, in `my_reverse`, the link between `Snoc rec` and `xs ++ [x]`
 needs to be made explicit. Idris 1 would happily decide that `xs` and `x` were
 the relevant implicit arguments to `Snoc` but this was little more than a guess
-based on what would make it type checker, whereas Idris 2 is more precise in
+based on what would make it type check, whereas Idris 2 is more precise in
 what it allows to unify. So, `x` and `xs` need to be explicit arguments to
 `Snoc`:
 
