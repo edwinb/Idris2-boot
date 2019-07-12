@@ -4,8 +4,8 @@ $1 Record.idr --check
 $1 State.idr --check
 $1 StateMonad.idr --check
 $1 Traverse.idr --check
-# $1 TreeLabel.idr --check
-# $1 TreeLabelState.idr --check
-# $1 TreeLabelType.idr --check
+$1 TreeLabel.idr --check
+$1 TreeLabelState.idr --check
+$1 TreeLabelType.idr --check
 
 rm -rf build
