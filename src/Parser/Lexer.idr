@@ -131,7 +131,7 @@ export
 reservedSymbols : List String
 reservedSymbols
     = symbols ++ 
-      ["%", "\\", ":", "=", "|", "|||", "<-", "->", "=>", "?", "&", "**"]
+      ["%", "\\", ":", "=", "|", "|||", "<-", "->", "=>", "?", "&", "**", ".."]
 
 symbolChar : Char -> Bool
 symbolChar c = c `elem` unpack opChars

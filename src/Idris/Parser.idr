@@ -253,6 +253,25 @@ mutual
             -- all the other bracketed expressions
             tuple fname start indents e)
 
+  getInitRange : List PTerm -> EmptyRule (PTerm, Maybe PTerm)
+  getInitRange [x] = pure (x, Nothing)
+  getInitRange [x, y] = pure (x, Just y)
+  getInitRange _ = fatalError "Invalid list range syntax"
+
+  listRange : FileName -> FilePos -> IndentInfo -> List PTerm -> Rule PTerm
+  listRange fname start indents xs
+      = do symbol "]"
+           end <- location
+           let fc = MkFC fname start end
+           rstate <- getInitRange xs
+           pure (PRangeStream fc (fst rstate) (snd rstate))
+    <|> do y <- expr pdef fname indents
+           symbol "]"
+           end <- location
+           let fc = MkFC fname start end
+           rstate <- getInitRange xs
+           pure (PRange fc (fst rstate) (snd rstate) y)
+
   listExpr : FileName -> FilePos -> IndentInfo -> Rule PTerm
   listExpr fname start indents
       = do ret <- expr pnowith fname indents
@@ -262,10 +281,11 @@ mutual
            end <- location
            pure (PComprehension (MkFC fname start end) ret (concat conds))
     <|> do xs <- sepBy (symbol ",") (expr pdef fname indents)
-           symbol "]"
-           end <- location
-           pure (PList (MkFC fname start end) xs)
-           
+           (do symbol ".."
+               listRange fname start indents xs)
+             <|> (do symbol "]"
+                     end <- location
+                     pure (PList (MkFC fname start end) xs))
 
   -- A pair, dependent pair, or just a single expression
   tuple : FileName -> FilePos -> IndentInfo -> PTerm -> Rule PTerm

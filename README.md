@@ -82,7 +82,7 @@ Information about external dependencies are presented in [INSTALL.md](INSTALL.md
 Things still missing
 ====================
 
-+ Some high level syntax, notably numeric ranges
++ Some high level syntax, notably idiom brackets 
 + 'using' blocks
 + Cumulativity (so we currently have Type : Type! Bear that in mind when you
   think you've proved something :))

@@ -73,8 +73,6 @@ Syntax
 
 Some syntax that hasn't yet been implemented but will be:
 
-* Range syntax (e.g. [1..10], [1,3..10], [1..] etc) [needs some thought about
-  what should go in the Prelude and exactly how to implement]
 * Idiom brackets
 * !-notation [needs some thought about the exact rules]
 
