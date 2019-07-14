@@ -60,6 +60,7 @@ delayOnFailure fc rig env expected pred elab
                     do nm <- genName "delayed"
                        (ci, dtm) <- newDelayed fc Rig1 env nm !(getTerm expected)
                        logGlueNF 5 ("Postponing elaborator " ++ show nm ++ 
+                                    " at " ++ show fc ++
                                     " for") env expected
                        log 10 ("Due to error " ++ show err)
                        ust <- get UST
@@ -86,22 +87,25 @@ delayElab : {auto c : Ref Ctxt Defs} ->
             Core (Term vars, Glued vars)
 delayElab {vars} fc rig env exp elab 
     = do est <- get EST
-         nm <- genName "delayed"
-         expected <- mkExpected exp
-         (ci, dtm) <- newDelayed fc Rig1 env nm !(getTerm expected)
-         logGlueNF 5 ("Postponing elaborator " ++ show nm ++ 
-                      " for") env expected
-         ust <- get UST
-         put UST (record { delayedElab $= 
-                 ((ci, mkClosedElab fc env 
-                           (do est <- get EST
-                               put EST (record { allowDelay = False } est)
-                               tm <- elab
-                               est <- get EST
-                               put EST (record { allowDelay = True } est)
-                               pure tm)) :: ) } 
-                         ust)
-         pure (dtm, expected)
+         if not (allowDelay est)
+            then elab
+            else do
+             nm <- genName "delayed"
+             expected <- mkExpected exp
+             (ci, dtm) <- newDelayed fc Rig1 env nm !(getTerm expected)
+             logGlueNF 5 ("Postponing elaborator " ++ show nm ++ 
+                          " for") env expected
+             ust <- get UST
+             put UST (record { delayedElab $= 
+                     ((ci, mkClosedElab fc env 
+                               (do est <- get EST
+                                   put EST (record { allowDelay = False } est)
+                                   tm <- elab
+                                   est <- get EST
+                                   put EST (record { allowDelay = True } est)
+                                   pure tm)) :: ) } 
+                             ust)
+             pure (dtm, expected)
   where
     mkExpected : Maybe (Glued vars) -> Core (Glued vars)
     mkExpected (Just ty) = pure ty
@@ -121,6 +125,7 @@ retryDelayed ((i, elab) :: ds)
     = do defs <- get Ctxt
          Just Delayed <- lookupDefExact (Resolved i) (gamma defs)
               | _ => retryDelayed ds
+         log 5 ("Retrying delayed hole " ++ show !(getFullName (Resolved i)))
          tm <- elab
          updateDef (Resolved i) (const (Just 
               (PMDef True [] (STerm tm) (STerm tm) [])))

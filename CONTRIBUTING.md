@@ -18,6 +18,7 @@ beyond work on the language core, are (in no particular order):
   - Syntax highlighting support for output 
   - Several functions from the version 1 IDE protocol are not yet implemented,
     and I haven't confirmed it works in everything.
+  - (Not really part of Idris 2, but an editing mode for vim would be lovely!)
 * Some parts of the Idris 1 Prelude are not yet implemented and should be
   added to base/
 * Partial evaluation, especially for specialisation of interface 
@@ -26,7 +27,6 @@ beyond work on the language core, are (in no particular order):
   errors would be good.
   - In particular, large sections commented out with {- -} can take a while
     to lex!
-* Windows support - it is tested on macOS and Linux only so far.
 * An alternative, high performance, back end. OCaml seems worth a try.
 * JS and Node back ends would be nice.
 

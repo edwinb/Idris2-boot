@@ -22,13 +22,13 @@ base: prelude
 
 libs : prelude base
 
-clean: lib_clean
+clean: clean-libs
 	make -C src clean
 	make -C tests clean
 	rm -f runtests
 	rm -f idris2
 
-lib_clean:
+clean-libs:
 	make -C libs/prelude clean
 	make -C libs/base clean
 
@@ -36,7 +36,9 @@ test:
 	idris --build tests.ipkg
 	make -C tests
 
-install: all install-libs
+install: all install-exec install-libs
+
+install-exec: idris2
 	install idris2 ${PREFIX}/bin
 	install support/chez/* ${PREFIX}/idris2/support/chez
 	install support/chicken/* ${PREFIX}/idris2/support/chicken
