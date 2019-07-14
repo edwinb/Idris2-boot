@@ -73,6 +73,7 @@ modules =
 
     Parser.Lexer,
     Parser.Support,
+    Parser.Unlit,
 
     Text.Lexer,
     Text.Lexer.Core,

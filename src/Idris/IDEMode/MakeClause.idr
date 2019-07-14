@@ -2,15 +2,9 @@ module Idris.IDEMode.MakeClause
 
 import Core.Name
 import Parser.Lexer
+import Parser.Unlit
 
 -- Implement make-with and make-case from the IDE mode
-
-isLit : String -> (Bool, String)
-isLit str
-    = assert_total $
-         if length str > 0 && strHead str == '>'
-            then (True, strTail str)
-            else (False, str)
 
 showRHSName : Name -> String
 showRHSName n
