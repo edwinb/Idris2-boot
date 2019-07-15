@@ -39,15 +39,15 @@ test:
 install: all install-exec install-libs
 
 install-exec: idris2
+	mkdir -p ${PREFIX}/bin
+	mkdir -p ${PREFIX}/idris2/support/chez
+	mkdir -p ${PREFIX}/idris2/support/chicken
+	mkdir -p ${PREFIX}/idris2/support/racket
 	install idris2 ${PREFIX}/bin
 	install support/chez/* ${PREFIX}/idris2/support/chez
 	install support/chicken/* ${PREFIX}/idris2/support/chicken
 	install support/racket/* ${PREFIX}/idris2/support/racket
 
 install-libs: libs
-	mkdir -p ${PREFIX}/bin
-	mkdir -p ${PREFIX}/idris2/support/chez
-	mkdir -p ${PREFIX}/idris2/support/chicken
-	mkdir -p ${PREFIX}/idris2/support/racket
 	make -C libs/prelude install IDRIS2=../../idris2
 	make -C libs/base install IDRIS2=../../idris2
