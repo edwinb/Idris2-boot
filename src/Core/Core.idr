@@ -348,6 +348,11 @@ Of course it would be a good idea to fix this in Idris, but it's not an urgent
 thing on the road to self hosting, and we can make sure this isn't a problem
 in the next version (i.e., in this project...)! -}
 
+-- Functor (specialised)
+export %inline
+map : (a -> b) -> Core a -> Core b
+map f (MkCore a) = MkCore (map (map f) a)
+
 -- Monad (specialised)
 export %inline
 (>>=) : Core a -> (a -> Core b) -> Core b

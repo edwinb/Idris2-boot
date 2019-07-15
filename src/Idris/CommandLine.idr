@@ -6,6 +6,7 @@ public export
 data PkgCommand
       = Build
       | Install
+      | Clean
       | REPL
 
 
@@ -13,6 +14,7 @@ export
 Show PkgCommand where
   show Build = "--build"
   show Install = "--install"
+  show Clean = "--clean"
   show REPL = "--repl"
 
 ||| CLOpt - possible command line options
@@ -29,17 +31,17 @@ data CLOpt
   NoPrelude |
    ||| Show the installation prefix
   ShowPrefix |
-   ||| Display blodwen version
+   ||| Display Idris version
   Version |
    ||| Display help text
   Help |
-   ||| Run Blodwen in quiet mode
+   ||| Run Idris 2 in quiet mode
   Quiet |
    ||| Add a package as a dependency
   PkgPath String |
    ||| Build or install a given package, depending on PkgCommand
   Package PkgCommand String |
-   ||| The input Blodwen file
+   ||| The input Idris file
   InputFile String |
    ||| Whether or not to run in IdeMode (easily parsable for other tools)
   IdeMode |
@@ -88,6 +90,8 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
               (Just "Build modules/executable for the given package"),
            MkOpt ["--install"] ["package file"] (\f => [Package Install f])
               (Just "Install the given package"),
+           MkOpt ["--clean"] ["package file"] (\f => [Package Clean f])
+              (Just "Clean intermediate files/executables for the given package"),
 
            MkOpt ["--quiet", "-q"] [] [Quiet]
               (Just "Quiet mode; display fewer messages"),
