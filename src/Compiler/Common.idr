@@ -14,10 +14,10 @@ import Data.NameMap
 public export
 record Codegen where
   constructor MkCG
-  ||| Compile a Blodwen expression, saving it to a file.
+  ||| Compile an Idris 2 expression, saving it to a file.
   compileExpr : Ref Ctxt Defs ->
                 ClosedTerm -> (outfile : String) -> Core (Maybe String)
-  ||| Execute a Blodwen expression directly.
+  ||| Execute an Idris 2 expression directly.
   executeExpr : Ref Ctxt Defs -> ClosedTerm -> Core ()
 
 ||| compile
