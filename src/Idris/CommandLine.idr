@@ -1,5 +1,7 @@
 module Idris.CommandLine
 
+import Data.String
+
 %default total
 
 public export
@@ -44,7 +46,7 @@ data CLOpt
    ||| Whether or not to run in IdeMode (easily parsable for other tools)
   IdeMode |
    ||| Whether or not to run IdeMode (using a socket instead of stdin/stdout)
-  IdeModeSocket | 
+  IdeModeSocket String |
    ||| Run as a checker for the core language TTImp
   Yaffle String |
   Timing |
@@ -76,9 +78,9 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
 
            MkOpt ["--ide-mode"] [] [IdeMode]
               (Just "Run the REPL with machine-readable syntax"),
-           
-           MkOpt ["--ide-mode-socket"] [] [IdeModeSocket]
-              (Just "Run the ide socket mode"),
+
+           MkOpt ["--ide-mode-socket"] ["host:port"] (\hp => [IdeModeSocket hp])
+              (Just "Run the ide socket mode on given host and port (default: localhost:38398"),
 
            MkOpt ["--prefix"] [] [ShowPrefix]
               (Just "Show installation prefix"),
@@ -175,3 +177,18 @@ getCmdOpts = do (_ :: opts) <- getArgs
                     | pure (Left "Invalid command line")
                 pure $ getOpts opts
 
+portPart : String -> Maybe String
+portPart p with (not $ p == "") proof prf
+  portPart p | False  = Nothing
+  portPart p | True = Just $ strTail' p (sym prf)
+
+||| Extract the host and port to bind the IDE socket to
+public export
+ideSocketModeHostPort : List CLOpt -> (String, Int)
+ideSocketModeHostPort []  = ("localhost", 38398)
+ideSocketModeHostPort (IdeModeSocket hp :: _) =
+  let (h, p) = Strings.break (== ':') hp
+      port = fromMaybe 38398 (portPart p >>= parsePositive)
+      host = if h == "" then "localhost" else h
+  in (host, port)
+ideSocketModeHostPort (_ :: rest) = ideSocketModeHostPort rest

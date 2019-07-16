@@ -18,7 +18,7 @@ addPkgDir : {auto c : Ref Ctxt Defs} ->
             String -> Core ()
 addPkgDir p
     = do defs <- get Ctxt
-         addExtraDir (dir_prefix (dirs (options defs)) ++ dirSep ++ 
+         addExtraDir (dir_prefix (dirs (options defs)) ++ dirSep ++
                              "idris2" ++ dirSep ++ p)
 
 -- Options to be processed before type checking
@@ -37,7 +37,7 @@ preOptions (SetCG e :: opts)
     = case getCG e of
            Just cg => do setCG cg
                          preOptions opts
-           Nothing => 
+           Nothing =>
               do coreLift $ putStrLn "No such code generator"
                  coreLift $ putStrLn $ "Code generators available: " ++
                                  showSep ", " (map fst availableCGs)
@@ -58,11 +58,11 @@ postOptions : {auto c : Ref Ctxt Defs} ->
               {auto m : Ref MD Metadata} ->
               List CLOpt -> Core Bool
 postOptions [] = pure True
-postOptions (ExecFn str :: rest) 
+postOptions (ExecFn str :: rest)
     = do execExp (PRef (MkFC "(script)" (0, 0) (0, 0)) (UN str))
          postOptions rest
          pure False
-postOptions (CheckOnly :: rest) 
+postOptions (CheckOnly :: rest)
     = do postOptions rest
          pure False
 postOptions (_ :: rest) = postOptions rest
@@ -76,6 +76,5 @@ ideMode (_ :: xs) = ideMode xs
 export
 ideModeSocket : List CLOpt -> Bool
 ideModeSocket [] = False
-ideModeSocket (IdeModeSocket :: _) = True
+ideModeSocket (IdeModeSocket _ :: _) = True
 ideModeSocket (_ :: xs) = ideModeSocket xs
-

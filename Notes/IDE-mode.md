@@ -40,4 +40,3 @@ Generates a pattern matching definition, if it can find one, for the function
 declared with the given name, on the given line. It will only return the
 first definition it finds, as a list of pattern clauses. This works via a
 combination of case splitting and expression search.
-

@@ -122,28 +122,29 @@ stMain opts
                  case fname of
                       Nothing => logTime "Loading prelude" $
                                    readPrelude
-                      Just f => logTime "Loading main file" $ 
+                      Just f => logTime "Loading main file" $
                                    loadMainFile f
 
                  doRepl <- postOptions opts
-                 if doRepl 
-                 then 
+                 if doRepl
+                 then
                    if ide || ideSocket
-                   then 
-                     if not ideSocket 
+                   then
+                     if not ideSocket
                      then do
                        setOutput (IDEMode 0 stdin stdout)
                        replIDE {c} {u} {m}
-                     else do 
-                       f <- coreLift $ initIDESocketFile 38398
+                     else do
+                       let (host, port) = ideSocketModeHostPort opts
+                       f <- coreLift $ initIDESocketFile host port
                        case f of
                          Left err => do
                            coreLift $ putStrLn err
                            coreLift $ exit 1
                          Right file => do
                            setOutput (IDEMode 0 file file)
-                           replIDE {c} {u} {m}                               
-                   else do 
+                           replIDE {c} {u} {m}
+                   else do
                        iputStrLn $ "Welcome to Idris 2 version " ++ version
                                     ++ ". Enjoy yourself!"
                        repl {c} {u} {m}
