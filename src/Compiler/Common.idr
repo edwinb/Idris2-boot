@@ -72,7 +72,7 @@ findUsedNames tm
     = do defs <- get Ctxt
          let ns = getRefs (Resolved (-1)) tm
          allNs <- getAllDesc (keys ns) empty defs
-         let cns = keys allNs
+         cns <- traverse toFullNames (keys allNs)
          -- Initialise the type constructor list with explicit names for
          -- the primitives (this is how we look up the tags)
          -- Use '1' for '->' constructor

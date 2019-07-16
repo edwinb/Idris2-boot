@@ -330,5 +330,5 @@ compileDef tags n
     = do defs <- get Ctxt
          Just gdef <- lookupCtxtExact n (gamma defs)
               | Nothing => throw (InternalError ("Trying to compile unknown name " ++ show n))
-         ce <- toCDef tags n (definition gdef)
+         ce <- toCDef tags n !(toFullNames (definition gdef))
          setCompiled n ce
