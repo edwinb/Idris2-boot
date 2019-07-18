@@ -95,3 +95,8 @@ Things still missing
 + Documentation strings and HTML documentation generation
 + ':search' and ':apropos' at the REPL
 + The rest of this "Things still missing" list
+
+Talks
+=====
+
+[![Idris 2 - Type-driven Development of Idris (Curry On - London 2019)](http://img.youtube.com/vi/DRq2NgeFcO0/0.jpg)](http://www.youtube.com/watch?v=DRq2NgeFcO0 "Idris 2 - Type-driven Development of Idris (Curry On - London 2019)")
