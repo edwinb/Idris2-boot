@@ -6,6 +6,7 @@ modules = Control.Monad.Identity,
           Control.WellFounded,
 
           Data.Buffer,
+          Data.Either,
           Data.Fin,
           Data.IORef,
           Data.List,
@@ -19,11 +20,10 @@ modules = Control.Monad.Identity,
           Data.Stream,
           Data.Strings,
           Data.Vect,
-          
+
           Decidable.Equality,
 
           System,
           System.Concurrency.Raw,
           System.File,
           System.REPL
-
