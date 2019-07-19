@@ -5,7 +5,7 @@ import System
 %default covering
 
 ttimpTests : List String
-ttimpTests 
+ttimpTests
     = ["basic001", "basic002", "basic003", "basic004", "basic005",
        "basic006",
        "coverage001", "coverage002",
@@ -53,16 +53,20 @@ typeddTests
 
 chezTests : List String
 chezTests
-   = ["chez001", "chez002", "chez003", "chez004", 
+   = ["chez001", "chez002", "chez003", "chez004",
       "chez005", "chez006", "chez007"]
 
+ideModeTests : List String
+ideModeTests
+  =  [ "ideMode001" ]
+
 chdir : String -> IO Bool
-chdir dir 
+chdir dir
     = do ok <- foreign FFI_C "chdir" (String -> IO Int) dir
          pure (ok == 0)
 
 fail : String -> IO ()
-fail err 
+fail err
     = do putStrLn err
          exitWith (ExitFailure 1)
 
@@ -79,7 +83,7 @@ runTest dir prog test
                                 pure False
          if (out == exp)
             then putStrLn "success"
-            else putStrLn "FAILURE"
+            else putStrLn $ "FAILURE: found " ++ out
          chdir "../.."
          pure (out == exp)
 
@@ -109,16 +113,16 @@ main
          ttimps <- traverse (runTest "ttimp" idris2) ttimpTests
          idrs <- traverse (runTest "idris2" idris2) idrisTests
          typedds <- traverse (runTest "typedd-book" idris2) typeddTests
+         ideModes <- traverse (runTest "ideMode" idris2) ideModeTests
          chexec <- findChez
          chezs <- maybe (do putStrLn "Chez Scheme not found"
                             pure [])
                         (\c => do putStrLn $ "Found Chez Scheme at " ++ c
                                   traverse (runTest "chez" idris2) chezTests)
                         chexec
-         let res = ttimps ++ typedds ++ idrs ++ chezs
-         putStrLn (show (length (filter id res)) ++ "/" ++ show (length res) 
+         let res = ttimps ++ typedds ++ idrs ++ ideModes ++ chezs
+         putStrLn (show (length (filter id res)) ++ "/" ++ show (length res)
                        ++ " tests successful")
          if (any not res)
             then exitWith (ExitFailure 1)
             else exitWith ExitSuccess
-
