@@ -531,8 +531,9 @@ mutual
   desugarDecl ps (PReflect fc tm)
       = throw (GenericMsg fc "Reflection not implemented yet")
 --       pure [IReflect fc !(desugar AnyExpr ps tm)]
-  desugarDecl ps (PInterface fc vis cons tn params det conname body)
-      = do cons' <- traverse (\ ntm => do tm' <- desugar AnyExpr (ps ++ map fst params)
+  desugarDecl ps (PInterface fc vis cons_in tn params det conname body)
+      = do let cons = concatMap expandConstraint cons_in
+           cons' <- traverse (\ ntm => do tm' <- desugar AnyExpr (ps ++ map fst params)
                                                          (snd ntm)
                                           pure (fst ntm, tm')) cons
            params' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
@@ -553,6 +554,19 @@ mutual
                              elabInterface fc vis env nest consb
                                            tn paramsb det conname 
                                            (concat body'))]
+    where
+      -- Turns pairs in the constraints to individual constraints. This
+      -- is a bit of a hack, but it's necessary to build parent constraint
+      -- chasing functions correctly
+      pairToCons : PTerm -> List PTerm
+      pairToCons (PPair fc l r) = pairToCons l ++ pairToCons r
+      pairToCons t = [t]
+
+      expandConstraint : (Maybe Name, PTerm) -> List (Maybe Name, PTerm)
+      expandConstraint (Just n, t) = [(Just n, t)]
+      expandConstraint (Nothing, p)
+          = map (\x => (Nothing, x)) (pairToCons p)
+
   desugarDecl ps (PImplementation fc vis pass cons tn params impname body)
       = do cons' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
                                           pure (fst ntm, tm')) cons
