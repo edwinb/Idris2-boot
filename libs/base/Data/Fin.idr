@@ -39,7 +39,7 @@ FinZElim : Fin Z -> a
 FinZElim x = void (FinZAbsurd x)
 
 ||| Convert a Fin to a Nat
-export
+public export
 finToNat : Fin n -> Nat
 finToNat FZ = Z
 finToNat (FS k) = S (finToNat k)
@@ -58,7 +58,7 @@ implementation Cast (Fin n) Nat where
     cast x = finToNat x
 
 ||| Convert a Fin to an Integer
-export
+public export
 finToInteger : Fin n -> Integer
 finToInteger FZ     = 0
 finToInteger (FS k) = 1 + finToInteger k
@@ -92,13 +92,13 @@ strengthen f = Left f
 ||| Add some natural number to a Fin, extending the bound accordingly
 ||| @ n the previous bound
 ||| @ m the number to increase the Fin by
-export
+public export
 shift : (m : Nat) -> Fin n -> Fin (m + n)
 shift Z f = f
 shift {n=n} (S m) f = FS {k = (m + n)} (shift m f)
 
 ||| The largest element of some Fin type
-export
+public export
 last : {n : _} -> Fin (S n)
 last {n=Z} = FZ
 last {n=S _} = FS last
@@ -116,7 +116,7 @@ implementation Ord (Fin n) where
 
 
 -- Construct a Fin from an integer literal which must fit in the given Fin
-export
+public export
 natToFin : Nat -> (n : Nat) -> Maybe (Fin n)
 natToFin Z     (S j) = Just FZ
 natToFin (S k) (S j) 
@@ -127,7 +127,7 @@ natToFin _ _ = Nothing
 
 ||| Convert an `Integer` to a `Fin`, provided the integer is within bounds.
 ||| @n The upper bound of the Fin
-export
+public export
 integerToFin : Integer -> (n : Nat) -> Maybe (Fin n)
 integerToFin x Z = Nothing -- make sure 'n' is concrete, to save reduction!
 integerToFin x n = if x >= 0 then natToFin (fromInteger x) n else Nothing

@@ -1165,9 +1165,11 @@ claim fname indents
          visOpts <- many visOpt
          vis <- getVisibility Nothing visOpts
          let opts = mapMaybe getRight visOpts
+         m <- multiplicity
+         rig <- getMult m
          cl <- tyDecl fname indents
          end <- location
-         pure (PClaim (MkFC fname start end) vis opts cl)
+         pure (PClaim (MkFC fname start end) rig vis opts cl)
          
 definition : FileName -> IndentInfo -> Rule PDecl
 definition fname indents

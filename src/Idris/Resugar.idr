@@ -319,8 +319,8 @@ mutual
   toPDecl : {auto c : Ref Ctxt Defs} ->
             {auto s : Ref Syn SyntaxInfo} ->
             ImpDecl -> Core (Maybe PDecl)
-  toPDecl (IClaim fc _ vis opts ty) 
-      = pure (Just (PClaim fc vis opts !(toPTypeDecl ty)))
+  toPDecl (IClaim fc rig vis opts ty) 
+      = pure (Just (PClaim fc rig vis opts !(toPTypeDecl ty)))
   toPDecl (IData fc vis d)
       = pure (Just (PData fc vis !(toPData d)))
   toPDecl (IDef fc n cs)
