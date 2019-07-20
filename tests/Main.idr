@@ -36,7 +36,7 @@ idrisTests
        "interactive005", "interactive006", "interactive007", "interactive008",
        "interactive009", "interactive010", "interactive011", "interactive012",
        "interface001", "interface002", "interface003", "interface004",
-       "interface005",
+       "interface005", "interface006",
        "lazy001",
        "linear001", "linear002", "linear003", "linear004", "linear005",
        "linear006", "linear007",
