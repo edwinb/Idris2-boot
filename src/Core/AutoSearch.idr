@@ -383,6 +383,10 @@ concreteDets {vars} fc defaults env top pos dets (arg :: args)
         = do traverse (\ parg => do argnf <- evalClosure defs parg
                                     concrete defs argnf False) args
              pure ()
+    concrete defs (NDCon nfc n t a args) top
+        = do traverse (\ parg => do argnf <- evalClosure defs parg
+                                    concrete defs argnf False) args
+             pure ()
     concrete defs (NApp _ (NMeta n i _) _) True
         = do Just (Hole _ True _) <- lookupDefExact n (gamma defs)
                   | _ => throw (DeterminingArg fc n i [] top)
