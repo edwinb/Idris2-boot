@@ -1,0 +1,3 @@
+000018(:protocol-version 2 0)
+000038(:write-string "1/1: Building LocType (LocType.idr)" 1)
+00002a(:return (:ok "Loaded LocType.idr" ()) 1)

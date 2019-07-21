@@ -58,7 +58,7 @@ chezTests
 
 ideModeTests : List String
 ideModeTests
-  =  [ "ideMode001" ]
+  =  [ "ideMode001", "ideMode002" ]
 
 chdir : String -> IO Bool
 chdir dir
@@ -110,9 +110,9 @@ main : IO ()
 main
     = do [_, idris2] <- getArgs
               | _ => do putStrLn "Usage: runtests [ttimp path]"
-         ttimps <- traverse (runTest "ttimp" idris2) ttimpTests
-         idrs <- traverse (runTest "idris2" idris2) idrisTests
-         typedds <- traverse (runTest "typedd-book" idris2) typeddTests
+         -- ttimps <- traverse (runTest "ttimp" idris2) ttimpTests
+         -- idrs <- traverse (runTest "idris2" idris2) idrisTests
+         -- typedds <- traverse (runTest "typedd-book" idris2) typeddTests
          ideModes <- traverse (runTest "ideMode" idris2) ideModeTests
          chexec <- findChez
          chezs <- maybe (do putStrLn "Chez Scheme not found"
@@ -120,7 +120,8 @@ main
                         (\c => do putStrLn $ "Found Chez Scheme at " ++ c
                                   traverse (runTest "chez" idris2) chezTests)
                         chexec
-         let res = ttimps ++ typedds ++ idrs ++ ideModes ++ chezs
+         let res = --ttimps ++ typedds ++ idrs ++
+                   ideModes ++ chezs
          putStrLn (show (length (filter id res)) ++ "/" ++ show (length res)
                        ++ " tests successful")
          if (any not res)
