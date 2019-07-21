@@ -3,6 +3,9 @@ Idris 2
 
 This is a pre-alpha implementation of Idris 2, the successor to Idris.
 
+*** Please note: This currently requires currently requires the (not yet
+released) latest Idris master. See https://github.com/idris-lang/Idris-dev/ ***
+
 Idris 2 is mostly backwards compatible with Idris 1, with some minor
 exceptions. The most notable user visible differences, which might cause Idris
 1 programs to fail to type check, are:
@@ -92,3 +95,8 @@ Things still missing
 + Documentation strings and HTML documentation generation
 + ':search' and ':apropos' at the REPL
 + The rest of this "Things still missing" list
+
+Talks
+=====
+
+[![Idris 2 - Type-driven Development of Idris (Curry On - London 2019)](http://img.youtube.com/vi/DRq2NgeFcO0/0.jpg)](http://www.youtube.com/watch?v=DRq2NgeFcO0 "Idris 2 - Type-driven Development of Idris (Curry On - London 2019)")

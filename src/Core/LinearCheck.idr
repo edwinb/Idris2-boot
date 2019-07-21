@@ -396,6 +396,8 @@ mutual
       getCaseUsage : Term ns -> Env Term vs -> List (Term vs) -> 
                      Usage vs -> Term vs ->
                      Core (List (Name, ArgUsage))
+      getCaseUsage ty env (As _ _ p :: args) used rhs
+          = getCaseUsage ty env (p :: args) used rhs
       getCaseUsage (Bind _ n (Pi Rig1 e ty) sc) env (Local _ _ idx p :: args) used rhs
           = do rest <- getCaseUsage sc env args used rhs
                let used_in = count idx used
@@ -474,9 +476,12 @@ mutual
                logTerm 10 "LHS" lhs
                logTerm 5 "Linear check in case RHS" rhs
                (rhs', _, used) <- lcheck rig False penv rhs
+               log 10 $ "Used: " ++ show used
                let args = getArgs lhs
                checkEnvUsage {done = []} rig penv used args rhs'
-               getCaseUsage ty penv args used rhs
+               ause <- getCaseUsage ty penv args used rhs
+               log 10 $ "Arg usage: " ++ show ause
+               pure ause
 
       combineUsage : (Name, ArgUsage) -> (Name, ArgUsage) -> 
                      Core (Name, ArgUsage)
@@ -530,6 +535,7 @@ mutual
                         PMDef _ _ _ _ pats => 
                             do u <- getArgUsage (getLoc (type def))
                                                 rig (type def) pats
+                               log 10 $ "Overall arg usage " ++ show u
                                let ty' = updateUsage u (type def)
                                updateTy idx ty'
                                setLinearCheck idx True

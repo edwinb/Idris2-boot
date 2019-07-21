@@ -59,6 +59,15 @@ addDefaults fc ms defs body
         = dropGot (filter (/= n) ms) ds
     dropGot ms (_ :: ds) = dropGot ms ds
 
+getMethImps : {auto c : Ref Ctxt Defs} ->
+              Env Term vars -> Term vars ->
+              Core (List (Name, RigCount, RawImp))
+getMethImps env (Bind fc x (Pi c Implicit ty) sc)
+    = do rty <- unelabNoSugar env ty
+         ts <- getMethImps (Pi c Implicit ty :: env) sc
+         pure ((x, c, rty) :: ts)
+getMethImps env tm = pure []
+
 export
 elabImplementation : {auto c : Ref Ctxt Defs} ->
                      {auto u : Ref UST UState} ->
@@ -121,6 +130,12 @@ elabImplementation {vars} fc vis pass env nest cons iname ps impln mbody
          -- the implementation exists and define it later)
          when (defPass pass) $ maybe (pure ())
            (\body_in => do
+               defs <- get Ctxt
+               Just impTyc <- lookupTyExact impName (gamma defs)
+                    | Nothing => throw (InternalError ("Can't happen, can't find type of " ++ show impName))
+               methImps <- getMethImps [] impTyc
+               log 3 $ "Bind implicits to each method: " ++ show methImps
+
                -- 1.5. Lookup default definitions and add them to to body
                let (body, missing)
                      = addDefaults fc (map (dropNS . fst) (methods cdata)) 
@@ -132,7 +147,7 @@ elabImplementation {vars} fc vis pass env nest cons iname ps impln mbody
 
                -- 2. Elaborate top level function types for this interface
                defs <- get Ctxt
-               fns <- topMethTypes [] impName impsp (params cdata)
+               fns <- topMethTypes [] impName methImps impsp (params cdata)
                                       (map fst (methods cdata)) 
                                       (methods cdata)
                traverse (processDecl [] nest env) (map mkTopMethDecl fns)
@@ -141,7 +156,8 @@ elabImplementation {vars} fc vis pass env nest cons iname ps impln mbody
                let mtops = map (Basics.fst . snd) fns
                let con = iconstructor cdata
                let ilhs = impsApply (IVar fc impName) 
-                                    (map (\x => (UN x, IBindVar fc x)) impsp)
+                                    (map (\x => (x, IBindVar fc (show x))) 
+                                              (map fst methImps))
                -- RHS is the constructor applied to a search for the necessary
                -- parent constraints, then the method implementations
                defs <- get Ctxt
@@ -149,7 +165,7 @@ elabImplementation {vars} fc vis pass env nest cons iname ps impln mbody
                log 5 $ "Field types " ++ show fldTys
                let irhs = apply (IVar fc con)
                                 (map (const (ISearch fc 500)) (parents cdata)
-                                 ++ map (mkMethField impsp fldTys) fns)
+                                 ++ map (mkMethField methImps fldTys) fns)
                let impFn = IDef fc impName [PatClause fc ilhs irhs]
                log 5 $ "Implementation record: " ++ show impFn
                traverse (processDecl [] nest env) [impFn]
@@ -207,17 +223,18 @@ elabImplementation {vars} fc vis pass env nest cons iname ps impln mbody
     -- When applying the method in the field for the record, eta expand
     -- the expected arguments based on the field type, so that implicits get 
     -- inserted in the right place
-    mkMethField : List String -> List (Name, List (Name, RigCount, PiInfo)) -> 
+    mkMethField : List (Name, RigCount, RawImp) ->
+                  List (Name, List (Name, RigCount, PiInfo)) -> 
                   (Name, Name, List (String, String), RawImp) -> RawImp
-    mkMethField impsp fldTys (topn, n, upds, ty)
+    mkMethField methImps fldTys (topn, n, upds, ty)
         = let argns = map applyUpdate (maybe [] id (lookup (dropNS topn) fldTys))
-              imps = nub (filter (\n => n `elem` impsp) (findIBinds ty)) in
+              imps = map fst methImps in
               -- Pass through implicit arguments to the function which are also
               -- implicit arguments to the declaration
               mkLam argns
                     (impsApply
                          (applyTo fc (IVar fc n) argns)
-                         (map (\n => (UN n, IVar fc (UN n))) imps))
+                         (map (\n => (n, IVar fc (UN (show n)))) imps))
       where
         applyUpdate : (Name, RigCount, PiInfo) -> (Name, RigCount, PiInfo)
         applyUpdate (UN n, c, p) 
@@ -236,15 +253,21 @@ elabImplementation {vars} fc vis pass env nest cons iname ps impln mbody
         = do mn <- inCurrentNS (methName n)
              pure (dropNS n, IVar fc mn)
     
+    bindImps : List (Name, RigCount, RawImp) -> RawImp -> RawImp
+    bindImps [] ty = ty
+    bindImps ((n, c, t) :: ts) ty
+        = IPi fc c Implicit (Just n) t (bindImps ts ty)
+
     -- Return method name, specialised method name, implicit name updates,
     -- and method type. Also return how the method name should be updated
     -- in later method types (specifically, putting implicits in)
     topMethType : List (Name, RawImp) ->
-                  Name -> List String -> List Name -> List Name ->
+                  Name -> List (Name, RigCount, RawImp) ->
+                  List String -> List Name -> List Name ->
                   (Name, (Bool, RawImp)) -> 
                   Core ((Name, Name, List (String, String), RawImp),
                            List (Name, RawImp))   
-    topMethType methupds impName impsp pnames allmeths (mn, (d, mty_in))
+    topMethType methupds impName methImps impsp pnames allmeths (mn, (d, mty_in))
         = do -- Get the specialised type by applying the method to the
              -- parameters
              n <- inCurrentNS (methName mn)
@@ -259,7 +282,8 @@ elabImplementation {vars} fc vis pass env nest cons iname ps impln mbody
              -- parameters are passed through to any earlier methods which
              -- appear in the type
              let mty_in = substNames vars methupds mty_in
-             let mbase = bindConstraints fc AutoImplicit cons $
+             let mbase = bindImps methImps $
+                         bindConstraints fc AutoImplicit cons $
                          substNames vars (zip pnames ps) mty_in
              let ibound = findImplicits mbase
 
@@ -272,20 +296,21 @@ elabImplementation {vars} fc vis pass env nest cons iname ps impln mbody
              log 3 $ "Name updates " ++ show upds 
              log 3 $ "Param names: " ++ show pnames 
              log 10 $ "Used names " ++ show ibound
-             let ibinds = nub $ findIBinds mty
+             let ibinds = map fst methImps
              let methupds' = if isNil ibinds then []
                              else [(n, impsApply (IVar fc n)
-                                     (map (\x => (UN x, IBindVar fc x)) ibinds))]
+                                     (map (\x => (x, IBindVar fc (show x))) ibinds))]
              pure ((mn, n, upds, mty), methupds')
     
     topMethTypes : List (Name, RawImp) ->
-                   Name -> List String -> List Name -> List Name ->
+                   Name -> List (Name, RigCount, RawImp) ->
+                   List String -> List Name -> List Name ->
                    List (Name, (Bool, RawImp)) -> 
                    Core (List (Name, Name, List (String, String), RawImp))
-    topMethTypes upds impName impsp pnames allmeths [] = pure []
-    topMethTypes upds impName impsp pnames allmeths (m :: ms)
-        = do (m', newupds) <- topMethType upds impName impsp pnames allmeths m
-             ms' <- topMethTypes (newupds ++ upds) impName impsp pnames allmeths ms
+    topMethTypes upds impName methImps impsp pnames allmeths [] = pure []
+    topMethTypes upds impName methImps impsp pnames allmeths (m :: ms)
+        = do (m', newupds) <- topMethType upds impName methImps impsp pnames allmeths m
+             ms' <- topMethTypes (newupds ++ upds) impName methImps impsp pnames allmeths ms
              pure (m' :: ms')
 
     mkTopMethDecl : (Name, Name, List (String, String), RawImp) -> ImpDecl

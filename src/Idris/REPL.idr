@@ -394,7 +394,7 @@ process (Eval itm)
             _ => 
               do ttimp <- desugar AnyExpr [] itm
                  inidx <- resolveName (UN "[input]")
-                 (tm, gty) <- elabTerm inidx InExpr [] (MkNested [])
+                 (tm, gty) <- elabTerm inidx (emode (evalMode opts)) [] (MkNested [])
                                        [] ttimp Nothing
                  defs <- get Ctxt
                  opts <- get ROpts
@@ -407,6 +407,10 @@ process (Eval itm)
                     else coreLift (putStrLn (show itm))
                  pure True
   where
+    emode : REPLEval -> ElabMode
+    emode EvalTC = InType
+    emode _ = InExpr
+
     nfun : REPLEval -> Defs -> Env Term vs -> Term vs -> Core (Term vs)
     nfun NormaliseAll = normaliseAll
     nfun _ = normalise

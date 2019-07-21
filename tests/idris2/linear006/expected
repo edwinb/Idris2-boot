@@ -1,0 +1,6 @@
+1/1: Building ZFun (ZFun.idr)
+ZFun.idr:13:7--15:1:While processing right hand side of Main.bar at ZFun.idr:13:1--15:1:
+Trying to use irrelevant name Main.test in relevant context
+Welcome to Idris 2 version 0.0. Enjoy yourself!
+Main> [tc] Main> S (S (S (S (S (S (S (S (S (S Z)))))))))
+[tc] Main> Bye for now!

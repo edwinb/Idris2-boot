@@ -463,7 +463,7 @@ mutual
   getDecl p (PNamespace fc ns ds)
       = Just (PNamespace fc ns (mapMaybe (getDecl p) ds))
 
-  getDecl AsType d@(PClaim _ _ _ _) = Just d
+  getDecl AsType d@(PClaim _ _ _ _ _) = Just d
   getDecl AsType (PData fc vis (MkPData dfc tyn tyc opts cons))
       = Just (PData fc vis (MkPLater dfc tyn tyc))
   getDecl AsType d@(PInterface fc vis cons n ps det cname ds) = Just d
@@ -472,7 +472,7 @@ mutual
   getDecl AsType d@(PDirective _ _) = Just d
   getDecl AsType d = Nothing
 
-  getDecl AsDef (PClaim _ _ _ _) = Nothing
+  getDecl AsDef (PClaim _ _ _ _ _) = Nothing
   getDecl AsDef d@(PData fc vis (MkPLater dfc tyn tyc)) = Just d
   getDecl AsDef (PInterface fc vis cons n ps det cname ds) = Nothing
   getDecl AsDef (PRecord fc vis n ps con fs) = Nothing
@@ -493,8 +493,8 @@ mutual
                 {auto u : Ref UST UState} ->
                 {auto m : Ref MD Metadata} ->
                 List Name -> PDecl -> Core (List ImpDecl)
-  desugarDecl ps (PClaim fc vis opts ty) 
-      = pure [IClaim fc RigW vis opts !(desugarType ps ty)]
+  desugarDecl ps (PClaim fc rig vis opts ty) 
+      = pure [IClaim fc rig vis opts !(desugarType ps ty)]
   desugarDecl ps (PDef fc clauses) 
   -- The clauses won't necessarily all be from the same function, so split
   -- after desugaring, by function name, using collectDefs from RawImp
@@ -531,8 +531,9 @@ mutual
   desugarDecl ps (PReflect fc tm)
       = throw (GenericMsg fc "Reflection not implemented yet")
 --       pure [IReflect fc !(desugar AnyExpr ps tm)]
-  desugarDecl ps (PInterface fc vis cons tn params det conname body)
-      = do cons' <- traverse (\ ntm => do tm' <- desugar AnyExpr (ps ++ map fst params)
+  desugarDecl ps (PInterface fc vis cons_in tn params det conname body)
+      = do let cons = concatMap expandConstraint cons_in
+           cons' <- traverse (\ ntm => do tm' <- desugar AnyExpr (ps ++ map fst params)
                                                          (snd ntm)
                                           pure (fst ntm, tm')) cons
            params' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
@@ -553,6 +554,19 @@ mutual
                              elabInterface fc vis env nest consb
                                            tn paramsb det conname 
                                            (concat body'))]
+    where
+      -- Turns pairs in the constraints to individual constraints. This
+      -- is a bit of a hack, but it's necessary to build parent constraint
+      -- chasing functions correctly
+      pairToCons : PTerm -> List PTerm
+      pairToCons (PPair fc l r) = pairToCons l ++ pairToCons r
+      pairToCons t = [t]
+
+      expandConstraint : (Maybe Name, PTerm) -> List (Maybe Name, PTerm)
+      expandConstraint (Just n, t) = [(Just n, t)]
+      expandConstraint (Nothing, p)
+          = map (\x => (Nothing, x)) (pairToCons p)
+
   desugarDecl ps (PImplementation fc vis pass cons tn params impname body)
       = do cons' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
                                           pure (fst ntm, tm')) cons

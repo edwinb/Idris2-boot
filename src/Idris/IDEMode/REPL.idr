@@ -78,7 +78,7 @@ getChar (FHandle h) = do
     putStrLn "Alas the file is done, aborting"
     exit 1
   else do
-    chr <- map cast $ foreign FFI_C "getc" (Ptr -> IO Int) h
+    chr <- map cast $ foreign FFI_C "fgetc" (Ptr -> IO Int) h
     if !(ferror (FHandle h)) then do
       putStrLn "Failed to read a character"
       exit 1

@@ -46,6 +46,8 @@ notably:
   - This will necessarily be slightly different from Idris 1 since the
     elaborator works differently. It would also be nice to extend it with
     libraries and perhaps syntax for deriving implementations of interfaces.
+* `%default` directives, since coverage and totality checking have not been well
+  tested yet.
 
 Other contributions are also welcome, but I (@edwinb) will need to be
 confident that I'll be able to maintain them!
@@ -78,6 +80,7 @@ Some syntax that hasn't yet been implemented but will be:
 
 Some things from Idris 1 definitely won't be implemented:
 
+* `%access` directives, because it's too easy to export things by accident
 * Uniqueness types (instead, Idris 2 is based on QTT and supports linearity)
 * Some esoteric syntax experiments, such as match applications
 * Syntax extensions (at least in the unrestricted form from Idris 1)

@@ -75,7 +75,7 @@ init (x::y::ys) = x :: init (y::ys)
 ||| ```idris example
 ||| index 1 [1,2,3,4]
 ||| ```
-export
+public export
 index : Fin len -> Vect len elem -> elem
 index FZ     (x::xs) = x
 index (FS k) (x::xs) = index k xs
@@ -85,7 +85,7 @@ index (FS k) (x::xs) = index k xs
 ||| ```idris example
 ||| insertAt 1 8 [1,2,3,4]
 ||| ```
-export
+public export
 insertAt : Fin (S len) -> elem -> Vect len elem -> Vect (S len) elem
 insertAt FZ     y xs      = y :: xs
 insertAt (FS k) y (x::xs) = x :: insertAt k y xs
@@ -96,7 +96,7 @@ insertAt (FS k) y []      = absurd k
 ||| ```idris example
 ||| deleteAt 1 [1,2,3,4]
 ||| ```
-export
+public export
 deleteAt : Fin (S len) -> Vect (S len) elem -> Vect len elem
 deleteAt             FZ     (x::xs) = xs
 deleteAt {len = S m} (FS k) (x::xs) = x :: deleteAt k xs
@@ -108,7 +108,7 @@ deleteAt             _      []      impossible
 ||| ```idris example
 ||| replaceAt 1 8 [1,2,3,4]
 ||| ```
-export
+public export
 replaceAt : Fin len -> elem -> Vect len elem -> Vect len elem
 replaceAt FZ     y (x::xs) = y :: xs
 replaceAt (FS k) y (x::xs) = x :: replaceAt k y xs
@@ -121,7 +121,7 @@ replaceAt (FS k) y (x::xs) = x :: replaceAt k y xs
 ||| ```idris example
 ||| updateAt 1 (+10) [1,2,3,4]
 ||| ```
-export
+public export
 updateAt : (i : Fin len) -> (f : elem -> elem) -> (xs : Vect len elem) -> Vect len elem
 updateAt FZ     f (x::xs) = f x :: xs
 updateAt (FS k) f (x::xs) = x :: updateAt k f xs
@@ -209,7 +209,7 @@ intersperse sep (x::xs) = x :: intersperse' sep xs
 -- Conversion from list (toList is provided by Foldable)
 --------------------------------------------------------------------------------
 
-export
+public export
 fromList' : Vect len elem -> (l : List elem) -> Vect (length l + len) elem
 fromList' ys [] = ys
 fromList' {len} ys (x::xs) =
@@ -223,7 +223,7 @@ fromList' {len} ys (x::xs) =
 ||| ```idris example
 ||| fromList [1,2,3,4]
 ||| ```
-export
+public export
 fromList : (l : List elem) -> Vect (length l) elem
 fromList l =
   rewrite (sym $ plusZeroRightNeutral (length l)) in
@@ -280,7 +280,7 @@ zip3 = zipWith3 (\x,y,z => (x,y,z))
 ||| ```idris example
 ||| unzip (fromList [(1,2), (1,2)])
 ||| ```
-export
+public export
 unzip : (xs : Vect n (a, b)) -> (Vect n a, Vect n b)
 unzip []           = ([], [])
 unzip ((l, r)::xs) with (unzip xs)
@@ -291,7 +291,7 @@ unzip ((l, r)::xs) with (unzip xs)
 ||| ```idris example
 ||| unzip3 (fromList [(1,2,3), (1,2,3)])
 ||| ```
-export
+public export
 unzip3 : (xs : Vect n (a, b, c)) -> (Vect n a, Vect n b, Vect n c)
 unzip3 []            = ([], [], [])
 unzip3 ((l,c,r)::xs) with (unzip3 xs)
@@ -302,7 +302,7 @@ unzip3 ((l,c,r)::xs) with (unzip3 xs)
 -- Equality
 --------------------------------------------------------------------------------
 
-export
+public export
 implementation (Eq elem) => Eq (Vect len elem) where
   (==) []      []      = True
   (==) (x::xs) (y::ys) = x == y && xs == ys
@@ -312,7 +312,7 @@ implementation (Eq elem) => Eq (Vect len elem) where
 -- Order
 --------------------------------------------------------------------------------
 
-export
+public export
 implementation Ord elem => Ord (Vect len elem) where
   compare []      []      = EQ
   compare (x::xs) (y::ys) 
@@ -324,7 +324,7 @@ implementation Ord elem => Ord (Vect len elem) where
 -- Maps
 --------------------------------------------------------------------------------
 
-export
+public export
 implementation Functor (Vect n) where
   map f []        = []
   map f (x::xs) = f x :: map f xs
@@ -360,7 +360,7 @@ foldrImpl : (t -> acc -> acc) -> acc -> (acc -> acc) -> Vect n t -> acc
 foldrImpl f e go [] = go e
 foldrImpl f e go (x::xs) = foldrImpl f e (go . (f x)) xs
 
-export
+public export
 implementation Foldable (Vect n) where
   foldr f e xs = foldrImpl f e id xs
 
@@ -577,6 +577,7 @@ elemIndices = elemIndicesBy (==)
 ||| ```idris example
 ||| filter (< 3) (fromList [1,2,3,4])
 ||| ```
+public export
 filter : (elem -> Bool) -> Vect len elem -> (p ** Vect p elem)
 filter p []      = ( _ ** [] )
 filter p (x::xs) =
@@ -591,29 +592,32 @@ filter p (x::xs) =
 ||| ```idris example
 ||| nubBy (==) (fromList [1,2,2,3,4,4])
 ||| ```
--- nubBy : (elem -> elem -> Bool) -> Vect len elem -> (p ** Vect p elem)
--- nubBy = nubBy' []
---   where
---     nubBy' : forall len . Vect m elem -> (elem -> elem -> Bool) -> Vect len elem -> (p ** Vect p elem)
---     nubBy' acc p []      = (_ ** [])
---     nubBy' acc p (x::xs) with (elemBy p x acc)
---       nubBy' acc p (x :: xs) | True  = nubBy' acc p xs
---       nubBy' acc p (x :: xs) | False with (nubBy' (x::acc) p xs)
---         nubBy' acc p (x :: xs) | False | (_ ** tail) = (_ ** x::tail)
--- 
--- ||| Make the elements of some vector unique by the default Boolean equality
--- |||
--- ||| ```idris example
--- ||| nub (fromList [1,2,2,3,4,4])
--- ||| ```
--- nub : Eq elem => Vect len elem -> (p ** Vect p elem)
--- nub = nubBy (==)
+public export
+nubBy : (elem -> elem -> Bool) -> Vect len elem -> (p ** Vect p elem)
+nubBy = nubBy' []
+  where
+    nubBy' : forall len . Vect m elem -> (elem -> elem -> Bool) -> Vect len elem -> (p ** Vect p elem)
+    nubBy' acc p []      = (_ ** [])
+    nubBy' acc p (x::xs) with (elemBy p x acc)
+      nubBy' acc p (x :: xs) | True  = nubBy' acc p xs
+      nubBy' acc p (x :: xs) | False with (nubBy' (x::acc) p xs)
+        nubBy' acc p (x :: xs) | False | (_ ** tail) = (_ ** x::tail)
+
+||| Make the elements of some vector unique by the default Boolean equality
+|||
+||| ```idris example
+||| nub (fromList [1,2,2,3,4,4])
+||| ```
+public export
+nub : Eq elem => Vect len elem -> (p ** Vect p elem)
+nub = nubBy (==)
 
 ||| Delete first element from list according to some test
 |||
 ||| ```idris example
 ||| deleteBy (<) 3 (fromList [1,2,2,3,4,4])
 ||| ```
+public export
 deleteBy : {len : _} -> -- needed for the dependent pair
            (elem -> elem -> Bool) -> elem -> Vect len elem -> (p ** Vect p elem)
 deleteBy _  _ []      = (_ ** [])
@@ -626,6 +630,7 @@ deleteBy eq x (y::ys) =
 ||| ```idris example
 ||| delete 2 (fromList [1,2,2,3,4,4])
 ||| ```
+public export
 delete : {len : _} ->
          Eq elem => elem -> Vect len elem -> (p ** Vect p elem)
 delete = deleteBy (==)
@@ -645,6 +650,7 @@ delete = deleteBy (==)
 ||| ```idris example
 ||| splitAt 2 (fromList [1,2,3,4])
 ||| ```
+public export
 splitAt : (n : Nat) -> (xs : Vect (n + m) elem) -> (Vect n elem, Vect m elem)
 splitAt Z xs = ([], xs)
 splitAt (S k) (x :: xs) with (splitAt k {m} xs)
@@ -656,6 +662,7 @@ splitAt (S k) (x :: xs) with (splitAt k {m} xs)
 ||| ```idris example
 ||| partition (== 2) (fromList [1,2,3,2,4])
 ||| ```
+public export
 partition : (elem -> Bool) -> Vect len elem -> ((p ** Vect p elem), (q ** Vect q elem))
 partition p []      = ((_ ** []), (_ ** []))
 partition p (x::xs) =
@@ -674,6 +681,7 @@ partition p (x::xs) =
 ||| ```idris example
 ||| isPrefixOfBy (==) (fromList [1,2]) (fromList [1,2,3,4])
 ||| ```
+public export
 isPrefixOfBy : (elem -> elem -> Bool) -> Vect m elem -> Vect len elem -> Bool
 isPrefixOfBy p [] right        = True
 isPrefixOfBy p left []         = False
@@ -684,6 +692,7 @@ isPrefixOfBy p (x::xs) (y::ys) = p x y && isPrefixOfBy p xs ys
 ||| ```idris example
 ||| isPrefixOf (fromList [1,2]) (fromList [1,2,3,4])
 ||| ```
+public export
 isPrefixOf : Eq elem => Vect m elem -> Vect len elem -> Bool
 isPrefixOf = isPrefixOfBy (==)
 
@@ -692,6 +701,7 @@ isPrefixOf = isPrefixOfBy (==)
 ||| ```idris example
 ||| isSuffixOfBy (==) (fromList [3,4]) (fromList [1,2,3,4])
 ||| ```
+public export
 isSuffixOfBy : (elem -> elem -> Bool) -> Vect m elem -> Vect len elem -> Bool
 isSuffixOfBy p left right = isPrefixOfBy p (reverse left) (reverse right)
 
@@ -700,6 +710,7 @@ isSuffixOfBy p left right = isPrefixOfBy p (reverse left) (reverse right)
 ||| ```idris example
 ||| isSuffixOf (fromList [3,4]) (fromList [1,2,3,4])
 ||| ```
+public export
 isSuffixOf : Eq elem => Vect m elem -> Vect len elem -> Bool
 isSuffixOf = isSuffixOfBy (==)
 
@@ -712,6 +723,7 @@ isSuffixOf = isSuffixOfBy (==)
 ||| ```idris example
 ||| maybeToVect (Just 2)
 ||| ```
+public export
 maybeToVect : Maybe elem -> (p ** Vect p elem)
 maybeToVect Nothing  = (_ ** [])
 maybeToVect (Just j) = (_ ** [j])
@@ -721,6 +733,7 @@ maybeToVect (Just j) = (_ ** [j])
 ||| ```idris example
 ||| vectToMaybe [2]
 ||| ```
+public export
 vectToMaybe : Vect len elem -> Maybe elem
 vectToMaybe []      = Nothing
 vectToMaybe (x::xs) = Just x
@@ -734,6 +747,7 @@ vectToMaybe (x::xs) = Just x
 ||| ```idris example
 ||| catMaybes [Just 1, Just 2, Nothing, Nothing, Just 5]
 ||| ```
+public export
 catMaybes : Vect n (Maybe elem) -> (p ** Vect p elem)
 catMaybes []             = (_ ** [])
 catMaybes (Nothing::xs)  = catMaybes xs
@@ -746,10 +760,12 @@ catMaybes ((Just j)::xs) =
 ||| ```idris example
 ||| diag [[1,2,3], [4,5,6], [7,8,9]]
 ||| ```
+public export
 diag : Vect len (Vect len elem) -> Vect len elem
 diag []             = []
 diag ((x::xs)::xss) = x :: diag (map tail xss)
 
+public export
 range : {len : Nat} -> Vect len (Fin len)
 range {len=Z}   = []
 range {len=S _} = FZ :: map FS range
@@ -763,6 +779,7 @@ range {len=S _} = FZ :: map FS range
 ||| ```idris example
 ||| transpose [[1,2], [3,4], [5,6], [7,8]]
 ||| ```
+public export
 transpose : {n : _} -> Vect m (Vect n elem) -> Vect n (Vect m elem)
 transpose []        = replicate _ []                -- = [| [] |]
 transpose (x :: xs) = zipWith (::) x (transpose xs) -- = [| x :: xs |]
@@ -811,7 +828,7 @@ neitherHereNorThere xneqy xninxs Here = xneqy Refl
 neitherHereNorThere xneqy xninxs (There xinxs) = xninxs xinxs
 
 ||| A decision procedure for Elem
-export
+public export
 isElem : DecEq a => (x : a) -> (xs : Vect n a) -> Dec (Elem x xs)
 isElem x [] = No noEmptyElem
 isElem x (y :: xs) with (decEq x y)
@@ -820,18 +837,18 @@ isElem x (y :: xs) with (decEq x y)
     isElem x (y :: xs) | (No xneqy) | (Yes xinxs) = Yes (There xinxs)
     isElem x (y :: xs) | (No xneqy) | (No xninxs) = No (neitherHereNorThere xneqy xninxs)
 
-export
+public export
 replaceElem : (xs : Vect k t) -> Elem x xs -> (y : t) -> (ys : Vect k t ** Elem y ys)
 replaceElem (x::xs) Here y = (y :: xs ** Here)
 replaceElem (x::xs) (There xinxs) y with (replaceElem xs xinxs y)
   replaceElem (x::xs) (There xinxs) y | (ys ** yinys) = (x :: ys ** There yinys)
 
-export
+public export
 replaceByElem : (xs : Vect k t) -> Elem x xs -> t -> Vect k t
 replaceByElem (x::xs) Here y = y :: xs
 replaceByElem (x::xs) (There xinxs) y = x :: replaceByElem xs xinxs y
 
-export
+public export
 mapElem : {0 xs : Vect k t} -> {0 f : t -> u} -> 
           Elem x xs -> Elem (f x) (map f xs)
 mapElem Here = Here
@@ -841,7 +858,7 @@ mapElem (There e) = There (mapElem e)
 |||
 ||| @xs The vector to be removed from
 ||| @p A proof that the element to be removed is in the vector
-export
+public export
 dropElem : (xs : Vect (S k) t) -> (p : Elem x xs) -> Vect k t
 dropElem (x :: ys) Here = ys
 dropElem {k = (S k)} (x :: ys) (There later) = x :: dropElem ys later
@@ -869,6 +886,7 @@ exactLength {m} len xs with (decEq m len)
 ||| at least that length in its type, otherwise return Nothing
 ||| @len the required length
 ||| @xs the vector with the desired length
+export
 overLength : {m : Nat} -> -- expected at run-time
              (len : Nat) -> (xs : Vect m a) -> Maybe (p ** Vect (plus p len) a)
 overLength {m} n xs with (cmp m n)

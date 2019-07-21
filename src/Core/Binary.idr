@@ -330,6 +330,13 @@ updateNameDirectives ((t, ns) :: nds)
          put Ctxt (record { namedirectives $= ((t, ns) ::) } defs)
          updateNameDirectives nds
 
+export
+updateCGDirectives : {auto c : Ref Ctxt Defs} -> 
+                     List (CG, String) -> Core ()
+updateCGDirectives cgs
+    = do defs <- get Ctxt
+         put Ctxt (record { cgdirectives $= (cgs ++) } defs)
+
 -- Add definitions from a binary file to the current context
 -- Returns the "extra" section of the file (user defined data), the interface
 -- hash and the list of additional TTCs that need importing
@@ -370,6 +377,7 @@ readFromTTC loc reexp fname modNS importAs
          updateRewrite (rewritenames ttc)
          updatePrims (primnames ttc)
          updateNameDirectives (reverse (namedirectives ttc))
+         updateCGDirectives (cgdirectives ttc)
 
          when (not reexp) clearSavedHints
          resetFirstEntry

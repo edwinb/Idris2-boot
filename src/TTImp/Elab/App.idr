@@ -42,6 +42,7 @@ getNameType rigc env fc x
                       | [] => throw (UndefinedName fc x)
                       | ns => throw (AmbiguousName fc (map fst ns))
                  checkVisibleNS !(getFullName pname) (visibility def)
+                 rigSafe (multiplicity def) rigc
                  let nt = case definition def of
                                PMDef _ _ _ _ _ => Func
                                DCon t a => DataCon t a
@@ -55,9 +56,9 @@ getNameType rigc env fc x
     isLet _ = False
 
     rigSafe : RigCount -> RigCount -> Core ()
-    rigSafe Rig1 RigW = throw (LinearMisuse fc x Rig1 RigW)
-    rigSafe Rig0 RigW = throw (LinearMisuse fc x Rig0 RigW)
-    rigSafe Rig0 Rig1 = throw (LinearMisuse fc x Rig0 Rig1)
+    rigSafe Rig1 RigW = throw (LinearMisuse fc !(getFullName x) Rig1 RigW)
+    rigSafe Rig0 RigW = throw (LinearMisuse fc !(getFullName x) Rig0 RigW)
+    rigSafe Rig0 Rig1 = throw (LinearMisuse fc !(getFullName x) Rig0 Rig1)
     rigSafe _ _ = pure ()
 
     checkVisibleNS : Name -> Visibility -> Core ()

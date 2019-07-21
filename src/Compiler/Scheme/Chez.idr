@@ -64,14 +64,17 @@ schFooter = ")"
 
 mutual
   tySpec : CExp vars -> Core String
-  tySpec (CPrimVal fc IntType) = pure "int"
-  tySpec (CPrimVal fc StringType) = pure "string"
-  tySpec (CPrimVal fc DoubleType) = pure "double"
+  -- Primitive types have been converted to names for the purpose of matching
+  -- on types
+  tySpec (CCon fc (UN "Int") _ []) = pure "int"
+  tySpec (CCon fc (UN "String") _ []) = pure "string"
+  tySpec (CCon fc (UN "Double") _ []) = pure "double"
+  tySpec (CCon fc (UN "Char") _ []) = pure "char"
   tySpec (CCon fc (NS _ n) _ [])
      = cond [(n == UN "Unit", pure "void"),
              (n == UN "Ptr", pure "void*")]
-          (throw (InternalError ("Can't pass argument of type " ++ show n ++ " to foreign function")))
-  tySpec ty = throw (InternalError ("Can't pass argument of type " ++ show ty ++ " to foreign function"))
+          (throw (GenericMsg fc ("Can't pass argument of type " ++ show n ++ " to foreign function")))
+  tySpec ty = throw (GenericMsg (getFC ty) ("Can't pass argument of type " ++ show ty ++ " to foreign function"))
 
   handleRet : String -> String -> String
   handleRet "void" op = op ++ " " ++ mkWorld (schConstructor 0 [])
