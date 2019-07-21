@@ -121,15 +121,28 @@ compileToSS c tm outfile
          coreLift $ chmod outfile 0o755
          pure ()
 
+||| Compile a Chez Scheme source file to an executable, daringly with runtime checks off.
+compileToSO : (ssFile : String) -> Core ()
+compileToSO ssFile
+    = do tmpFile <- coreLift $ tmpName
+         chez <- coreLift $ findChez
+         let build= "#!" ++ chez ++ " --script\n" ++
+                    "(parameterize ([optimize-level 3]) (compile-program \"" ++
+                    ssFile ++ "))"
+         Right () <- coreLift $ writeFile tmpFile build
+            | Left err => throw (FileErr tmpFile err)
+         coreLift $ chmod tmpFile 0o755
+         coreLift $ system tmpFile
+         pure ()
 
 ||| Chez Scheme implementation of the `compileExpr` interface.
 compileExpr : Ref Ctxt Defs ->
               ClosedTerm -> (outfile : String) -> Core (Maybe String)
 compileExpr c tm outfile
-    = do let outn = outfile ++ ".ss"
-         compileToSS c tm outn
-         -- TODO: Compile to .so too?
-         pure (Just outn)
+    = do let outSs = outfile ++ ".ss"
+         compileToSS c tm outSs
+         compileToSO outSs
+         pure (Just (outfile ++ ".so"))
 
 ||| Chez Scheme implementation of the `executeExpr` interface.
 ||| This implementation simply runs the usual compiler, saving it to a temp file, then interpreting it.
@@ -139,7 +152,7 @@ executeExpr c tm
          let outn = tmp ++ ".ss"
          compileToSS c tm outn
          chez <- coreLift findChez
-         coreLift $ system (chez ++ " --script " ++ outn)
+         coreLift $ system outn
          pure ()
 
 ||| Codegen wrapper for Chez scheme implementation.
