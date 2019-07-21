@@ -12,11 +12,11 @@ import Idris.Resugar
 import Idris.Syntax
 
 import TTImp.BindImplicits
-import TTImp.ProcessDecls
 import TTImp.Elab
 import TTImp.Elab.Check
-import TTImp.Unelab
+import TTImp.ProcessDecls
 import TTImp.TTImp
+import TTImp.Unelab
 import TTImp.Utils
 
 import Control.Monad.State
@@ -168,7 +168,13 @@ elabImplementation {vars} fc vis pass env nest cons iname ps impln mbody
                                  ++ map (mkMethField methImps fldTys) fns)
                let impFn = IDef fc impName [PatClause fc ilhs irhs]
                log 5 $ "Implementation record: " ++ show impFn
+
+               -- Make sure we don't use this name to solve parent constraints
+               -- when elaborating the record, or we'll end up in a cycle!
+               setFlag fc impName BlockedHint
                traverse (processDecl [] nest env) [impFn]
+               unsetFlag fc impName BlockedHint
+
                setFlag fc impName TCInline
 
                -- 4. (TODO: Order method bodies to be in declaration order, in

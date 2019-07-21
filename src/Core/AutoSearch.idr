@@ -310,6 +310,9 @@ searchName fc rigc defaults trying depth def top env target (n, ndef)
          when (not (visibleInAny (!getNS :: !getNestedNS) 
                                  (fullname ndef) (visibility ndef))) $
             throw (CantSolveGoal fc [] top)
+         when (BlockedHint `elem` flags ndef) $
+            throw (CantSolveGoal fc [] top)
+
          let ty = type ndef
          let namety : NameType
                  = case definition ndef of
