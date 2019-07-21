@@ -15,8 +15,6 @@ import Core.Options
 import Core.TT
 import Core.Unify
 
-import Data.Primitives.Views
-
 import Idris.Desugar
 import Idris.Error
 import Idris.ModTree
@@ -125,32 +123,6 @@ toHex _ [] = Just 0
 toHex m (d :: ds)
     = pure $ !(hex (toLower d)) * m + !(toHex (m*16) ds)
 
-hexDigit : Int -> Char
-hexDigit 0 = '0'
-hexDigit 1 = '1'
-hexDigit 2 = '2'
-hexDigit 3 = '3'
-hexDigit 4 = '4'
-hexDigit 5 = '5'
-hexDigit 6 = '6'
-hexDigit 7 = '7'
-hexDigit 8 = '8'
-hexDigit 9 = '9'
-hexDigit 10 = 'a'
-hexDigit 11 = 'b'
-hexDigit 12 = 'c'
-hexDigit 13 = 'd'
-hexDigit 14 = 'e'
-hexDigit 15 = 'f'
-
-||| Convert a positive integer into a list of (lower case) hexadecimal characters
-asHex : Int -> String
-asHex n = pack $ asHex' n []
-  where
-    asHex' : Int -> List Char -> List Char
-    asHex' 0 hex = hex
-    asHex' n hex with (n `divides` 16)
-      asHex' (16 * div + rem) hex | DivBy {div} {rem} _ = asHex' div (hexDigit rem :: hex)
 
 -- Read 6 characters. If they're a hex number, read that many characters.
 -- Otherwise, just read to newline
