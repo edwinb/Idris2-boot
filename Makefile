@@ -20,7 +20,10 @@ prelude:
 base: prelude
 	make -C libs/base IDRIS2=../../idris2
 
-libs : prelude base
+network: prelude
+	make -C libs/network IDRIS2=../../idris2
+
+libs : prelude base network
 
 clean: clean-libs
 	make -C src clean
@@ -31,6 +34,7 @@ clean: clean-libs
 clean-libs:
 	make -C libs/prelude clean
 	make -C libs/base clean
+	make -C libs/network clean
 
 test:
 	idris --build tests.ipkg
@@ -51,3 +55,4 @@ install-exec: idris2
 install-libs: libs
 	make -C libs/prelude install IDRIS2=../../idris2
 	make -C libs/base install IDRIS2=../../idris2
+	make -C libs/network install IDRIS2=../../idris2
