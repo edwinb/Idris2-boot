@@ -98,7 +98,8 @@ elabImplementation {vars} fc vis pass env nest cons iname ps impln mbody
          Just conty <- lookupTyExact (iconstructor cdata) (gamma defs)
               | Nothing => throw (UndefinedName fc (iconstructor cdata))
 
-         let impsp = nub (concatMap findIBinds ps)
+         let impsp = nub (concatMap findIBinds ps ++ 
+                          concatMap findIBinds (map snd cons))
 
          logTerm 3 ("Found interface " ++ show cn) ity
          log 3 $ " with params: " ++ show (params cdata)
