@@ -217,6 +217,17 @@ searchLocalWith {vars} fc rigc defaults trying depth def top env ((prf, ty) :: r
              findPos defs prf id nty target)
          (searchLocalWith fc rigc defaults trying depth def top env rest target)
   where
+    clearEnvType : {idx : Nat} -> .(IsVar name idx vs) -> 
+                   FC -> Env Term vs -> Env Term vs
+    clearEnvType First fc (b :: env) 
+        = Lam (multiplicity b) Explicit (Erased fc) :: env
+    clearEnvType (Later p) fc (b :: env) = b :: clearEnvType p fc env
+
+    clearEnv : Term vars -> Env Term vars -> Env Term vars
+    clearEnv (Local fc _ idx p) env
+        = clearEnvType p fc env
+    clearEnv _ env = env
+
     findDirect : Defs -> Term vars -> 
                  (Term vars -> Term vars) ->
                  NF vars ->  -- local's type
@@ -224,7 +235,8 @@ searchLocalWith {vars} fc rigc defaults trying depth def top env ((prf, ty) :: r
                  Core (Term vars)
     findDirect defs prf f ty target
         = do (args, appTy) <- mkArgs fc rigc env ty
-             logNF 10 "Trying " env ty
+             logNF 10 "Trying" env ty
+             logNF 10 "For target" env target
              ures <- unify InTerm fc env target appTy
              let [] = constraints ures
                  | _ => throw (CantSolveGoal fc [] top)
@@ -233,9 +245,12 @@ searchLocalWith {vars} fc rigc defaults trying depth def top env ((prf, ty) :: r
                 then do
                    let candidate = apply fc (f prf) (map metaApp args)
                    logTermNF 10 "Local var candidate " env candidate
+                   -- Clear the local from the environment to avoid getting
+                   -- into a loop repeatedly applying it
+                   let env' = clearEnv prf env
                    -- Work right to left, because later arguments may solve
                    -- earlier ones by unification
-                   traverse (searchIfHole fc defaults trying False depth def top env) 
+                   traverse (searchIfHole fc defaults trying False depth def top env') 
                             (reverse args)
                    pure candidate
                 else do logNF 10 "Can't use " env ty
@@ -310,6 +325,9 @@ searchName fc rigc defaults trying depth def top env target (n, ndef)
          when (not (visibleInAny (!getNS :: !getNestedNS) 
                                  (fullname ndef) (visibility ndef))) $
             throw (CantSolveGoal fc [] top)
+         when (BlockedHint `elem` flags ndef) $
+            throw (CantSolveGoal fc [] top)
+
          let ty = type ndef
          let namety : NameType
                  = case definition ndef of

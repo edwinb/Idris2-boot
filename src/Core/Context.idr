@@ -110,6 +110,7 @@ data DefFlag
          -- (otherwise they look potentially non terminating) so use with
          -- care!
     | SetTotal TotalReq
+    | BlockedHint -- a hint, but blocked for the moment (so don't use)
 
 export
 Eq TotalReq where
@@ -125,6 +126,7 @@ Eq DefFlag where
     (==) Overloadable Overloadable = True
     (==) TCInline TCInline = True
     (==) (SetTotal x) (SetTotal y) = x == y
+    (==) BlockedHint BlockedHint = True
     (==) _ _ = False
 
 public export

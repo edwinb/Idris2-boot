@@ -7,8 +7,7 @@ assignees: ''
 
 ---
 
-Please attach complete source files that exhibit the issue in addition
-to quoting from them here. The smaller the example the better!
+If possible, please include complete self contained source files (for example by uploading to https://gist.github.com) that exhibit the issue in addition to quoting from them here. The smaller the example the better!
 
 # Steps to Reproduce
 

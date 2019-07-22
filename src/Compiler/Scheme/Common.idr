@@ -105,13 +105,14 @@ schOp StrAppend [x, y] = op "string-append" [x, y]
 schOp StrReverse [x] = op "string-reverse" [x]
 schOp StrSubstr [x, y, z] = op "string-substr" [x, y, z]
 
-schOp DoubleExp [x] = op "exp" [x]
-schOp DoubleLog [x] = op "log" [x]
+-- `e` is Euler's number, which approximates to: 2.718281828459045
+schOp DoubleExp [x] = op "exp" [x] -- Base is `e`. Same as: `pow(e, x)`
+schOp DoubleLog [x] = op "log" [x] -- Base is `e`.
 schOp DoubleSin [x] = op "sin" [x]
 schOp DoubleCos [x] = op "cos" [x]
 schOp DoubleTan [x] = op "tan" [x]
 schOp DoubleASin [x] = op "asin" [x]
-schOp DoubleACos [x] = op "asin" [x]
+schOp DoubleACos [x] = op "acos" [x]
 schOp DoubleATan [x] = op "atan" [x]
 schOp DoubleSqrt [x] = op "sqrt" [x]
 schOp DoubleFloor [x] = op "floor" [x]

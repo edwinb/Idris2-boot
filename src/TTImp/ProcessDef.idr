@@ -222,7 +222,8 @@ checkLHS {vars} mult hashit n opts nest env fc lhs_in
          autoImplicits autoimp
          lhs <- implicitsAs defs vars lhs_bound
 
-         log 5 $ "Checking " ++ show lhs
+         log 5 $ "Checking LHS of " ++ show !(getFullName (Resolved n)) ++
+                 " " ++ show lhs
          logEnv 5 "In env" env
          (lhstm, lhstyg) <- 
              wrapError (InLHS fc !(getFullName (Resolved n))) $

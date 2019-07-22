@@ -770,6 +770,7 @@ TTC DefFlag where
   toBuf b Overloadable = tag 4
   toBuf b TCInline = tag 5
   toBuf b (SetTotal x) = do tag 6; toBuf b x
+  toBuf b BlockedHint = tag 7
 
   fromBuf b
       = case !getTag of
@@ -778,6 +779,7 @@ TTC DefFlag where
              4 => pure Overloadable
              5 => pure TCInline
              6 => do x <- fromBuf b; pure (SetTotal x)
+             7 => pure BlockedHint
              _ => corrupt "DefFlag"
 
 export
