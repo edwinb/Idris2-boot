@@ -25,37 +25,41 @@ else
 	LIBFLAGS        :=-shared
 endif
 
-OBJS = idris_net.o
-HDRS = idris_net.h
+LIBNAME=idris_net
+OBJS = $(LIBNAME).o
+HDRS = $(LIBNAME).h
 CFLAGS := $(CFLAGS)
 
 ifneq ($(OS), windows)
 	CFLAGS += -fPIC
 endif
 
-DYLIBTARGET = idrnet$(SHLIB_SUFFIX)
-LIBTARGET = idrnet.a
+DYLIBTARGET = lib$(LIBNAME)$(SHLIB_SUFFIX)
+LIBTARGET = $(LIBNAME).a
 TARGET=${HOME}/.idris2
 
-build: $(LIBTARGET) $(DYLIBTARGET)
-
-$(LIBTARGET) : $(OBJS)
-	$(AR) rc $(LIBTARGET) $(OBJS)
-	$(RANLIB) $(LIBTARGET)
+build: $(DYLIBTARGET)
+	@if ! [ -d build ]; then echo "creating 'build' directory"; mkdir build ; else echo "directory 'build' exists"; fi
+	@if [ -z "${IDRIS2}" ]; then echo 'variable $$IDRIS2 is not set, aborting'; exit 1; fi
+	${IDRIS2} --build network.ipkg
 
 $(DYLIBTARGET) : $(OBJS)
 	$(CC) -o $(DYLIBTARGET) $(LIBFLAGS) -shared $(OBJS)
 
-install: build
-	install $(LIBTARGET) $(HDRS) $(TARGET)
+install:
+	install $(DYLIBTARGET) $(HDRS) $(TARGET)
 	${IDRIS2} --install network.ipkg
 
 clean :
 	rm -rf $(OBJS) $(LIBTARGET) $(DYLIBTARGET) build
 
+test: $(DYLIBTARGET)
+	$(CC) -o network-tests -L. -I. -l$(LIBNAME) test.c
+	./network-tests
+
 $(OBJS): $(HDRS)
 
 all: $(DYLIBTARGET) $(LIBTARGET)
-	${IDRIS2} --build network1.ipkg
+	${IDRIS2} --build network.ipkg
 
 .PHONY: build install clean
