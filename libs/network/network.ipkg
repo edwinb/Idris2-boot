@@ -2,5 +2,4 @@ package network
 
 modules = Network.Socket,
           Network.Socket.Data,
-          Network.Socket.Raw,
-          Network.Cgi
+          Network.Socket.Raw

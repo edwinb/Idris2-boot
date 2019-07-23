@@ -88,4 +88,6 @@ int idrnet_getaddrinfo(struct addrinfo** address_res, char* host,
 
 int idrnet_geteagain();
 
+int isNull(void* ptr);
+
 #endif

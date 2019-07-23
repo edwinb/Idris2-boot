@@ -6,10 +6,7 @@ module Network.Socket
 
 import public Network.Socket.Data
 import Network.Socket.Raw
-
-%include C "idris_net.h"
-
-%access export
+import Data.List
 
 -- ----------------------------------------------------- [ Network Socket API. ]
 
@@ -20,9 +17,7 @@ socket : (fam  : SocketFamily)
       -> (pnum : ProtocolNumber)
       -> IO (Either SocketError Socket)
 socket sf st pn = do
-  socket_res <- foreign FFI_C "idrnet_socket"
-                        (Int -> Int -> Int -> IO Int)
-                        (toCode sf) (toCode st) pn
+  socket_res <- cCall Int "idrnet_socket" [toCode sf, toCode st, pn]
 
   if socket_res == -1
     then map Left getErrno
@@ -30,7 +25,7 @@ socket sf st pn = do
 
 ||| Close a socket
 close : Socket -> IO ()
-close sock = foreign FFI_C "close" (Int -> IO ()) (descriptor sock)
+close sock = cCall () "close" [descriptor sock]
 
 ||| Binds a socket to the given socket address and port.
 ||| Returns 0 on success, an error code otherwise.
@@ -39,10 +34,10 @@ bind : (sock : Socket)
     -> (port : Port)
     -> IO Int
 bind sock addr port = do
-    bind_res <- foreign FFI_C "idrnet_bind"
-                    (Int -> Int -> Int -> String -> Int -> IO Int)
-                    (descriptor sock) (toCode $ family sock)
-                    (toCode $ socketType sock) (saString addr) port
+    bind_res <- cCall Int "idrnet_bind"
+                [ descriptor sock, toCode $ family sock
+                , toCode $ socketType sock, saString addr,  port
+                ]
     if bind_res == (-1)
       then getErrno
       else pure 0
@@ -58,9 +53,8 @@ connect : (sock : Socket)
        -> (port : Port)
        -> IO ResultCode
 connect sock addr port = do
-  conn_res <- foreign FFI_C "idrnet_connect"
-                  (Int -> Int -> Int -> String -> Int -> IO Int)
-                  (descriptor sock) (toCode $ family sock) (toCode $ socketType sock) (show addr) port
+  conn_res <- cCall Int "idrnet_connect"
+              [ descriptor sock, toCode $ family sock, toCode $ socketType sock, show addr, port]
 
   if conn_res == (-1)
     then getErrno
@@ -71,8 +65,7 @@ connect sock addr port = do
 ||| @sock The socket to listen on.
 listen : (sock : Socket) -> IO Int
 listen sock = do
-  listen_res <- foreign FFI_C "listen" (Int -> Int -> IO Int)
-                    (descriptor sock) BACKLOG
+  listen_res <- cCall Int "listen" [ descriptor sock, BACKLOG ]
   if listen_res == (-1)
     then getErrno
     else pure 0
@@ -92,12 +85,9 @@ accept sock = do
   -- We need a pointer to a sockaddr structure. This is then passed into
   -- idrnet_accept and populated. We can then query it for the SocketAddr and free it.
 
-  sockaddr_ptr <- foreign FFI_C "idrnet_create_sockaddr"
-                          (IO Ptr)
+  sockaddr_ptr <- cCall Ptr "idrnet_create_sockaddr" []
 
-  accept_res <- foreign FFI_C "idrnet_accept"
-                        (Int -> Ptr -> IO Int)
-                        (descriptor sock) sockaddr_ptr
+  accept_res <- cCall Int "idrnet_accept" [ descriptor sock, sockaddr_ptr ]
   if accept_res == (-1)
     then map Left getErrno
     else do
@@ -117,9 +107,7 @@ send : (sock : Socket)
     -> (msg  : String)
     -> IO (Either SocketError ResultCode)
 send sock dat = do
-  send_res <- foreign FFI_C "idrnet_send"
-                      (Int -> String -> IO Int)
-                      (descriptor sock) dat
+  send_res <- cCall Int "idrnet_send" [ descriptor sock, dat ]
 
   if send_res == (-1)
     then map Left getErrno
@@ -140,12 +128,8 @@ recv : (sock : Socket)
 recv sock len = do
   -- Firstly make the request, get some kind of recv structure which
   -- contains the result of the recv and possibly the retrieved payload
-  recv_struct_ptr <- foreign FFI_C "idrnet_recv"
-                             (Int -> Int -> IO Ptr)
-                             (descriptor sock) len
-  recv_res <- foreign FFI_C "idrnet_get_recv_res"
-                      (Ptr -> IO Int)
-                      recv_struct_ptr
+  recv_struct_ptr <- cCall Ptr "idrnet_recv" [ descriptor sock, len]
+  recv_res <- cCall Int "idrnet_get_recv_res"  [ recv_struct_ptr ]
 
   if recv_res == (-1)
     then do
@@ -158,9 +142,7 @@ recv sock len = do
            freeRecvStruct (RSPtr recv_struct_ptr)
            pure $ Left 0
         else do
-           payload <- foreign FFI_C "idrnet_get_recv_payload"
-                             (Ptr -> IO String)
-                             recv_struct_ptr
+           payload <- cCall String "idrnet_get_recv_payload" [ recv_struct_ptr ]
            freeRecvStruct (RSPtr recv_struct_ptr)
            pure $ Right (payload, recv_res)
 
@@ -198,9 +180,8 @@ sendTo : (sock : Socket)
       -> (msg  : String)
       -> IO (Either SocketError ByteLength)
 sendTo sock addr p dat = do
-  sendto_res <- foreign FFI_C "idrnet_sendto"
-                   (Int -> String -> String -> Int -> Int -> IO Int)
-                   (descriptor sock) dat (show addr) p (toCode $ family sock)
+  sendto_res <- cCall Int "idrnet_sendto"
+                [ descriptor sock, dat, show addr, p ,toCode $ family sock ]
 
   if sendto_res == (-1)
     then map Left getErrno
@@ -221,18 +202,15 @@ recvFrom : (sock : Socket)
         -> (len  : ByteLength)
         -> IO (Either SocketError (UDPAddrInfo, String, ResultCode))
 recvFrom sock bl = do
-  recv_ptr <- foreign FFI_C "idrnet_recvfrom"
-                (Int -> Int -> IO Ptr)
-                (descriptor sock) bl
+  recv_ptr <- cCall Ptr "idrnet_recvfrom"
+              [ descriptor sock, bl ]
 
   let recv_ptr' = RFPtr recv_ptr
-
-  if !(nullPtr recv_ptr)
+  isNull <- (nullPtr recv_ptr)
+  if isNull
     then map Left getErrno
     else do
-      result <- foreign FFI_C "idrnet_get_recvfrom_res"
-                        (Ptr -> IO Int)
-                        recv_ptr
+      result <- cCall Int "idrnet_get_recvfrom_res" [ recv_ptr ]
       if result == -1
         then do
           freeRecvfromStruct recv_ptr'

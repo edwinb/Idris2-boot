@@ -348,3 +348,7 @@ void idrnet_free_recvfrom_struct(void* res_struct) {
 int idrnet_geteagain() {
     return EAGAIN;
 }
+
+int isNull(void* ptr) {
+    return ptr==NULL;
+}
