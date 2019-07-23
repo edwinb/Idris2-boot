@@ -72,6 +72,17 @@ public export
 break : (Char -> Bool) -> String -> (String, String)
 break p = span (not . p)
 
+
+||| Splits the string into parts with the predicate
+||| indicating separator characters.
+|||
+||| ```idris example
+||| split (== '.') ".AB.C..D"
+||| ```
+public export
+split : (Char -> Bool) -> String -> List String
+split p xs = map pack (split p (unpack xs))
+
 export
 stringToNatOrZ : String -> Nat
 stringToNatOrZ = fromInteger . prim__cast_StringInteger
