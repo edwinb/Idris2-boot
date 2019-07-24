@@ -26,6 +26,7 @@ export
 thereInjective : {0 e1, e2 : Elem x xs} -> There e1 = There e2 -> e1 = e2
 thereInjective Refl = Refl
 
+export
 DecEq (Elem x xs) where
   decEq Here Here = Yes Refl
   decEq Here (There later) = No absurd
