@@ -1,0 +1,9 @@
+dist: bionic
+
+services: docker
+
+language: minimal
+
+before_install: docker pull theodus/idris2-ci-base:latest
+
+script: docker build . -f .ci-dockerfiles/ci-run.dockerfile
