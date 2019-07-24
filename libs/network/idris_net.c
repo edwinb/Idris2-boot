@@ -108,6 +108,35 @@ int idrnet_bind(int sockfd, int family, int socket_type, char* host, int port) {
     return 0;
 }
 
+// to retrieve information about a socket bound to port 0
+int idrnet_getsockname(int sockfd, void *address, void *len) {
+  int res = getsockname(sockfd, address, len);
+  if(res != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+int idrnet_sockaddr_port(int sockfd) {
+  struct sockaddr address;
+  socklen_t addrlen = sizeof(struct sockaddr);
+  int res = getsockname(sockfd, &address, &addrlen);
+  if(res < 0) {
+    return -1;
+  }
+
+  switch(address.sa_family) {
+  case AF_INET:
+    return ((struct sockaddr_in*)&address)->sin_port;
+  case AF_INET6:
+    return ((struct sockaddr_in6*)&address)->sin6_port;
+  default:
+    return -1;
+  }
+}
+
+
 int idrnet_connect(int sockfd, int family, int socket_type, char* host, int port) {
     struct addrinfo* remote_host;
     int addr_res = idrnet_getaddrinfo(&remote_host, host, port, family, socket_type);

@@ -40,6 +40,9 @@ int idrnet_socket(int domain, int type, int protocol);
 // Bind
 int idrnet_bind(int sockfd, int family, int socket_type, char* host, int port);
 
+// Retrieve information about socket
+int idrnet_getsockname(int sockfd, void *address, void *len);
+
 // Connect
 int idrnet_connect(int sockfd, int family, int socket_type, char* host, int port);
 
@@ -48,6 +51,8 @@ int idrnet_sockaddr_family(void* sockaddr);
 char* idrnet_sockaddr_ipv4(void* sockaddr);
 int idrnet_sockaddr_ipv4_port(void* sockaddr);
 void* idrnet_create_sockaddr();
+
+int idrnet_sockaddr_port(int sockfd);
 
 // Accept
 int idrnet_accept(int sockfd, void* sockaddr);

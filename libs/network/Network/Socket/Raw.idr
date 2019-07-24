@@ -37,6 +37,12 @@ sockaddr_free (SAPtr ptr) = cCall () "idrnet_free" [ptr]
 sock_alloc : ByteLength -> IO BufPtr
 sock_alloc bl = map BPtr $ cCall Ptr "idrnet_malloc" [bl]
 
+||| Retrieves the port the given socket is bound to
+export
+getSockPort : Socket -> IO Port
+getSockPort sock = cCall Port "idrnet_sockaddr_port" [descriptor sock]
+
+
 ||| Retrieves a socket address from a sockaddr pointer
 export
 getSockAddr : SockaddrPtr -> IO SocketAddress
