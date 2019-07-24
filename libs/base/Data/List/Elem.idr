@@ -65,11 +65,11 @@ dropElem (x :: ys) (There p) = x :: dropElem ys p
 export
 elemToNat : Elem x xs -> Nat
 elemToNat  Here     = Z
-elemToNat (There p) = S (elem2Nat p)
+elemToNat (There p) = S (elemToNat p)
 
 ||| Find the element with a proof at a given position, if it is valid
 export
 indexElem : Nat -> (xs : List a) -> Maybe (x ** Elem x xs)
 indexElem  _    []        = Nothing
 indexElem  Z    (y :: ys) = Just (y ** Here)
-indexElem (S n) (y :: ys) = map (\(x ** p) => (x ** There p)) (nat2Elem n ys)
+indexElem (S n) (y :: ys) = map (\(x ** p) => (x ** There p)) (indexElem n ys)
