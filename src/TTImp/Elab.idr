@@ -66,7 +66,7 @@ normaliseHoleTypes
         = case !(lookupCtxtExact (Resolved i) (gamma defs)) of
                Just gdef =>
                   case definition gdef of
-                       Hole _ _ _ => updateType defs i gdef
+                       Hole _ _ => updateType defs i gdef
                        _ => pure ()
                Nothing => pure ()
 

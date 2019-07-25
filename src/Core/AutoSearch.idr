@@ -44,7 +44,7 @@ mkArgs fc rigc env (NBind nfc x (Pi c p ty) sc)
          argTy <- quote empty env ty
          let argRig = rigMult rigc c
          (idx, arg) <- newMeta fc argRig env nm argTy 
-                               (Hole (length env) False False) False
+                               (Hole (length env) False) False
          setInvertible fc idx
          (rest, restTy) <- mkArgs fc rigc env 
                               !(sc defs (toClosure defaultOpts env arg))
@@ -68,7 +68,7 @@ searchIfHole fc defaults trying ispair (S depth) def top env arg
          defs <- get Ctxt
          Just gdef <- lookupCtxtExact (Resolved hole) (gamma defs)
               | Nothing => throw (CantSolveGoal fc [] top)
-         let Hole _ _ inv = definition gdef
+         let Hole _ _ = definition gdef
               | _ => pure () -- already solved
          top' <- if ispair 
                     then normaliseScope defs [] (type gdef)
@@ -406,11 +406,11 @@ concreteDets {vars} fc defaults env top pos dets (arg :: args)
                                     concrete defs argnf False) args
              pure ()
     concrete defs (NApp _ (NMeta n i _) _) True
-        = do Just (Hole _ True _) <- lookupDefExact n (gamma defs)
+        = do Just (Hole _ True) <- lookupDefExact n (gamma defs)
                   | _ => throw (DeterminingArg fc n i [] top)
              pure ()
     concrete defs (NApp _ (NMeta n i _) _) False
-        = do Just (Hole _ True _) <- lookupDefExact n (gamma defs)
+        = do Just (Hole _ True) <- lookupDefExact n (gamma defs)
                   | def => throw (CantSolveGoal fc [] top)
              pure ()
     concrete defs tm top = pure ()

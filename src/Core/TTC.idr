@@ -714,9 +714,8 @@ TTC Def where
   toBuf b (TCon t arity parampos detpos ms datacons) 
       = do tag 4; toBuf b t; toBuf b arity; toBuf b parampos
            toBuf b detpos; toBuf b ms; toBuf b datacons
-  toBuf b (Hole locs p invertible) 
+  toBuf b (Hole locs p) 
       = do tag 5; toBuf b locs; toBuf b p
-           toBuf b invertible
   toBuf b (BySearch c depth def) 
       = do tag 6; toBuf b c; toBuf b depth; toBuf b def
   toBuf b (Guess guess constraints) = do tag 7; toBuf b guess; toBuf b constraints
@@ -741,8 +740,7 @@ TTC Def where
                      pure (TCon t a ps dets ms cs)
              5 => do l <- fromBuf b
                      p <- fromBuf b
-                     i <- fromBuf b
-                     pure (Hole l p i)
+                     pure (Hole l p)
              6 => do c <- fromBuf b; depth <- fromBuf b
                      def <- fromBuf b
                      pure (BySearch c depth def)
@@ -820,6 +818,7 @@ TTC GlobalDef where
                  toBuf b (visibility gdef)
                  toBuf b (totality gdef)
                  toBuf b (flags gdef)
+                 toBuf b (invertible gdef)
                  toBuf b (noCycles gdef)
                  toBuf b (sizeChange gdef)
 
@@ -835,14 +834,15 @@ TTC GlobalDef where
                       vars <- fromBuf b
                       vis <- fromBuf b; tot <- fromBuf b
                       fl <- fromBuf b
+                      inv <- fromBuf b
                       c <- fromBuf b
                       sc <- fromBuf b
                       pure (MkGlobalDef loc name ty mul vars vis 
-                                        tot fl refs c True def cdef sc)
+                                        tot fl refs inv c True def cdef sc)
               else do let fc = emptyFC
                       pure (MkGlobalDef fc name (Erased fc)
                                         RigW [] Public unchecked [] refs
-                                        False True def cdef [])
+                                        False False True def cdef [])
 
 -- decode : Context -> Int -> ContextEntry -> Core GlobalDef
 Core.Context.decode gam idx (Coded bin) 

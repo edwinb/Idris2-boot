@@ -320,7 +320,7 @@ mutual
                    pure ()
              case elabMode elabinfo of
                   InLHS _ => -- reset hole and redo it with the unexpanded definition
-                     do updateDef (Resolved idx) (const (Just (Hole 0 False False)))
+                     do updateDef (Resolved idx) (const (Just (Hole 0 False)))
                         solveIfUndefined env metaval argv
                         pure ()
                   _ => pure ()

@@ -304,7 +304,7 @@ toCDef tags n (TCon tag arity _ _ _ _)
            _ => pure $ MkCon tag arity
 -- We do want to be able to compile these, but also report an error at run time
 -- (and, TODO: warn at compile time)
-toCDef tags n (Hole _ _ _)
+toCDef tags n (Hole _ _)
     = pure $ MkError $ CCrash emptyFC ("Encountered unimplemented hole " ++ 
                                        show !(getFullName n))
 toCDef tags n (Guess _ _)

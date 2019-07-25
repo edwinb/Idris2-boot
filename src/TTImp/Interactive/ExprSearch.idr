@@ -75,7 +75,7 @@ searchIfHole fc opts defining topty env arg
                  defs <- get Ctxt
                  Just gdef <- lookupCtxtExact (Resolved hole) (gamma defs)
                       | Nothing => pure []
-                 let Hole _ _ inv = definition gdef
+                 let Hole _ _ = definition gdef
                       | _ => pure [!(normaliseHoles defs env (metaApp arg))]
                                 -- already solved
                  tms <- search fc rig (record { depth = k} opts)
@@ -171,7 +171,7 @@ getSuccessful {vars} fc rig opts mkHole env ty topty defining all
                                             defining
                            hn <- uniqueName defs (map nameRoot vars) base
                            (idx, tm) <- newMeta fc rig env (UN hn) ty 
-                                                (Hole (length env) False False)
+                                                (Hole (length env) False)
                                                 False
                            pure [tm]
                    else if holesOK opts
@@ -428,7 +428,7 @@ search fc rig opts defining topty n_in
                    -- The definition should be 'BySearch' at this stage,
                    -- if it's arising from an auto implicit
                    case definition gdef of
-                        Hole locs _ _ => searchHole fc rig opts defining n locs topty defs gdef
+                        Hole locs _ => searchHole fc rig opts defining n locs topty defs gdef
                         BySearch _ _ _ => searchHole fc rig opts defining n 
                                                    !(getArity defs [] (type gdef)) 
                                                    topty defs gdef
