@@ -35,7 +35,7 @@ ifneq ($(OS), windows)
 	CFLAGS += -fPIC
 endif
 
-DYLIBTARGET = $(LIBNAME)$(SHLIB_SUFFIX)
+DYLIBTARGET = lib$(LIBNAME)$(SHLIB_SUFFIX)
 LIBTARGET = $(LIBNAME).a
 TARGET=${HOME}/.idris2
 
@@ -48,7 +48,7 @@ $(DYLIBTARGET) : $(OBJS)
 	$(CC) -o $(DYLIBTARGET) $(LIBFLAGS) -shared $(OBJS)
 
 install:
-	install $(DYLIBTARGET) $(HDRS) $(TARGET)
+	install $(DYLIBTARGET) $(HDRS) $(TARGET)/idris2/network
 	${IDRIS2} --install network.ipkg
 
 clean :
@@ -57,8 +57,7 @@ clean :
 test: build test.c
 	$(CC) -o network-tests -L. -I. -l$(LIBNAME) test.c
 	./network-tests
-	${IDRIS2} --exec main Echo.idr > build/output
-	@if ! [ -z "$(diff build/output expected)" ]; then echo "TEST FAILURE: unexpected build/output"; exit 2; else echo "TEST SUCCESS"; fi
+	./lib-tests
 
 $(OBJS): $(HDRS)
 
