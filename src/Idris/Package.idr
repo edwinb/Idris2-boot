@@ -6,6 +6,10 @@ import Core.Directory
 import Core.Options
 import Core.Unify
 
+import Data.These
+import Data.StringMap
+import Data.StringTrie
+
 import Idris.CommandLine
 import Idris.ModTree
 import Idris.ProcessIdr
@@ -192,9 +196,7 @@ installFrom : {auto c : Ref Ctxt Defs} ->
               String -> String -> String -> List String -> Core ()
 installFrom _ _ _ [] = pure ()
 installFrom pname builddir destdir ns@(m :: dns)
-    = do defs <- get Ctxt
-         let modname = showSep "." (reverse ns)
-         let ttcfile = showSep "/" (reverse ns)
+    = do let ttcfile = showSep "/" (reverse ns)
          let ttcPath = builddir ++ dirSep ++ ttcfile ++ ".ttc"
          let destPath = destdir ++ dirSep ++ showSep "/" (reverse dns)
          let destFile = destdir ++ dirSep ++ ttcfile ++ ".ttc"
@@ -233,8 +235,79 @@ install pkg
          traverse (installFrom (name pkg)
                                (srcdir ++ dirSep ++ build) 
                                (installPrefix ++ dirSep ++ name pkg)) toInstall
-         coreLift $ changeDir srcdir
+         coreLift $ changeDir srcdir                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
          runScript (postinstall pkg)
+
+-- Data.These.bitraverse hand specialised for Core
+bitraverseC : (a -> Core c) -> (b -> Core d) -> These a b -> Core (These c d)
+bitraverseC f g (This a)   = [| This (f a) |]
+bitraverseC f g (That b)   = [| That (g b) |]
+bitraverseC f g (Both a b) = [| Both (f a) (g b) |]
+
+-- Prelude.Monad.foldlM hand specialised for Core
+foldlC : Foldable t => (a -> b -> Core a) -> a -> t b -> Core a
+foldlC fm a0 = foldl (\ma,b => ma >>= flip fm b) (pure a0)
+
+-- Data.StringTrie.foldWithKeysM hand specialised for Core
+foldWithKeysC : Monoid b => (List String -> Core b) -> (List String -> a -> Core b) -> StringTrie a -> Core b
+foldWithKeysC {a} {b} fk fv = go []
+  where
+  go : List String -> StringTrie a -> Core b
+  go as (MkStringTrie nd) =
+    map bifold $ bitraverseC
+                   (fv as)
+                   (\sm => foldlC
+                             (\x, (k, vs) => 
+                               do let as' = as ++ [k]
+                                  y <- assert_total $ go as' vs
+                                  z <- fk as'  
+                                  pure $ x <+> y <+> z)
+                             neutral
+                             (toList sm))
+                   nd
+
+Semigroup () where
+  (<+>) _ _ = ()
+
+Monoid () where
+  neutral = ()
+
+clean : {auto c : Ref Ctxt Defs} -> 
+        {auto o : Ref ROpts REPLOpts} ->
+        PkgDesc -> Core ()
+clean pkg 
+    = do defs <- get Ctxt
+         let build = build_dir (dirs (options defs))
+         let toClean = mapMaybe (\ks => [| MkPair (tail' ks) (head' ks) |]) $
+                       maybe (map fst (modules pkg))
+                             (\m => fst m :: map fst (modules pkg))
+                             (mainmod pkg)
+         srcdir <- coreLift currentDir
+         let builddir = srcdir ++ dirSep ++ build
+         -- the usual pair syntax breaks with `No such variable a` here for some reason
+         let pkgTrie = the (StringTrie (List String)) $
+                       foldl (\trie, ksv => 
+                                let ks = fst ksv
+                                    v = snd ksv  
+                                  in 
+                                insertWith ks (maybe [v] (v::)) trie) empty toClean
+         foldWithKeysC (deleteFolder builddir) 
+                       (\ks => map concat . traverse (deleteBin builddir ks))
+                       pkgTrie
+         deleteFolder builddir []
+  where
+  delete : String -> Core ()
+  delete path = do True <- coreLift $ fRemove path
+                     | False => do err <- coreLift getErrno
+                                   coreLift $ putStrLn $ path ++ ": " ++ show (GenericFileError err)
+                   coreLift $ putStrLn $ "Removed: " ++ path
+  deleteFolder : String -> List String -> Core ()
+  deleteFolder builddir ns = delete $ builddir ++ dirSep ++ showSep "/" (reverse ns)
+  deleteBin : String -> List String -> String -> Core ()
+  deleteBin builddir ns mod
+      = do let ttFile = builddir ++ dirSep ++ showSep "/" (reverse ns) ++ dirSep ++ mod
+           delete $ ttFile ++ ".ttc"
+           delete $ ttFile ++ ".ttm"
 
 -- Just load the 'Main' module, if it exists, which will involve building
 -- it if necessary
@@ -264,11 +337,12 @@ processPackage cmd file
               Install => do [] <- build pkg
                                | errs => coreLift (exit 1)
                             install pkg
+              Clean => clean pkg
               REPL => runRepl pkg
 
 rejectPackageOpts : List CLOpt -> Core Bool
 rejectPackageOpts (Package cmd f :: _)
-    = do coreLift $ putStrLn ("Package commands (--build, --install --repl) must be the only option given")
+    = do coreLift $ putStrLn ("Package commands (--build, --install, --clean, --repl) must be the only option given")
          pure True -- Done, quit here
 rejectPackageOpts (_ :: xs) = rejectPackageOpts xs
 rejectPackageOpts [] = pure False
@@ -284,4 +358,3 @@ processPackageOpts [Package cmd f]
     = do processPackage cmd f
          pure True
 processPackageOpts opts = rejectPackageOpts opts
-

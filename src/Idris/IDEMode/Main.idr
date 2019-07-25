@@ -132,7 +132,7 @@ stMain opts
                            setOutput (IDEMode 0 file file)
                            replIDE {c} {u} {m}                               
                    else do 
-                       iputStrLn "Welcome to Blodwen. Good luck."
+                       iputStrLn "Welcome to Idris 2. Good luck."
                        repl {c} {u} {m}
                  else
                       -- exit with an error code if there was an error, otherwise

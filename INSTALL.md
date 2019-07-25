@@ -1,8 +1,8 @@
 # Installation
 
 Idris 2 is built using Idris, and provides support for three default code
-generation targets: Chez, Chicken, and Racket. It currently requires the
-(not yet released) latest Idris master.
+generation targets: Chez, Chicken, and Racket.  It requires at least Idris
+version 1.3.2 (see https://www.idris-lang.org/download)
 
 ## Idris
 
