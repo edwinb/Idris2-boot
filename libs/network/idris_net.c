@@ -92,7 +92,7 @@ int idrnet_getaddrinfo(struct addrinfo** address_res, char* host, int port,
 }
 
 int idrnet_bind(int sockfd, int family, int socket_type, char* host, int port) {
-    struct addrinfo* address_res;
+    struct addrinfo *address_res;
     int addr_res = idrnet_getaddrinfo(&address_res, host, port, family, socket_type);
     if (addr_res != 0) {
         //printf("Lib err: bind getaddrinfo\n");
@@ -128,9 +128,9 @@ int idrnet_sockaddr_port(int sockfd) {
 
   switch(address.sa_family) {
   case AF_INET:
-    return ((struct sockaddr_in*)&address)->sin_port;
+    return ntohs(((struct sockaddr_in*)&address)->sin_port);
   case AF_INET6:
-    return ((struct sockaddr_in6*)&address)->sin6_port;
+    return ntohs(((struct sockaddr_in6*)&address)->sin6_port);
   default:
     return -1;
   }

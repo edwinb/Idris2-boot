@@ -40,7 +40,7 @@ sock_alloc bl = map BPtr $ cCall Ptr "idrnet_malloc" [bl]
 ||| Retrieves the port the given socket is bound to
 export
 getSockPort : Socket -> IO Port
-getSockPort sock = cCall Port "idrnet_sockaddr_port" [descriptor sock]
+getSockPort sock = cCall Int "idrnet_sockaddr_port" [descriptor sock]
 
 
 ||| Retrieves a socket address from a sockaddr pointer
@@ -101,7 +101,7 @@ recvBuf : (sock : Socket)
        -> (len  : ByteLength)
        -> IO (Either SocketError ResultCode)
 recvBuf sock (BPtr ptr) len = do
-  recv_res <- cCall ResultCode "idrnet_recv_buf" [ descriptor sock, ptr, len ]
+  recv_res <- cCall Int "idrnet_recv_buf" [ descriptor sock, ptr, len ]
 
   if (recv_res == (-1))
     then map Left getErrno
@@ -125,7 +125,7 @@ sendToBuf : (sock : Socket)
          -> (len  : ByteLength)
          -> IO (Either SocketError ResultCode)
 sendToBuf sock addr p (BPtr dat) len = do
-  sendto_res <- cCall ResultCode "idrnet_sendto_buf"
+  sendto_res <- cCall Int "idrnet_sendto_buf"
                 [ descriptor sock, dat, len, show addr, p, toCode $ family sock ]
 
   if sendto_res == (-1)

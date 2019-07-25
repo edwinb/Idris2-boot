@@ -60,7 +60,7 @@ EAGAIN =
 
 export
 getErrno : IO SocketError
-getErrno = cCall SocketError "idrnet_errno" []
+getErrno = cCall Int "idrnet_errno" []
 
 export
 nullPtr : Ptr -> IO Bool

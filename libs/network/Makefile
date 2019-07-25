@@ -29,16 +29,17 @@ LIBNAME=idris_net
 OBJS = $(LIBNAME).o
 HDRS = $(LIBNAME).h
 CFLAGS := $(CFLAGS)
+IDRIS_SRCS = Network/Socket.idr Network/Socket/Data.idr Network/Socket/Raw.idr
 
 ifneq ($(OS), windows)
 	CFLAGS += -fPIC
 endif
 
-DYLIBTARGET = lib$(LIBNAME)$(SHLIB_SUFFIX)
+DYLIBTARGET = $(LIBNAME)$(SHLIB_SUFFIX)
 LIBTARGET = $(LIBNAME).a
 TARGET=${HOME}/.idris2
 
-build: $(DYLIBTARGET)
+build: $(DYLIBTARGET) $(IDRIS_SRCS)
 	@if ! [ -d build ]; then echo "creating 'build' directory"; mkdir build ; else echo "directory 'build' exists"; fi
 	@if [ -z "${IDRIS2}" ]; then echo 'variable $$IDRIS2 is not set, aborting'; exit 1; fi
 	${IDRIS2} --build network.ipkg
@@ -53,13 +54,15 @@ install:
 clean :
 	rm -rf $(OBJS) $(LIBTARGET) $(DYLIBTARGET) build
 
-test: $(DYLIBTARGET)
+test: build test.c
 	$(CC) -o network-tests -L. -I. -l$(LIBNAME) test.c
 	./network-tests
+	${IDRIS2} --exec main Echo.idr > build/output
+	@if ! [ -z "$(diff build/output expected)" ]; then echo "TEST FAILURE: unexpected build/output"; exit 2; else echo "TEST SUCCESS"; fi
 
 $(OBJS): $(HDRS)
 
 all: $(DYLIBTARGET) $(LIBTARGET)
 	${IDRIS2} --build network.ipkg
 
-.PHONY: build install clean
+.PHONY: install clean
