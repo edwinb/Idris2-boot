@@ -1082,8 +1082,8 @@ retryGuess mode smode (hid, (loc, hname))
                                                  (type def)
                                        setInvertible loc (Resolved i)
                                        pure False -- progress made!
-                                _ => do logTerm 5 ("Search failed for " ++ show hname) 
-                                                  (type def)
+                                _ => do logTermNF 5 ("Search failed at " ++ show rig ++ " for " ++ show hname) 
+                                                  [] (type def)
                                         case smode of
                                              LastChance => 
                                                  throw !(normaliseErr err)

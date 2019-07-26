@@ -146,12 +146,13 @@ exactlyOne {vars} fc env top all
 -- search happens before linearity checking and we can't guarantee that just
 -- because something is apparently available now, it will be available by the
 -- time we get to linearity checking.
-getAllEnv : FC -> (done : List Name) -> 
+-- It's also fine to use anything if we're working at multiplicity 0
+getAllEnv : FC -> RigCount -> (done : List Name) -> 
             Env Term vars -> List (Term (done ++ vars), Term (done ++ vars))
-getAllEnv fc done [] = []
-getAllEnv {vars = v :: vs} fc done (b :: env) 
-   = let rest = getAllEnv fc (done ++ [v]) env in 
-         if multiplicity b == RigW
+getAllEnv fc rigc done [] = []
+getAllEnv {vars = v :: vs} fc rigc done (b :: env) 
+   = let rest = getAllEnv fc rigc (done ++ [v]) env in 
+         if multiplicity b == RigW || rigc == Rig0
             then let MkVar p = weakenVar {name=v} {inner=v :: vs} done First in
                      (Local fc Nothing _ p, 
                        rewrite appendAssociative done [v] vs in 
@@ -301,7 +302,8 @@ searchLocal : {auto c : Ref Ctxt Defs} ->
               Env Term vars -> 
               (target : NF vars) -> Core (Term vars)
 searchLocal fc rig defaults trying depth def top env target
-    = searchLocalWith fc rig defaults trying depth def top env (getAllEnv fc [] env) target
+    = searchLocalWith fc rig defaults trying depth def top env 
+                      (getAllEnv fc rig [] env) target
 
 isPairNF : {auto c : Ref Ctxt Defs} ->
            Env Term vars -> NF vars -> Defs -> Core Bool
