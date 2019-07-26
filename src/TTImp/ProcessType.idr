@@ -74,7 +74,7 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
                    checkTerm idx InType (HolesOkay :: eopts) nest env 
                              (IBindHere fc (PI Rig0) ty_raw) 
                              (gType fc)
-         logTermNF 5 (show n) [] (abstractEnvType tfc env ty)
+         logTermNF 5 ("Type of " ++ show n) [] (abstractEnvType tfc env ty)
          -- TODO: Check name visibility
          -- If it's declared as externally defined, set the definition to
          -- ExternFn <arity>, where the arity is assumed to be fixed (i.e.

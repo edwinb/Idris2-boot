@@ -109,21 +109,22 @@ getMethToplevel {vars} env vis iname cname constraints allmeths params
          -- which appear in other method types
          let ty_constr = substNames vars (map applyCon allmeths) ty
          ty_imp <- bindTypeNames vars (bindIFace fc ity ty_constr)
+         cn <- inCurrentNS n
          let tydecl = IClaim fc c vis (if d then [Inline, Invertible]
                                             else [Inline]) 
-                                      (MkImpTy fc n ty_imp) 
+                                      (MkImpTy fc cn ty_imp) 
          let conapp = apply (IVar fc cname)
                          (map (const (Implicit fc True)) constraints ++
                           map (IBindVar fc) (map bindName allmeths))
          let argns = getExplicitArgs 0 ty
          -- eta expand the RHS so that we put implicits in the right place
-         let fnclause = PatClause fc (IImplicitApp fc (IVar fc n) 
+         let fnclause = PatClause fc (IImplicitApp fc (IVar fc cn) 
                                                    (Just (UN "__con"))
                                                    conapp)
                                   (mkLam argns 
                                     (apply (IVar fc (methName n))
                                            (map (IVar fc) argns)))
-         let fndef = IDef fc n [fnclause]
+         let fndef = IDef fc cn [fnclause]
          pure [tydecl, fndef]
   where
     applyCon : Name -> (Name, RawImp)

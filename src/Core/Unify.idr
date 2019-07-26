@@ -556,19 +556,16 @@ mutual
       = postpone loc "Postponing hole application" env 
                  (NApp loc (NMeta mname mref margs) margs') tm
 
-  unifyPatVar : {auto c : Ref Ctxt Defs} ->
-                {auto u : Ref UST UState} ->
-                {vars : _} ->
-                UnifyMode -> FC -> Env Term vars ->
-                (metaname : Name) -> (metaref : Int) ->
-                (margs : List (Closure vars)) ->
-                (margs' : List (Closure vars)) ->
-                (soln : NF vars) ->
-                Core UnifyResult
-  -- TODO: if either side is a pattern variable application, and we're in a term,
-  -- (which will be a type) we can proceed because the pattern variable
-  -- has to end up pi bound. Unify the right most variables, and continue.
-  unifyPatVar mode loc env mname mref margs margs' tm
+  postponePatVar : {auto c : Ref Ctxt Defs} ->
+                   {auto u : Ref UST UState} ->
+                   {vars : _} ->
+                   UnifyMode -> FC -> Env Term vars ->
+                   (metaname : Name) -> (metaref : Int) ->
+                   (margs : List (Closure vars)) ->
+                   (margs' : List (Closure vars)) ->
+                   (soln : NF vars) ->
+                   Core UnifyResult
+  postponePatVar mode loc env mname mref margs margs' tm
       = postpone loc "Not in pattern fragment" env 
                  (NApp loc (NMeta mname mref margs) margs') tm
 
@@ -630,12 +627,12 @@ mutual
            case !(patternEnv env args) of
                 Nothing => 
                   do Just hdef <- lookupCtxtExact (Resolved mref) (gamma defs)
-                        | _ => unifyPatVar mode loc env mname mref margs margs' tmnf
+                        | _ => postponePatVar mode loc env mname mref margs margs' tmnf
                      let Hole _ _ = definition hdef
-                        | _ => unifyPatVar mode loc env mname mref margs margs' tmnf
+                        | _ => postponePatVar mode loc env mname mref margs margs' tmnf
                      if invertible hdef
                         then unifyHoleApp mode loc env mname mref margs margs' tmnf
-                        else unifyPatVar mode loc env mname mref margs margs' tmnf
+                        else postponePatVar mode loc env mname mref margs margs' tmnf
                 Just (newvars ** (locs, submv)) => 
                   do tm <- quote empty env tmnf
                      case shrinkTerm tm submv of
@@ -1015,12 +1012,12 @@ mutual
 
 export
 setInvertible : {auto c : Ref Ctxt Defs} ->
-                FC -> Int -> Core ()
-setInvertible loc i
+                FC -> Name -> Core ()
+setInvertible fc n
     = do defs <- get Ctxt
-         Just gdef <- lookupCtxtExact (Resolved i) (gamma defs)
-              | Nothing => pure ()
-         addDef (Resolved i) (record { invertible = True } gdef)
+         Just gdef <- lookupCtxtExact n (gamma defs)
+              | Nothing => throw (UndefinedName fc n)
+         addDef n (record { invertible = True } gdef)
          pure ()
 
 public export
@@ -1083,7 +1080,7 @@ retryGuess mode smode (hid, (loc, hname))
                                 DeterminingArg _ n i _ _ => 
                                     do logTerm 5 ("Failed (det " ++ show hname ++ " " ++ show n ++ ")")
                                                  (type def)
-                                       setInvertible loc i
+                                       setInvertible loc (Resolved i)
                                        pure False -- progress made!
                                 _ => do logTerm 5 ("Search failed for " ++ show hname) 
                                                   (type def)

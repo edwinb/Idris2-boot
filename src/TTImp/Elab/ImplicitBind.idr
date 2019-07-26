@@ -430,6 +430,10 @@ checkBindVar rig elabinfo nest env fc str topexp
                 do (tm, exp, bty) <- mkPatternHole fc rig n env
                                               (implicitMode elabinfo)
                                               topexp
+                   -- In PI mode, it's invertible like any other pi bound thing
+                   case implicitMode elabinfo of
+                        PI _ => setInvertible fc n
+                        _ => pure ()
                    log 5 $ "Added Bound implicit " ++ show (n, (rig, tm, exp, bty))
                    defs <- get Ctxt
                    est <- get EST
