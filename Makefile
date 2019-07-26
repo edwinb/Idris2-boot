@@ -1,5 +1,6 @@
 PREFIX ?= ${HOME}/.idris2
-IDRIS_VERSION=1.3.2-git:9549d9cb9
+IDRIS_VERSION := $(shell idris --version)
+VALID_IDRIS_VERSION_REGEXP = "1.3.3.*"
 export IDRIS2_PATH = ${CURDIR}/libs/prelude/build:${CURDIR}/libs/base/build
 export IDRIS2_DATA = ${CURDIR}/support
 
@@ -10,7 +11,8 @@ export IDRIS2_DATA = ${CURDIR}/support
 all: idris2 libs test
 
 check_version:
-	@if [ `idris --version` != "$(IDRIS_VERSION)" ]; then echo "Wrong idris version, expected $(IDRIS_VERSION)"; exit 1; fi
+	@echo "Using idris version: $(IDRIS_VERSION)"
+	@if [ $(shell expr $(IDRIS_VERSION) : $(VALID_IDRIS_VERSION_REGEXP)) -eq 0 ]; then echo "Wrong idris version, expected version matching $(VALID_IDRIS_VERSION_REGEXP)"; exit 1; fi
 
 idris2: src/YafflePaths.idr check_version
 	idris --build idris2.ipkg
