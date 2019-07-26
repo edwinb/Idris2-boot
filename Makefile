@@ -22,6 +22,7 @@ base: prelude
 
 network: prelude
 	make -C libs/network IDRIS2=../../idris2
+	make -C libs/network test IDRIS2=../../idris2
 
 libs : prelude base network
 

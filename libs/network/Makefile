@@ -48,8 +48,8 @@ $(DYLIBTARGET) : $(OBJS)
 	$(CC) -o $(DYLIBTARGET) $(LIBFLAGS) -shared $(OBJS)
 
 install:
-	install $(DYLIBTARGET) $(HDRS) $(TARGET)/idris2/network
 	${IDRIS2} --install network.ipkg
+	install $(DYLIBTARGET) $(HDRS) $(TARGET)/idris2/network
 
 clean :
 	rm -rf $(OBJS) $(LIBTARGET) $(DYLIBTARGET) build
