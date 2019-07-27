@@ -92,6 +92,16 @@ export
 reverse : List a -> List a
 reverse = reverseOnto []
 
+||| Compute the intersect of two lists by user-supplied equality predicate.
+export
+intersectBy : (a -> a -> Bool) -> List a -> List a -> List a
+intersectBy eq xs ys = [x | x <- xs, any (eq x) ys]
+
+||| Compute the intersect of two lists according to the `Eq` implementation for the elements.
+export
+intersect : Eq a => List a -> List a -> List a
+intersect = intersectBy (==)
+
 public export
 data NonEmpty : (xs : List a) -> Type where
     IsNonEmpty : NonEmpty (x :: xs)
@@ -164,11 +174,13 @@ sort = sortBy compare
 -- Properties
 --------------------------------------------------------------------------------
 
--- Uninhabited ([] = _ :: _) where
---   uninhabited Refl impossible
--- 
--- Uninhabited (_ :: _ = []) where
---   uninhabited Refl impossible
+export
+Uninhabited ([] = Prelude.(::) x xs) where
+  uninhabited Refl impossible
+
+export
+Uninhabited (Prelude.(::) x xs = []) where
+  uninhabited Refl impossible
 -- 
 -- ||| (::) is injective
 -- consInjective : {x : a} -> {xs : List a} -> {y : b} -> {ys : List b} ->
@@ -215,5 +227,3 @@ appendAssociative []      c r = Refl
 appendAssociative (x::xs) c r =
   let inductiveHypothesis = appendAssociative xs c r in
     rewrite inductiveHypothesis in Refl
-
-
