@@ -231,7 +231,7 @@ loop
                            processCatch cmd
                            loop 
                       Nothing => 
-                        do printError "Unrecognised command"
+                        do printError ("Unrecognised command: " ++ show sexp)
                            loop
   where
     updateOutput : Integer -> Core ()
