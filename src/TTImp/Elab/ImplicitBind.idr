@@ -164,7 +164,7 @@ bindUnsolved {vars} fc elabmode _
                      (Env Term vars', Term vars', Term vars', SubVars outer vars'))) -> 
                  Core ()
     mkImplicit defs outerEnv subEnv (n, rig, p, (vs ** (env, tm, exp, sub)))
-        = do Just (Hole _ _ _) <- lookupDefExact n (gamma defs)
+        = do Just (Hole _ _) <- lookupDefExact n (gamma defs)
                   | _ => pure ()
              bindtm <- makeBoundVar n rig p outerEnv
                                     sub subEnv
@@ -304,7 +304,7 @@ implicitBind : {auto c : Ref Ctxt Defs} ->
                Name -> Core ()
 implicitBind n 
     = do defs <- get Ctxt
-         Just (Hole _ _ _) <- lookupDefExact n (gamma defs)
+         Just (Hole _ _) <- lookupDefExact n (gamma defs)
              | _ => pure ()
          updateDef n (const (Just ImpBind))
          removeHoleName n
@@ -430,6 +430,10 @@ checkBindVar rig elabinfo nest env fc str topexp
                 do (tm, exp, bty) <- mkPatternHole fc rig n env
                                               (implicitMode elabinfo)
                                               topexp
+                   -- In PI mode, it's invertible like any other pi bound thing
+                   case implicitMode elabinfo of
+                        PI _ => setInvertible fc n
+                        _ => pure ()
                    log 5 $ "Added Bound implicit " ++ show (n, (rig, tm, exp, bty))
                    defs <- get Ctxt
                    est <- get EST

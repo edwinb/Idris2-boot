@@ -1,5 +1,7 @@
 *~
 *.ibc
+*.ttc
+*.ttm
 
 idris2
 runtests

@@ -27,7 +27,7 @@ import Data.Buffer
 -- TTC files can only be compatible if the version number is the same
 export
 ttcVersion : Int
-ttcVersion = 4
+ttcVersion = 5
 
 export
 checkTTCVersion : Int -> Int -> Core ()
@@ -226,6 +226,7 @@ readTTCFile modns as b
                            [] [] [] defs -- holes guesses constraints defs 
                            autohs typehs imp nextv cns nns
                            pns rws prims nds cgds ex)
+
 -- Pull out the list of GlobalDefs that we want to save
 getSaveDefs : List Name -> List (Name, Binary) -> Defs -> 
               Core (List (Name, Binary))

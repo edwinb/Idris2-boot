@@ -600,11 +600,11 @@ dumpHole lvl hole
                                             ++ "\n\twhen"
                             traverse dumpConstraint constraints 
                             pure ()
-                    (Hole _ p inj, ty) =>
+                    (Hole _ p, ty) =>
                          log lvl $ "?" ++ show (fullname gdef) ++ " : " ++ 
                                            show !(normaliseHoles defs [] ty)
                                            ++ if p then " (ImplBind)" else ""
-                                           ++ if inj then " (Invertible)" else ""
+                                           ++ if invertible gdef then " (Invertible)" else ""
                     (BySearch _ _ _, ty) =>
                          log lvl $ "Search " ++ show hole ++ " : " ++ 
                                            show !(toFullNames !(normaliseHoles defs [] ty))

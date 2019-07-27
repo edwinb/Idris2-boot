@@ -45,7 +45,6 @@ data Def : Type where
     Hole : (numlocs : Nat) -> -- Number of locals in scope at binding point
                               -- (mostly to help display)
            (implbind : Bool) -> -- Does this stand for an implicitly bound name
-           (invertible : Bool) -> -- Can we invert it during unification?
            Def
     BySearch : RigCount -> (maxdepth : Nat) -> (defining : Name) -> Def
     -- Constraints are integer references into the current map of
@@ -68,8 +67,7 @@ Show Def where
         " mutual with: " ++ show ms
   show (ExternDef arity) = "<external def with arith " ++ show arity ++ ">"
   show (Builtin {arity} _) = "<builtin with arith " ++ show arity ++ ">"
-  show (Hole _ p inv) = "Hole" ++ if p then " [impl]" else ""
-                               ++ if inv then " [invertible]" else ""
+  show (Hole _ p) = "Hole" ++ if p then " [impl]" else ""
   show (BySearch c depth def) = "Search in " ++ show def
   show (Guess tm cs) = "Guess " ++ show tm ++ " when " ++ show cs
   show ImpBind = "Bound name"
@@ -164,6 +162,7 @@ record GlobalDef where
   totality : Totality
   flags : List DefFlag
   refersToM : Maybe (NameMap Bool)
+  invertible : Bool -- for an ordinary definition, is it invertible in unification
   noCycles : Bool -- for metavariables, whether they can be cyclic (this
                   -- would only be allowed when using a metavariable as a 
                   -- placeholder for a yet to be elaborated arguments, but
@@ -417,7 +416,7 @@ export
 newDef : FC -> Name -> RigCount -> List Name -> 
          ClosedTerm -> Visibility -> Def -> GlobalDef
 newDef fc n rig vars ty vis def 
-    = MkGlobalDef fc n ty rig vars vis unchecked [] empty False False def
+    = MkGlobalDef fc n ty rig vars vis unchecked [] empty False False False def
                   Nothing []
 
 public export
@@ -788,7 +787,7 @@ addBuiltin : {auto x : Ref Ctxt Defs} ->
              PrimFn arity -> Core ()
 addBuiltin n ty tot op 
     = do addDef n (MkGlobalDef emptyFC n ty RigW [] Public tot 
-                               [Inline] empty False True (Builtin op)
+                               [Inline] empty False False True (Builtin op)
                                Nothing []) 
          pure ()
 

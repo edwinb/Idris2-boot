@@ -523,6 +523,28 @@ blockAfter mincol item
             else blockEntries (AtPos col) item
 
 export
+blockWithOptHeaderAfter : Int -> (IndentInfo -> Rule hd) -> (IndentInfo -> Rule ty) -> EmptyRule (Maybe hd, List ty)
+blockWithOptHeaderAfter {ty} mincol header item
+    = do symbol "{"
+         commit
+         hidt <- optional $ blockEntry AnyIndent header
+         restOfBlock hidt
+  <|> do col <- column
+         if col <= mincol
+           then pure (Nothing, [])
+           else do hidt <- optional $ blockEntry (AtPos col) header
+                   ps <- blockEntries (AtPos col) item
+                   pure (map fst hidt, ps)
+  where 
+  restOfBlock : Maybe (hd, ValidIndent) -> Rule (Maybe hd, List ty)
+  restOfBlock (Just (h, idt)) = do ps <- blockEntries idt item
+                                   symbol "}"
+                                   pure (Just h, ps)
+  restOfBlock Nothing = do ps <- blockEntries AnyIndent item
+                           symbol "}"
+                           pure (Nothing, ps)
+
+export
 nonEmptyBlock : (IndentInfo -> Rule ty) -> Rule (List ty)
 nonEmptyBlock item
     = do symbol "{"
