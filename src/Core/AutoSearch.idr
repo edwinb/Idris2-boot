@@ -44,8 +44,8 @@ mkArgs fc rigc env (NBind nfc x (Pi c p ty) sc)
          argTy <- quote empty env ty
          let argRig = rigMult rigc c
          (idx, arg) <- newMeta fc argRig env nm argTy 
-                               (Hole (length env) False False) False
-         setInvertible fc idx
+                               (Hole (length env) False) False
+         setInvertible fc (Resolved idx)
          (rest, restTy) <- mkArgs fc rigc env 
                               !(sc defs (toClosure defaultOpts env arg))
          pure (MkArgInfo idx argRig p arg argTy :: rest, restTy)
@@ -68,7 +68,7 @@ searchIfHole fc defaults trying ispair (S depth) def top env arg
          defs <- get Ctxt
          Just gdef <- lookupCtxtExact (Resolved hole) (gamma defs)
               | Nothing => throw (CantSolveGoal fc [] top)
-         let Hole _ _ inv = definition gdef
+         let Hole _ _ = definition gdef
               | _ => pure () -- already solved
          top' <- if ispair 
                     then normaliseScope defs [] (type gdef)
@@ -146,12 +146,13 @@ exactlyOne {vars} fc env top all
 -- search happens before linearity checking and we can't guarantee that just
 -- because something is apparently available now, it will be available by the
 -- time we get to linearity checking.
-getAllEnv : FC -> (done : List Name) -> 
+-- It's also fine to use anything if we're working at multiplicity 0
+getAllEnv : FC -> RigCount -> (done : List Name) -> 
             Env Term vars -> List (Term (done ++ vars), Term (done ++ vars))
-getAllEnv fc done [] = []
-getAllEnv {vars = v :: vs} fc done (b :: env) 
-   = let rest = getAllEnv fc (done ++ [v]) env in 
-         if multiplicity b == RigW
+getAllEnv fc rigc done [] = []
+getAllEnv {vars = v :: vs} fc rigc done (b :: env) 
+   = let rest = getAllEnv fc rigc (done ++ [v]) env in 
+         if multiplicity b == RigW || rigc == Rig0
             then let MkVar p = weakenVar {name=v} {inner=v :: vs} done First in
                      (Local fc Nothing _ p, 
                        rewrite appendAssociative done [v] vs in 
@@ -301,7 +302,8 @@ searchLocal : {auto c : Ref Ctxt Defs} ->
               Env Term vars -> 
               (target : NF vars) -> Core (Term vars)
 searchLocal fc rig defaults trying depth def top env target
-    = searchLocalWith fc rig defaults trying depth def top env (getAllEnv fc [] env) target
+    = searchLocalWith fc rig defaults trying depth def top env 
+                      (getAllEnv fc rig [] env) target
 
 isPairNF : {auto c : Ref Ctxt Defs} ->
            Env Term vars -> NF vars -> Defs -> Core Bool
@@ -406,11 +408,11 @@ concreteDets {vars} fc defaults env top pos dets (arg :: args)
                                     concrete defs argnf False) args
              pure ()
     concrete defs (NApp _ (NMeta n i _) _) True
-        = do Just (Hole _ True _) <- lookupDefExact n (gamma defs)
+        = do Just (Hole _ True) <- lookupDefExact n (gamma defs)
                   | _ => throw (DeterminingArg fc n i [] top)
              pure ()
     concrete defs (NApp _ (NMeta n i _) _) False
-        = do Just (Hole _ True _) <- lookupDefExact n (gamma defs)
+        = do Just (Hole _ True) <- lookupDefExact n (gamma defs)
                   | def => throw (CantSolveGoal fc [] top)
              pure ()
     concrete defs tm top = pure ()

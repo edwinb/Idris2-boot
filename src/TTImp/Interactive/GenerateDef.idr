@@ -47,7 +47,7 @@ expandClause loc n c
          let Meta _ i fn _ = getFn rhs
             | _ => throw (GenericMsg loc "No searchable hole on RHS")
          defs <- get Ctxt
-         Just (Hole locs _ _) <- lookupDefExact (Resolved fn) (gamma defs)
+         Just (Hole locs _) <- lookupDefExact (Resolved fn) (gamma defs)
             | _ => throw (GenericMsg loc "No searchable hole on RHS")
          log 10 $ "Expression search for " ++ show (i, fn)
          (rhs' :: _) <- exprSearch loc (Resolved fn) []

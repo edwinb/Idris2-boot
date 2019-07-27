@@ -160,7 +160,9 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
                          TCon _ _ _ _ mw _ =>
                             do ok <- convert defs [] fullty (type ndef)
                                if ok then pure mw
-                                     else throw (AlreadyDefined fc n)
+                                     else do logTermNF 1 "Previous" [] (type ndef)
+                                             logTermNF 1 "Now" [] fullty
+                                             throw (AlreadyDefined fc n)
                          _ => throw (AlreadyDefined fc n)
 
          logTermNF 5 ("data " ++ show n) [] fullty

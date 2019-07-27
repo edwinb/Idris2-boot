@@ -1151,13 +1151,16 @@ recordDecl fname indents
          n <- name
          params <- many (ifaceParam fname indents)
          keyword "where"
-         dc <- option Nothing (do exactIdent "constructor"
-                                  n <- name
-                                  pure (Just n))
-         flds <- assert_total (blockAfter col (fieldDecl fname))
+         dcflds <- blockWithOptHeaderAfter col ctor (fieldDecl fname)
          end <- location
          pure (PRecord (MkFC fname start end) 
-                       vis n params dc (concat flds))
+                       vis n params (fst dcflds) (concat (snd dcflds)))
+  where
+  ctor : IndentInfo -> Rule Name
+  ctor idt = do exactIdent "constructor"
+                n <- name
+                atEnd idt
+                pure n
 
 claim : FileName -> IndentInfo -> Rule PDecl
 claim fname indents

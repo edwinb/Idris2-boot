@@ -209,6 +209,10 @@ empty : StringMap v
 empty = Empty
 
 export
+singleton : String -> v -> StringMap v
+singleton k v = M Z (Leaf k v)
+
+export
 lookup : String -> StringMap v -> Maybe v
 lookup _ Empty = Nothing
 lookup k (M _ t) = treeLookup k t

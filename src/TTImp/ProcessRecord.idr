@@ -73,10 +73,6 @@ elabRecord {vars} eopts fc env nest vis tn params rcon fields
              log 5 $ "Record data type " ++ show dt
              processDecl [] nest env (IData fc vis dt)
 
-    impName : Name -> Name
-    impName (UN n) = UN ("imp_" ++ n)
-    impName n = n
-
     countExp : Term vs -> Nat
     countExp (Bind _ n (Pi c Explicit _) sc) = S (countExp sc)
     countExp (Bind _ n (Pi c _ _) sc) = countExp sc
@@ -97,9 +93,7 @@ elabRecord {vars} eopts fc env nest vis tn params rcon fields
                                   then S done else done)
                               upds (b :: tyenv) sc
              else 
-                do let fldName = case imp of
-                                      Explicit => n
-                                      _ => impName n
+                do let fldName = n
                    gname <- inCurrentNS fldName
                    ty <- unelab tyenv ty_chk
                    let ty' = substNames vars upds ty

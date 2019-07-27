@@ -349,7 +349,7 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
     holeIn gam tm
         = case getFn tm of
                Meta _ _ idx _ =>
-                  do Just (Hole _ _ _) <- lookupDefExact (Resolved idx) gam
+                  do Just (Hole _ _) <- lookupDefExact (Resolved idx) gam
                           | _ => pure False
                      pure True
                _ => pure False

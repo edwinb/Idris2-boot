@@ -42,6 +42,8 @@ modules =
     Data.IOArray,
     Data.NameMap,
     Data.StringMap,
+    Data.These,
+    Data.StringTrie,
 
     Idris.CommandLine,
     Idris.Desugar,

@@ -128,7 +128,7 @@ compileToSO ssFile
          chez <- coreLift $ findChez
          let build= "#!" ++ chez ++ " --script\n" ++
                     "(parameterize ([optimize-level 3]) (compile-program \"" ++
-                    ssFile ++ "))"
+                    ssFile ++ "\"))"
          Right () <- coreLift $ writeFile tmpFile build
             | Left err => throw (FileErr tmpFile err)
          coreLift $ chmod tmpFile 0o755
