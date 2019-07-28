@@ -1570,6 +1570,12 @@ addDataDir dir
          put Ctxt (record { options->dirs->data_dirs $= (++ [dir]) } defs)
 
 export
+addLibDir : {auto c : Ref Ctxt Defs} -> String -> Core ()
+addLibDir dir
+    = do defs <- get Ctxt
+         put Ctxt (record { options->dirs->lib_dirs $= (++ [dir]) } defs)
+
+export
 setBuildDir : {auto c : Ref Ctxt Defs} -> String -> Core ()
 setBuildDir dir
     = do defs <- get Ctxt

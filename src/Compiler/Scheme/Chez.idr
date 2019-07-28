@@ -31,9 +31,26 @@ findChez
                                     x <- ["scheme", "chez", "chezscheme9.5"]]
                           maybe (pure "/usr/bin/env scheme") pure e
 
-findLibs : List String -> List String
-findLibs = mapMaybe (isLib . trim)
+-- Given the chez compiler directives, return a list of pairs of:
+--   - the library file name
+--   - the full absolute path of the library file name, if it's in one
+--     of the library paths managed by Idris
+-- If it can't be found, we'll assume it's a system library and that chez
+-- will thus be able to find it.
+findLibs : {auto c : Ref Ctxt Defs} ->
+           List String -> Core (List (String, String))
+findLibs ds
+    = do let libs = mapMaybe (isLib . trim) ds
+         traverse locate (nub libs)
   where
+    locate : String -> Core (String, String)
+    locate fname
+        = do fullname <- catch (findLibraryFile fname)
+                               (\err => -- assume a system library so not
+                                        -- in our library path
+                                        pure fname)
+             pure (fname, fullname)
+
     isLib : String -> Maybe String
     isLib d
         = if isPrefixOf "lib" d
@@ -107,7 +124,7 @@ compileToSS : Ref Ctxt Defs ->
               ClosedTerm -> (outfile : String) -> Core ()
 compileToSS c tm outfile
     = do ds <- getDirectives Chez
-         let libs = findLibs ds
+         libs <- findLibs ds
          (ns, tags) <- findUsedNames tm
          defs <- get Ctxt
          compdefs <- traverse (getScheme chezExtPrim defs) ns
@@ -115,7 +132,8 @@ compileToSS c tm outfile
          main <- schExp chezExtPrim 0 [] !(compileExp tags tm)
          chez <- coreLift findChez
          support <- readDataFile "chez/support.ss"
-         let scm = schHeader chez libs ++ support ++ code ++ main ++ schFooter
+         let scm = schHeader chez (map snd libs) ++ 
+                   support ++ code ++ main ++ schFooter
          Right () <- coreLift $ writeFile outfile scm
             | Left err => throw (FileErr outfile err)
          coreLift $ chmod outfile 0o755
