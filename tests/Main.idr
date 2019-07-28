@@ -42,6 +42,7 @@ idrisTests
        "lazy001",
        "linear001", "linear002", "linear003", "linear004", "linear005",
        "linear006", "linear007",
+       "perf001",
        "perror001", "perror002", "perror003", "perror004", "perror005",
        "perror006",
        "record001", "record002",

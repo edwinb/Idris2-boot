@@ -58,8 +58,8 @@ updatePaths
               Just path => do traverse addLibDir (map trim (split (==pathSep) path))
                               pure ()
               Nothing => pure ()
-         -- BLODWEN_PATH goes first so that it overrides this if there's
-         -- any conflicts. In particular, that means that setting BLODWEN_PATH
+         -- IDRIS2_PATH goes first so that it overrides this if there's
+         -- any conflicts. In particular, that means that setting IDRIS2_PATH
          -- for the tests means they test the local version not the installed
          -- version
          addPkgDir "prelude"
