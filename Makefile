@@ -45,12 +45,13 @@ clean-libs:
 
 test:
 	idris --build tests.ipkg
-	make -C tests
+	@make -C tests only=$(only)
 
 install: all install-exec install-libs
 
 install-exec: idris2
 	mkdir -p ${PREFIX}/bin
+	mkdir -p ${PREFIX}/idris2/lib
 	mkdir -p ${PREFIX}/idris2/support/chez
 	mkdir -p ${PREFIX}/idris2/support/chicken
 	mkdir -p ${PREFIX}/idris2/support/racket

@@ -11,15 +11,17 @@ record Dirs where
   build_dir : String -- build directory, relative to working directory
   dir_prefix : String -- installation prefix, for finding data files (e.g. run time support)
   extra_dirs : List String -- places to look for import files
+  lib_dirs : List String -- places to look for libraries (for code generation)
   data_dirs : List String -- places to look for data file
 
 public export
 toString : Dirs -> String
-toString (MkDirs wdir bdir dfix edirs ddirs) =
+toString (MkDirs wdir bdir dfix edirs ldirs ddirs) =
   unlines [ "+ Working Directory   :: " ++ show wdir
           , "+ Build Directory     :: " ++ show bdir
           , "+ Installation Prefix :: " ++ show dfix
           , "+ Extra Directories :: " ++ show edirs
+          , "+ CG Library Directories :: " ++ show ldirs
           , "+ Data Directories :: " ++ show ddirs]
 
 public export
@@ -105,7 +107,7 @@ record Options where
   extensions : List LangExt
 
 defaultDirs : Dirs
-defaultDirs = MkDirs "." "build" "/usr/local" ["."] []
+defaultDirs = MkDirs "." "build" "/usr/local" ["."] ["."] []
 
 defaultPPrint : PPrinter
 defaultPPrint = MkPPOpts False True False

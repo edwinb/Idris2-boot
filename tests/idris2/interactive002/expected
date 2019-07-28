@@ -9,6 +9,6 @@ Main> vadd (x :: xs) (y :: ys) = ?baz_1
 
 Main> suc x x Refl = ?quux_1
 
-Main> suc' {x = y} {y = y} Refl = ?quux_1
+Main> suc' {x = y} {y = y} Refl = ?quuz_1
 
 Main> Bye for now!

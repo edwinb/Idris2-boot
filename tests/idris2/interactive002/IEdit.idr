@@ -15,5 +15,5 @@ suc : (x : Nat) -> (y : Nat) -> x = y -> S x = S y
 suc x y prf = ?quux
 
 suc' : x = y -> S x = S y
-suc' {x} {y} prf = ?quux
+suc' {x} {y} prf = ?quuz
 

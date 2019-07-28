@@ -75,6 +75,9 @@ expandToArity num fn [] = etaExpand 0 num fn []
 
 -- None of these should be hard coded, but we'll do it this way until we
 -- have a more general approach to optimising data types!
+-- NOTE: Make sure that names mentioned here are listed in 'natHackNames' in
+-- Common.idr, so that they get compiled, as they won't be spotted by the
+-- usual calls to 'getRefs'.
 natHack : CExp vars -> CExp vars
 natHack (CCon fc (NS ["Prelude"] (UN "Z")) _ []) = CPrimVal fc (BI 0)
 natHack (CCon fc (NS ["Prelude"] (UN "S")) _ [k])
