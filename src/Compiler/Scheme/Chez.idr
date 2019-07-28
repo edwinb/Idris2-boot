@@ -57,28 +57,6 @@ findLibs ds
              then Just (trim (substr 3 (length d) d))
              else Nothing
 
-||| Generate the correct dynamic library loading code depending on the target machine
-loadSharedLibs : List String -> String
-loadSharedLibs [] = ""
-loadSharedLibs libs =
-    "(case (machine-type)\n" ++
-    "  [(i3le ti3le a6le ta6le) " ++ load asLinux ++ "]\n" ++
-    "  [(i3osx ti3osx a6osx ta6osx) " ++ load asMac  ++ "]\n" ++
-    "  [(i3nt ti3nt a6nt ta6nt) " ++ load asWin ++ "]\n" ++
-    "  [else " ++ load asLinux ++ "])"
-  where
-    load : (String -> String) -> String
-    load fmt = "(begin\n" ++ showSep "\n" (map (\ s => "(load-shared-object \"" ++ fmt s ++ "\")") libs) ++ ")\n"
-
-    asLinux : String -> String
-    asLinux s = "lib" ++ s ++ ".so"
-
-    asMac : String -> String
-    asMac   s = "lib" ++ s ++ ".dylib"
-
-    asWin : String -> String
-    asWin   s = s ++ ".dll"
-
 escapeQuotes : String -> String
 escapeQuotes s = pack $ foldr escape [] $ unpack s
   where
@@ -95,7 +73,7 @@ schHeader chez libs
     "  [(i3osx ti3osx a6osx ta6osx) (load-shared-object \"libc.dylib\")]\n" ++
     "  [(i3nt ti3nt a6nt ta6nt) (load-shared-object \"msvcrt.dll\")]\n" ++
     "  [else (load-shared-object \"libc.so\")])\n\n" ++
-    loadSharedLibs libs ++ "\n\n" ++
+    showSep "\n" (map (\x => "(load-shared-object \"" ++ escapeQuotes x ++ "\")") libs) ++ "\n\n" ++
     "(let ()\n"
 
 schFooter : String
@@ -199,3 +177,4 @@ executeExpr c tm
 export
 codegenChez : Codegen
 codegenChez = MkCG compileExpr executeExpr
+
