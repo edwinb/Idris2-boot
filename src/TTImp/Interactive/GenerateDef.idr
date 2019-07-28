@@ -32,6 +32,20 @@ fnName lhs (NS _ n) = fnName lhs n
 fnName lhs (DN s _) = s
 fnName lhs n = show n
 
+-- Make the hole on the RHS have a unique name
+uniqueRHS : {auto c : Ref Ctxt Defs} ->
+            ImpClause -> Core ImpClause
+uniqueRHS (PatClause fc lhs rhs)
+    = pure $ PatClause fc lhs !(mkUniqueName rhs)
+  where
+    mkUniqueName : RawImp -> Core RawImp
+    mkUniqueName (IHole fc' rhsn)
+        = do defs <- get Ctxt
+             rhsn' <- uniqueName defs [] rhsn
+             pure (IHole fc' rhsn')
+    mkUniqueName tm = pure tm -- it'll be a hole, but this is needed for covering
+uniqueRHS c = pure c
+
 expandClause : {auto c : Ref Ctxt Defs} ->
                {auto m : Ref MD Metadata} ->
                {auto u : Ref UST UState} ->
@@ -39,6 +53,7 @@ expandClause : {auto c : Ref Ctxt Defs} ->
                Core (List ImpClause)
 expandClause loc n c
     = do log 10 $ "Trying clause " ++ show c 
+         c <- uniqueRHS c
          Just clause <- checkClause Rig1 False n [] (MkNested []) [] c
             | Nothing => pure [] -- TODO: impossible clause, do something
                                  -- appropriate
@@ -90,7 +105,7 @@ trySplit : {auto m : Ref MD Metadata} ->
 trySplit loc lhsraw lhs rhs n
     = do OK updates <- getSplitsLHS loc 0 lhs n
             | _ => pure (n, [])
-         pure (n, map (\ups => PatClause loc (updateLHS ups lhsraw) rhs) 
+         pure (n, map (\ups => PatClause loc (updateLHS ups lhsraw) rhs)
                       (mapMaybe valid updates))
   where
     valid : ClauseUpdate -> Maybe (List (Name, RawImp))
