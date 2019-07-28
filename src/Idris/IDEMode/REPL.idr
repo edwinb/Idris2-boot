@@ -54,7 +54,6 @@ initIDESocketFile p = do
       putStrLn "Failed to open socket"
       exit 1
     Right sock => do
-      putStrLn (show p)
       res <- bind sock (Just (Hostname "localhost")) p
       if res /= 0 
       then 
@@ -65,6 +64,7 @@ initIDESocketFile p = do
         then
           pure (Left ("Failed to listen on socket with error: " ++ show res))
         else do
+          putStrLn (show p)
           res <- accept sock
           case res of 
             Left err => 
