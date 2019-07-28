@@ -55,9 +55,9 @@ clean :
 	rm -rf $(OBJS) $(LIBTARGET) $(DYLIBTARGET) build
 
 test: build test.c
-	LD_LIBRARY_PATH=. $(CC) -o network-tests -L. -I. -l$(LIBNAME) test.c
-	./network-tests
-	./lib-tests
+	$(CC) -o network-tests -L. -I. -l$(LIBNAME) test.c
+	LD_LIBRARY_PATH=. ./network-tests
+	LD_LIBRARY_PATH=. ./lib-tests
 
 $(OBJS): $(HDRS)
 

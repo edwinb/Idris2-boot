@@ -5,12 +5,6 @@
 
 #include "idris_net.h"
 
-void test_eagain() {
-  int eagain = idrnet_geteagain();
-  assert(eagain == 35);
-}
-
-
 void test_sockaddr_port_returns_random_port_when_bind_port_is_0() {
   int sock = idrnet_socket(AF_INET, 1,  0);
   assert(sock > 0);
@@ -39,7 +33,6 @@ void test_sockaddr_port_returns_explicitly_assigned_port() {
 
 
 int main(int argc, char**argv) {
-  test_eagain();
   test_sockaddr_port_returns_explicitly_assigned_port();
   test_sockaddr_port_returns_random_port_when_bind_port_is_0();
 
