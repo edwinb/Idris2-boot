@@ -40,7 +40,7 @@ clean-libs:
 
 test:
 	idris --build tests.ipkg
-	make -C tests only=$(only)
+	@make -C tests only=$(only)
 
 install: all install-exec install-libs
 
