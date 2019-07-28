@@ -551,6 +551,8 @@ HasNames Def where
   full gam (TCon t a ps ds ms cs)
       = pure $ TCon t a ps ds !(traverse (full gam) ms)
                               !(traverse (full gam) cs)
+  full gam (BySearch c d def)
+      = pure $ BySearch c d !(full gam def)
   full gam (Guess tm cs) 
       = pure $ Guess !(full gam tm) cs
   full gam t = pure t
@@ -567,6 +569,8 @@ HasNames Def where
   resolved gam (TCon t a ps ds ms cs)
       = pure $ TCon t a ps ds !(traverse (resolved gam) ms)
                               !(traverse (resolved gam) cs)
+  resolved gam (BySearch c d def)
+      = pure $ BySearch c d !(resolved gam def)
   resolved gam (Guess tm cs) 
       = pure $ Guess !(resolved gam tm) cs
   resolved gam t = pure t

@@ -67,6 +67,10 @@ HasNames a => HasNames (List a) where
   resolved c [] = pure []
   resolved c (n :: ns) = pure $ !(resolved c n) :: !(resolved c ns)
 
+HasNames (Int, FC, Name) where
+  full c (i, fc, n) = pure (i, fc, !(full c n))
+  resolved c (i, fc, n) = pure (i, fc, !(resolved c n))
+
 HasNames (Name, Bool) where
   full c (n, b) = pure (!(full c n), b)
   resolved c (n, b) = pure (!(resolved c n), b)
@@ -89,7 +93,9 @@ HasNames e => HasNames (TTCFile e) where
                       namedirectives cgdirectives
                       extra)
       = pure $ MkTTCFile version ifaceHash iHashes
-                         holes guesses constraints
+                         !(traverse (full gam) holes)
+                         !(traverse (full gam) guesses)
+                         constraints
                          context
                          !(traverse (full gam) autoHints)
                          !(traverse (full gam) typeHints)
@@ -128,7 +134,9 @@ HasNames e => HasNames (TTCFile e) where
                       namedirectives cgdirectives
                       extra)
       = pure $ MkTTCFile version ifaceHash iHashes
-                         holes guesses constraints
+                         !(traverse (resolved gam) holes)
+                         !(traverse (resolved gam) guesses)
+                         constraints
                          context
                          !(traverse (resolved gam) autoHints)
                          !(traverse (resolved gam) typeHints)

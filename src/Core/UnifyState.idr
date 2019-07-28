@@ -522,6 +522,11 @@ checkValidHole (idx, (fc, n))
          Just gdef <- lookupCtxtExact (Resolved idx) (gamma defs)
               | Nothing => pure ()
          case definition gdef of
+              BySearch _ _ _ =>
+                  do defs <- get Ctxt
+                     Just ty <- lookupTyExact n (gamma defs)
+                          | Nothing => pure ()
+                     throw (CantSolveGoal fc [] ty)
               Guess tm (con :: _) => 
                   do ust <- get UST
                      let Just c = lookup con (constraints ust)
@@ -550,7 +555,8 @@ checkValidHole (idx, (fc, n))
 -- Bool flag says whether it's an error for there to have been holes left
 -- in the last session. Usually we can leave them to the end, but it's not
 -- valid for there to be holes remaining when checking a LHS.
--- Also throw an error if there are unresolved guarded constants
+-- Also throw an error if there are unresolved guarded constants or
+-- unsolved searches
 export
 checkUserHoles : {auto u : Ref UST UState} ->
                  {auto c : Ref Ctxt Defs} ->
