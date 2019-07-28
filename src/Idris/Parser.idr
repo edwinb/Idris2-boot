@@ -1285,7 +1285,7 @@ import_ fname indents
          pure (MkImport (MkFC fname start end) reexp ns nsAs)
 
 export
-prog : FileName -> Rule Module
+prog : FileName -> EmptyRule Module
 prog fname
     = do start <- location
          nspace <- option ["Main"]
@@ -1293,7 +1293,7 @@ prog fname
                           namespace_)
          end <- location
          imports <- block (import_ fname)
-         ds <- nonEmptyBlock (topDecl fname)
+         ds <- block (topDecl fname)
          pure (MkModule (MkFC fname start end)
                         nspace imports (collectDefs (concat ds)))
 
