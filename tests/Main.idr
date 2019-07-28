@@ -71,10 +71,10 @@ fail err
     = do putStrLn err
          exitWith (ExitFailure 1)
 
-runTest : String -> String -> String -> IO Bool
-runTest dir prog test
-    = do chdir (dir ++ "/" ++ test)
-         putStr $ dir ++ "/" ++ test ++ ": "
+runTest : String -> String -> IO Bool
+runTest prog testPath
+    = do chdir testPath
+         putStr $ testPath ++ ": "
          system $ "sh ./run " ++ prog ++ " | tr -d '\\r' > output"
          Right out <- readFile "output"
                | Left err => do print err
@@ -107,23 +107,39 @@ findChez
             Nothing => firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
                                     x <- ["scheme", "chez", "chezscheme9.5"]]
 
+runChezTests : String -> List String -> IO (List Bool)
+runChezTests prog tests
+    = do chexec <- findChez
+         maybe (do putStrLn "Chez Scheme not found"
+                   pure [])
+               (\c => do putStrLn $ "Found Chez Scheme at " ++ c
+                         traverse (runTest prog) tests)
+               chexec
+
 main : IO ()
 main
-    = do [_, idris2] <- getArgs
-              | _ => do putStrLn "Usage: runtests [ttimp path]"
-         ttimps <- traverse (runTest "ttimp" idris2) ttimpTests
-         idrs <- traverse (runTest "idris2" idris2) idrisTests
-         typedds <- traverse (runTest "typedd-book" idris2) typeddTests
-         chexec <- findChez
-         chezs <- maybe (do putStrLn "Chez Scheme not found"
-                            pure [])
-                        (\c => do putStrLn $ "Found Chez Scheme at " ++ c
-                                  traverse (runTest "chez" idris2) chezTests)
-                        chexec
-         let res = ttimps ++ typedds ++ idrs ++ chezs
+    = do args <- getArgs
+         let (_ :: idris2 :: _) = args
+              | _ => do putStrLn "Usage: runtests <idris2 path> [--only <name>]"
+         let filterTests = case drop 2 args of
+              ("--only" :: onlyName :: _) => filter (\testName => isInfixOf onlyName testName)
+              _ => id
+         let filteredNonCGTests =
+              filterTests $ concat [testPaths "ttimp" ttimpTests,
+                                    testPaths "idris2" idrisTests,
+                                    testPaths "typedd-book" typeddTests]
+         let filteredChezTests = filterTests (testPaths "chez" chezTests)
+         nonCGTestRes <- traverse (runTest idris2) filteredNonCGTests
+         chezTestRes <- if length filteredChezTests > 0
+              then runChezTests idris2 filteredChezTests
+              else pure []
+         let res = nonCGTestRes ++ chezTestRes
          putStrLn (show (length (filter id res)) ++ "/" ++ show (length res) 
                        ++ " tests successful")
          if (any not res)
             then exitWith (ExitFailure 1)
             else exitWith ExitSuccess
+    where
+         testPaths : String -> List String -> List String
+         testPaths dir tests = map (\test => dir ++ "/" ++ test) tests
 
