@@ -55,7 +55,7 @@ clean :
 	rm -rf $(OBJS) $(LIBTARGET) $(DYLIBTARGET) build
 
 test: build test.c
-	$(CC) -o network-tests -L. -I. -l$(LIBNAME) test.c
+	LD_LIBRARY_PATH=. $(CC) -o network-tests -L. -I. -l$(LIBNAME) test.c
 	./network-tests
 	./lib-tests
 
