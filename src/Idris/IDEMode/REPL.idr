@@ -54,7 +54,6 @@ initIDESocketFile h p = do
       putStrLn "Failed to open socket"
       exit 1
     Right sock => do
-      putStrLn (show p)
       res <- bind sock (Just (Hostname h)) p
       if res /= 0
       then
@@ -65,6 +64,7 @@ initIDESocketFile h p = do
         then
           pure (Left ("Failed to listen on socket with error: " ++ show res))
         else do
+          putStrLn (show p)
           res <- accept sock
           case res of
             Left err =>
@@ -232,7 +232,7 @@ loop
                            processCatch cmd
                            loop
                       Nothing =>
-                        do printError "Unrecognised command"
+                        do printError ("Unrecognised command: " ++ show sexp)
                            loop
   where
     updateOutput : Integer -> Core ()

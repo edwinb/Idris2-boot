@@ -53,14 +53,21 @@ updatePaths
               Just path => do traverse addDataDir (map trim (split (==pathSep) path))
                               pure ()
               Nothing => pure ()
-         -- BLODWEN_PATH goes first so that it overrides this if there's
-         -- any conflicts. In particular, that means that setting BLODWEN_PATH
+         blibs <- coreLift $ getEnv "IDRIS2_LIBS"
+         case blibs of
+              Just path => do traverse addLibDir (map trim (split (==pathSep) path))
+                              pure ()
+              Nothing => pure ()
+         -- IDRIS2_PATH goes first so that it overrides this if there's
+         -- any conflicts. In particular, that means that setting IDRIS2_PATH
          -- for the tests means they test the local version not the installed
          -- version
          addPkgDir "prelude"
          addPkgDir "base"
          addDataDir (dir_prefix (dirs (options defs)) ++ dirSep ++
                         "idris2" ++ dirSep ++ "support")
+         addLibDir (dir_prefix (dirs (options defs)) ++ dirSep ++
+                        "idris2" ++ dirSep ++ "lib")
 
 updateREPLOpts : {auto o : Ref ROpts REPLOpts} ->
                  Core ()

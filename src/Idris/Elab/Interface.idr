@@ -303,20 +303,39 @@ elabInterface {vars} fc vis env nest constraints iname params dets mcon body
              dty <- case lookup n tydecls of
                          Just (_, _, t) => pure t
                          Nothing => throw (GenericMsg fc ("No method named " ++ show n ++ " in interface " ++ show iname))
-             log 5 $ "Default method " ++ show dn ++ " : " ++ show dty
                   
              let ity = apply (IVar fc iname) (map (IVar fc) (map fst params))
-             dty_imp <- bindTypeNames vars (bindIFace fc ity dty)
+
+             -- Substitute the method names with their top level function
+             -- name, so they don't get implicitly bound in the name
+             methNameMap <- traverse (\n => 
+                                do cn <- inCurrentNS n
+                                   pure (n, applyParams (IVar fc cn) 
+                                                     (map fst params)))
+                               (map fst tydecls)
+             let dty = substNames vars methNameMap dty
+
+             dty_imp <- bindTypeNames (map fst tydecls ++ vars)
+                                      (bindIFace fc ity dty)
+             log 5 $ "Default method " ++ show dn ++ " : " ++ show dty_imp
              let dtydecl = IClaim fc RigW vis [] (MkImpTy fc dn dty_imp) 
              processDecl [] nest env dtydecl
 
              let cs' = map (changeName dn) cs
+             log 5 $ "Default method body " ++ show cs'
+
              processDecl [] nest env (IDef fc dn cs')
              -- Reset the original context, we don't need to keep the definition
              -- Actually we do for the metadata and name map!
 --              put Ctxt orig
              pure (n, cs)
       where
+        applyParams : RawImp -> List Name -> RawImp
+        applyParams tm [] = tm
+        applyParams tm (UN n :: ns)
+            = applyParams (IImplicitApp fc tm (Just (UN n)) (IBindVar fc n)) ns
+        applyParams tm (_ :: ns) = applyParams tm ns
+
         changeNameTerm : Name -> RawImp -> RawImp
         changeNameTerm dn (IVar fc n')
             = if n == n' then IVar fc dn else IVar fc n'

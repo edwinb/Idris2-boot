@@ -63,6 +63,14 @@ mkNameTags defs tags t (n :: ns)
               => mkNameTags defs (insert n t tags) (t + 1) ns
            _ => mkNameTags defs tags t ns
 
+natHackNames : List Name
+natHackNames
+    = [UN "prim__add_Integer",
+       UN "prim__sub_Integer",
+       UN "prim__mul_Integer",
+       NS ["Prelude"] (UN "natToInteger"),
+       NS ["Prelude"] (UN "integerToNat")]
+
 -- Find all the names which need compiling, from a given expression, and compile
 -- them to CExp form (and update that in the Defs)
 export
@@ -71,7 +79,8 @@ findUsedNames : {auto c : Ref Ctxt Defs} -> Term vars ->
 findUsedNames tm
     = do defs <- get Ctxt
          let ns = getRefs (Resolved (-1)) tm
-         allNs <- getAllDesc (keys ns) empty defs
+         natHackNames' <- traverse toResolvedNames natHackNames
+         allNs <- getAllDesc (natHackNames' ++ keys ns) empty defs
          cns <- traverse toFullNames (keys allNs)
          -- Initialise the type constructor list with explicit names for
          -- the primitives (this is how we look up the tags)

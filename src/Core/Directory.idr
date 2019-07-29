@@ -36,7 +36,7 @@ dropExtension fname
                -- assert that root can't be empty
                reverse (assert_total (strTail root))
     
--- Return the contents of the first file available in the list
+-- Return the name of the first file available in the list
 firstAvailable : List String -> Core (Maybe String)
 firstAvailable [] = pure Nothing
 firstAvailable (f :: fs)
@@ -56,6 +56,21 @@ readDataFile fname
          Right d <- coreLift $ readFile f
             | Left err => throw (FileErr f err)
          pure d
+
+-- Look for a library file required by a code generator. Look in the
+-- library directories, and in the lib/ subdirectoriy of all the 'extra import' 
+-- directories
+export
+findLibraryFile : {auto c : Ref Ctxt Defs} ->
+                  String -> Core String
+findLibraryFile fname
+    = do d <- getDirs
+         let fs = map (\p => p ++ cast sep ++ fname) 
+                      (lib_dirs d ++ map (\x => x ++ cast sep ++ "lib")
+                                         (extra_dirs d))
+         Just f <- firstAvailable fs
+            | Nothing => throw (InternalError ("Can't find library " ++ fname))
+         pure f
 
 -- Given a namespace, return the full path to the checked module, 
 -- looking first in the build directory then in the extra_dirs
