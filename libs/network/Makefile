@@ -14,16 +14,7 @@ else
 	OS      :=unix
 endif
 
-ifeq ($(OS),darwin)
-	SHLIB_SUFFIX    :=.dylib
-	LIBFLAGS        :=-dynamiclib
-else ifeq ($(OS),windows)
-	SHLIB_SUFFIX    :=.DLL
-	LIBFLAGS        :=-shared
-else
-	SHLIB_SUFFIX    :=.so
-	LIBFLAGS        :=-shared
-endif
+SHLIB_SUFFIX    :=.so
 
 LIBNAME=idris_net
 OBJS = $(LIBNAME).o
@@ -35,7 +26,7 @@ ifneq ($(OS), windows)
 	CFLAGS += -fPIC
 endif
 
-DYLIBTARGET = lib$(LIBNAME)$(SHLIB_SUFFIX)
+DYLIBTARGET = $(LIBNAME)$(SHLIB_SUFFIX)
 LIBTARGET = $(LIBNAME).a
 TARGET=${HOME}/.idris2
 
@@ -48,16 +39,19 @@ $(DYLIBTARGET) : $(OBJS)
 	$(CC) -o $(DYLIBTARGET) $(LIBFLAGS) -shared $(OBJS)
 
 install:
+	@if [ -z "${IDRIS2}" ]; then echo 'variable $$IDRIS2 is not set, aborting'; exit 1; fi
 	${IDRIS2} --install network.ipkg
-	install $(DYLIBTARGET) $(HDRS) $(TARGET)/idris2/network
+	@if ! [ -d $(TARGET)/idris2/network/lib ]; then mkdir $(TARGET)/idris2/network/lib; fi
+	install $(DYLIBTARGET) $(HDRS) $(TARGET)/idris2/network/lib
 
 clean :
 	rm -rf $(OBJS) $(LIBTARGET) $(DYLIBTARGET) build
 
 test: build test.c
+	cp $(DYLIBTARGET) lib$(DYLIBTARGET) # to make C linker happy
 	$(CC) -o network-tests -L. -I. -l$(LIBNAME) test.c
 	LD_LIBRARY_PATH=. ./network-tests
-	LD_LIBRARY_PATH=. ./lib-tests
+	./lib-tests
 
 $(OBJS): $(HDRS)
 
