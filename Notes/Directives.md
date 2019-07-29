@@ -99,3 +99,37 @@ the elaborator is working on, up to `5` gives you more specific details of
 each stage of the elaboration, and up to `10` gives you full details of
 type checking including progress on unification problems
 
+## Code Generator Directives
+
+### %cg
+
+#### Backend code injection
+
+Syntax:
+* `%cg <backend> <single-line instruction>`
+* `%cg <backend> { <multi-line instructions> }`
+
+Injects the given instructions directly into the generated code for
+the given backend.
+
+#### Dynamic library loading
+
+Syntax: `%cg <backend> lib<library_name>`
+
+Instructs the given `<backend>` to load given external library at
+runtime, eg. using dynamic library loader. The compiler looks for a
+file called  `library_name` in the following directories and generates
+corresponding file-loading code:
+
+* current directory `.`
+* directories listed in the `IDRIS2_LIBS` environment variable, if
+  set
+* directories `lib/` in each package the code depends on (`base` and
+  `prelude` are automatically added). Loads library as absolute path name of _first matchine file_
+  found.
+* directory `lib/` in the Idris2 installation path (usually
+  `~/.idris2/idris2`).
+
+Note the file is loaded referencing an absolute path of the first
+matching file found, except when it's the current directory in which
+case the file is simply referenced as `./library_name`
