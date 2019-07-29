@@ -300,10 +300,12 @@ elabInterface {vars} fc vis env nest constraints iname params dets mcon body
              let dn_in = UN ("Default implementation of " ++ show n)
              dn <- inCurrentNS dn_in
 
-             dty <- case lookup n tydecls of
-                         Just (_, _, t) => pure t
-                         Nothing => throw (GenericMsg fc ("No method named " ++ show n ++ " in interface " ++ show iname))
-                  
+             (rig, dty) <- 
+                   the (Core (RigCount, RawImp)) $
+                       case lookup n tydecls of
+                          Just (r, (_, t)) => pure (r, t)
+                          Nothing => throw (GenericMsg fc ("No method named " ++ show n ++ " in interface " ++ show iname))
+
              let ity = apply (IVar fc iname) (map (IVar fc) (map fst params))
 
              -- Substitute the method names with their top level function
@@ -318,7 +320,7 @@ elabInterface {vars} fc vis env nest constraints iname params dets mcon body
              dty_imp <- bindTypeNames (map fst tydecls ++ vars)
                                       (bindIFace fc ity dty)
              log 5 $ "Default method " ++ show dn ++ " : " ++ show dty_imp
-             let dtydecl = IClaim fc RigW vis [] (MkImpTy fc dn dty_imp) 
+             let dtydecl = IClaim fc rig vis [] (MkImpTy fc dn dty_imp) 
              processDecl [] nest env dtydecl
 
              let cs' = map (changeName dn) cs
