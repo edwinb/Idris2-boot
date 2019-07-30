@@ -112,11 +112,17 @@ Syntax:
 Injects the given instructions directly into the generated code for
 the given backend.
 
+Currently known backends are: `chez`, `chicken` and `racket`.
+
+## Backend Specific Directives
+
+### Chez
+
 #### Dynamic library loading
 
-Syntax: `%cg <backend> lib<library_name>`
+Syntax: `%cg chez lib<library_name>`
 
-Instructs the given `<backend>` to load given external library at
+Instructs chez to load given external library at
 runtime, eg. using dynamic library loader. The compiler looks for a
 file called  `library_name` in the following directories and generates
 corresponding file-loading code:
