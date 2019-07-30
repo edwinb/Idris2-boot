@@ -48,7 +48,8 @@ idrisTests
        "perror006",
        "record001", "record002",
        "total001", "total002", "total003", "total004", "total005",
-       "total006"]
+       "total006",
+       "with001"]
 
 typeddTests : List String
 typeddTests
