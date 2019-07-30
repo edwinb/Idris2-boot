@@ -1,6 +1,7 @@
-$1 --ide-mode-socket 0.0.0.0:34567 > /dev/null &
+$1 --no-prelude --ide-mode-socket 0.0.0.0:34567 Empty.idr > /dev/null &
 sleep 2
-nc localhost 34567 < input
+
+nc -G 5 127.0.0.1 34567 < input
 
 kill %1
 rm -rf build

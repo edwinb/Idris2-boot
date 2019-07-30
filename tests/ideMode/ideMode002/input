@@ -1,1 +1,1 @@
-00001e((:load-file "LocType.idr") 1)
+00001b((:load-file "Vect.idr") 1)
