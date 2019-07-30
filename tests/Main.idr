@@ -5,7 +5,7 @@ import System
 %default covering
 
 ttimpTests : List String
-ttimpTests 
+ttimpTests
     = ["basic001", "basic002", "basic003", "basic004", "basic005",
        "basic006",
        "coverage001", "coverage002",
@@ -28,7 +28,7 @@ idrisTests
        "basic011", "basic012", "basic013", "basic014", "basic015",
        "basic016", "basic017", "basic018", "basic019", "basic020",
        "basic021", "basic022", "basic023", "basic024", "basic025",
-       "basic026", "basic027",
+       "basic026", "basic027", "basic028",
        "coverage001", "coverage002", "coverage003", "coverage004",
        "error001", "error002", "error003", "error004", "error005",
        "error006", "error007", "error008", "error009", "error010",
@@ -59,16 +59,16 @@ typeddTests
 
 chezTests : List String
 chezTests
-   = ["chez001", "chez002", "chez003", "chez004", 
+   = ["chez001", "chez002", "chez003", "chez004",
       "chez005", "chez006", "chez007"]
 
 chdir : String -> IO Bool
-chdir dir 
+chdir dir
     = do ok <- foreign FFI_C "chdir" (String -> IO Int) dir
          pure (ok == 0)
 
 fail : String -> IO ()
-fail err 
+fail err
     = do putStrLn err
          exitWith (ExitFailure 1)
 
@@ -135,7 +135,7 @@ main
               then runChezTests idris2 filteredChezTests
               else pure []
          let res = nonCGTestRes ++ chezTestRes
-         putStrLn (show (length (filter id res)) ++ "/" ++ show (length res) 
+         putStrLn (show (length (filter id res)) ++ "/" ++ show (length res)
                        ++ " tests successful")
          if (any not res)
             then exitWith (ExitFailure 1)
@@ -143,4 +143,3 @@ main
     where
          testPaths : String -> List String -> List String
          testPaths dir tests = map (\test => dir ++ "/" ++ test) tests
-
