@@ -49,7 +49,7 @@ clean :
 
 test: build test.c
 	cp $(DYLIBTARGET) lib$(DYLIBTARGET) # to make C linker happy
-	$(CC) -o network-tests -L. -I. -l$(LIBNAME) test.c
+	$(CC) -o network-tests -L. -I. test.c -l$(LIBNAME)
 	LD_LIBRARY_PATH=. ./network-tests
 	./lib-tests
 
