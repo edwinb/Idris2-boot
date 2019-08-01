@@ -109,8 +109,8 @@ Syntax:
 * `%cg <backend> <single-line instruction>`
 * `%cg <backend> { <multi-line instructions> }`
 
-Injects the given instructions directly into the generated code for
-the given backend.
+The given instructions are passed directly to the code generator, to be
+interpreted in a backend-specific way.
 
 Currently known backends are: `chez`, `chicken` and `racket`.
 
@@ -139,3 +139,9 @@ corresponding file-loading code:
 Note the file is loaded referencing an absolute path of the first
 matching file found, except when it's the current directory in which
 case the file is simply referenced as `./library_name`
+
+### Chicken
+
+The directive should be scheme code which is inserted directly into the generated
+code. This can be used, for example, to import external libraries, e.g.
+`%cg chicken (use posix)`.
