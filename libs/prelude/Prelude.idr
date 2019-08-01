@@ -861,7 +861,7 @@ strUncons : String -> Maybe (Char, String)
 strUncons "" = Nothing
 strUncons str = Just (prim__strHead str, prim__strTail str)
 
-export
+public export
 pack : List Char -> String
 pack [] = ""
 pack (x :: xs) = strCons x (pack xs)
@@ -875,7 +875,7 @@ fastPack xs
     toFArgs [] = []
     toFArgs (x :: xs) = x :: toFArgs xs
 
-export
+public export
 unpack : String -> List Char
 unpack str = unpack' 0 (prim__cast_IntegerInt (natToInteger (length str))) str
   where
