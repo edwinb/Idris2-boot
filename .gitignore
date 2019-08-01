@@ -6,6 +6,8 @@
 idris2
 runtests
 
+docs/_build/
+
 libs/**/build
 tests/**/output
 
