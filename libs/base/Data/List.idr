@@ -40,10 +40,27 @@ dropWhile p (x::xs) = if p x then dropWhile p xs else x::xs
 public export
 filter : (p : a -> Bool) -> List a -> List a
 filter p [] = []
-filter p (x :: xs) 
+filter p (x :: xs)
    = if p x
         then x :: filter p xs
         else filter p xs
+
+||| Find associated information in a list using a custom comparison.
+public export
+lookupBy : (a -> a -> Bool) -> a -> List (a, b) -> Maybe b
+lookupBy p e []      = Nothing
+lookupBy p e (x::xs) =
+  let (l, r) = x in
+    if p e l then
+      Just r
+    else
+      lookupBy p e xs
+
+||| Find associated information in a list using Boolean equality.
+public export
+lookup : Eq a => a -> List (a, b) -> Maybe b
+lookup = lookupBy (==)
+
 
 public export
 span : (a -> Bool) -> List a -> (List a, List a)
@@ -70,7 +87,7 @@ public export
 splitAt : (n : Nat) -> (xs : List a) -> (List a, List a)
 splitAt Z xs = ([], xs)
 splitAt (S k) [] = ([], [])
-splitAt (S k) (x :: xs) 
+splitAt (S k) (x :: xs)
       = let (tk, dr) = splitAt k xs in
             (x :: tk, dr)
 
@@ -114,6 +131,22 @@ Uninhabited (NonEmpty []) where
 export
 toList : Foldable t => t a -> List a
 toList = foldr (::) []
+
+||| Insert some separator between the elements of a list.
+|||
+||| ````idris example
+||| with List (intersperse ',' ['a', 'b', 'c', 'd', 'e'])
+||| ````
+|||
+export
+intersperse : a -> List a -> List a
+intersperse sep []      = []
+intersperse sep (x::xs) = x :: intersperse' sep xs
+  where
+    intersperse' : a -> List a -> List a
+    intersperse' sep []      = []
+    intersperse' sep (y::ys) = sep :: y :: intersperse' sep ys
+
 
 --------------------------------------------------------------------------------
 -- Sorting
@@ -181,17 +214,17 @@ Uninhabited ([] = Prelude.(::) x xs) where
 export
 Uninhabited (Prelude.(::) x xs = []) where
   uninhabited Refl impossible
--- 
+--
 -- ||| (::) is injective
 -- consInjective : {x : a} -> {xs : List a} -> {y : b} -> {ys : List b} ->
 --                 (x :: xs) = (y :: ys) -> (x = y, xs = ys)
 -- consInjective Refl = (Refl, Refl)
--- 
+--
 -- ||| Two lists are equal, if their heads are equal and their tails are equal.
 -- consCong2 : {x : a} -> {xs : List a} -> {y : b} -> {ys : List b} ->
 --             x = y -> xs = ys -> x :: xs = y :: ys
 -- consCong2 Refl Refl = Refl
--- 
+--
 -- ||| Appending pairwise equal lists gives equal lists
 -- appendCong2 : {x1 : List a} -> {x2 : List a} ->
 --               {y1 : List b} -> {y2 : List b} ->
@@ -203,13 +236,13 @@ Uninhabited (Prelude.(::) x xs = []) where
 --   consCong2
 --     (fst $ consInjective eq1)
 --     (appendCong2 (snd $ consInjective eq1) eq2)
--- 
+--
 -- ||| List.map is distributive over appending.
 -- mapAppendDistributive : (f : a -> b) -> (x : List a) -> (y : List a) ->
 --                         map f (x ++ y) = map f x ++ map f y
 -- mapAppendDistributive _ [] _ = Refl
 -- mapAppendDistributive f (_ :: xs) y = cong $ mapAppendDistributive f xs y
--- 
+--
 ||| The empty list is a right identity for append.
 export
 appendNilRightNeutral : (l : List a) ->

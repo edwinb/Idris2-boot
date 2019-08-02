@@ -126,9 +126,11 @@ stMain opts
 
                  u <- newRef UST initUState
                  updateREPLOpts
+                 session <- getSession
                  case fname of
                       Nothing => logTime "Loading prelude" $
-                                   readPrelude
+                                   when (not $ noprelude session) $
+                                     readPrelude
                       Just f => logTime "Loading main file" $
                                    loadMainFile f
 

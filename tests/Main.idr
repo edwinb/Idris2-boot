@@ -28,7 +28,7 @@ idrisTests
        "basic011", "basic012", "basic013", "basic014", "basic015",
        "basic016", "basic017", "basic018", "basic019", "basic020",
        "basic021", "basic022", "basic023", "basic024", "basic025",
-       "basic026", "basic027",
+       "basic026", "basic027", "basic028",
        "coverage001", "coverage002", "coverage003", "coverage004",
        "error001", "error002", "error003", "error004", "error005",
        "error006", "error007", "error008", "error009", "error010",
@@ -43,12 +43,13 @@ idrisTests
        "lazy001",
        "linear001", "linear002", "linear003", "linear004", "linear005",
        "linear006", "linear007",
-       "perf001",
+       "perf001", "perf002",
        "perror001", "perror002", "perror003", "perror004", "perror005",
        "perror006",
        "record001", "record002",
        "total001", "total002", "total003", "total004", "total005",
-       "total006"]
+       "total006",
+       "with001"]
 
 typeddTests : List String
 typeddTests

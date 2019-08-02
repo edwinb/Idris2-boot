@@ -188,8 +188,9 @@ checkLet rigc_in elabinfo nest env fc rigl n nTy nVal scope expty
             inScope fc env' (\e' => 
               check {e=e'} rigc elabinfo nest' env' scope expScope)
          scopet <- getTerm gscopet
-         checkExp rigc elabinfo env fc
-                  (Bind fc n (Let rigb valv tyv) scopev)
-                  (gnf env (Bind fc n (Let rigb valv tyv) scopet))
-                  expty
 
+         -- No need to 'checkExp' here - we've already checked scopet
+         -- against the expected type when checking the scope, so just
+         -- build the term directly
+         pure (Bind fc n (Let rigb valv tyv) scopev,
+               gnf env (Bind fc n (Let rigb valv tyv) scopet))

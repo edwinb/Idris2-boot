@@ -85,8 +85,8 @@ export
 strengthen : Fin (S n) -> Either (Fin (S n)) (Fin n)
 strengthen {n = S k} FZ = Right FZ
 strengthen {n = S k} (FS i) with (strengthen i)
-  strengthen (FS k) | Left x   = Left (FS x)
-  strengthen (FS k) | Right x  = Right (FS x)
+  strengthen (FS i) | Left x   = Left (FS x)
+  strengthen (FS i) | Right x  = Right (FS x)
 strengthen f = Left f
 
 ||| Add some natural number to a Fin, extending the bound accordingly

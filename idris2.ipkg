@@ -111,6 +111,7 @@ modules =
     TTImp.TTImp,
     TTImp.Unelab,
     TTImp.Utils,
+    TTImp.WithClause,
 
     Utils.Binary,
     Utils.Shunting,
