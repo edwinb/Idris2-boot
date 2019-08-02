@@ -1,3 +1,0 @@
-000018(:protocol-version 2 0)
-000032(:write-string "1/1: Building Vect (Vect.idr)" 1)
-000027(:return (:ok "Loaded Vect.idr" ()) 1)
