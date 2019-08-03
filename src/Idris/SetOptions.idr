@@ -56,8 +56,13 @@ postOptions : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               {auto s : Ref Syn SyntaxInfo} ->
               {auto m : Ref MD Metadata} ->
+              {auto o : Ref ROpts REPLOpts} ->
               List CLOpt -> Core Bool
 postOptions [] = pure True
+postOptions (OutputFile outfile :: rest)
+    = do compileExp (PRef (MkFC "(script)" (0, 0) (0, 0)) (UN "main")) outfile
+         postOptions rest
+         pure False
 postOptions (ExecFn str :: rest) 
     = do execExp (PRef (MkFC "(script)" (0, 0) (0, 0)) (UN str))
          postOptions rest
