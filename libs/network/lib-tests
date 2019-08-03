@@ -4,6 +4,7 @@ ${IDRIS2} --exec main Echo.idr > build/output
 
 if ! [ -z "$(diff build/output expected)" ]; then
    echo "TEST FAILURE: unexpected build/output"
+   cat build/output
    exit 2
 else
   echo "TEST SUCCESS"
