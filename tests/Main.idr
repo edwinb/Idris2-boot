@@ -83,9 +83,15 @@ runTest prog testPath
          Right exp <- readFile "expected"
                | Left err => do print err
                                 pure False
+
          if (out == exp)
             then putStrLn "success"
-            else putStrLn "FAILURE"
+            else do
+              putStrLn "FAILURE"
+              putStrLn "Expected:"
+              printLn exp
+              putStrLn "Given:"
+              printLn out
          chdir "../.."
          pure (out == exp)
 
