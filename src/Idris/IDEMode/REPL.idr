@@ -118,6 +118,7 @@ hex 'e' = Just 14
 hex 'f' = Just 15
 hex _ = Nothing
 
+export
 toHex : Int -> List Char -> Maybe Int
 toHex _ [] = Just 0
 toHex m (d :: ds)
