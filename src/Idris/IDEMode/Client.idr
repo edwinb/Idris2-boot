@@ -5,6 +5,8 @@ import System
 import Idris.IDEMode.Commands
 import Idris.IDEMode.Parser
 import Idris.Socket
+import Idris.Syntax
+import Idris.REPL
 import Idris.Socket.Data
 import Idris.IDEMode.REPL
 import Parser.Support
@@ -68,27 +70,74 @@ readOutput sock = do
       Right (msg, _) <- recv sock num | Left err => pure (Left $ "failed to read from socket, error: " ++ show err)
       pure $ either (Left . show) Right $ parseSExp msg
 
-readResult: Socket -> IO ()
-readResult sock = do
-  Right output <- readOutput sock | Left err => putStrLn err
-  case output of
-    SExpList (SymbolAtom "return" :: rest) => putStrLn $ show (SExpList rest)
-    res => do
-      putStrLn (show res)
-      readResult sock
+data IDEResult : Type where
+  IDEReturn : List SExp -> IDEResult
+  NetworkError : String -> IDEResult
+  InputError : String -> IDEResult
+  OutputError : String -> IDEResult
 
-client : String -> Int -> IDECommand -> IO ()
-client host port command = do
-  cnx<- connectTo host port
-  case cnx of
-    Left fail => do
-      putStrLn fail
-    Right sock => do
+implementation Show IDEResult where
+  show (IDEReturn exprs) = unlines $ map show exprs
+  show (NetworkError reason) = reason
+  show (InputError reason) = reason
+  show (OutputError reason) = reason
+
+
+readResult: Socket -> List SExp -> IO IDEResult
+readResult sock outputs = do
+  Right output <- readOutput sock | Left err => pure (OutputError err)
+  case output of
+    SExpList (SymbolAtom "return" :: rest) => pure (IDEReturn (SExpList rest :: outputs))
+    res => do
+      readResult sock (res :: outputs)
+
+execute : Socket -> IDECommand -> IO IDEResult
+execute cnx command = do
       let cmdString = serialize command
       case cmdString of
         Just cmd => do
-          Right sent <- send sock cmd
-            | Left err =>putStrLn ("Failed to connect to :" ++ host ++ ":" ++ show port ++", " ++ show err)
-          readResult sock
-          close sock
-        Nothing => putStrLn "Command is too long"
+          Right sent <- send cnx cmd
+            | Left err => pure (NetworkError ("Failed to send command, error: " ++ show err))
+          readResult cnx []
+        Nothing => pure $ InputError "Command is too long"
+
+connect : String -> Int -> IO Socket
+connect host port = do
+  Right sock <- connectTo host port
+    | Left fail => do
+      putStrLn $ "fail to connect to " ++ host ++ ":" ++ show port ++", error: " ++ fail
+      exit 1
+  pure sock
+
+makeIDECommand : REPLCmd -> Either String IDECommand
+makeIDECommand (Eval term)            = Right $ Interpret (show term)
+makeIDECommand (Check term)           = Right $ TypeOf (show term) Nothing
+makeIDECommand (Load file)            = Right $ LoadFile file Nothing
+makeIDECommand (Editing (TypeAt line col name)) = Right $ TypeOf (show name) (Just (cast line, cast col))
+makeIDECommand other                  = Left "Don't know how to interpret command"
+
+parseCommand : String -> Either String IDECommand
+parseCommand = either (Left . show) makeIDECommand . parseRepl
+
+repl : Socket -> IO ()
+repl cnx
+    = do putStr prompt
+         Right input <- map parseCommand getLine
+           | Left err => do
+                  putStrLn err
+                  repl cnx
+         end <- fEOF stdin
+         if end
+            then putStrLn "Bye!"
+            else do
+              result <- execute cnx input
+              putStrLn $ show result
+              repl cnx
+
+  where
+    prompt : String
+    prompt = "λ> "
+
+export
+client : String -> Int -> IO ()
+client host port = connect host port  >>= repl
