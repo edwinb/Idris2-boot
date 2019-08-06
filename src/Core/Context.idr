@@ -763,6 +763,26 @@ clearUserHole n
     = do defs <- get Ctxt
          put Ctxt (record { userHoles $= delete n } defs)
 
+export
+getUserHoles : {auto c : Ref Ctxt Defs} ->
+               Core (List Name)
+getUserHoles
+    = do defs <- get Ctxt
+         let hs = sort (keys (userHoles defs))
+         filterM (isHole defs) hs
+  where
+    -- If a hole is declared in one file and defined in another, its
+    -- name won't have been cleared unless we've already looked up its
+    -- definition (as addDef needs to be called to clear it). So here
+    -- check that it's really a hole
+    isHole : Defs -> Name -> Core Bool
+    isHole defs n
+        = do Just def <- lookupCtxtExact n (gamma defs)
+                  | Nothing => pure True
+             case definition def of
+                  None => pure True
+                  Hole _ _ => pure True
+                  _ => pure False
 
 export
 addDef : {auto c : Ref Ctxt Defs} -> 
@@ -770,10 +790,11 @@ addDef : {auto c : Ref Ctxt Defs} ->
 addDef n def
     = do defs <- get Ctxt
          (idx, gam') <- addCtxt n def (gamma defs)
-         case definition def of
-              PMDef _ _ _ _ _ => clearUserHole n
-              _ => pure ()
          put Ctxt (record { gamma = gam' } defs)
+         case definition def of
+              None => pure ()
+              Hole _ _ => pure ()
+              _ => clearUserHole (fullname def)
          pure idx
 
 export

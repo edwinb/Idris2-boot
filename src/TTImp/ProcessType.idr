@@ -83,7 +83,8 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
                    then do defs <- get Ctxt
                            a <- getArity defs env ty
                            pure (ExternDef a)
-                   else pure None
+                   else do addUserHole n
+                           pure None
 
          addDef (Resolved idx) (newDef fc n rig vars (abstractEnvType tfc env ty) vis def)
          -- Flag it as checked, because we're going to check the clauses 
