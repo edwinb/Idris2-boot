@@ -14,6 +14,7 @@ beyond work on the language core, are (in no particular order):
   - `:search` and `:apropos`
   - help commands
   - code colouring
+  - it'd be nice if Ctrl-C didn't quit the whole system!
 * IDE mode improvements
   - Syntax highlighting support for output 
   - Several functions from the version 1 IDE protocol are not yet implemented,

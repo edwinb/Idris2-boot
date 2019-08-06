@@ -544,23 +544,17 @@ mutual
   quoteGenNF q defs bound env (NDelayed fc r arg)
       = do argQ <- quoteGenNF q defs bound env arg
            pure (TDelayed fc r argQ)
-  quoteGenNF q defs bound env (NDelay fc LInf ty arg)
+  quoteGenNF q defs bound env (NDelay fc r ty arg)
       = do argNF <- evalClosure defs (toHolesOnly arg)
            argQ <- quoteGenNF q defs bound env argNF
            tyNF <- evalClosure defs (toHolesOnly ty)
            tyQ <- quoteGenNF q defs bound env tyNF
-           pure (TDelay fc LInf tyQ argQ)
+           pure (TDelay fc r tyQ argQ)
     where
       toHolesOnly : Closure vs -> Closure vs
       toHolesOnly (MkClosure _ locs env tm) 
           = MkClosure withArgHoles locs env tm
       toHolesOnly c = c
-  quoteGenNF q defs bound env (NDelay fc r ty arg) 
-      = do argNF <- evalClosure defs arg
-           argQ <- quoteGenNF q defs bound env argNF
-           tyNF <- evalClosure defs ty
-           tyQ <- quoteGenNF q defs bound env tyNF
-           pure (TDelay fc r tyQ argQ)
   quoteGenNF q defs bound env (NForce fc arg args) 
       = do args' <- quoteArgs q defs bound env args 
            case arg of
