@@ -119,7 +119,7 @@ getNames add ns sc = getSet ns sc
   where
     mutual
       getAltSet : NameMap Bool -> CaseAlt vs -> NameMap Bool
-      getAltSet ns (ConCase n t args sc) = getSet (insert n False ns) sc
+      getAltSet ns (ConCase n t args sc) = getSet ns sc
       getAltSet ns (DelayCase t a sc) = getSet ns sc
       getAltSet ns (ConstCase i sc) = getSet ns sc
       getAltSet ns (DefaultCase sc) = getSet ns sc

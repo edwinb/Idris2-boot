@@ -292,8 +292,23 @@ addGlobalDef : {auto c : Ref Ctxt Defs} ->
                (modns : List String) -> (importAs : Maybe (List String)) ->
                (Name, Binary) -> Core ()
 addGlobalDef modns as (n, def)
-    = do addContextEntry (asName modns as n) def
-         pure ()
+    = do defs <- get Ctxt
+         entry <- lookupCtxtExact n (gamma defs)
+         if completeDef entry
+            then pure ()
+            else do addContextEntry (asName modns as n) def
+                    pure ()
+  where
+    -- If the definition already exists, don't overwrite it with an empty
+    -- definition or hole. This might happen if a function is declared in one
+    -- module and defined in another.
+    completeDef : Maybe GlobalDef -> Bool
+    completeDef Nothing = False
+    completeDef (Just def)
+        = case definition def of
+               None => False
+               Hole _ _ => False
+               _ => True
 
 addTypeHint : {auto c : Ref Ctxt Defs} ->
               FC -> (Name, Name, Bool) -> Core ()

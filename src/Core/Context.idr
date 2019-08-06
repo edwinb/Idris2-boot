@@ -913,7 +913,7 @@ addToSave : {auto c : Ref Ctxt Defs} ->
           Name -> Core ()
 addToSave n
   = do defs <- get Ctxt
-       put Ctxt (record { toSave $= insert n () } defs)
+       put Ctxt (record { toSave $= insert !(full (gamma defs) n) () } defs)
 
 -- Specific lookup functions
 export
