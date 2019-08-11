@@ -551,6 +551,8 @@ process (Editing cmd)
 process Quit 
     = do iputStrLn "Bye for now!"
          pure False
+process NOP
+    = pure True
 
 processCatch : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
@@ -619,7 +621,10 @@ repl
          inp <- coreLift getLine
          end <- coreLift $ fEOF stdin
          if end
-            then iputStrLn "Bye for now!"
+            then do
+                    -- start a new line in REPL mode (not relevant in IDE mode)
+                    coreLift $ putStrLn ""
+                    iputStrLn "Bye for now!"
             else if !(interpret inp)
                     then repl
                     else pure ()
