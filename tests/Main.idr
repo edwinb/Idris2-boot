@@ -47,6 +47,7 @@ idrisTests
        "perror001", "perror002", "perror003", "perror004", "perror005",
        "perror006",
        "record001", "record002",
+       "reg001",
        "total001", "total002", "total003", "total004", "total005",
        "total006",
        "with001"]
