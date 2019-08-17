@@ -277,6 +277,7 @@ data REPLCmd : Type where
      Missing : Name -> REPLCmd
      Total : Name -> REPLCmd
      SetLog : Nat -> REPLCmd
+     Metavars : REPLCmd
      Editing : EditCmd -> REPLCmd
      Quit : REPLCmd
 

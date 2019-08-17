@@ -1438,6 +1438,8 @@ command
   <|> do symbol ":"; replCmd ["log", "logging"]
          i <- intLit
          pure (SetLog (fromInteger i))
+  <|> do symbol ":"; replCmd ["m", "metavars"]
+         pure Metavars
   <|> do symbol ":"; cmd <- editCmd
          pure (Editing cmd)
   <|> do tm <- expr pdef "(interactive)" init

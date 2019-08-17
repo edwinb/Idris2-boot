@@ -531,6 +531,14 @@ process (SetLog lvl)
     = do setLogLevel lvl
          iputStrLn $ "Log level to set " ++ show lvl
          pure True
+process Metavars
+    = do ms <- getUserHoles
+         case ms of
+              [] => iputStrLn $ "No holes"
+              [x] => iputStrLn $ "1 hole: " ++ show x
+              xs => iputStrLn $ show (length xs) ++ " holes: " ++
+                                showSep ", " (map show xs)
+         pure True
 process (Editing cmd)
     = do ppopts <- getPPrint
          -- Since we're working in a local environment, don't do the usual

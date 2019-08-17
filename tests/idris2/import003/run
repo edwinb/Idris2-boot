@@ -1,0 +1,4 @@
+$1 B.idr < input
+$1 C.idr < input
+
+rm -rf build

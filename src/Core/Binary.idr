@@ -27,7 +27,7 @@ import Data.Buffer
 -- TTC files can only be compatible if the version number is the same
 export
 ttcVersion : Int
-ttcVersion = 5
+ttcVersion = 6
 
 export
 checkTTCVersion : Int -> Int -> Core ()
@@ -47,6 +47,7 @@ record TTCFile extra where
   guesses : List (Int, (FC, Name))
   constraints : List (Int, Constraint)
   context : List (Name, Binary)
+  userHoles : List Name
   autoHints : List (Name, Bool)
   typeHints : List (Name, Name, Bool)
   imported : List (List String, Bool, List String)
@@ -86,7 +87,7 @@ HasNames (Name, Name, Bool) where
 HasNames e => HasNames (TTCFile e) where
   full gam (MkTTCFile version ifaceHash iHashes
                       holes guesses constraints
-                      context 
+                      context userHoles
                       autoHints typeHints
                       imported nextVar currentNS nestedNS
                       pairnames rewritenames primnames
@@ -96,7 +97,7 @@ HasNames e => HasNames (TTCFile e) where
                          !(traverse (full gam) holes)
                          !(traverse (full gam) guesses)
                          constraints
-                         context
+                         context userHoles
                          !(traverse (full gam) autoHints)
                          !(traverse (full gam) typeHints)
                          imported nextVar currentNS nestedNS
@@ -127,7 +128,7 @@ HasNames e => HasNames (TTCFile e) where
   -- are supposed to be! But for completeness, let's do it right.
   resolved gam (MkTTCFile version ifaceHash iHashes
                       holes guesses constraints
-                      context 
+                      context userHoles
                       autoHints typeHints
                       imported nextVar currentNS nestedNS
                       pairnames rewritenames primnames
@@ -137,7 +138,7 @@ HasNames e => HasNames (TTCFile e) where
                          !(traverse (resolved gam) holes)
                          !(traverse (resolved gam) guesses)
                          constraints
-                         context
+                         context userHoles
                          !(traverse (resolved gam) autoHints)
                          !(traverse (resolved gam) typeHints)
                          imported nextVar currentNS nestedNS
@@ -185,6 +186,7 @@ writeTTCFile b file_in
 --            toBuf b (guesses file)
 --            toBuf b (constraints file)
            toBuf b (context file)
+           toBuf b (userHoles file)
            toBuf b (autoHints file)
            toBuf b (typeHints file)
            toBuf b (imported file)
@@ -216,6 +218,7 @@ readTTCFile modns as b
 --            constraints <- the (Core (List (Int, Constraint))) $ fromBuf b
 --            coreLift $ putStrLn $ "Read " ++ show (length constraints) ++ " constraints"
            defs <- logTime "Definitions" $ fromBuf b
+           uholes <- fromBuf b
            autohs <- fromBuf b
            typehs <- fromBuf b
 --            coreLift $ putStrLn ("Hints: " ++ show typehs)
@@ -231,7 +234,7 @@ readTTCFile modns as b
            cgds <- fromBuf b
            ex <- fromBuf b
            pure (MkTTCFile ver ifaceHash importHashes
-                           [] [] [] defs -- holes guesses constraints defs 
+                           [] [] [] defs uholes -- holes guesses constraints defs 
                            autohs typehs imp nextv cns nns
                            pns rws prims nds cgds ex)
 
@@ -268,6 +271,7 @@ writeToTTC extradata fname
                               (toList (guesses ust)) 
                               (toList (constraints ust))
                               gdefs
+                              (keys (userHoles defs))
                               (saveAutoHints defs)
                               (saveTypeHints defs)
                               (imported defs)
@@ -288,8 +292,23 @@ addGlobalDef : {auto c : Ref Ctxt Defs} ->
                (modns : List String) -> (importAs : Maybe (List String)) ->
                (Name, Binary) -> Core ()
 addGlobalDef modns as (n, def)
-    = do addContextEntry (asName modns as n) def
-         pure ()
+    = do defs <- get Ctxt
+         entry <- lookupCtxtExact n (gamma defs)
+         if completeDef entry
+            then pure ()
+            else do addContextEntry (asName modns as n) def
+                    pure ()
+  where
+    -- If the definition already exists, don't overwrite it with an empty
+    -- definition or hole. This might happen if a function is declared in one
+    -- module and defined in another.
+    completeDef : Maybe GlobalDef -> Bool
+    completeDef Nothing = False
+    completeDef (Just def)
+        = case definition def of
+               None => False
+               Hole _ _ => False
+               _ => True
 
 addTypeHint : {auto c : Ref Ctxt Defs} ->
               FC -> (Name, Name, Bool) -> Core ()
@@ -376,6 +395,7 @@ readFromTTC loc reexp fname modNS importAs
                      else Just importAs
          ttc <- readTTCFile modNS as bin
          logTime "Adding defs" $ traverse (addGlobalDef modNS as) (context ttc)
+         traverse_ addUserHole (userHoles ttc)
          setNS (currentNS ttc)
          setNestedNS (nestedNS ttc)
          -- Set up typeHints and autoHints based on the loaded data

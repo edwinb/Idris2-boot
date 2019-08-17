@@ -32,7 +32,7 @@ idrisTests
        "coverage001", "coverage002", "coverage003", "coverage004",
        "error001", "error002", "error003", "error004", "error005",
        "error006", "error007", "error008", "error009", "error010",
-       "import001", "import002",
+       "import001", "import002", "import003",
        "interactive001", "interactive002", "interactive003", "interactive004",
        "interactive005", "interactive006", "interactive007", "interactive008",
        "interactive009", "interactive010", "interactive011", "interactive012",
@@ -47,6 +47,7 @@ idrisTests
        "perror001", "perror002", "perror003", "perror004", "perror005",
        "perror006",
        "record001", "record002",
+       "reg001",
        "total001", "total002", "total003", "total004", "total005",
        "total006",
        "with001"]
