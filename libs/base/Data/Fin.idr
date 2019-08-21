@@ -135,7 +135,7 @@ integerToFin x n = if x >= 0 then natToFin (fromInteger x) n else Nothing
 ||| Allow overloading of Integer literals for Fin.
 ||| @ x the Integer that the user typed
 ||| @ prf an automatically-constructed proof that `x` is in bounds
-export
+public export
 fromInteger : (x : Integer) -> {n : Nat} ->
               {auto prf : (IsJust (integerToFin x n))} ->
               Fin n
@@ -144,7 +144,7 @@ fromInteger {n} x {prf} with (integerToFin x n)
 
 ||| Convert an Integer to a Fin in the required bounds/
 ||| This is essentially a composition of `mod` and `fromInteger`
-export
+public export
 restrict : (n : Nat) -> Integer -> Fin (S n)
 restrict n val = let val' = assert_total (abs (mod val (cast (S n)))) in
                      -- reasoning about primitives, so we need the
