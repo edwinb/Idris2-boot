@@ -81,8 +81,11 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
            MkOpt ["--ide-mode"] [] [IdeMode]
               (Just "Run the REPL with machine-readable syntax"),
 
-           MkOpt ["--ide-mode-socket"] ["host:port"] (\hp => [IdeModeSocket hp])
-              (Just "Run the ide socket mode on given host and port (default: localhost:38398"),
+           MkOpt ["--ide-mode-socket"] [] [IdeModeSocket "localhost:38398"]
+              (Just "Run the ide socket mode on default host and port (localhost:38398"),
+
+           MkOpt ["--ide-mode-socket-with"] ["host:port"] (\hp => [IdeModeSocket hp])
+              (Just "Run the ide socket mode on given host and port"),
 
            MkOpt ["--prefix"] [] [ShowPrefix]
               (Just "Show installation prefix"),
