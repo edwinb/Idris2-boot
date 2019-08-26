@@ -276,14 +276,15 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
             (\delayed => 
                do solveConstraints solvemode Normal
                   defs <- get Ctxt
-                  alts' <- pruneByType !(getNF expected) alts
-                  
+                  exp <- getTerm expected
+
                   -- We can't just use the old NF on the second attempt, 
                   -- because we might know more now, so recalculate it
-                  exp <- getTerm expected
                   let exp' = if delayed 
                                 then gnf env exp
                                 else expected
+
+                  alts' <- pruneByType !(getNF exp') alts
 
                   logGlueNF 5 ("Ambiguous elaboration " ++ show alts' ++ 
                                " at " ++ show fc ++
@@ -316,11 +317,7 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
                   defs <- get Ctxt
                   alts' <- pruneByType !(getNF expected) alts
                   exp <- getTerm expected
-                  -- If we don't know the target type on the first attempt, 
-                  -- delay
---                   when (not delayed && 
---                         !(holeIn (gamma defs) exp)) $
---                     throw (AllFailed [])
+
                   -- We can't just use the old NF on the second attempt, 
                   -- because we might know more now, so recalculate it
                   let exp' = if delayed 
@@ -344,13 +341,4 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
                           solveConstraints solvemode Normal
                           log 10 $ show (getName t) ++ " success"
                           pure res)) alts'))
-  where
-    holeIn : Context -> Term vs -> Core Bool
-    holeIn gam tm
-        = case getFn tm of
-               Meta _ _ idx _ =>
-                  do Just (Hole _ _) <- lookupDefExact (Resolved idx) gam
-                          | _ => pure False
-                     pure True
-               _ => pure False
 
