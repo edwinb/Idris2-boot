@@ -25,7 +25,8 @@ data IDECommand
      | MakeLemma Integer String
      | MakeCase Integer String
      | MakeWith Integer String
-    
+     | Version
+
 readHints : List SExp -> Maybe (List String)
 readHints [] = Just []
 readHints (StringAtom s :: rest)
@@ -46,7 +47,7 @@ getIDECommand (SExpList [SymbolAtom "type-of", StringAtom n])
 getIDECommand (SExpList [SymbolAtom "type-of", StringAtom n,
                          IntegerAtom l, IntegerAtom c])
     = Just $ TypeOf n (Just (l, c))
-getIDECommand (SExpList [SymbolAtom "case-split", IntegerAtom l, IntegerAtom c, 
+getIDECommand (SExpList [SymbolAtom "case-split", IntegerAtom l, IntegerAtom c,
                          StringAtom n])
     = Just $ CaseSplit l c n
 getIDECommand (SExpList [SymbolAtom "case-split", IntegerAtom l, StringAtom n])
@@ -129,7 +130,7 @@ SExpable Name where
 
 export
 (SExpable a, SExpable b) => SExpable (a, b) where
-  toSExp (x, y) 
+  toSExp (x, y)
       = case toSExp y of
              SExpList xs => SExpList (toSExp x :: xs)
              y' => SExpList [toSExp x, y']
@@ -151,7 +152,7 @@ hex : File -> Int -> IO ()
 hex (FHandle h) num = foreign FFI_C "fprintf" (Ptr -> String -> Int -> IO ()) h "%06x" num
 
 sendLine : File -> String -> IO ()
-sendLine (FHandle h) st = 
+sendLine (FHandle h) st =
   map (const ()) (prim_fwrite h st)
 
 export

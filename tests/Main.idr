@@ -64,6 +64,10 @@ chezTests
    = ["chez001", "chez002", "chez003", "chez004",
       "chez005", "chez006", "chez007"]
 
+ideModeTests : List String
+ideModeTests
+  =  [ "ideMode002" ]
+
 chdir : String -> IO Bool
 chdir dir
     = do ok <- foreign FFI_C "chdir" (String -> IO Int) dir
@@ -136,7 +140,8 @@ main
          let filteredNonCGTests =
               filterTests $ concat [testPaths "ttimp" ttimpTests,
                                     testPaths "idris2" idrisTests,
-                                    testPaths "typedd-book" typeddTests]
+                                    testPaths "typedd-book" typeddTests,
+                                    testPaths "ideMode" ideModeTests]
          let filteredChezTests = filterTests (testPaths "chez" chezTests)
          nonCGTestRes <- traverse (runTest idris2) filteredNonCGTests
          chezTestRes <- if length filteredChezTests > 0
