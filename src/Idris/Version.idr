@@ -1,4 +1,4 @@
-||| Sets and display version of Idris 2
+||| Sets and display version of Idris.
 module Idris.Version
 
 import YafflePaths

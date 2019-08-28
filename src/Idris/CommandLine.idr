@@ -1,5 +1,9 @@
 module Idris.CommandLine
 
+import Data.String
+import Idris.Version
+import YafflePaths
+
 %default total
 
 public export
@@ -48,7 +52,7 @@ data CLOpt
    ||| Whether or not to run in IdeMode (easily parsable for other tools)
   IdeMode |
    ||| Whether or not to run IdeMode (using a socket instead of stdin/stdout)
-  IdeModeSocket | 
+  IdeModeSocket |
    ||| Run as a checker for the core language TTImp
   Yaffle String |
   Timing |
@@ -82,7 +86,7 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
 
            MkOpt ["--ide-mode"] [] [IdeMode]
               (Just "Run the REPL with machine-readable syntax"),
-           
+
            MkOpt ["--ide-mode-socket"] [] [IdeModeSocket]
               (Just "Run the ide socket mode"),
 
@@ -125,12 +129,8 @@ optUsage d
     showSep sep (x :: xs) = x ++ sep ++ showSep sep xs
 
 export
-version : String
-version = "0.0"
-
-export
 versionMsg : String
-versionMsg = "Idris 2, version " ++ version
+versionMsg = "Idris 2, version " ++ showVersion version
 
 export
 usage : String
@@ -182,4 +182,3 @@ getCmdOpts : IO (Either String (List CLOpt))
 getCmdOpts = do (_ :: opts) <- getArgs
                     | pure (Left "Invalid command line")
                 pure $ getOpts opts
-

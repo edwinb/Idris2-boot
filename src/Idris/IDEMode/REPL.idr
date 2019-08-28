@@ -185,6 +185,9 @@ process (MakeCase l n)
 process (MakeWith l n)
     = do Idris.REPL.process (Editing (MakeWith (fromInteger l) (UN n)))
          pure ()
+process Version
+    = do Idris.REPL.process ShowVersion
+         pure ()
 
 processCatch : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->

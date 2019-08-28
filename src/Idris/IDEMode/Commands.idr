@@ -75,7 +75,28 @@ getIDECommand (SExpList [SymbolAtom "make-case", IntegerAtom l, StringAtom n])
     = Just $ MakeCase l n
 getIDECommand (SExpList [SymbolAtom "make-with", IntegerAtom l, StringAtom n])
     = Just $ MakeWith l n
+getIDECommand (SymbolAtom "version") = Just Version
 getIDECommand _ = Nothing
+
+export
+putIDECommand : IDECommand -> SExp
+putIDECommand (Interpret cmd)                 = (SExpList [SymbolAtom "interpret", StringAtom cmd])
+putIDECommand (LoadFile fname Nothing)        = (SExpList [SymbolAtom "load-file", StringAtom fname])
+putIDECommand (LoadFile fname (Just line))    = (SExpList [SymbolAtom "load-file", StringAtom fname, IntegerAtom line])
+putIDECommand (TypeOf cmd Nothing)            = (SExpList [SymbolAtom "type-of", StringAtom cmd])
+putIDECommand (TypeOf cmd (Just (line, col))) = (SExpList [SymbolAtom "type-of", StringAtom cmd, IntegerAtom line, IntegerAtom col])
+putIDECommand (CaseSplit line col n)          = (SExpList [SymbolAtom "case-split", IntegerAtom line, IntegerAtom col, StringAtom n])
+putIDECommand (AddClause line n)              = (SExpList [SymbolAtom "add-clause", IntegerAtom line, StringAtom n])
+putIDECommand (ExprSearch line n exprs mode)  = (SExpList [SymbolAtom "proof-search", IntegerAtom line, StringAtom n, SExpList $ map StringAtom exprs, getMode mode])
+  where
+  getMode : Bool -> SExp
+  getMode True  = SymbolAtom "all"
+  getMode False = SymbolAtom "other"
+putIDECommand (GenerateDef line n)            = (SExpList [SymbolAtom "generate-def", IntegerAtom line, StringAtom n])
+putIDECommand (MakeLemma line n)              = (SExpList [SymbolAtom "make-lemma", IntegerAtom line, StringAtom n])
+putIDECommand (MakeCase line n)               = (SExpList [SymbolAtom "make-case", IntegerAtom line, StringAtom n])
+putIDECommand (MakeWith line n)               = (SExpList [SymbolAtom "make-with", IntegerAtom line, StringAtom n])
+putIDECommand Version                         = SymbolAtom "version"
 
 export
 getMsg : SExp -> Maybe (IDECommand, Integer)

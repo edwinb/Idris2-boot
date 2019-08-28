@@ -18,7 +18,7 @@ idris2: src/YafflePaths.idr check_version
 	idris --build idris2.ipkg
 
 src/YafflePaths.idr:
-	@echo 'module YafflePaths; export yprefix : String; yprefix = "${PREFIX}"; export yversion : ((Nat,Nat,Nat), String); yversion = ((2,0,0), "alpha")' > src/YafflePaths.idr
+	@echo 'module YafflePaths; export yprefix : String; yprefix = "${PREFIX}"; export yversion : ((Nat,Nat,Nat), String); yversion = ((0,0,0), "")' > src/YafflePaths.idr
 
 prelude:
 	make -C libs/prelude IDRIS2=../../idris2

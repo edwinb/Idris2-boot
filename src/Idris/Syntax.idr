@@ -279,6 +279,7 @@ data REPLCmd : Type where
      SetLog : Nat -> REPLCmd
      Metavars : REPLCmd
      Editing : EditCmd -> REPLCmd
+     ShowVersion : REPLCmd
      Quit : REPLCmd
      NOP : REPLCmd
 
