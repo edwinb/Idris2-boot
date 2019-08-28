@@ -1,5 +1,5 @@
 1/1: Building Lazy (Lazy.idr)
-Welcome to Idris 2 version 0.0. Enjoy yourself!
+Welcome to Idris 2. Enjoy yourself!
 Main> 1 :: Delay ones
 Main> [1, 1, 1, 1]
 Main> Bye for now!

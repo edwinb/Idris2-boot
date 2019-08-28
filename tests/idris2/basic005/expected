@@ -2,5 +2,5 @@
 NoInfer.idr:1:7--1:9:Unsolved holes:
 Main.{_:1} introduced at NoInfer.idr:1:7--1:9
 
-Welcome to Idris 2 version 0.0. Enjoy yourself!
+Welcome to Idris 2. Enjoy yourself!
 Main> Bye for now!

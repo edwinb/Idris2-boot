@@ -1,7 +1,7 @@
 1/1: Building Cover (Cover.idr)
 Cover.idr:14:1--14:8:While processing left hand side of Main.badBar at Cover.idr:14:1--15:1:
 Can't match on Z as it has a polymorphic type
-Welcome to Idris 2 version 0.0. Enjoy yourself!
+Welcome to Idris 2. Enjoy yourself!
 Main> Main.foo:
 foo (Z, S _)
 foo (S _, _)

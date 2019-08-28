@@ -153,8 +153,7 @@ stMain opts
                            setOutput (IDEMode 0 file file)
                            replIDE {c} {u} {m}
                    else do
-                       iputStrLn $ "Welcome to Idris 2 version " ++ version
-                                    ++ ". Enjoy yourself!"
+                       iputStrLn $ "Welcome to Idris 2. Enjoy yourself!"
                        repl {c} {u} {m}
                  else
                       -- exit with an error code if there was an error, otherwise

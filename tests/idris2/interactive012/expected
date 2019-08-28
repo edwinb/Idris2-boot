@@ -1,5 +1,5 @@
 1/1: Building WithLift (WithLift.idr)
-Welcome to Idris 2 version 0.0. Enjoy yourself!
+Welcome to Idris 2. Enjoy yourself!
 Main> succNotZero : (S k) = Z -> Void
 succNotZero
 Main> recNotEqLift : (k = j -> Void) -> (S k) = (S j) -> Void

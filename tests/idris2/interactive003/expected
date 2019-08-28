@@ -1,5 +1,5 @@
 1/1: Building IEdit (IEdit.idr)
-Welcome to Idris 2 version 0.0. Enjoy yourself!
+Welcome to Idris 2. Enjoy yourself!
 Main>            [] => ?bar_1
            (x :: zs) => ?bar_2
 
@@ -8,7 +8,7 @@ Main>   map f (MkFoo x) = ?baz_1
 
 Main> Bye for now!
 1/1: Building IEdit2 (IEdit2.idr)
-Welcome to Idris 2 version 0.0. Enjoy yourself!
+Welcome to Idris 2. Enjoy yourself!
 Main>            (x :: []) => ?bar_5
            (x :: (y :: zs)) => ?bar_6
 

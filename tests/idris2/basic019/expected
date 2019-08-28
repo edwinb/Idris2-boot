@@ -1,5 +1,5 @@
 1/1: Building CaseBlock (CaseBlock.idr)
-Welcome to Idris 2 version 0.0. Enjoy yourself!
+Welcome to Idris 2. Enjoy yourself!
 Main> Main.foo : (x : Nat) -> (case x of { Z => Nat -> Nat ; S k => Nat })
 Main> Prelude.elem : Eq a => a -> List a -> Bool
 elem x [] = False

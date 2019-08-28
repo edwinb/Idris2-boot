@@ -1,5 +1,5 @@
 1/1: Building Params (Params.idr)
-Welcome to Idris 2 version 0.0. Enjoy yourself!
+Welcome to Idris 2. Enjoy yourself!
 Main> Main.Dict : (a -> a -> Bool) -> Type -> Type
 Main> Main.MkDict : (eq : (a -> a -> Bool)) -> List (a, b) -> Dict eq b
 Main> Main.lookup : (a -> a -> Bool) -> a -> List (a, b) -> Maybe b

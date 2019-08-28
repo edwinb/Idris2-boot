@@ -1,6 +1,6 @@
 1/2: Building Stuff (Stuff.idr)
 2/2: Building PMLet (PMLet.idr)
-Welcome to Idris 2 version 0.0. Enjoy yourself!
+Welcome to Idris 2. Enjoy yourself!
 Main> 99
 Main> 64
 Main> Bye for now!
