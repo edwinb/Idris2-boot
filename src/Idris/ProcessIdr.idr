@@ -157,7 +157,8 @@ modTime fname
     = do Right f <- coreLift $ openFile fname Read
              | Left err => pure 0 -- Beginning of Time :)
          Right t <- coreLift $ fileModifiedTime f
-             | Left err => pure 0
+             | Left err => do coreLift $ closeFile f
+                              pure 0
          coreLift $ closeFile f
          pure t
 
