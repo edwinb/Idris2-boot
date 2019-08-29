@@ -24,6 +24,8 @@ modules = Control.Monad.Identity,
 
           Decidable.Equality,
 
+          Language.Reflection,
+
           System,
           System.Concurrency.Raw,
           System.File,

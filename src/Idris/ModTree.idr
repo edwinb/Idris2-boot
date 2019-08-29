@@ -129,7 +129,8 @@ fnameModified fname
     = do Right f <- coreLift $ openFile fname Read
              | Left err => throw (FileErr fname err)
          Right t <- coreLift $ fileModifiedTime f
-             | Left err => throw (FileErr fname err)
+             | Left err => do coreLift $ closeFile f
+                              throw (FileErr fname err)
          coreLift $ closeFile f
          pure t
 

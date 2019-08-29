@@ -1395,9 +1395,8 @@ editCmd
          pure (MakeWith (fromInteger line) n)
   <|> fatalError "Unrecognised command"
 
-export
-command : Rule REPLCmd
-command
+nonEmptyCommand : Rule REPLCmd
+nonEmptyCommand
     = do symbol ":"; replCmd ["t", "type"]
          tm <- expr pdef "(interactive)" init
          pure (Check tm)
@@ -1445,3 +1444,9 @@ command
   <|> do tm <- expr pdef "(interactive)" init
          pure (Eval tm)
 
+export
+command : EmptyRule REPLCmd
+command
+    = do eoi
+         pure NOP
+  <|> nonEmptyCommand

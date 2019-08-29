@@ -79,10 +79,13 @@ readFromFile fname
     = do Right h <- openFile fname Read
                | Left err => pure (Left err)
          Right fsize <- fileSize h
-               | Left err => pure (Left err)
+               | Left err => do closeFile h
+                                pure (Left err)
          Just b <- newBuffer fsize
-               | Nothing => pure (Left (GenericFileError 0)) --- um, not really
+               | Nothing => do closeFile h
+                               pure (Left (GenericFileError 0)) --- um, not really
          b <- readBufferFromFile h b fsize
+         closeFile h
          pure (Right (MkBin b 0 fsize fsize))
 
 public export

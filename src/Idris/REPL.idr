@@ -219,6 +219,24 @@ findCG
               Racket => pure codegenRacket
 
 export
+compileExp : {auto c : Ref Ctxt Defs} ->
+             {auto u : Ref UST UState} ->
+             {auto s : Ref Syn SyntaxInfo} ->
+             {auto m : Ref MD Metadata} ->
+             {auto o : Ref ROpts REPLOpts} ->
+             PTerm -> String -> Core ()
+compileExp ctm outfile
+    = do inidx <- resolveName (UN "[input]")
+         ttimp <- desugar AnyExpr [] (PApp replFC (PRef replFC (UN "unsafePerformIO")) ctm)
+         (tm, gty) <- elabTerm inidx InExpr [] (MkNested [])
+                               [] ttimp Nothing
+         tm_erased <- linearCheck replFC Rig1 True [] tm
+         ok <- compile !findCG tm_erased outfile
+         maybe (pure ())
+               (\fname => iputStrLn (outfile ++ " written"))
+               ok
+
+export
 execExp : {auto c : Ref Ctxt Defs} ->
           {auto u : Ref UST UState} ->
           {auto s : Ref Syn SyntaxInfo} ->
@@ -467,15 +485,7 @@ process Edit
                    loadMainFile f
                    pure True
 process (Compile ctm outfile)
-    = do inidx <- resolveName (UN "[input]")
-         ttimp <- desugar AnyExpr [] (PApp replFC (PRef replFC (UN "unsafePerformIO")) ctm)
-         (tm, gty) <- elabTerm inidx InExpr [] (MkNested [])
-                               [] ttimp Nothing
-         tm_erased <- linearCheck replFC Rig1 True [] tm 
-         ok <- compile !findCG tm_erased outfile
-         maybe (pure ())
-               (\fname => iputStrLn (outfile ++ " written"))
-               ok
+    = do compileExp ctm outfile
          pure True
 process (Exec ctm)
     = do execExp ctm
@@ -551,6 +561,8 @@ process (Editing cmd)
 process Quit 
     = do iputStrLn "Bye for now!"
          pure False
+process NOP
+    = pure True
 
 processCatch : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
@@ -619,7 +631,10 @@ repl
          inp <- coreLift getLine
          end <- coreLift $ fEOF stdin
          if end
-            then iputStrLn "Bye for now!"
+            then do
+                    -- start a new line in REPL mode (not relevant in IDE mode)
+                    coreLift $ putStrLn ""
+                    iputStrLn "Bye for now!"
             else if !(interpret inp)
                     then repl
                     else pure ()
