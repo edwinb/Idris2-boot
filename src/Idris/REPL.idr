@@ -219,6 +219,24 @@ findCG
               Racket => pure codegenRacket
 
 export
+compileExp : {auto c : Ref Ctxt Defs} ->
+             {auto u : Ref UST UState} ->
+             {auto s : Ref Syn SyntaxInfo} ->
+             {auto m : Ref MD Metadata} ->
+             {auto o : Ref ROpts REPLOpts} ->
+             PTerm -> String -> Core ()
+compileExp ctm outfile
+    = do inidx <- resolveName (UN "[input]")
+         ttimp <- desugar AnyExpr [] (PApp replFC (PRef replFC (UN "unsafePerformIO")) ctm)
+         (tm, gty) <- elabTerm inidx InExpr [] (MkNested [])
+                               [] ttimp Nothing
+         tm_erased <- linearCheck replFC Rig1 True [] tm
+         ok <- compile !findCG tm_erased outfile
+         maybe (pure ())
+               (\fname => iputStrLn (outfile ++ " written"))
+               ok
+
+export
 execExp : {auto c : Ref Ctxt Defs} ->
           {auto u : Ref UST UState} ->
           {auto s : Ref Syn SyntaxInfo} ->
@@ -467,15 +485,7 @@ process Edit
                    loadMainFile f
                    pure True
 process (Compile ctm outfile)
-    = do inidx <- resolveName (UN "[input]")
-         ttimp <- desugar AnyExpr [] (PApp replFC (PRef replFC (UN "unsafePerformIO")) ctm)
-         (tm, gty) <- elabTerm inidx InExpr [] (MkNested [])
-                               [] ttimp Nothing
-         tm_erased <- linearCheck replFC Rig1 True [] tm 
-         ok <- compile !findCG tm_erased outfile
-         maybe (pure ())
-               (\fname => iputStrLn (outfile ++ " written"))
-               ok
+    = do compileExp ctm outfile
          pure True
 process (Exec ctm)
     = do execExp ctm
