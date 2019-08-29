@@ -1,3 +1,8 @@
+# current Idris2 version components
+MAJOR=0
+MINOR=0
+PATCH=0
+
 PREFIX ?= ${HOME}/.idris2
 IDRIS_VERSION := $(shell idris --version)
 VALID_IDRIS_VERSION_REGEXP = "1.3.2.*"
@@ -18,7 +23,7 @@ idris2: src/YafflePaths.idr check_version
 	idris --build idris2.ipkg
 
 src/YafflePaths.idr:
-	@echo 'module YafflePaths; export yprefix : String; yprefix = "${PREFIX}"; export yversion : ((Nat,Nat,Nat), String); yversion = ((0,0,0), "")' > src/YafflePaths.idr
+	@echo "module YafflePaths; export yprefix : String; yprefix = \"${PREFIX}\"; export yversion : ((Nat,Nat,Nat), String); yversion = ((${MAJOR},${MINOR},${PATCH}), \"\")" > src/YafflePaths.idr
 
 prelude:
 	make -C libs/prelude IDRIS2=../../idris2
