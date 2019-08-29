@@ -1,0 +1,8 @@
+
+network-tests
+
+*.o
+*.so
+*.dylib
+*.dll
+
