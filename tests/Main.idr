@@ -46,6 +46,7 @@ idrisTests
        "perf001", "perf002",
        "perror001", "perror002", "perror003", "perror004", "perror005",
        "perror006",
+       "pkg001",
        "record001", "record002",
        "reg001",
        "total001", "total002", "total003", "total004", "total005",
@@ -84,9 +85,15 @@ runTest prog testPath
          Right exp <- readFile "expected"
                | Left err => do print err
                                 pure False
+
          if (out == exp)
             then putStrLn "success"
-            else putStrLn "FAILURE"
+            else do
+              putStrLn "FAILURE"
+              putStrLn "Expected:"
+              printLn exp
+              putStrLn "Given:"
+              printLn out
          chdir "../.."
          pure (out == exp)
 

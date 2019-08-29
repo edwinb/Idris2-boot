@@ -1,10 +1,6 @@
-.. Idris Manual documentation master file, created by
-   sphinx-quickstart on Sat Feb 28 20:41:47 2015.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Documentation for the Idris 2 Language
-======================================
+**********************
+Idris2 Reference Guide
+**********************
 
 .. note::
 
@@ -20,5 +16,4 @@ This is a placeholder, to get set up with readthedocs.
 .. toctree::
    :maxdepth: 1
 
-   faq/faq
-   reference/index
+   packages

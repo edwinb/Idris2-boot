@@ -280,6 +280,7 @@ data REPLCmd : Type where
      Metavars : REPLCmd
      Editing : EditCmd -> REPLCmd
      Quit : REPLCmd
+     NOP : REPLCmd
 
 public export
 record Import where

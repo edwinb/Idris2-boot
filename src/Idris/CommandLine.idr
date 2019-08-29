@@ -23,6 +23,8 @@ data CLOpt
   =
    ||| Only typecheck the given file
   CheckOnly |
+   ||| The output file from the code generator
+  OutputFile String |
    ||| Execute a given function after checking the source file
   ExecFn String |
    ||| Use a specific code generator (default chez)
@@ -67,6 +69,8 @@ record OptDesc where
 options : List OptDesc
 options = [MkOpt ["--check", "-c"] [] [CheckOnly]
               (Just "Exit after checking source file"),
+           MkOpt ["--output", "-o"] ["file"] (\f => [OutputFile f, Quiet])
+              (Just "Specify output file"),
            MkOpt ["--exec", "-x"] ["name"] (\f => [ExecFn f, Quiet])
               (Just "Execute function after checking source file"),
            MkOpt ["--no-prelude"] [] [NoPrelude]
