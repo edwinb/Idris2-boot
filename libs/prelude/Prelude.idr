@@ -564,7 +564,7 @@ data Nat = Z | S Nat
 public export
 integerToNat : Integer -> Nat
 integerToNat x 
-  = if intToBool (prim__eq_Integer x 0)
+  = if intToBool (prim__lte_Integer x 0)
        then Z 
        else S (assert_total (integerToNat (prim__sub_Integer x 1)))
 
