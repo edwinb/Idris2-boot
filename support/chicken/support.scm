@@ -45,6 +45,7 @@
 (define blodwen-error-quit
   (lambda (msg)
     (display msg)
+    (newline)
     (exit 1)))
 
 ;; Files: Much of the following adapted from idris-chez, thanks to Niklas

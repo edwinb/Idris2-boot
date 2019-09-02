@@ -34,6 +34,10 @@ data Def : Type where
                 -- find size changes in termination checking
             Def -- Ordinary function definition
     ExternDef : (arity : Nat) -> Def
+    ForeignDef : (arity : Nat) -> 
+                 List String -> -- supported calling conventions,
+                                -- e.g "C:printf,libc,stdlib.h", "scheme:display", ...
+                 Def
     Builtin : {arity : Nat} -> PrimFn arity -> Def
     DCon : (tag : Int) -> (arity : Nat) -> Def -- data constructor
     TCon : (tag : Int) -> (arity : Nat) ->
@@ -65,7 +69,9 @@ Show Def where
       = "TyCon " ++ show t ++ " " ++ show a ++ " params: " ++ show ps ++ 
         " constructors: " ++ show cons ++ 
         " mutual with: " ++ show ms
-  show (ExternDef arity) = "<external def with arith " ++ show arity ++ ">"
+  show (ExternDef arity) = "<external def with arity " ++ show arity ++ ">"
+  show (ForeignDef a cs) = "<foreign def with arity " ++ show a ++ 
+                           " " ++ show cs ++">"
   show (Builtin {arity} _) = "<builtin with arith " ++ show arity ++ ">"
   show (Hole _ p) = "Hole" ++ if p then " [impl]" else ""
   show (BySearch c depth def) = "Search in " ++ show def

@@ -120,3 +120,27 @@ tmpName = foreign FFI_C "tmpnam" (Ptr -> IO String) null
 export
 chmod : String -> Int -> IO ()
 chmod f m = foreign FFI_C "chmod" (String -> Int -> IO ()) f m
+
+-- Parse a calling convention into a backend/target for the call, and
+-- a comma separated list of any other location data.
+-- e.g. "scheme:display" - call the scheme function 'display'
+--      "C:puts,libc,stdio.h" - call the C function 'puts' which is in
+--      the library libc and the header stdio.h
+-- Returns Nothing if the string is empty (which a backend can interpret
+-- however it likes)
+export
+parseCC : String -> Maybe (String, List String)
+parseCC "" = Nothing
+parseCC str
+    = case span (/= ':') str of
+           (target, "") => Just (trim target, [])
+           (target, opts) => Just (trim target, 
+                                   map trim (getOpts 
+                                       (assert_total (strTail opts))))
+  where
+    getOpts : String -> List String
+    getOpts "" = []
+    getOpts str
+        = case span (/= ',') str of
+               (opt, "") => [opt]
+               (opt, rest) => opt :: getOpts (assert_total (strTail rest))

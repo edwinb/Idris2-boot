@@ -8,7 +8,7 @@ import Core.TT
 
 import Data.Vect
 
-%default total
+%default covering
 
 mutual
   ||| CExp - an expression ready for compiling.
@@ -53,12 +53,30 @@ mutual
   data CConstAlt : List Name -> Type where
        MkConstAlt : Constant -> CExp vars -> CConstAlt vars
 
+-- Argument type descriptors for foreign function calls
+public export
+data CFType : Type where
+     CFUnit : CFType
+     CFInt : CFType
+     CFString : CFType
+     CFDouble : CFType
+     CFChar : CFType
+     CFPtr : CFType
+     CFWorld : CFType
+     CFIORes : CFType -> CFType
+     CFUser : Name -> List CFType -> CFType
+
 public export
 data CDef : Type where
      -- Normal function definition
      MkFun : (args : List Name) -> CExp args -> CDef
      -- Constructor
      MkCon : (tag : Int) -> (arity : Nat) -> CDef
+     -- Foreign definition
+     MkForeign : (ccs : List String) -> 
+                 (fargs : List CFType) -> 
+                 CFType ->
+                 CDef
      -- A function which will fail at runtime (usually due to being a hole) so needs
      -- to run, discarding arguments, no matter how many arguments are passed
      MkError : CExp [] -> CDef
@@ -100,9 +118,24 @@ mutual
          = "(%constcase " ++ show x ++ " " ++ show exp ++ ")"
 
 export
+Show CFType where
+  show CFUnit = "Unit"
+  show CFInt = "Int"
+  show CFString = "String"
+  show CFDouble = "Double"
+  show CFChar = "Char"
+  show CFPtr = "Ptr"
+  show CFWorld = "%World"
+  show (CFIORes t) = "IORes " ++ show t
+  show (CFUser n args) = show n ++ " " ++ show args
+
+export
 Show CDef where
   show (MkFun args exp) = show args ++ ": " ++ show exp
   show (MkCon tag arity) = "Constructor tag " ++ show tag ++ " arity " ++ show arity
+  show (MkForeign ccs args ret) 
+      = "Foreign call " ++ show ccs ++ " " ++ 
+        show args ++ " -> " ++ show ret
   show (MkError exp) = "Error: " ++ show exp
 
 mutual

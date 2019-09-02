@@ -21,6 +21,10 @@ io_bind (MkIO fn)
                             MkIO res = k x' in
                             res w')
 
+public export
+PrimIO : Type -> Type
+PrimIO a = (1 x : %World) -> IORes a
+
 %extern prim__putStr : String -> (1 x : %World) -> IORes ()
 %extern prim__getStr : (1 x : %World) -> IORes String
 

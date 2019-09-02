@@ -17,6 +17,8 @@ import TTImp.TTImp
 
 import Data.NameMap
 
+%default covering
+
 getRetTy : Defs -> NF [] -> Core Name
 getRetTy defs (NBind fc _ (Pi _ _ _) sc)
     = getRetTy defs !(sc defs (toClosure defaultOpts [] (Erased fc)))
@@ -39,6 +41,8 @@ processFnOpt fc ndef (GlobalHint a)
     = addGlobalHint ndef a
 processFnOpt fc ndef ExternFn
     = setFlag fc ndef Inline -- if externally defined, inline when compiling
+processFnOpt fc ndef (ForeignFn _)
+    = setFlag fc ndef Inline -- if externally defined, inline when compiling
 processFnOpt fc ndef Invertible
     = setFlag fc ndef Invertible
 processFnOpt fc ndef Total
@@ -47,6 +51,25 @@ processFnOpt fc ndef Covering
     = setFlag fc ndef (SetTotal CoveringOnly)
 processFnOpt fc ndef PartialOK
     = setFlag fc ndef (SetTotal PartialOK)
+
+-- If it's declared as externally defined, set the definition to
+-- ExternFn <arity>, where the arity is assumed to be fixed (i.e.
+-- not dependent on any of the arguments)
+-- Similarly set foreign definitions. Possibly combine these?
+initDef : {auto c : Ref Ctxt Defs} ->
+          Name -> Env Term vars -> Term vars -> List FnOpt -> Core Def
+initDef n env ty [] 
+    = do addUserHole n
+         pure None
+initDef n env ty (ExternFn :: opts)
+    = do defs <- get Ctxt
+         a <- getArity defs env ty
+         pure (ExternDef a)
+initDef n env ty (ForeignFn cs :: opts)
+    = do defs <- get Ctxt
+         a <- getArity defs env ty
+         pure (ForeignDef a cs)
+initDef n env ty (_ :: opts) = initDef n env ty opts
 
 export
 processType : {vars : _} ->
@@ -76,16 +99,8 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
                              (gType fc)
          logTermNF 5 ("Type of " ++ show n) [] (abstractEnvType tfc env ty)
          -- TODO: Check name visibility
-         -- If it's declared as externally defined, set the definition to
-         -- ExternFn <arity>, where the arity is assumed to be fixed (i.e.
-         -- not dependent on any of the arguments)
-         def <- if ExternFn `elem` opts
-                   then do defs <- get Ctxt
-                           a <- getArity defs env ty
-                           pure (ExternDef a)
-                   else do addUserHole n
-                           pure None
 
+         def <- initDef n env ty opts
          addDef (Resolved idx) (newDef fc n rig vars (abstractEnvType tfc env ty) vis def)
          -- Flag it as checked, because we're going to check the clauses 
          -- from the top level.

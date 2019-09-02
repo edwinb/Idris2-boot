@@ -1024,6 +1024,9 @@ fnDirectOpt
          pure Inline
   <|> do exactIdent "extern"
          pure ExternFn
+  <|> do exactIdent "foreign"
+         cs <- many strLit
+         pure (ForeignFn cs)
 
 visOpt : Rule (Either Visibility FnOpt)
 visOpt

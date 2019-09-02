@@ -45,6 +45,7 @@
 (define blodwen-error-quit
   (lambda (msg)
     (display msg)
+    (newline)
     (exit 1)))
 
 ;; Buffers
