@@ -43,11 +43,13 @@ locate libspec
                                 else -- add system extension
                                      fn ++ "." ++ dylib_suffix
                      (fn :: ver :: _) => 
-                          -- library and version givenm but don't add the version
-                          -- on windows systems
-                          if dylib_suffix == "dll"
-                             then fn ++ ".dll"
-                             else fn ++ "." ++ dylib_suffix ++ "." ++ ver
+                          -- library and version given, build path name as
+                          -- appropriate for the system
+                          cond [(dylib_suffix == "dll", 
+                                      fn ++ "-" ++ ver ++ ".dll"), 
+                                (dylib_suffix == "dylib",
+                                      fn ++ "." ++ ver ++ ".dylib")]
+                                (fn ++ "." ++ dylib_suffix ++ "." ++ ver)
                          
          fullname <- catch (findLibraryFile fname)
                            (\err => -- assume a system library so not
@@ -151,20 +153,17 @@ cftySpec fc t = throw (GenericMsg fc ("Can't pass argument of type " ++ show t +
 
 cCall : {auto c : Ref Ctxt Defs} ->
         {auto l : Ref Loaded (List String)} ->
-        FC -> (cfn : String) -> (clib : Maybe String) ->
+        FC -> (cfn : String) -> (clib : String) ->
         List (Name, CFType) -> CFType -> Core (String, String)
-cCall fc cfn mclib args ret
+cCall fc cfn clib args ret
     = do loaded <- get Loaded
-         lib <- maybe (pure "")
-                  (\clib => 
-                      if clib `elem` loaded
-                         then pure ""
-                         else do (fname, fullname) <- locate clib
-                                 put Loaded (clib :: loaded)
-                                 pure $ "(load-shared-object \"" 
-                                          ++ escapeQuotes fullname
-                                          ++ "\")\n")
-                  mclib
+         lib <- if clib `elem` loaded
+                   then pure ""
+                   else do (fname, fullname) <- locate clib
+                           put Loaded (clib :: loaded)
+                           pure $ "(load-shared-object \"" 
+                                    ++ escapeQuotes fullname
+                                    ++ "\")\n"
          argTypes <- traverse (\a => do s <- cftySpec fc (snd a)
                                         pure (fst a, s)) args
          retType <- cftySpec fc ret
@@ -198,9 +197,8 @@ useCC fc (cc :: ccs) args ret
            Just ("scheme", [sfn]) => 
                do body <- schemeCall fc sfn (map fst args) ret
                   pure ("", body)
-           Just ("C", [cfn]) => cCall fc cfn Nothing args ret
-           Just ("C", [cfn, clib]) => cCall fc cfn (Just clib) args ret
-           Just ("C", [cfn, clib, chdr]) => cCall fc cfn (Just clib) args ret
+           Just ("C", [cfn, clib]) => cCall fc cfn clib args ret
+           Just ("C", [cfn, clib, chdr]) => cCall fc cfn clib args ret
            _ => useCC fc ccs args ret
 
 -- For every foreign arg type, return a name, and whether to pass it to the
@@ -245,7 +243,7 @@ compileToSS c tm outfile
          libs <- findLibs ds
          (ns, tags) <- findUsedNames tm
          defs <- get Ctxt
-         l <- newRef {t = List String} Loaded []
+         l <- newRef {t = List String} Loaded ["libc", "libc 6"]
          fgndefs <- traverse getFgnCall ns
          compdefs <- traverse (getScheme chezExtPrim defs) ns
          let code = concat (map snd fgndefs) ++ concat compdefs

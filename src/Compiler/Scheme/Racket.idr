@@ -27,10 +27,12 @@ findRacket = pure "/usr/bin/env racket"
 findRacoExe : IO String
 findRacoExe = pure "raco exe"
 
-schHeader : String
-schHeader
+schHeader : String -> String
+schHeader libs
   = "#lang racket/base\n" ++
     "(require racket/promise)\n" ++ -- for force/delay
+    "(require ffi/unsafe ffi/unsafe/define)\n" ++ -- for calling C
+    libs ++
     "(let ()\n"
 
 schFooter : String
@@ -47,43 +49,71 @@ mutual
 data Loaded : Type where
 
 cftySpec : FC -> CFType -> Core String
-cftySpec fc CFUnit = pure "void"
-cftySpec fc CFInt = pure "int"
-cftySpec fc CFString = pure "string"
-cftySpec fc CFDouble = pure "double"
-cftySpec fc CFChar = pure "char"
-cftySpec fc CFPtr = pure "void*"
+cftySpec fc CFUnit = pure "_void"
+cftySpec fc CFInt = pure "_int"
+cftySpec fc CFString = pure "_string/utf-8"
+cftySpec fc CFDouble = pure "_double"
+cftySpec fc CFChar = pure "_int8"
+cftySpec fc CFPtr = pure "_pointer"
 cftySpec fc (CFIORes t) = cftySpec fc t
 cftySpec fc t = throw (GenericMsg fc ("Can't pass argument of type " ++ show t ++
                          " to foreign function"))
 
+loadlib : String -> String -> String
+loadlib libn ver
+    = "(define-ffi-definer define-" ++ libn ++ 
+      " (ffi-lib \"" ++ libn ++ "\" " ++ ver ++ "))\n"
+
+getLibVers : String -> (String, String)
+getLibVers libspec
+    = case words libspec of
+           [] => ("", "")
+           [fn] => case span (/='.') libspec of
+                        (root, rest) => (root, "")
+           (fn :: vers) =>
+               (fst (span (/='.') fn),
+                  "'(" ++ showSep " " (map show vers) ++ " #f)" )
+
+cToRkt : CFType -> String -> String
+cToRkt CFChar op = "(integer->char " ++ op ++ ")"
+cToRkt _ op = op
+
+rktToC : CFType -> String -> String
+rktToC CFChar op = "(char->integer " ++ op ++ ")"
+rktToC _ op = op
+
+handleRet : CFType -> String -> String
+handleRet CFUnit op = op ++ " " ++ mkWorld (schConstructor 0 [])
+handleRet ret op = mkWorld (cToRkt ret op)
+
+useArg : (Name, CFType) -> String
+useArg (n, ty)
+    = rktToC ty (schName n)
+
 cCall : {auto c : Ref Ctxt Defs} ->
         {auto l : Ref Loaded (List String)} ->
-        FC -> (cfn : String) -> (clib : Maybe String) ->
+        FC -> (cfn : String) -> (clib : String) ->
         List (Name, CFType) -> CFType -> Core (String, String)
-cCall fc cfn mclib args ret
-    = throw (GenericMsg fc "Racket back end can't talk to C yet")
---     do loaded <- get Loaded
---          lib <- maybe (pure "")
---                   (\clib => 
---                       if clib `elem` loaded
---                          then pure ""
---                          else do (fname, fullname) <- locate clib
---                                  put Loaded (clib :: loaded)
---                                  pure $ "(load-shared-object \"" 
---                                           ++ escapeQuotes fullname
---                                           ++ "\")\n")
---                   mclib
---          argTypes <- traverse (\a => do s <- cftySpec fc (snd a)
---                                         pure (fst a, s)) args
---          retType <- cftySpec fc ret
---          let call = "((foreign-procedure #f " ++ show cfn ++ " ("
---                       ++ showSep " " (map snd argTypes) ++ ") " ++ retType ++ ") "
---                       ++ showSep " " (map (schName . fst) argTypes) ++ ")"
--- 
---          pure (lib, case ret of
---                          CFIORes _ => handleRet retType call
---                          _ => call)
+cCall fc cfn libspec args ret
+    = do loaded <- get Loaded
+         let (libn, vers) = getLibVers libspec
+         lib <- if libn `elem` loaded
+                   then pure ""
+                   else do put Loaded (libn :: loaded)
+                           pure (loadlib libn vers)
+
+         argTypes <- traverse (\a => do s <- cftySpec fc (snd a)
+                                        pure (a, s)) args
+         retType <- cftySpec fc ret
+         let cbind = "(define-" ++ libn ++ " " ++ cfn ++ 
+                     " (_fun " ++ showSep " " (map snd argTypes) ++ " -> " ++ 
+                         retType ++ "))\n"
+         let call = "(" ++ cfn ++ " " ++
+                    showSep " " (map (useArg . fst) argTypes) ++ ")"
+
+         pure (lib ++ cbind, case ret of
+                                  CFIORes rt => handleRet rt call
+                                  _ => call)
 
 schemeCall : FC -> (sfn : String) ->
              List Name -> CFType -> Core String
@@ -107,9 +137,8 @@ useCC fc (cc :: ccs) args ret
            Just ("scheme", [sfn]) => 
                do body <- schemeCall fc sfn (map fst args) ret
                   pure ("", body)
-           Just ("C", [cfn]) => cCall fc cfn Nothing args ret
-           Just ("C", [cfn, clib]) => cCall fc cfn (Just clib) args ret
-           Just ("C", [cfn, clib, chdr]) => cCall fc cfn (Just clib) args ret
+           Just ("C", [cfn, clib]) => cCall fc cfn clib args ret
+           Just ("C", [cfn, clib, chdr]) => cCall fc cfn clib args ret
            _ => useCC fc ccs args ret
 
 -- For every foreign arg type, return a name, and whether to pass it to the
@@ -157,7 +186,7 @@ compileToRKT c tm outfile
          let code = concat (map snd fgndefs) ++ concat compdefs
          main <- schExp racketPrim 0 [] !(compileExp tags tm)
          support <- readDataFile "racket/support.rkt"
-         let scm = schHeader ++ 
+         let scm = schHeader (concat (map fst fgndefs)) ++ 
                    support ++ code ++ 
                    "(void " ++ main ++ ")\n" ++ 
                    schFooter
