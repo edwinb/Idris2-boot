@@ -8,6 +8,8 @@ import Core.TT
 
 import Data.NameMap
 
+import System.Info
+
 %include C "sys/stat.h"
 
 ||| Generic interface to some code generator
@@ -144,3 +146,10 @@ parseCC str
         = case span (/= ',') str of
                (opt, "") => [opt]
                (opt, rest) => opt :: getOpts (assert_total (strTail rest))
+
+export
+dylib_suffix : String
+dylib_suffix
+    = cond [(os `elem` ["windows", "mingw32", "cygwin32"], "dll"),
+            (os == "darwin", "dylib")]
+           "so"

@@ -43,16 +43,124 @@ mutual
   racketPrim i vs prim args 
       = schExtCommon racketPrim i vs prim args
 
+-- Reference label for keeping track of loaded external libraries
+data Loaded : Type where
+
+cftySpec : FC -> CFType -> Core String
+cftySpec fc CFUnit = pure "void"
+cftySpec fc CFInt = pure "int"
+cftySpec fc CFString = pure "string"
+cftySpec fc CFDouble = pure "double"
+cftySpec fc CFChar = pure "char"
+cftySpec fc CFPtr = pure "void*"
+cftySpec fc (CFIORes t) = cftySpec fc t
+cftySpec fc t = throw (GenericMsg fc ("Can't pass argument of type " ++ show t ++
+                         " to foreign function"))
+
+cCall : {auto c : Ref Ctxt Defs} ->
+        {auto l : Ref Loaded (List String)} ->
+        FC -> (cfn : String) -> (clib : Maybe String) ->
+        List (Name, CFType) -> CFType -> Core (String, String)
+cCall fc cfn mclib args ret
+    = throw (GenericMsg fc "Racket back end can't talk to C yet")
+--     do loaded <- get Loaded
+--          lib <- maybe (pure "")
+--                   (\clib => 
+--                       if clib `elem` loaded
+--                          then pure ""
+--                          else do (fname, fullname) <- locate clib
+--                                  put Loaded (clib :: loaded)
+--                                  pure $ "(load-shared-object \"" 
+--                                           ++ escapeQuotes fullname
+--                                           ++ "\")\n")
+--                   mclib
+--          argTypes <- traverse (\a => do s <- cftySpec fc (snd a)
+--                                         pure (fst a, s)) args
+--          retType <- cftySpec fc ret
+--          let call = "((foreign-procedure #f " ++ show cfn ++ " ("
+--                       ++ showSep " " (map snd argTypes) ++ ") " ++ retType ++ ") "
+--                       ++ showSep " " (map (schName . fst) argTypes) ++ ")"
+-- 
+--          pure (lib, case ret of
+--                          CFIORes _ => handleRet retType call
+--                          _ => call)
+
+schemeCall : FC -> (sfn : String) ->
+             List Name -> CFType -> Core String
+schemeCall fc sfn argns ret
+    = let call = "(" ++ sfn ++ " " ++ showSep " " (map schName argns) ++ ")" in
+          case ret of
+               CFIORes _ => pure $ mkWorld call
+               _ => pure call
+
+-- Use a calling convention to compile a foreign def.
+-- Returns any preamble needed for loading libraries, and the body of the
+-- function call.
+useCC : {auto c : Ref Ctxt Defs} ->
+        {auto l : Ref Loaded (List String)} ->
+        FC -> List String -> List (Name, CFType) -> CFType -> Core (String, String)
+useCC fc [] args ret
+    = throw (GenericMsg fc "No recognised foreign calling convention")
+useCC fc (cc :: ccs) args ret
+    = case parseCC cc of
+           Nothing => useCC fc ccs args ret
+           Just ("scheme", [sfn]) => 
+               do body <- schemeCall fc sfn (map fst args) ret
+                  pure ("", body)
+           Just ("C", [cfn]) => cCall fc cfn Nothing args ret
+           Just ("C", [cfn, clib]) => cCall fc cfn (Just clib) args ret
+           Just ("C", [cfn, clib, chdr]) => cCall fc cfn (Just clib) args ret
+           _ => useCC fc ccs args ret
+
+-- For every foreign arg type, return a name, and whether to pass it to the
+-- foreign call (we don't pass '%World')
+mkArgs : Int -> List CFType -> List (Name, Bool)
+mkArgs i [] = []
+mkArgs i (CFWorld :: cs) = (MN "farg" i, False) :: mkArgs i cs
+mkArgs i (c :: cs) = (MN "farg" i, True) :: mkArgs (i + 1) cs
+
+schFgnDef : {auto c : Ref Ctxt Defs} ->
+            {auto l : Ref Loaded (List String)} ->
+            FC -> Name -> CDef -> Core (String, String)
+schFgnDef fc n (MkForeign cs args ret) 
+    = do let argns = mkArgs 0 args
+         let allargns = map fst argns
+         let useargns = map fst (filter snd argns)
+         (load, body) <- useCC fc cs (zip useargns args) ret
+         defs <- get Ctxt
+         pure (load,
+                "(define " ++ schName !(full (gamma defs) n) ++
+                " (lambda (" ++ showSep " " (map schName allargns) ++ ") " ++
+                body ++ "))\n")
+schFgnDef _ _ _ = pure ("", "")
+
+getFgnCall : {auto c : Ref Ctxt Defs} ->
+             {auto l : Ref Loaded (List String)} ->
+             Name -> Core (String, String)
+getFgnCall n
+    = do defs <- get Ctxt
+         case !(lookupCtxtExact n (gamma defs)) of
+           Nothing => throw (InternalError ("Compiling undefined name " ++ show n))
+           Just def => case compexpr def of
+                          Nothing =>
+                             throw (InternalError ("No compiled definition for " ++ show n))
+                          Just d => schFgnDef (location def) n d
+
 compileToRKT : Ref Ctxt Defs ->
                ClosedTerm -> (outfile : String) -> Core ()
 compileToRKT c tm outfile
     = do (ns, tags) <- findUsedNames tm
          defs <- get Ctxt
+         l <- newRef {t = List String} Loaded []
+         fgndefs <- traverse getFgnCall ns
          compdefs <- traverse (getScheme racketPrim defs) ns
-         let code = concat compdefs
+         let code = concat (map snd fgndefs) ++ concat compdefs
          main <- schExp racketPrim 0 [] !(compileExp tags tm)
          support <- readDataFile "racket/support.rkt"
-         let scm = schHeader ++ support ++ code ++ "(void " ++ main ++ ")\n" ++ schFooter
+         let scm = schHeader ++ 
+                   support ++ code ++ 
+                   "(void " ++ main ++ ")\n" ++ 
+                   schFooter
          Right () <- coreLift $ writeFile outfile scm
             | Left err => throw (FileErr outfile err)
          coreLift $ chmod outfile 0o755

@@ -30,11 +30,26 @@ findChez
             Nothing => do e <- firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
                                     x <- ["scheme", "chez", "chezscheme9.5"]]
                           maybe (pure "/usr/bin/env scheme") pure e
-    
+
 locate : {auto c : Ref Ctxt Defs} ->
          String -> Core (String, String)
-locate fname
-    = do fullname <- catch (findLibraryFile fname)
+locate libspec
+    = do -- Attempt to turn libspec into an appropriate filename for the system
+         let fname
+              = case words libspec of
+                     [] => ""
+                     [fn] => if '.' `elem` unpack fn
+                                then fn -- full filename given
+                                else -- add system extension
+                                     fn ++ "." ++ dylib_suffix
+                     (fn :: ver :: _) => 
+                          -- library and version givenm but don't add the version
+                          -- on windows systems
+                          if dylib_suffix == "dll"
+                             then fn ++ ".dll"
+                             else fn ++ "." ++ dylib_suffix ++ "." ++ ver
+                         
+         fullname <- catch (findLibraryFile fname)
                            (\err => -- assume a system library so not
                                     -- in our library path
                                     pure fname)

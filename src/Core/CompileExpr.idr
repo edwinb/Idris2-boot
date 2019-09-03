@@ -127,7 +127,7 @@ Show CFType where
   show CFPtr = "Ptr"
   show CFWorld = "%World"
   show (CFIORes t) = "IORes " ++ show t
-  show (CFUser n args) = show n ++ " " ++ show args
+  show (CFUser n args) = show n ++ " " ++ showSep " " (map show args)
 
 export
 Show CDef where
