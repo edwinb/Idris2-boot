@@ -31,7 +31,6 @@ LIBTARGET = $(LIBNAME).a
 TARGET=${HOME}/.idris2
 
 build: $(DYLIBTARGET) $(IDRIS_SRCS)
-	@if ! [ -d build ]; then echo "creating 'build' directory"; mkdir build ; else echo "directory 'build' exists"; fi
 	@if [ -z "${IDRIS2}" ]; then echo 'variable $$IDRIS2 is not set, aborting'; exit 1; fi
 	${IDRIS2} --build network.ipkg
 

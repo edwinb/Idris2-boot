@@ -1,7 +1,7 @@
 PREFIX ?= ${HOME}/.idris2
 IDRIS_VERSION := $(shell idris --version)
 VALID_IDRIS_VERSION_REGEXP = "1.3.2.*"
-export IDRIS2_PATH = ${CURDIR}/libs/prelude/build:${CURDIR}/libs/base/build
+export IDRIS2_PATH = ${CURDIR}/libs/prelude/build/ttc:${CURDIR}/libs/base/build/ttc
 export IDRIS2_DATA = ${CURDIR}/support
 
 -include custom.mk
