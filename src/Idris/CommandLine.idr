@@ -1,5 +1,7 @@
 module Idris.CommandLine
 
+import YafflePaths
+
 %default total
 
 public export
@@ -123,10 +125,6 @@ optUsage d
     showSep sep [] = ""
     showSep sep [x] = x
     showSep sep (x :: xs) = x ++ sep ++ showSep sep xs
-
-export
-version : String
-version = "0.0"
 
 export
 versionMsg : String

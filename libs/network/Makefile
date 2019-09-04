@@ -40,8 +40,8 @@ $(DYLIBTARGET) : $(OBJS)
 install:
 	@if [ -z "${IDRIS2}" ]; then echo 'variable $$IDRIS2 is not set, aborting'; exit 1; fi
 	${IDRIS2} --install network.ipkg
-	@if ! [ -d $(TARGET)/idris2/network/lib ]; then mkdir $(TARGET)/idris2/network/lib; fi
-	install $(DYLIBTARGET) $(HDRS) $(TARGET)/idris2/network/lib
+	@if ! [ -d $(TARGET)/idris2-${IDRIS2_VERSION}/network/lib ]; then mkdir $(TARGET)/idris2-${IDRIS2_VERSION}/network/lib; fi
+	install $(DYLIBTARGET) $(HDRS) $(TARGET)/idris2-${IDRIS2_VERSION}/network/lib
 
 clean :
 	rm -rf $(OBJS) $(LIBTARGET) $(DYLIBTARGET) build

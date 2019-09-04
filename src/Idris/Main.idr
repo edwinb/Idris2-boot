@@ -65,9 +65,9 @@ updatePaths
          addPkgDir "prelude"
          addPkgDir "base"
          addDataDir (dir_prefix (dirs (options defs)) ++ dirSep ++
-                        "idris2" ++ dirSep ++ "support")
+                        "idris2-" ++ version ++ dirSep ++ "support")
          addLibDir (dir_prefix (dirs (options defs)) ++ dirSep ++
-                        "idris2" ++ dirSep ++ "lib")
+                        "idris2-" ++ version ++ dirSep ++ "lib")
 
 updateREPLOpts : {auto o : Ref ROpts REPLOpts} ->
                  Core ()

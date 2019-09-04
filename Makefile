@@ -1,3 +1,4 @@
+IDRIS2_VERSION := 0.0
 PREFIX ?= ${HOME}/.idris2
 IDRIS_VERSION := $(shell idris --version)
 VALID_IDRIS_VERSION_REGEXP = "1.3.2.*"
@@ -18,7 +19,8 @@ idris2: src/YafflePaths.idr check_version
 	idris --build idris2.ipkg
 
 src/YafflePaths.idr:
-	echo 'module YafflePaths; export yprefix : String; yprefix = "${PREFIX}"' > src/YafflePaths.idr
+	echo 'module YafflePaths; export version : String; version = "${IDRIS2_VERSION}";' > src/YafflePaths.idr
+	echo 'export yprefix : String; yprefix = "${PREFIX}"' >> src/YafflePaths.idr
 
 prelude:
 	make -C libs/prelude IDRIS2=../../idris2
@@ -27,8 +29,8 @@ base: prelude
 	make -C libs/base IDRIS2=../../idris2
 
 network: prelude
-	make -C libs/network IDRIS2=../../idris2
-	make -C libs/network test IDRIS2=../../idris2
+	make -C libs/network IDRIS2_VERSION=${IDRIS2_VERSION} IDRIS2=../../idris2
+	make -C libs/network test IDRIS2_VERSION=${IDRIS2_VERSION} IDRIS2=../../idris2
 
 libs : prelude base network
 
@@ -51,16 +53,16 @@ install: all install-exec install-libs
 
 install-exec: idris2
 	mkdir -p ${PREFIX}/bin
-	mkdir -p ${PREFIX}/idris2/lib
-	mkdir -p ${PREFIX}/idris2/support/chez
-	mkdir -p ${PREFIX}/idris2/support/chicken
-	mkdir -p ${PREFIX}/idris2/support/racket
+	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/lib
+	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chez
+	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chicken
+	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/racket
 	install idris2 ${PREFIX}/bin
-	install support/chez/* ${PREFIX}/idris2/support/chez
-	install support/chicken/* ${PREFIX}/idris2/support/chicken
-	install support/racket/* ${PREFIX}/idris2/support/racket
+	install support/chez/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chez
+	install support/chicken/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chicken
+	install support/racket/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/racket
 
 install-libs: libs
 	make -C libs/prelude install IDRIS2=../../idris2
 	make -C libs/base install IDRIS2=../../idris2
-	make -C libs/network install IDRIS2=../../idris2
+	make -C libs/network install IDRIS2=../../idris2 IDRIS2_VERSION=${IDRIS2_VERSION}
