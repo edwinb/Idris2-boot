@@ -10,16 +10,16 @@ import public Network.Socket.Data
 -- ---------------------------------------------------------------- [ Pointers ]
 
 public export
-data RecvStructPtr     = RSPtr Ptr
+data RecvStructPtr     = RSPtr AnyPtr
 
 public export
-data RecvfromStructPtr = RFPtr Ptr
+data RecvfromStructPtr = RFPtr AnyPtr
 
 public export
-data BufPtr = BPtr Ptr
+data BufPtr = BPtr AnyPtr
 
 public export
-data SockaddrPtr = SAPtr Ptr
+data SockaddrPtr = SAPtr AnyPtr
 
 -- ---------------------------------------------------------- [ Socket Utilies ]
 
@@ -35,7 +35,7 @@ sockaddr_free (SAPtr ptr) = cCall () "idrnet_free" [ptr]
 |||
 ||| Used to allocate a mutable pointer to be given to the Recv functions.
 sock_alloc : ByteLength -> IO BufPtr
-sock_alloc bl = map BPtr $ cCall Ptr "idrnet_malloc" [bl]
+sock_alloc bl = map BPtr $ cCall AnyPtr "idrnet_malloc" [bl]
 
 ||| Retrieves the port the given socket is bound to
 export
@@ -141,14 +141,14 @@ foreignGetRecvfromPayload (RFPtr p) = cCall String "idrnet_get_recvfrom_payload"
 export
 foreignGetRecvfromAddr : RecvfromStructPtr -> IO SocketAddress
 foreignGetRecvfromAddr (RFPtr p) = do
-  sockaddr_ptr <- map SAPtr $ cCall Ptr "idrnet_get_recvfrom_sockaddr" [p]
+  sockaddr_ptr <- map SAPtr $ cCall AnyPtr "idrnet_get_recvfrom_sockaddr" [p]
   getSockAddr sockaddr_ptr
 
 ||| Utility function to return sender's IPV4 port.
 export
 foreignGetRecvfromPort : RecvfromStructPtr -> IO Port
 foreignGetRecvfromPort (RFPtr p) = do
-  sockaddr_ptr <- cCall Ptr "idrnet_get_recvfrom_sockaddr" [p]
+  sockaddr_ptr <- cCall AnyPtr "idrnet_get_recvfrom_sockaddr" [p]
   port         <- cCall Int "idrnet_sockaddr_ipv4_port" [sockaddr_ptr]
   pure port
 
@@ -169,7 +169,7 @@ recvFromBuf : (sock : Socket)
            -> (len  : ByteLength)
            -> IO (Either SocketError (UDPAddrInfo, ResultCode))
 recvFromBuf sock (BPtr ptr) bl = do
-  recv_ptr <- cCall Ptr "idrnet_recvfrom_buf" [ descriptor sock, ptr, bl]
+  recv_ptr <- cCall AnyPtr "idrnet_recvfrom_buf" [ descriptor sock, ptr, bl]
 
   let recv_ptr' = RFPtr recv_ptr
 

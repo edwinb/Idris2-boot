@@ -105,9 +105,12 @@ mutual
   tySpec (CCon fc (UN "String") _ []) = pure "string"
   tySpec (CCon fc (UN "Double") _ []) = pure "double"
   tySpec (CCon fc (UN "Char") _ []) = pure "char"
+  tySpec (CCon fc (NS _ n) _ [_])
+     = cond [(n == UN "Ptr", pure "void*")]
+          (throw (GenericMsg fc ("Can't pass argument of type " ++ show n ++ " to foreign function")))
   tySpec (CCon fc (NS _ n) _ [])
      = cond [(n == UN "Unit", pure "void"),
-             (n == UN "Ptr", pure "void*")]
+             (n == UN "AnyPtr", pure "void*")]
           (throw (GenericMsg fc ("Can't pass argument of type " ++ show n ++ " to foreign function")))
   tySpec ty = throw (GenericMsg (getFC ty) ("Can't pass argument of type " ++ show ty ++ " to foreign function"))
 

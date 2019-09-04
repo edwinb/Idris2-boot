@@ -85,7 +85,7 @@ accept sock = do
   -- We need a pointer to a sockaddr structure. This is then passed into
   -- idrnet_accept and populated. We can then query it for the SocketAddr and free it.
 
-  sockaddr_ptr <- cCall Ptr "idrnet_create_sockaddr" []
+  sockaddr_ptr <- cCall AnyPtr "idrnet_create_sockaddr" []
 
   accept_res <- cCall Int "idrnet_accept" [ descriptor sock, sockaddr_ptr ]
   if accept_res == (-1)
@@ -128,7 +128,7 @@ recv : (sock : Socket)
 recv sock len = do
   -- Firstly make the request, get some kind of recv structure which
   -- contains the result of the recv and possibly the retrieved payload
-  recv_struct_ptr <- cCall Ptr "idrnet_recv" [ descriptor sock, len]
+  recv_struct_ptr <- cCall AnyPtr "idrnet_recv" [ descriptor sock, len]
   recv_res <- cCall Int "idrnet_get_recv_res"  [ recv_struct_ptr ]
 
   if recv_res == (-1)
@@ -202,7 +202,7 @@ recvFrom : (sock : Socket)
         -> (len  : ByteLength)
         -> IO (Either SocketError (UDPAddrInfo, String, ResultCode))
 recvFrom sock bl = do
-  recv_ptr <- cCall Ptr "idrnet_recvfrom"
+  recv_ptr <- cCall AnyPtr "idrnet_recvfrom"
               [ descriptor sock, bl ]
 
   let recv_ptr' = RFPtr recv_ptr

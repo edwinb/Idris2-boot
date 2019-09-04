@@ -276,10 +276,13 @@ mkArgList i (S k)
 data NArgs : Type where
      User : Name -> List (Closure []) -> NArgs
      NUnit : NArgs
+     NPtr : NArgs
      NIORes : Closure [] -> NArgs
 
 getNArgs : Name -> List (Closure []) -> NArgs
 getNArgs (NS _ (UN "IORes")) [arg] = NIORes arg
+getNArgs (NS _ (UN "Ptr")) [arg] = NPtr
+getNArgs (NS _ (UN "AnyPtr")) [] = NPtr
 getNArgs (NS _ (UN "Unit")) [] = NUnit
 getNArgs n args = User n args
 
@@ -298,6 +301,7 @@ nfToCFType (NTCon _ n _ _ args)
                    cargs <- traverse nfToCFType nargs
                    pure (CFUser n cargs)
               NUnit => pure CFUnit
+              NPtr => pure CFPtr
               NIORes uarg =>
                 do narg <- evalClosure defs uarg
                    carg <- nfToCFType narg

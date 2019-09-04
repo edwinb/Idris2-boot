@@ -28,8 +28,15 @@ PrimIO a = (1 x : %World) -> IORes a
 %extern prim__putStr : String -> (1 x : %World) -> IORes ()
 %extern prim__getStr : (1 x : %World) -> IORes String
 
+-- A pointer representing a given parameter type
+-- The parameter is a phantom type, to help differentiate between
+-- different pointer types
 public export
-data Ptr : Type where
+data Ptr : Type -> Type where
+
+-- A pointer to any type (representing a void* in foreign calls)
+public export
+data AnyPtr : Type where
 
 public export
 data ThreadID : Type where

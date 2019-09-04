@@ -4,12 +4,12 @@ import System.File
 
 export
 data Buffer : Type where
-     MkBuffer : Ptr -> (size : Int) -> (loc : Int) -> Buffer
+     MkBuffer : AnyPtr -> (size : Int) -> (loc : Int) -> Buffer
 
 export
 newBuffer : Int -> IO Buffer
 newBuffer size
-    = do buf <- schemeCall Ptr "blodwen-new-buffer" [size]
+    = do buf <- schemeCall AnyPtr "blodwen-new-buffer" [size]
          pure (MkBuffer buf size 0)
 
 export
