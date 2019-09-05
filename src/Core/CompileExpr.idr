@@ -144,7 +144,7 @@ mutual
   thin n (CLocal fc prf) 
       = let MkVar var' = insertVar {n} _ prf in
             CLocal fc var'
-  thin n (CRef fc x) = CRef fc x
+  thin _ (CRef fc x) = CRef fc x
   thin {outer} {inner} n (CLam fc x sc)
       = let sc' = thin {outer = x :: outer} {inner} n sc in
             CLam fc x sc'
@@ -167,9 +167,9 @@ mutual
   thin n (CConstCase fc sc xs def)
       = CConstCase fc (thin n sc) (assert_total (map (thinConstAlt n) xs))
                    (assert_total (map (thin n) def))
-  thin n (CPrimVal fc x) = CPrimVal fc x
-  thin n (CErased fc) = CErased fc
-  thin n (CCrash fc x) = CCrash fc x
+  thin _ (CPrimVal fc x) = CPrimVal fc x
+  thin _ (CErased fc) = CErased fc
+  thin _ (CCrash fc x) = CCrash fc x
 
   thinConAlt : (n : Name) -> CConAlt (outer ++ inner) -> CConAlt (outer ++ n :: inner)
   thinConAlt {outer} {inner} n (MkConAlt x tag args sc)
@@ -219,18 +219,18 @@ mutual
 
 export
 getFC : CExp args -> FC
-getFC (CLocal fc y) = fc
-getFC (CRef fc x) = fc
-getFC (CLam fc x y) = fc
-getFC (CLet fc x y z) = fc
-getFC (CApp fc x xs) = fc
-getFC (CCon fc x tag xs) = fc
-getFC (COp fc x xs) = fc
-getFC (CExtPrim fc p xs) = fc
-getFC (CForce fc x) = fc
-getFC (CDelay fc x) = fc
-getFC (CConCase fc sc xs x) = fc
-getFC (CConstCase fc sc xs x) = fc
-getFC (CPrimVal fc x) = fc
+getFC (CLocal fc _) = fc
+getFC (CRef fc _) = fc
+getFC (CLam fc _ _) = fc
+getFC (CLet fc _ _ _) = fc
+getFC (CApp fc _ _) = fc
+getFC (CCon fc _ _ _) = fc
+getFC (COp fc _ _) = fc
+getFC (CExtPrim fc _ _) = fc
+getFC (CForce fc _) = fc
+getFC (CDelay fc _) = fc
+getFC (CConCase fc _ _ _) = fc
+getFC (CConstCase fc _ _ _) = fc
+getFC (CPrimVal fc _) = fc
 getFC (CErased fc) = fc
-getFC (CCrash fc x) = fc
+getFC (CCrash fc _) = fc

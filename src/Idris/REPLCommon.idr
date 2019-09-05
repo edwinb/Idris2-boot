@@ -87,7 +87,7 @@ updateErrorLine : {auto o : Ref ROpts REPLOpts} ->
 updateErrorLine []
     = do opts <- get ROpts
          put ROpts (record { errorLine = Nothing } opts)
-updateErrorLine (e :: es)
+updateErrorLine (e :: _)
     = do opts <- get ROpts
          put ROpts (record { errorLine = map getFCLine (getErrorLoc e) } opts)
 

@@ -17,10 +17,6 @@ import System.Info
 
 %default covering
 
-firstExists : List String -> IO (Maybe String)
-firstExists [] = pure Nothing
-firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
-
 findRacket : IO String
 findRacket = pure "/usr/bin/env racket"
 

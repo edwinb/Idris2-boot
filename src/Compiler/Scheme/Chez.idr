@@ -18,10 +18,6 @@ import System.Info
 
 %default covering
 
-firstExists : List String -> IO (Maybe String)
-firstExists [] = pure Nothing
-firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
-
 findChez : IO String
 findChez
     = do env <- getEnv "CHEZ"
@@ -29,7 +25,7 @@ findChez
             Just n => pure n
             Nothing => do e <- firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
                                     x <- ["scheme", "chez", "chezscheme9.5"]]
-                          maybe (pure "/usr/bin/env scheme") pure e
+                          pure $ fromMaybe "/usr/bin/env scheme" e
 
 locate : {auto c : Ref Ctxt Defs} ->
          String -> Core (String, String)
@@ -42,15 +38,15 @@ locate libspec
                                 then fn -- full filename given
                                 else -- add system extension
                                      fn ++ "." ++ dylib_suffix
-                     (fn :: ver :: _) => 
+                     (fn :: ver :: _) =>
                           -- library and version given, build path name as
                           -- appropriate for the system
-                          cond [(dylib_suffix == "dll", 
-                                      fn ++ "-" ++ ver ++ ".dll"), 
+                          cond [(dylib_suffix == "dll",
+                                      fn ++ "-" ++ ver ++ ".dll"),
                                 (dylib_suffix == "dylib",
                                       fn ++ "." ++ ver ++ ".dylib")]
                                 (fn ++ "." ++ dylib_suffix ++ "." ++ ver)
-                         
+
          fullname <- catch (findLibraryFile fname)
                            (\err => -- assume a system library so not
                                     -- in our library path
@@ -164,7 +160,7 @@ cCall fc cfn clib args ret
                    then pure ""
                    else do (fname, fullname) <- locate clib
                            put Loaded (clib :: loaded)
-                           pure $ "(load-shared-object \"" 
+                           pure $ "(load-shared-object \""
                                     ++ escapeQuotes fullname
                                     ++ "\")\n"
          argTypes <- traverse (\a => do s <- cftySpec fc (snd a)
@@ -197,7 +193,7 @@ useCC fc [] args ret
 useCC fc (cc :: ccs) args ret
     = case parseCC cc of
            Nothing => useCC fc ccs args ret
-           Just ("scheme", [sfn]) => 
+           Just ("scheme", [sfn]) =>
                do body <- schemeCall fc sfn (map fst args) ret
                   pure ("", body)
            Just ("C", [cfn, clib]) => cCall fc cfn clib args ret
@@ -214,7 +210,7 @@ mkArgs i (c :: cs) = (MN "farg" i, True) :: mkArgs (i + 1) cs
 schFgnDef : {auto c : Ref Ctxt Defs} ->
             {auto l : Ref Loaded (List String)} ->
             FC -> Name -> CDef -> Core (String, String)
-schFgnDef fc n (MkForeign cs args ret) 
+schFgnDef fc n (MkForeign cs args ret)
     = do let argns = mkArgs 0 args
          let allargns = map fst argns
          let useargns = map fst (filter snd argns)
@@ -253,8 +249,8 @@ compileToSS c tm outfile
          main <- schExp chezExtPrim 0 [] !(compileExp tags tm)
          chez <- coreLift findChez
          support <- readDataFile "chez/support.ss"
-         let scm = schHeader chez (map snd libs) ++ 
-                   support ++ code ++ 
+         let scm = schHeader chez (map snd libs) ++
+                   support ++ code ++
                    concat (map fst fgndefs) ++
                    main ++ schFooter
          Right () <- coreLift $ writeFile outfile scm
@@ -300,4 +296,3 @@ executeExpr c tm
 export
 codegenChez : Codegen
 codegenChez = MkCG compileExpr executeExpr
-
