@@ -21,10 +21,14 @@ import System.Info
 %default covering
 
 findCSI : IO String
-findCSI = pure "/usr/bin/env csi"
+findCSI =
+  do env <- getEnv "CHICKEN_CSI"
+     pure $ fromMaybe "/usr/bin/env -S csi" env
 
 findCSC : IO String
-findCSC = pure "/usr/bin/env csc"
+findCSC =
+  do env <- getEnv "CHICKEN_CSC"
+     pure $ fromMaybe "/usr/bin/env -S csc" env
 
 schHeader : List String -> String
 schHeader ds

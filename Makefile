@@ -14,7 +14,7 @@ ifeq ($(shell git status >/dev/null 2>&1; echo $$?), 0)
     endif
 endif
 
-IDRIS2_VERSION=${MAJOR}.${MINOR}.${PATCH}${VER_TAG}
+IDRIS2_VERSION:=${MAJOR}.${MINOR}.${PATCH}${VER_TAG}
 
 PREFIX ?= ${HOME}/.idris2
 export IDRIS2_PATH = ${CURDIR}/libs/prelude/build/ttc:${CURDIR}/libs/base/build/ttc
