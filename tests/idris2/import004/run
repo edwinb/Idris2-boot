@@ -1,0 +1,4 @@
+$1 Cycle1.idr
+$1 Loop.idr
+
+rm -rf build

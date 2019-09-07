@@ -85,14 +85,17 @@ mkModTree loc done mod
                          Nothing =>
                            do (file, modInfo) <- readHeader loc mod
                               let imps = map path (imports modInfo)
-                              ms <- traverse (mkModTree loc done) imps
+                              ms <- traverse (mkModTree loc (mod :: done)) imps
                               let mt = MkModTree mod (Just file) ms
                               all <- get AllMods
                               put AllMods ((mod, mt) :: all)
                               pure mt
                          Just m => pure m)
                 -- Couldn't find source, assume it's in a package directory
-                (\err => pure (MkModTree mod Nothing []))
+                (\err => 
+                    case err of
+                         CyclicImports _ => throw err
+                         _ => pure (MkModTree mod Nothing []))
 
 -- Given a module tree, returns the modules in the reverse order they need to
 -- be built, including their dependencies
@@ -112,7 +115,6 @@ mkBuildMods acc mod
 
 -- Given a main file name, return the list of modules that need to be
 -- built for that main file, in the order they need to be built
-export
 getBuildMods : {auto c : Ref Ctxt Defs} ->
                {auto o : Ref ROpts REPLOpts} ->
                FC -> (mainFile : String) -> 
