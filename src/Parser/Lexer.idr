@@ -30,8 +30,8 @@ Show Token where
   show (Symbol x) = "symbol " ++ x
   show (Keyword x) = x
   show (Unrecognised x) = "Unrecognised " ++ x
-  show (Comment x) = "comment"
-  show (DocComment x) = "doc comment"
+  show (Comment _) = "comment"
+  show (DocComment _) = "doc comment"
   show (CGDirective x) = "CGDirective " ++ x
   show EndInput = "end of input"
 

@@ -10,9 +10,6 @@ import Control.Monad.State
 
 %default covering
 
-getUnique : List String -> String -> String
-getUnique xs x = if x `elem` xs then getUnique xs (x ++ "'") else x
-
 -- Rename the IBindVars in a term. Anything which appears in the list 'renames'
 -- should be renamed, to something which is *not* in the list 'used'
 export

@@ -17,5 +17,4 @@ addPrim p
 export
 addPrimitives : {auto c : Ref Ctxt Defs} -> Core ()
 addPrimitives 
-    = do traverse addPrim allPrimitives
-         pure ()
+    = traverse_ addPrim allPrimitives

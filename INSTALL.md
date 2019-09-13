@@ -24,7 +24,9 @@ Chez Scheme is available to build from source:
 
 + https://cisco.github.io/ChezScheme/
 
-Many popular package managers will provide a binary distribution for Chez.
+Many popular package managers will provide a binary distribution for Chez. Note
+that homebrew for Mac OS X provides a version without multithreading support, so
+Mac OS X users will want to build from source.
 
 **Note**: If you install ChezScheme from source files, building it locally, make sure
 you run `./configure --threads` to build multithreading support in.

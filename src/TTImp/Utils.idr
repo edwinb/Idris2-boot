@@ -10,6 +10,7 @@ lowerFirst : String -> Bool
 lowerFirst "" = False
 lowerFirst str = assert_total (isLower (strHead str))
 
+export
 getUnique : List String -> String -> String
 getUnique xs x = if x `elem` xs then getUnique xs (x ++ "'") else x
 

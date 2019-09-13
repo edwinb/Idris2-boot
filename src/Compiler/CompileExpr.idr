@@ -50,7 +50,7 @@ etaExpand i Z exp args = mkApp exp (map (mkLocal (getFC exp)) (reverse args))
     mkApp (CExtPrim fc p args) args' = CExtPrim fc p (args ++ args')
     mkApp tm args = CApp (getFC tm) tm args
 etaExpand i (S k) exp args
-    = CLam (getFC exp) (MN "x" i) 
+    = CLam (getFC exp) (MN "x" i)
              (etaExpand (i + 1) k (weaken exp)
                   (MkVar First :: map weakenVar args))
 
@@ -106,7 +106,7 @@ natBranch (MkConAlt n _ _ _) = isNatCon n
 trySBranch : CExp vars -> CConAlt vars -> Maybe (CExp vars)
 trySBranch n (MkConAlt (NS ["Prelude"] (UN "S")) _ [arg] sc)
     = let fc = getFC n in
-          Just (CLet fc arg (CApp fc (CRef fc (UN "prim__sub_Integer")) 
+          Just (CLet fc arg (CApp fc (CRef fc (UN "prim__sub_Integer"))
                     [n, CPrimVal fc (BI 1)]) sc)
 trySBranch _ _ = Nothing
 
@@ -136,9 +136,9 @@ natHackTree t = t
 mutual
   toCExpTm : {auto c : Ref Ctxt Defs} ->
              NameTags -> Name -> Term vars -> Core (CExp vars)
-  toCExpTm tags n (Local fc _ _ prf) 
+  toCExpTm tags n (Local fc _ _ prf)
       = pure $ CLocal fc prf
-  toCExpTm tags n (Ref fc (DataCon tag arity) fn) 
+  toCExpTm tags n (Ref fc (DataCon tag arity) fn)
       = let tag' = case lookup fn tags of
                         Just t => t
                         _ => tag in
@@ -149,9 +149,9 @@ mutual
                         Just t => t
                         _ => tag in
             pure $ CCon fc fn tag' []
-  toCExpTm tags n (Ref fc _ fn) 
-      = do full <- getFullName fn 
-               -- ^ For readability of output code, and the Nat hack, 
+  toCExpTm tags n (Ref fc _ fn)
+      = do full <- getFullName fn
+               -- ^ For readability of output code, and the Nat hack,
            pure $ CApp fc (CRef fc full) []
   toCExpTm tags n (Meta fc mn i args)
       = pure $ CApp fc (CRef fc mn) !(traverse (toCExp tags n) args)
@@ -161,12 +161,12 @@ mutual
       = pure $ CLet fc x (CErased fc) !(toCExp tags n sc)
   toCExpTm tags n (Bind fc x (Let _ val _) sc)
       = pure $ CLet fc x !(toCExp tags n val) !(toCExp tags n sc)
-  toCExpTm tags n (Bind fc x (Pi c e ty) sc) 
+  toCExpTm tags n (Bind fc x (Pi c e ty) sc)
       = pure $ CCon fc (UN "->") 1 [!(toCExp tags n ty),
                                     CLam fc x !(toCExp tags n sc)]
   toCExpTm tags n (Bind fc x b tm) = pure $ CErased fc
   -- We'd expect this to have been dealt with in toCExp, but for completeness...
-  toCExpTm tags n (App fc tm arg) 
+  toCExpTm tags n (App fc tm arg)
       = pure $ CApp fc !(toCExp tags n tm) [!(toCExp tags n arg)]
   -- This shouldn't be in terms any more, but here for completeness
   toCExpTm tags n (As _ _ p) = toCExpTm tags n p
@@ -176,7 +176,7 @@ mutual
       = pure (CDelay fc !(toCExp tags n arg))
   toCExpTm tags n (TForce fc arg)
       = pure (CForce fc !(toCExp tags n arg))
-  toCExpTm tags n (PrimVal fc c) 
+  toCExpTm tags n (PrimVal fc c)
       = let t = constTag c in
             if t == 0
                then pure $ CPrimVal fc c
@@ -197,7 +197,7 @@ mutual
 
 mutual
   conCases : {auto c : Ref Ctxt Defs} ->
-             NameTags -> Name -> List (CaseAlt vars) -> 
+             NameTags -> Name -> List (CaseAlt vars) ->
              Core (List (CConAlt vars))
   conCases tags n [] = pure []
   conCases tags n (ConCase x tag args sc :: ns)
@@ -205,60 +205,60 @@ mutual
                            Just t => t
                            _ => tag
            xn <- getFullName x
-           pure $ MkConAlt xn tag' args !(toCExpTree tags n sc) 
+           pure $ MkConAlt xn tag' args !(toCExpTree tags n sc)
                      :: !(conCases tags n ns)
   conCases tags n (_ :: ns) = conCases tags n ns
 
   constCases : {auto c : Ref Ctxt Defs} ->
-               NameTags -> Name -> List (CaseAlt vars) -> 
+               NameTags -> Name -> List (CaseAlt vars) ->
                Core (List (CConstAlt vars))
   constCases tags n [] = pure []
   constCases tags n (ConstCase x sc :: ns)
-      = pure $ MkConstAlt x !(toCExpTree tags n sc) :: 
+      = pure $ MkConstAlt x !(toCExpTree tags n sc) ::
                     !(constCases tags n ns)
   constCases tags n (_ :: ns) = constCases tags n ns
 
   getDef : {auto c : Ref Ctxt Defs} ->
-           NameTags -> Name -> List (CaseAlt vars) -> 
+           NameTags -> Name -> List (CaseAlt vars) ->
            Core (Maybe (CExp vars))
   getDef tags n [] = pure Nothing
-  getDef tags n (DefaultCase sc :: ns) 
+  getDef tags n (DefaultCase sc :: ns)
       = pure $ Just !(toCExpTree tags n sc)
   getDef tags n (_ :: ns) = getDef tags n ns
 
   toCExpTree : {auto c : Ref Ctxt Defs} ->
-               NameTags -> Name -> CaseTree vars -> 
+               NameTags -> Name -> CaseTree vars ->
                Core (CExp vars)
   toCExpTree tags n alts@(Case _ x scTy (DelayCase ty arg sc :: rest))
       = let fc = getLoc scTy in
-            pure $ 
+            pure $
               CLet fc arg (CForce fc (CLocal (getLoc scTy) x)) $
               CLet fc ty (CErased fc)
                    !(toCExpTree tags n sc)
   toCExpTree tags n alts = toCExpTree' tags n alts
 
   toCExpTree' : {auto c : Ref Ctxt Defs} ->
-                NameTags -> Name -> CaseTree vars -> 
+                NameTags -> Name -> CaseTree vars ->
                 Core (CExp vars)
-  toCExpTree' tags n (Case _ x scTy alts@(ConCase _ _ _ _ :: _)) 
+  toCExpTree' tags n (Case _ x scTy alts@(ConCase _ _ _ _ :: _))
       = let fc = getLoc scTy in
-            pure $ natHackTree 
-             (CConCase fc (CLocal fc x) !(conCases tags n alts) 
+            pure $ natHackTree
+             (CConCase fc (CLocal fc x) !(conCases tags n alts)
                                         !(getDef tags n alts))
   toCExpTree' tags n (Case _ x scTy alts@(DelayCase _ _ _ :: _))
       = throw (InternalError "Unexpected DelayCase")
-  toCExpTree' tags n (Case _ x scTy alts@(ConstCase _ _ :: _)) 
+  toCExpTree' tags n (Case _ x scTy alts@(ConstCase _ _ :: _))
       = let fc = getLoc scTy in
-            pure $ CConstCase fc (CLocal fc x) 
+            pure $ CConstCase fc (CLocal fc x)
                 !(constCases tags n alts) !(getDef tags n alts)
-  toCExpTree' tags n (Case _ x scTy alts@(DefaultCase sc :: _)) 
+  toCExpTree' tags n (Case _ x scTy alts@(DefaultCase sc :: _))
       = toCExpTree tags n sc
-  toCExpTree' tags n (Case _ x scTy []) 
+  toCExpTree' tags n (Case _ x scTy [])
       = pure $ CCrash (getLoc scTy) $ "Missing case tree in " ++ show n
   toCExpTree' tags n (STerm tm) = toCExp tags n tm
-  toCExpTree' tags n (Unmatched msg) 
-      = pure $ CCrash emptyFC msg 
-  toCExpTree' tags n Impossible 
+  toCExpTree' tags n (Unmatched msg)
+      = pure $ CCrash emptyFC msg
+  toCExpTree' tags n Impossible
       = pure $ CCrash emptyFC ("Impossible case encountered in " ++ show n)
 
 -- Need this for ensuring that argument list matches up to operator arity for
@@ -288,11 +288,11 @@ getNArgs n args = User n args
 
 nfToCFType : {auto c : Ref Ctxt Defs} ->
              NF [] -> Core CFType
-nfToCFType (NPrimVal _ IntType) = pure CFInt 
+nfToCFType (NPrimVal _ IntType) = pure CFInt
 nfToCFType (NPrimVal _ StringType) = pure CFString
 nfToCFType (NPrimVal _ DoubleType) = pure CFDouble
 nfToCFType (NPrimVal _ CharType) = pure CFChar
-nfToCFType (NPrimVal _ WorldType) = pure CFWorld 
+nfToCFType (NPrimVal _ WorldType) = pure CFWorld
 nfToCFType (NTCon _ n _ _ args)
     = do defs <- get Ctxt
          case getNArgs !(toFullNames n) args of
@@ -319,8 +319,8 @@ getCFTypes args (NBind fc _ (Pi _ _ ty) sc)
 getCFTypes args t
     = pure (reverse args, !(nfToCFType t))
 
-toCDef : {auto c : Ref Ctxt Defs} -> 
-         NameTags -> Name -> ClosedTerm -> Def -> 
+toCDef : {auto c : Ref Ctxt Defs} ->
+         NameTags -> Name -> ClosedTerm -> Def ->
          Core CDef
 toCDef tags n ty None
     = pure $ MkError $ CCrash emptyFC ("Encountered undefined name " ++ show !(getFullName n))
@@ -350,31 +350,27 @@ toCDef tags n ty (Builtin {arity} op)
     getVars : ArgList k ns -> Vect k (Var ns)
     getVars NoArgs = []
     getVars (ConsArg a rest) = MkVar First :: map weakenVar (getVars rest)
-toCDef tags n ty (DCon tag arity)
-    = case lookup n tags of
-           Just t => pure $ MkCon t arity
-           _ => pure $ MkCon tag arity
-toCDef tags n ty (TCon tag arity _ _ _ _)
-    = case lookup n tags of
-           Just t => pure $ MkCon t arity
-           _ => pure $ MkCon tag arity
+toCDef tags n _ (DCon tag arity)
+    = pure $ MkCon (fromMaybe tag $ lookup n tags) arity
+toCDef tags n _ (TCon tag arity _ _ _ _)
+    = pure $ MkCon (fromMaybe tag $ lookup n tags) arity
 -- We do want to be able to compile these, but also report an error at run time
 -- (and, TODO: warn at compile time)
 toCDef tags n ty (Hole _ _)
-    = pure $ MkError $ CCrash emptyFC ("Encountered unimplemented hole " ++ 
+    = pure $ MkError $ CCrash emptyFC ("Encountered unimplemented hole " ++
                                        show !(getFullName n))
 toCDef tags n ty (Guess _ _)
-    = pure $ MkError $ CCrash emptyFC ("Encountered constrained hole " ++ 
+    = pure $ MkError $ CCrash emptyFC ("Encountered constrained hole " ++
                                        show !(getFullName n))
 toCDef tags n ty (BySearch _ _ _)
-    = pure $ MkError $ CCrash emptyFC ("Encountered incomplete proof search " ++ 
+    = pure $ MkError $ CCrash emptyFC ("Encountered incomplete proof search " ++
                                        show !(getFullName n))
 toCDef tags n ty def
-    = pure $ MkError $ CCrash emptyFC ("Encountered uncompilable name " ++ 
+    = pure $ MkError $ CCrash emptyFC ("Encountered uncompilable name " ++
                                        show (!(getFullName n), def))
 
 export
-compileExp : {auto c : Ref Ctxt Defs} -> 
+compileExp : {auto c : Ref Ctxt Defs} ->
              NameTags -> ClosedTerm -> Core (CExp [])
 compileExp tags tm
     = toCExp tags (UN "main") tm

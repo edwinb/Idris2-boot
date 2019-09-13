@@ -464,18 +464,18 @@ mutual
       = Just (PNamespace fc ns (mapMaybe (getDecl p) ds))
 
   getDecl AsType d@(PClaim _ _ _ _ _) = Just d
-  getDecl AsType (PData fc vis (MkPData dfc tyn tyc opts cons))
+  getDecl AsType (PData fc vis (MkPData dfc tyn tyc _ _))
       = Just (PData fc vis (MkPLater dfc tyn tyc))
-  getDecl AsType d@(PInterface fc vis cons n ps det cname ds) = Just d
-  getDecl AsType d@(PRecord fc vis n ps con fs) = Just d
+  getDecl AsType d@(PInterface _ _ _ _ _ _ _ _) = Just d
+  getDecl AsType d@(PRecord _ _ _ _ _ _) = Just d
   getDecl AsType d@(PFixity _ _ _ _) = Just d
   getDecl AsType d@(PDirective _ _) = Just d
   getDecl AsType d = Nothing
 
   getDecl AsDef (PClaim _ _ _ _ _) = Nothing
-  getDecl AsDef d@(PData fc vis (MkPLater dfc tyn tyc)) = Just d
-  getDecl AsDef (PInterface fc vis cons n ps det cname ds) = Nothing
-  getDecl AsDef (PRecord fc vis n ps con fs) = Nothing
+  getDecl AsDef d@(PData _ _ (MkPLater _ _ _)) = Just d
+  getDecl AsDef (PInterface _ _ _ _ _ _ _ _) = Nothing
+  getDecl AsDef (PRecord _ _ _ _ _ _) = Nothing
   getDecl AsDef (PFixity _ _ _ _) = Nothing
   getDecl AsDef (PDirective _ _) = Nothing
   getDecl AsDef d = Just d
@@ -504,8 +504,8 @@ mutual
     where
       getFn : RawImp -> Core Name
       getFn (IVar _ n) = pure n
-      getFn (IApp _ f a) = getFn f
-      getFn (IImplicitApp _ f _ a) = getFn f
+      getFn (IApp _ f _) = getFn f
+      getFn (IImplicitApp _ f _ _) = getFn f
       getFn tm = throw (InternalError (show tm ++ " is not a function application"))
 
       toIDef : ImpClause -> Core ImpDecl
@@ -559,7 +559,7 @@ mutual
       -- is a bit of a hack, but it's necessary to build parent constraint
       -- chasing functions correctly
       pairToCons : PTerm -> List PTerm
-      pairToCons (PPair fc l r) = pairToCons l ++ pairToCons r
+      pairToCons (PPair _ l r) = pairToCons l ++ pairToCons r
       pairToCons t = [t]
 
       expandConstraint : (Maybe Name, PTerm) -> List (Maybe Name, PTerm)
