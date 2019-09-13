@@ -144,7 +144,8 @@ stMain opts
                        setOutput (IDEMode 0 stdin stdout)
                        replIDE {c} {u} {m}
                      else do
-                       f <- coreLift $ initIDESocketFile 38398
+                       let (host, port) = ideSocketModeHostPort opts
+                       f <- coreLift $ initIDESocketFile host port
                        case f of
                          Left err => do
                            coreLift $ putStrLn err
