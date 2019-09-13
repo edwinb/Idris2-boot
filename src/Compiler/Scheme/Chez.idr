@@ -29,7 +29,7 @@ findChez
             Just n => pure n
             Nothing => do e <- firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
                                     x <- ["scheme", "chez", "chezscheme9.5"]]
-                          maybe (pure "/usr/bin/env scheme") pure e
+                          maybe (pure "/usr/bin/env -S scheme") pure e
 
 locate : {auto c : Ref Ctxt Defs} ->
          String -> Core (String, String)
