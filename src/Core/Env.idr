@@ -15,7 +15,7 @@ extend x = (::) {x}
 export
 length : Env tm xs -> Nat
 length [] = 0
-length (x :: xs) = S (length xs)
+length (_ :: xs) = S (length xs)
 
 public export
 data IsDefined : Name -> List Name -> Type where
@@ -118,11 +118,6 @@ letToLam (Let c val ty :: env) = Lam c Explicit ty :: letToLam env
 letToLam (b :: env) = b :: letToLam env
 
 mutual
-  dropS : List Nat -> List Nat
-  dropS [] = []
-  dropS (Z :: xs) = dropS xs
-  dropS (S p :: xs) = p :: dropS xs
-
 	-- Quicker, if less safe, to store variables as a Nat, for quick comparison
   findUsed : Env Term vars -> List Nat -> Term vars -> List Nat
   findUsed env used (Local fc r idx p) 
@@ -145,6 +140,11 @@ mutual
           dropS (findUsed (b :: env)
                           (map S (findUsedInBinder env used b))
                           tm)
+    where 
+      dropS : List Nat -> List Nat
+      dropS [] = []
+      dropS (Z :: xs) = dropS xs
+      dropS (S p :: xs) = p :: dropS xs
   findUsed env used (App fc fn arg) 
       = findUsed env (findUsed env used fn) arg
   findUsed env used (As fc a p) 

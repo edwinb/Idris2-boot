@@ -13,6 +13,11 @@ import Data.Vect
 
 %default covering
 
+export
+firstExists : List String -> IO (Maybe String)
+firstExists [] = pure Nothing
+firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
+
 schString : String -> String
 schString s = concatMap okchar (unpack s)
   where

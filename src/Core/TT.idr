@@ -407,16 +407,16 @@ data Term : List Name -> Type where
 
 export
 getLoc : Term vars -> FC
-getLoc (Local fc x idx y) = fc
-getLoc (Ref fc x name) = fc
-getLoc (Meta fc x y xs) = fc
-getLoc (Bind fc x b scope) = fc
-getLoc (App fc fn arg) = fc
-getLoc (As fc x y) = fc
-getLoc (TDelayed fc x y) = fc
-getLoc (TDelay fc x t y) = fc
-getLoc (TForce fc x) = fc
-getLoc (PrimVal fc c) = fc
+getLoc (Local fc _ _ _) = fc
+getLoc (Ref fc _ _) = fc
+getLoc (Meta fc _ _ _) = fc
+getLoc (Bind fc _ _ _) = fc
+getLoc (App fc _ _) = fc
+getLoc (As fc _ _) = fc
+getLoc (TDelayed fc _ _) = fc
+getLoc (TDelay fc _ _ _) = fc
+getLoc (TForce fc _) = fc
+getLoc (PrimVal fc _) = fc
 getLoc (Erased fc) = fc
 getLoc (TType fc) = fc
 

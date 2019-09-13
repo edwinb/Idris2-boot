@@ -36,9 +36,9 @@ nameRoot (UN n) = n
 nameRoot (MN n _) = n
 nameRoot (PV n _) = nameRoot n
 nameRoot (DN _ n) = nameRoot n
-nameRoot (Nested n inner) = nameRoot inner
-nameRoot (CaseBlock n inner) = "$" ++ show n
-nameRoot (WithBlock n inner) = "$" ++ show n
+nameRoot (Nested _ inner) = nameRoot inner
+nameRoot (CaseBlock n _) = "$" ++ show n
+nameRoot (WithBlock n _) = "$" ++ show n
 nameRoot (Resolved i) = "$" ++ show i
 
 --- Drop a namespace from a name
