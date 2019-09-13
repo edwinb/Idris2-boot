@@ -43,10 +43,10 @@ socketToFile (MkSocket f _ _ _) = do
   if !(ferror file) then do
     pure (Left "Failed to fdopen socket file descriptor")
   else pure (Right file)
-  
+
 export
-initIDESocketFile : Int -> IO (Either String File)
-initIDESocketFile p = do
+initIDESocketFile : String -> Int -> IO (Either String File)
+initIDESocketFile h p = do
   osock <- socket AF_INET Stream 0
   case osock of
     Left fail => do
@@ -54,9 +54,9 @@ initIDESocketFile p = do
       putStrLn "Failed to open socket"
       exit 1
     Right sock => do
-      res <- bind sock (Just (Hostname "localhost")) p
-      if res /= 0 
-      then 
+      res <- bind sock (Just (Hostname h)) p
+      if res /= 0
+      then
         pure (Left ("Failed to bind socket with error: " ++ show res))
       else do
         res <- listen sock
@@ -66,11 +66,11 @@ initIDESocketFile p = do
         else do
           putStrLn (show p)
           res <- accept sock
-          case res of 
-            Left err => 
+          case res of
+            Left err =>
                pure (Left ("Failed to accept on socket with error: " ++ show err))
-            Right (s, _) => 
-               socketToFile s             
+            Right (s, _) =>
+               socketToFile s
 
 getChar : File -> IO Char
 getChar (FHandle h) = do
@@ -83,7 +83,7 @@ getChar (FHandle h) = do
       putStrLn "Failed to read a character"
       exit 1
     else pure chr
-  
+
 getFLine : File -> IO String
 getFLine (FHandle h) = do
   str <- prim_fread h
@@ -95,7 +95,7 @@ getFLine (FHandle h) = do
 getNChars : File -> Nat -> IO (List Char)
 getNChars i Z = pure []
 getNChars i (S k)
-    = do x <- getChar i 
+    = do x <- getChar i
          xs <- getNChars i k
          pure (x :: xs)
 
@@ -117,11 +117,13 @@ hex 'd' = Just 13
 hex 'e' = Just 14
 hex 'f' = Just 15
 hex _ = Nothing
-    
+
+export
 toHex : Int -> List Char -> Maybe Int
 toHex _ [] = Just 0
-toHex m (d :: ds) 
+toHex m (d :: ds)
     = pure $ !(hex (toLower d)) * m + !(toHex (m*16) ds)
+
 
 -- Read 6 characters. If they're a hex number, read that many characters.
 -- Otherwise, just read to newline
@@ -145,7 +147,7 @@ process : {auto c : Ref Ctxt Defs} ->
 process (Interpret cmd)
     = do interpret cmd
          printResult "Done"
-process (LoadFile fname toline) 
+process (LoadFile fname toline)
     = do opts <- get ROpts
          put ROpts (record { mainfile = Just fname } opts)
          resetContext
@@ -157,7 +159,7 @@ process (LoadFile fname toline)
          case errs of
               [] => printResult $ "Loaded " ++ fname
               _ => printError $ "Failed to load " ++ fname
-process (TypeOf n Nothing) 
+process (TypeOf n Nothing)
     = do Idris.REPL.process (Check (PRef replFC (UN n)))
          pure ()
 process (TypeOf n (Just (l, c)))
@@ -170,7 +172,7 @@ process (AddClause l n)
     = do Idris.REPL.process (Editing (AddClause (fromInteger l) (UN n)))
          pure ()
 process (ExprSearch l n hs all)
-    = do Idris.REPL.process (Editing (ExprSearch (fromInteger l) (UN n) 
+    = do Idris.REPL.process (Editing (ExprSearch (fromInteger l) (UN n)
                                                  (map UN hs) all))
          pure ()
 process (GenerateDef l n)
@@ -205,7 +207,7 @@ processCatch cmd
                            put ROpts o'
                            emitError err
                            printError "Command failed")
-                                                      
+
 loop : {auto c : Ref Ctxt Defs} ->
        {auto u : Ref UST UState} ->
        {auto s : Ref Syn SyntaxInfo} ->
@@ -213,7 +215,7 @@ loop : {auto c : Ref Ctxt Defs} ->
        {auto o : Ref ROpts REPLOpts} ->
        Core ()
 loop
-    = do res <- getOutput 
+    = do res <- getOutput
          case res of
               REPL _ => printError "Running idemode but output isn't"
               IDEMode _ inf outf => do
@@ -226,11 +228,11 @@ loop
                        loop
                   Right sexp =>
                     case getMsg sexp of
-                      Just (cmd, i) => 
+                      Just (cmd, i) =>
                         do updateOutput i
                            processCatch cmd
-                           loop 
-                      Nothing => 
+                           loop
+                      Nothing =>
                         do printError ("Unrecognised command: " ++ show sexp)
                            loop
   where
@@ -254,4 +256,3 @@ replIDE
               IDEMode _ inf outf => do
                 send outf (version 2 0)
                 loop
-
