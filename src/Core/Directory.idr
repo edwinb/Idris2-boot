@@ -81,7 +81,7 @@ nsToPath loc ns
     = do d <- getDirs
          let fnameBase = showSep (cast sep) (reverse ns)
          let fs = map (\p => p ++ cast sep ++ fnameBase ++ ".ttc")
-                      (build_dir d :: extra_dirs d)
+                      ((build_dir d ++ cast sep ++ "ttc") :: extra_dirs d)
          Just f <- firstAvailable fs
             | Nothing => pure (Left (ModuleNotFound loc ns))
          pure (Right f)
@@ -151,7 +151,7 @@ makeBuildDirectory ns
                           [] => []
                           (n :: ns) => ns -- first item is file name
          let fname = showSep (cast sep) (reverse ndirs)
-         Right _ <- coreLift $ mkdirs (build_dir d :: reverse ndirs)
+         Right _ <- coreLift $ mkdirs (build_dir d :: "ttc" :: reverse ndirs)
             | Left err => throw (FileErr (bdir ++ cast sep ++ fname) err)
          pure ()
 
@@ -167,7 +167,7 @@ getTTCFileName inp ext
          let ns = pathToNS (working_dir d) inp
          let fname = showSep (cast sep) (reverse ns) ++ ext
          let bdir = build_dir d
-         pure $ bdir ++ cast sep ++ fname
+         pure $ bdir ++ cast sep ++ "ttc" ++ cast sep ++ fname
 
 -- Given a root executable name, return the name in the build directory
 export

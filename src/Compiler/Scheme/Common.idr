@@ -13,6 +13,11 @@ import Data.Vect
 
 %default covering
 
+export
+firstExists : List String -> IO (Maybe String)
+firstExists [] = pure Nothing
+firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
+
 schString : String -> String
 schString s = concatMap okchar (unpack s)
   where
@@ -21,6 +26,7 @@ schString s = concatMap okchar (unpack s)
                   then cast c
                   else "C-" ++ show (cast {to=Int} c)
 
+export
 schName : Name -> String
 schName (NS ns n) = showSep "-" ns ++ "-" ++ schName n
 schName (UN n) = schString n
@@ -48,6 +54,7 @@ extendSVars {ns} xs vs = extSVars' (cast (length ns)) xs vs
     extSVars' i [] vs = vs
     extSVars' i (x :: xs) vs = schName (MN "v" i) :: extSVars' (i + 1) xs vs
 
+export
 initSVars : (xs : List Name) -> SVars xs
 initSVars xs = rewrite sym (appendNilRightNeutral xs) in extendSVars xs []
 
@@ -215,6 +222,12 @@ schConstant WorldType = "#t"
 schCaseDef : Maybe String -> String
 schCaseDef Nothing = ""
 schCaseDef (Just tm) = "(else " ++ tm ++ ")"
+  
+export
+schArglist : SVars ns -> String
+schArglist [] = ""
+schArglist [x] = x
+schArglist (x :: xs) = x ++ " " ++ schArglist xs
 
 parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String)
   mutual
@@ -338,11 +351,6 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
       = throw (InternalError ("Badly formed external primitive " ++ show prim
                                 ++ " " ++ show args))
 
-  schArglist : SVars ns -> String
-  schArglist [] = ""
-  schArglist [x] = x
-  schArglist (x :: xs) = x ++ " " ++ schArglist xs
-
   schDef : {auto c : Ref Ctxt Defs} ->
            Name -> CDef -> Core String
   schDef n (MkFun args exp)
@@ -351,6 +359,7 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
                       ++ !(schExp 0 vs exp) ++ "))\n"
   schDef n (MkError exp)
      = pure $ "(define (" ++ schName !(getFullName n) ++ " . any-args) " ++ !(schExp 0 [] exp) ++ ")\n"
+  schDef n (MkForeign _ _ _) = pure "" -- compiled by specific back end
   schDef n (MkCon t a) = pure "" -- Nothing to compile here
   
 -- Convert the name to scheme code

@@ -126,6 +126,10 @@ interface SExpable a where
   toSExp : a -> SExp
 
 export
+SExpable IDECommand where
+  toSExp = putIDECommand
+
+export
 SExpable SExp where
   toSExp = id
 

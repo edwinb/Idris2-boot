@@ -234,9 +234,9 @@ installFrom : {auto c : Ref Ctxt Defs} ->
               String -> String -> String -> List String -> Core ()
 installFrom _ _ _ [] = pure ()
 installFrom pname builddir destdir ns@(m :: dns)
-    = do let ttcfile = showSep "/" (reverse ns)
-         let ttcPath = builddir ++ dirSep ++ ttcfile ++ ".ttc"
-         let destPath = destdir ++ dirSep ++ showSep "/" (reverse dns)
+    = do let ttcfile = showSep dirSep (reverse ns)
+         let ttcPath = builddir ++ dirSep ++ "ttc" ++ dirSep ++ ttcfile ++ ".ttc"
+         let destPath = destdir ++ dirSep ++ showSep dirSep (reverse dns)
          let destFile = destdir ++ dirSep ++ ttcfile ++ ".ttc"
          Right _ <- coreLift $ mkdirs (reverse dns)
              | Left err => throw (FileErr pname err)

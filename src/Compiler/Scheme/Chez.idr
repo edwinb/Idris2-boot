@@ -18,10 +18,6 @@ import System.Info
 
 %default covering
 
-firstExists : List String -> IO (Maybe String)
-firstExists [] = pure Nothing
-firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
-
 findChez : IO String
 findChez
     = do env <- getEnv "CHEZ"
@@ -29,7 +25,33 @@ findChez
             Just n => pure n
             Nothing => do e <- firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
                                     x <- ["scheme", "chez", "chezscheme9.5"]]
-                          maybe (pure "/usr/bin/env scheme") pure e
+                          pure $ fromMaybe "/usr/bin/env -S scheme" e
+
+locate : {auto c : Ref Ctxt Defs} ->
+         String -> Core (String, String)
+locate libspec
+    = do -- Attempt to turn libspec into an appropriate filename for the system
+         let fname
+              = case words libspec of
+                     [] => ""
+                     [fn] => if '.' `elem` unpack fn
+                                then fn -- full filename given
+                                else -- add system extension
+                                     fn ++ "." ++ dylib_suffix
+                     (fn :: ver :: _) =>
+                          -- library and version given, build path name as
+                          -- appropriate for the system
+                          cond [(dylib_suffix == "dll",
+                                      fn ++ "-" ++ ver ++ ".dll"),
+                                (dylib_suffix == "dylib",
+                                      fn ++ "." ++ ver ++ ".dylib")]
+                                (fn ++ "." ++ dylib_suffix ++ "." ++ ver)
+
+         fullname <- catch (findLibraryFile fname)
+                           (\err => -- assume a system library so not
+                                    -- in our library path
+                                    pure fname)
+         pure (fname, fullname)
 
 -- Given the chez compiler directives, return a list of pairs of:
 --   - the library file name
@@ -43,14 +65,6 @@ findLibs ds
     = do let libs = mapMaybe (isLib . trim) ds
          traverse locate (nub libs)
   where
-    locate : String -> Core (String, String)
-    locate fname
-        = do fullname <- catch (findLibraryFile fname)
-                               (\err => -- assume a system library so not
-                                        -- in our library path
-                                        pure fname)
-             pure (fname, fullname)
-
     isLib : String -> Maybe String
     isLib d
         = if isPrefixOf "lib" d
@@ -87,9 +101,12 @@ mutual
   tySpec (CCon fc (UN "String") _ []) = pure "string"
   tySpec (CCon fc (UN "Double") _ []) = pure "double"
   tySpec (CCon fc (UN "Char") _ []) = pure "char"
+  tySpec (CCon fc (NS _ n) _ [_])
+     = cond [(n == UN "Ptr", pure "void*")]
+          (throw (GenericMsg fc ("Can't pass argument of type " ++ show n ++ " to foreign function")))
   tySpec (CCon fc (NS _ n) _ [])
      = cond [(n == UN "Unit", pure "void"),
-             (n == UN "Ptr", pure "void*")]
+             (n == UN "AnyPtr", pure "void*")]
           (throw (GenericMsg fc ("Can't pass argument of type " ++ show n ++ " to foreign function")))
   tySpec ty = throw (GenericMsg (getFC ty) ("Can't pass argument of type " ++ show ty ++ " to foreign function"))
 
@@ -119,6 +136,104 @@ mutual
   chezExtPrim i vs prim args
       = schExtCommon chezExtPrim i vs prim args
 
+-- Reference label for keeping track of loaded external libraries
+data Loaded : Type where
+
+cftySpec : FC -> CFType -> Core String
+cftySpec fc CFUnit = pure "void"
+cftySpec fc CFInt = pure "int"
+cftySpec fc CFString = pure "string"
+cftySpec fc CFDouble = pure "double"
+cftySpec fc CFChar = pure "char"
+cftySpec fc CFPtr = pure "void*"
+cftySpec fc (CFIORes t) = cftySpec fc t
+cftySpec fc t = throw (GenericMsg fc ("Can't pass argument of type " ++ show t ++
+                         " to foreign function"))
+
+cCall : {auto c : Ref Ctxt Defs} ->
+        {auto l : Ref Loaded (List String)} ->
+        FC -> (cfn : String) -> (clib : String) ->
+        List (Name, CFType) -> CFType -> Core (String, String)
+cCall fc cfn clib args ret
+    = do loaded <- get Loaded
+         lib <- if clib `elem` loaded
+                   then pure ""
+                   else do (fname, fullname) <- locate clib
+                           put Loaded (clib :: loaded)
+                           pure $ "(load-shared-object \""
+                                    ++ escapeQuotes fullname
+                                    ++ "\")\n"
+         argTypes <- traverse (\a => do s <- cftySpec fc (snd a)
+                                        pure (fst a, s)) args
+         retType <- cftySpec fc ret
+         let call = "((foreign-procedure #f " ++ show cfn ++ " ("
+                      ++ showSep " " (map snd argTypes) ++ ") " ++ retType ++ ") "
+                      ++ showSep " " (map (schName . fst) argTypes) ++ ")"
+
+         pure (lib, case ret of
+                         CFIORes _ => handleRet retType call
+                         _ => call)
+
+schemeCall : FC -> (sfn : String) ->
+             List Name -> CFType -> Core String
+schemeCall fc sfn argns ret
+    = let call = "(" ++ sfn ++ " " ++ showSep " " (map schName argns) ++ ")" in
+          case ret of
+               CFIORes _ => pure $ mkWorld call
+               _ => pure call
+
+-- Use a calling convention to compile a foreign def.
+-- Returns any preamble needed for loading libraries, and the body of the
+-- function call.
+useCC : {auto c : Ref Ctxt Defs} ->
+        {auto l : Ref Loaded (List String)} ->
+        FC -> List String -> List (Name, CFType) -> CFType -> Core (String, String)
+useCC fc [] args ret
+    = throw (GenericMsg fc "No recognised foreign calling convention")
+useCC fc (cc :: ccs) args ret
+    = case parseCC cc of
+           Nothing => useCC fc ccs args ret
+           Just ("scheme", [sfn]) =>
+               do body <- schemeCall fc sfn (map fst args) ret
+                  pure ("", body)
+           Just ("C", [cfn, clib]) => cCall fc cfn clib args ret
+           Just ("C", [cfn, clib, chdr]) => cCall fc cfn clib args ret
+           _ => useCC fc ccs args ret
+
+-- For every foreign arg type, return a name, and whether to pass it to the
+-- foreign call (we don't pass '%World')
+mkArgs : Int -> List CFType -> List (Name, Bool)
+mkArgs i [] = []
+mkArgs i (CFWorld :: cs) = (MN "farg" i, False) :: mkArgs i cs
+mkArgs i (c :: cs) = (MN "farg" i, True) :: mkArgs (i + 1) cs
+
+schFgnDef : {auto c : Ref Ctxt Defs} ->
+            {auto l : Ref Loaded (List String)} ->
+            FC -> Name -> CDef -> Core (String, String)
+schFgnDef fc n (MkForeign cs args ret)
+    = do let argns = mkArgs 0 args
+         let allargns = map fst argns
+         let useargns = map fst (filter snd argns)
+         (load, body) <- useCC fc cs (zip useargns args) ret
+         defs <- get Ctxt
+         pure (load,
+                "(define " ++ schName !(full (gamma defs) n) ++
+                " (lambda (" ++ showSep " " (map schName allargns) ++ ") " ++
+                body ++ "))\n")
+schFgnDef _ _ _ = pure ("", "")
+
+getFgnCall : {auto c : Ref Ctxt Defs} ->
+             {auto l : Ref Loaded (List String)} ->
+             Name -> Core (String, String)
+getFgnCall n
+    = do defs <- get Ctxt
+         case !(lookupCtxtExact n (gamma defs)) of
+           Nothing => throw (InternalError ("Compiling undefined name " ++ show n))
+           Just def => case compexpr def of
+                          Nothing =>
+                             throw (InternalError ("No compiled definition for " ++ show n))
+                          Just d => schFgnDef (location def) n d
+
 ||| Compile a TT expression to Chez Scheme
 compileToSS : Ref Ctxt Defs ->
               ClosedTerm -> (outfile : String) -> Core ()
@@ -127,13 +242,17 @@ compileToSS c tm outfile
          libs <- findLibs ds
          (ns, tags) <- findUsedNames tm
          defs <- get Ctxt
+         l <- newRef {t = List String} Loaded ["libc", "libc 6"]
+         fgndefs <- traverse getFgnCall ns
          compdefs <- traverse (getScheme chezExtPrim defs) ns
-         let code = concat compdefs
+         let code = concat (map snd fgndefs) ++ concat compdefs
          main <- schExp chezExtPrim 0 [] !(compileExp tags tm)
          chez <- coreLift findChez
          support <- readDataFile "chez/support.ss"
-         let scm = schHeader chez (map snd libs) ++ 
-                   support ++ code ++ main ++ schFooter
+         let scm = schHeader chez (map snd libs) ++
+                   support ++ code ++
+                   concat (map fst fgndefs) ++
+                   main ++ schFooter
          Right () <- coreLift $ writeFile outfile scm
             | Left err => throw (FileErr outfile err)
          coreLift $ chmod outfile 0o755
@@ -177,4 +296,3 @@ executeExpr c tm
 export
 codegenChez : Codegen
 codegenChez = MkCG compileExpr executeExpr
-

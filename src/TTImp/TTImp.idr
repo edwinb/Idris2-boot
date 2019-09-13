@@ -163,6 +163,8 @@ mutual
        -- Flag means to use as a default if all else fails
        GlobalHint : Bool -> FnOpt
        ExternFn : FnOpt
+       -- Defined externally, list calling conventions
+       ForeignFn : List String -> FnOpt 
        -- assume safe to cancel arguments in unification
        Invertible : FnOpt
        Total : FnOpt
@@ -175,6 +177,7 @@ mutual
     show (Hint t) = "%hint " ++ show t
     show (GlobalHint t) = "%globalhint " ++ show t
     show ExternFn = "%extern"
+    show (ForeignFn cs) = "%foreign " ++ showSep " " (map show cs)
     show Invertible = "%invertible"
     show Total = "total"
     show Covering = "covering"
@@ -186,6 +189,7 @@ mutual
     (Hint x) == (Hint y) = x == y
     (GlobalHint x) == (GlobalHint y) = x == y
     ExternFn == ExternFn = True
+    (ForeignFn xs) == (ForeignFn ys) = xs == ys
     Invertible == Invertible = True
     Total == Total = True
     Covering == Covering = True
@@ -789,10 +793,11 @@ mutual
     toBuf b (Hint t) = do tag 1; toBuf b t
     toBuf b (GlobalHint t) = do tag 2; toBuf b t
     toBuf b ExternFn = tag 3
-    toBuf b Invertible = tag 4
-    toBuf b Total = tag 5
-    toBuf b Covering = tag 6
-    toBuf b PartialOK = tag 7
+    toBuf b (ForeignFn cs) = do tag 4; toBuf b cs
+    toBuf b Invertible = tag 5
+    toBuf b Total = tag 6
+    toBuf b Covering = tag 7
+    toBuf b PartialOK = tag 8
 
     fromBuf b
         = case !getTag of
@@ -800,10 +805,11 @@ mutual
                1 => do t <- fromBuf b; pure (Hint t)
                2 => do t <- fromBuf b; pure (GlobalHint t)
                3 => pure ExternFn
-               4 => pure Invertible
-               5 => pure Total
-               6 => pure Covering
-               7 => pure PartialOK
+               4 => do cs <- fromBuf b; pure (ForeignFn cs)
+               5 => pure Invertible
+               6 => pure Total
+               7 => pure Covering
+               8 => pure PartialOK
                _ => corrupt "FnOpt"
 
   export

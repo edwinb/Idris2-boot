@@ -58,6 +58,7 @@ unloadApp n args e = unload (drop n args) (CApp (getFC e) e (take n args))
 getArity : CDef -> Nat
 getArity (MkFun args _) = length args
 getArity (MkCon _ arity) = arity
+getArity (MkForeign _ args _) = length args
 getArity (MkError _) = 0
 
 takeFromStack : EEnv free vars -> Stack free -> (args : List Name) -> 

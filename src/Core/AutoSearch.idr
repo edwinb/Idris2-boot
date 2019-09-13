@@ -498,7 +498,7 @@ searchType {vars} fc rigc defaults trying depth def checkdets top env target
                  logNF 5 "For target" env nty
                  searchNames fc rigc defaults (target :: trying) depth def top env ambigok g nty)
              (\err => if ambig err then throw err
-                         else tryGroups (maybe (Just err) Just merr) nty gs)
+                         else tryGroups (Just $ fromMaybe err merr) nty gs)
 
 -- Declared in Core.Unify as:
 -- search : {auto c : Ref Ctxt Defs} ->

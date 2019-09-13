@@ -638,20 +638,48 @@ mutual
              pure (MkConstAlt c sc)
 
 export
-  TTC CDef where
-    toBuf b (MkFun args cexpr) = do tag 0; toBuf b args; toBuf b cexpr
-    toBuf b (MkCon t arity) = do tag 1; toBuf b t; toBuf b arity
-    toBuf b (MkError cexpr) = do tag 2; toBuf b cexpr
+TTC CFType where
+  toBuf b CFUnit = tag 0
+  toBuf b CFInt = tag 1
+  toBuf b CFString = tag 2
+  toBuf b CFDouble = tag 3
+  toBuf b CFChar = tag 4
+  toBuf b CFPtr = tag 5
+  toBuf b CFWorld = tag 6
+  toBuf b (CFIORes t) = do tag 7; toBuf b t
+  toBuf b (CFUser n a) = do tag 8; toBuf b n; toBuf b a
 
-    fromBuf b 
-        = case !getTag of
-               0 => do args <- fromBuf b; cexpr <- fromBuf b
-                       pure (MkFun args cexpr)
-               1 => do t <- fromBuf b; arity <- fromBuf b
-                       pure (MkCon t arity)
-               2 => do cexpr <- fromBuf b
-                       pure (MkError cexpr)
-               _ => corrupt "CDef"
+  fromBuf b
+      = case !getTag of
+             0 => pure CFUnit
+             1 => pure CFInt
+             2 => pure CFString
+             3 => pure CFDouble
+             4 => pure CFChar
+             5 => pure CFPtr
+             6 => pure CFWorld
+             7 => do t <- fromBuf b; pure (CFIORes t)
+             8 => do n <- fromBuf b; a <- fromBuf b; pure (CFUser n a)
+             _ => corrupt "CFType"
+
+export
+TTC CDef where
+  toBuf b (MkFun args cexpr) = do tag 0; toBuf b args; toBuf b cexpr
+  toBuf b (MkCon t arity) = do tag 1; toBuf b t; toBuf b arity
+  toBuf b (MkForeign cs args ret) = do tag 2; toBuf b cs; toBuf b args; toBuf b ret
+  toBuf b (MkError cexpr) = do tag 3; toBuf b cexpr
+
+  fromBuf b 
+      = case !getTag of
+             0 => do args <- fromBuf b; cexpr <- fromBuf b
+                     pure (MkFun args cexpr)
+             1 => do t <- fromBuf b; arity <- fromBuf b
+                     pure (MkCon t arity)
+             2 => do cs <- fromBuf b; args <- fromBuf b; ret <- fromBuf b
+                     pure (MkForeign cs args ret)
+             3 => do cexpr <- fromBuf b
+                     pure (MkError cexpr)
+             _ => corrupt "CDef"
 
 export
 TTC CG where
@@ -708,19 +736,21 @@ TTC Def where
       = do tag 1; toBuf b args; toBuf b ct; toBuf b rt; toBuf b pats
   toBuf b (ExternDef a)
       = do tag 2; toBuf b a
+  toBuf b (ForeignDef a cs)
+      = do tag 3; toBuf b a; toBuf b cs
   toBuf b (Builtin a)
       = throw (InternalError "Trying to serialise a Builtin")
-  toBuf b (DCon t arity) = do tag 3; toBuf b t; toBuf b arity
+  toBuf b (DCon t arity) = do tag 4; toBuf b t; toBuf b arity
   toBuf b (TCon t arity parampos detpos ms datacons) 
-      = do tag 4; toBuf b t; toBuf b arity; toBuf b parampos
+      = do tag 5; toBuf b t; toBuf b arity; toBuf b parampos
            toBuf b detpos; toBuf b ms; toBuf b datacons
   toBuf b (Hole locs p) 
-      = do tag 5; toBuf b locs; toBuf b p
+      = do tag 6; toBuf b locs; toBuf b p
   toBuf b (BySearch c depth def) 
-      = do tag 6; toBuf b c; toBuf b depth; toBuf b def
-  toBuf b (Guess guess constraints) = do tag 7; toBuf b guess; toBuf b constraints
-  toBuf b ImpBind = tag 8
-  toBuf b Delayed = tag 9
+      = do tag 7; toBuf b c; toBuf b depth; toBuf b def
+  toBuf b (Guess guess constraints) = do tag 8; toBuf b guess; toBuf b constraints
+  toBuf b ImpBind = tag 9
+  toBuf b Delayed = tag 10
 
   fromBuf b 
       = case !getTag of
@@ -732,22 +762,25 @@ TTC Def where
                      pure (PMDef False args ct rt pats)
              2 => do a <- fromBuf b
                      pure (ExternDef a)
-             3 => do t <- fromBuf b; a <- fromBuf b
-                     pure (DCon t a)
+             3 => do a <- fromBuf b
+                     cs <- fromBuf b
+                     pure (ForeignDef a cs)
              4 => do t <- fromBuf b; a <- fromBuf b
+                     pure (DCon t a)
+             5 => do t <- fromBuf b; a <- fromBuf b
                      ps <- fromBuf b; dets <- fromBuf b; 
                      ms <- fromBuf b; cs <- fromBuf b
                      pure (TCon t a ps dets ms cs)
-             5 => do l <- fromBuf b
+             6 => do l <- fromBuf b
                      p <- fromBuf b
                      pure (Hole l p)
-             6 => do c <- fromBuf b; depth <- fromBuf b
+             7 => do c <- fromBuf b; depth <- fromBuf b
                      def <- fromBuf b
                      pure (BySearch c depth def)
-             7 => do g <- fromBuf b; cs <- fromBuf b
+             8 => do g <- fromBuf b; cs <- fromBuf b
                      pure (Guess g cs)
-             8 => pure ImpBind
-             9 => pure Context.Delayed
+             9 => pure ImpBind
+             10 => pure Context.Delayed
              _ => corrupt "Def"
 
 TTC TotalReq where
