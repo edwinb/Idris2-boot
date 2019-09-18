@@ -61,8 +61,8 @@ typeddTests
 
 chezTests : List String
 chezTests
-   = ["chez001", "chez002", "chez003", "chez004",
-      "chez005", "chez006", "chez007"]
+   = ["chez001", "chez002", "chez003", "chez004", "chez005", "chez006", 
+      "chez007", "chez008"]
 
 ideModeTests : List String
 ideModeTests

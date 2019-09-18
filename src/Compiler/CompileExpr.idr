@@ -93,6 +93,7 @@ natHack (CApp fc (CRef fc' (NS ["Prelude"] (UN "mult"))) args)
     = CApp fc (CRef fc' (UN "prim__mul_Integer")) args
 natHack (CApp fc (CRef fc' (NS ["Nat", "Data"] (UN "minus"))) args)
     = CApp fc (CRef fc' (UN "prim__sub_Integer")) args
+natHack (CLam fc x exp) = CLam fc x (natHack exp)
 natHack t = t
 
 isNatCon : Name -> Bool
