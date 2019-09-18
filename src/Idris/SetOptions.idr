@@ -10,6 +10,8 @@ import Idris.CommandLine
 import Idris.REPL
 import Idris.Syntax
 
+import YafflePaths
+
 import System
 
 -- TODO: Version numbers on dependencies
@@ -19,7 +21,7 @@ addPkgDir : {auto c : Ref Ctxt Defs} ->
 addPkgDir p
     = do defs <- get Ctxt
          addExtraDir (dir_prefix (dirs (options defs)) ++ dirSep ++
-                             "idris2" ++ dirSep ++ p)
+                             "idris2-" ++ version ++ dirSep ++ p)
 
 -- Options to be processed before type checking
 export
