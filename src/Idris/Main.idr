@@ -122,7 +122,8 @@ stMain opts
            done <- processPackageOpts opts
 
            when (not done) $
-              do preOptions opts
+              do True <- preOptions opts
+                     | False => pure ()
 
                  u <- newRef UST initUState
                  updateREPLOpts

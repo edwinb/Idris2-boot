@@ -29,8 +29,8 @@ base: prelude
 	make -C libs/base IDRIS2=../../idris2
 
 network: prelude
-	make -C libs/network IDRIS2_VERSION=${IDRIS2_VERSION} IDRIS2=../../idris2
-	make -C libs/network test IDRIS2_VERSION=${IDRIS2_VERSION} IDRIS2=../../idris2
+	make -C libs/network IDRIS2=../../idris2
+	make -C libs/network test IDRIS2=../../idris2
 
 libs : prelude base network
 
