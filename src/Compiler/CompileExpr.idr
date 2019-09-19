@@ -159,7 +159,7 @@ mutual
   toCExpTm tags n (Bind fc x (Lam _ _ _) sc)
       = pure $ CLam fc x !(toCExp tags n sc)
   toCExpTm tags n (Bind fc x (Let Rig0 val _) sc)
-      = pure $ CLet fc x (CErased fc) !(toCExp tags n sc)
+      = pure $ shrinkCExp (DropCons SubRefl) !(toCExp tags n sc)
   toCExpTm tags n (Bind fc x (Let _ val _) sc)
       = pure $ CLet fc x !(toCExp tags n val) !(toCExp tags n sc)
   toCExpTm tags n (Bind fc x (Pi c e ty) sc)

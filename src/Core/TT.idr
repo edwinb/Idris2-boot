@@ -795,6 +795,12 @@ subExtend : (ns : List Name) -> SubVars xs ys -> SubVars (ns ++ xs) (ns ++ ys)
 subExtend [] sub = sub
 subExtend (x :: xs) sub = KeepCons (subExtend xs sub)
 
+export
+subInclude : (ns : List Name) -> SubVars xs ys -> SubVars (xs ++ ns) (ys ++ ns)
+subInclude ns SubRefl = SubRefl
+subInclude ns (DropCons p) = DropCons (subInclude ns p)
+subInclude ns (KeepCons p) = KeepCons (subInclude ns p)
+
 mutual
   export
   shrinkBinder : Binder (Term vars) -> SubVars newvars vars -> 

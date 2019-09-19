@@ -30,9 +30,9 @@ mutual
        COp : FC -> PrimFn arity -> Vect arity (CExp vars) -> CExp vars
        -- Externally defined primitive operations
        CExtPrim : FC -> (p : Name) -> List (CExp vars) -> CExp vars
-       -- A forced (evaluated) value (TODO: is this right?)
+       -- A forced (evaluated) value
        CForce : FC -> CExp vars -> CExp vars
-       -- A delayed value (lazy? TODO: check)
+       -- A delayed value
        CDelay : FC -> CExp vars -> CExp vars
        -- A case match statement
        CConCase : FC -> (sc : CExp vars) -> List (CConAlt vars) -> Maybe (CExp vars) -> CExp vars
@@ -211,6 +211,51 @@ mutual
 
   embedConstAlt : CConstAlt args -> CConstAlt (args ++ vars)
   embedConstAlt (MkConstAlt c sc) = MkConstAlt c (embed sc)
+
+mutual
+  -- Shrink the scope of a compiled expression, replacing any variables not
+  -- in the remaining set with Erased
+  export
+  shrinkCExp : SubVars newvars vars -> CExp vars -> CExp newvars
+  shrinkCExp sub (CLocal fc prf) 
+      = case subElem prf sub of
+             Nothing => CErased fc
+             Just (MkVar prf') => CLocal fc prf'
+  shrinkCExp _ (CRef fc x) = CRef fc x
+  shrinkCExp sub (CLam fc x sc) 
+      = let sc' = shrinkCExp (KeepCons sub) sc in
+            CLam fc x sc'
+  shrinkCExp sub (CLet fc x val sc) 
+      = let sc' = shrinkCExp (KeepCons sub) sc in
+            CLet fc x (shrinkCExp sub val) sc'
+  shrinkCExp sub (CApp fc x xs)
+      = CApp fc (shrinkCExp sub x) (assert_total (map (shrinkCExp sub) xs))
+  shrinkCExp sub (CCon fc x tag xs)
+      = CCon fc x tag (assert_total (map (shrinkCExp sub) xs))
+  shrinkCExp sub (COp fc x xs)
+      = COp fc x (assert_total (map (shrinkCExp sub) xs))
+  shrinkCExp sub (CExtPrim fc p xs)
+      = CExtPrim fc p (assert_total (map (shrinkCExp sub) xs))
+  shrinkCExp sub (CForce fc x) = CForce fc (shrinkCExp sub x)
+  shrinkCExp sub (CDelay fc x) = CDelay fc (shrinkCExp sub x)
+  shrinkCExp sub (CConCase fc sc xs def)
+      = CConCase fc (shrinkCExp sub sc) 
+                 (assert_total (map (shrinkConAlt sub) xs))
+                 (assert_total (map (shrinkCExp sub) def))
+  shrinkCExp sub (CConstCase fc sc xs def)
+      = CConstCase fc (shrinkCExp sub sc) 
+                   (assert_total (map (shrinkConstAlt sub) xs))
+                   (assert_total (map (shrinkCExp sub) def))
+  shrinkCExp _ (CPrimVal fc x) = CPrimVal fc x
+  shrinkCExp _ (CErased fc) = CErased fc
+  shrinkCExp _ (CCrash fc x) = CCrash fc x
+
+  shrinkConAlt : SubVars newvars vars -> CConAlt vars -> CConAlt newvars
+  shrinkConAlt sub (MkConAlt x tag args sc)
+        = MkConAlt x tag args (shrinkCExp (subExtend args sub) sc)
+
+  shrinkConstAlt : SubVars newvars vars -> CConstAlt vars -> CConstAlt newvars
+  shrinkConstAlt sub (MkConstAlt x sc) = MkConstAlt x (shrinkCExp sub sc)
 
 mutual
   export
