@@ -37,22 +37,37 @@ bindConstraints fc p [] ty = ty
 bindConstraints fc p ((n, ty) :: rest) sc
     = IPi fc RigW p n ty (bindConstraints fc p rest sc)
 
-addDefaults : FC -> List Name -> List (Name, List ImpClause) ->
+addDefaults : FC -> Name -> List Name -> List (Name, List ImpClause) ->
               List ImpDecl -> 
               (List ImpDecl, List Name) -- Updated body, list of missing methods
-addDefaults fc ms defs body
-    = let missing = dropGot ms body in
+addDefaults fc impName allms defs body
+    = let missing = dropGot allms body in
           extendBody [] missing body
   where
+    -- Given the list of missing names, if any are among the default definitions,
+    -- add them to the body
     extendBody : List Name -> List Name -> List ImpDecl -> 
                  (List ImpDecl, List Name)
     extendBody ms [] body = (body, ms)
     extendBody ms (n :: ns) body
         = case lookup n defs of
                Nothing => extendBody (n :: ms) ns body
-               Just cs => extendBody ms ns 
-                              (IDef fc n (map (substLocClause fc) cs) :: body)
+               Just cs => 
+                    -- If any method names appear in the clauses, they should
+                    -- be applied to the constraint name __con because they
+                    -- are going to be referring to the present implementation.
+                    -- That is, default method implementations could depend on
+                    -- other methods.
+                    -- (See test idris2/interface014 for an example!)
+                    let mupdates 
+                            = map (\n => (n, IImplicitApp fc (IVar fc n)
+                                                          (Just (UN "__con"))
+                                                          (IVar fc impName))) allms
+                        cs' = map (substNamesClause [] mupdates) cs in
+                        extendBody ms ns 
+                             (IDef fc n (map (substLocClause fc) cs') :: body)
 
+    -- Find which names are missing from the body
     dropGot : List Name -> List ImpDecl -> List Name
     dropGot ms [] = ms
     dropGot ms (IDef _ n _ :: ds)
@@ -139,12 +154,11 @@ elabImplementation {vars} fc vis pass env nest cons iname ps impln mbody
 
                -- 1.5. Lookup default definitions and add them to to body
                let (body, missing)
-                     = addDefaults fc (map (dropNS . fst) (methods cdata)) 
+                     = addDefaults fc impName (map (dropNS . fst) (methods cdata)) 
                                       (defaults cdata) body_in
 
                log 5 $ "Added defaults: body is " ++ show body
                log 5 $ "Missing methods: " ++ show missing
-
 
                -- 2. Elaborate top level function types for this interface
                defs <- get Ctxt
