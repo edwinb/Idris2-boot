@@ -1137,12 +1137,17 @@ fieldDecl fname indents
     fieldBody : PiInfo -> Rule (List PField)
     fieldBody p
         = do start <- location
+             m <- multiplicity
+             rigin <- getMult m
+             let rig = case rigin of
+                            Rig0 => Rig0
+                            _ => Rig1
              ns <- sepBy1 (symbol ",") unqualifiedName
              symbol ":"
              ty <- expr pdef fname indents
              end <- location
              pure (map (\n => MkField (MkFC fname start end)
-                                      Rig1 p (UN n) ty) ns)
+                                      rig p (UN n) ty) ns)
 
 recordDecl : FileName -> IndentInfo -> Rule PDecl
 recordDecl fname indents
