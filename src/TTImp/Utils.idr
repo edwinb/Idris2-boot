@@ -111,6 +111,7 @@ mutual
       = IForce fc (substNames bound ps t)
   substNames bound ps tm = tm
 
+  export
   substNamesClause : List Name -> List (Name, RawImp) -> 
                      ImpClause -> ImpClause 
   substNamesClause bound ps (PatClause fc lhs rhs)

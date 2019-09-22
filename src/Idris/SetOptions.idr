@@ -10,6 +10,8 @@ import Idris.CommandLine
 import Idris.REPL
 import Idris.Syntax
 
+import YafflePaths
+
 import System
 
 -- TODO: Version numbers on dependencies
@@ -19,14 +21,19 @@ addPkgDir : {auto c : Ref Ctxt Defs} ->
 addPkgDir p
     = do defs <- get Ctxt
          addExtraDir (dir_prefix (dirs (options defs)) ++ dirSep ++
-                             "idris2" ++ dirSep ++ p)
+                             "idris2-" ++ version ++ dirSep ++ p)
 
--- Options to be processed before type checking
+dirOption : Dirs -> DirCommand -> Core ()
+dirOption dirs LibDir
+    = coreLift $ putStrLn 
+         (dir_prefix dirs ++ dirSep ++ "idris2-" ++ version ++ dirSep)
+
+-- Options to be processed before type checking. Return whether to continue.
 export
 preOptions : {auto c : Ref Ctxt Defs} ->
              {auto o : Ref ROpts REPLOpts} ->
-             List CLOpt -> Core ()
-preOptions [] = pure ()
+             List CLOpt -> Core Bool
+preOptions [] = pure True
 preOptions (Quiet :: opts)
     = do setOutput (REPL True)
          preOptions opts
@@ -45,8 +52,13 @@ preOptions (SetCG e :: opts)
 preOptions (PkgPath p :: opts)
     = do addPkgDir p
          preOptions opts
+preOptions (Directory d :: opts)
+    = do defs <- get Ctxt
+         dirOption (dirs (options defs)) d
+         pure False
 preOptions (Timing :: opts)
-    = setLogTimings True
+    = do setLogTimings True
+         preOptions opts
 preOptions (_ :: opts) = preOptions opts
 
 -- Options to be processed after type checking. Returns whether execution

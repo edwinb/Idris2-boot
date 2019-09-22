@@ -11,6 +11,7 @@ import Core.Value
 
 import TTImp.BindImplicits
 import TTImp.Elab.Check
+import TTImp.Elab.Utils
 import TTImp.Elab
 import TTImp.TTImp
 
@@ -201,8 +202,9 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
          addToSave n
          log 10 $ "Saving from " ++ show n ++ ": " ++ show (keys (getMetas ty))
 
+         let connames = map conName cons
          when (not (NoHints `elem` opts)) $
-              traverse_ (\x => addHintFor fc (Resolved tidx) x True False) (map conName cons)
+              traverse_ (\x => addHintFor fc (Resolved tidx) x True False) connames
 
-         pure ()
+         traverse_ updateErasable (Resolved tidx :: connames)
 

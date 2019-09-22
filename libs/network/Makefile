@@ -28,7 +28,7 @@ endif
 
 DYLIBTARGET = $(LIBNAME)$(SHLIB_SUFFIX)
 LIBTARGET = $(LIBNAME).a
-TARGET=${HOME}/.idris2
+TARGET=`${IDRIS2} --libdir`
 
 build: $(DYLIBTARGET) $(IDRIS_SRCS)
 	@if [ -z "${IDRIS2}" ]; then echo 'variable $$IDRIS2 is not set, aborting'; exit 1; fi
@@ -40,8 +40,8 @@ $(DYLIBTARGET) : $(OBJS)
 install:
 	@if [ -z "${IDRIS2}" ]; then echo 'variable $$IDRIS2 is not set, aborting'; exit 1; fi
 	${IDRIS2} --install network.ipkg
-	@if ! [ -d $(TARGET)/idris2/network/lib ]; then mkdir $(TARGET)/idris2/network/lib; fi
-	install $(DYLIBTARGET) $(HDRS) $(TARGET)/idris2/network/lib
+	@if ! [ -d $(TARGET)/network/lib ]; then mkdir $(TARGET)/network/lib; fi
+	install $(DYLIBTARGET) $(HDRS) $(TARGET)/network/lib
 
 clean :
 	rm -rf $(OBJS) $(LIBTARGET) $(DYLIBTARGET) build

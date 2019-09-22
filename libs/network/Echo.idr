@@ -33,12 +33,6 @@ runServer = do
       putStrLn ("Received: " ++ str)
       Right n <- send s ("echo: " ++ str)
         | Left err => putStrLn ("Server failed to send data with error: " ++ show err)
-      -- This might be printed either before or after the client prints
-      -- what it's received, and I think there's enough to check it's
-      -- working without this message so I've removed it. If you disagree,
-      -- please put it back, but also please make sure it's synchronised
-      -- such that the messages are always printed in the same order. - EB
-      -- putStrLn ("Server sent " ++ show n ++ " bytes")
       pure ()
 
 runClient : Port -> IO ()
@@ -51,9 +45,10 @@ runClient serverPort = do
     else do
       Right n <- send sock ("hello world!")
         | Left err => putStrLn ("Client failed to send data with error: " ++ show err)
-      putStrLn ("Client sent " ++ show n ++ " bytes")
       Right (str, _) <- recv sock 1024
         | Left err => putStrLn ("Client failed to receive on socket with error: " ++ show err)
+      -- assuming that stdout buffers get flushed in between system calls, this is "guaranteed"
+      -- to be printed after the server prints its own message
       putStrLn ("Received: " ++ str)
 
 main : IO ()

@@ -1,5 +1,6 @@
 module Idris.CommandLine
 
+import YafflePaths
 import Data.String
 import Idris.Version
 import YafflePaths
@@ -13,13 +14,20 @@ data PkgCommand
       | Clean
       | REPL
 
-
 export
 Show PkgCommand where
   show Build = "--build"
   show Install = "--install"
   show Clean = "--clean"
   show REPL = "--repl"
+
+public export
+data DirCommand
+      = LibDir -- show top level package directory
+
+export
+Show DirCommand where
+  show LibDir = "--libdir"
 
 ||| CLOpt - possible command line options
 public export
@@ -47,6 +55,8 @@ data CLOpt
   PkgPath String |
    ||| Build or install a given package, depending on PkgCommand
   Package PkgCommand String |
+   ||| Show locations of data/library directories
+  Directory DirCommand |
    ||| The input Idris file
   InputFile String |
    ||| Whether or not to run in IdeMode (easily parsable for other tools)
@@ -104,6 +114,8 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
            MkOpt ["--clean"] ["package file"] (\f => [Package Clean f])
               (Just "Clean intermediate files/executables for the given package"),
 
+           MkOpt ["--libdir"] [] [Directory LibDir]
+              (Just "Show library directory"),
            MkOpt ["--quiet", "-q"] [] [Quiet]
               (Just "Quiet mode; display fewer messages"),
            MkOpt ["--version", "-v"] [] [Version]

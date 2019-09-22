@@ -22,6 +22,7 @@ import Utils.Binary
 
 import System
 import Text.Parser
+import YafflePaths
 
 %default covering
 
@@ -206,6 +207,7 @@ processOptions (Just (fc, opts))
     = do let Right clopts = getOpts (words opts)
                 | Left err => throw (GenericMsg fc err)
          preOptions clopts
+         pure ()
 
 build : {auto c : Ref Ctxt Defs} ->
         {auto s : Ref Syn SyntaxInfo} ->
@@ -260,7 +262,8 @@ install pkg
                                (mainmod pkg)
          srcdir <- coreLift currentDir
          -- Make the package installation directory
-         let installPrefix = dir_prefix (dirs (options defs)) ++ dirSep ++ "idris2"
+         let installPrefix = dir_prefix (dirs (options defs)) ++ 
+                             dirSep ++ "idris2-" ++ version
          True <- coreLift $ changeDir installPrefix
              | False => throw (FileErr (name pkg) FileReadError)
          Right _ <- coreLift $ mkdirs [name pkg]

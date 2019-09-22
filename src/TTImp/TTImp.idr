@@ -815,7 +815,7 @@ mutual
   export
   TTC ImpDecl where
     toBuf b (IClaim fc c vis xs d) 
-        = do tag 0; toBuf b c; toBuf b fc; toBuf b vis; toBuf b xs; toBuf b d
+        = do tag 0; toBuf b fc; toBuf b c; toBuf b vis; toBuf b xs; toBuf b d
     toBuf b (IData fc vis d) 
         = do tag 1; toBuf b fc; toBuf b vis; toBuf b d
     toBuf b (IDef fc n xs) 

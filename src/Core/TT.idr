@@ -231,29 +231,23 @@ Show RigCount where
   show Rig1 = "Rig1"
   show RigW = "RigW"
 
+fromInt : Int -> RigCount
+fromInt 0 = Rig0
+fromInt 1 = Rig1
+fromInt _ = RigW
+
+toInt : RigCount -> Int
+toInt Rig0 = 0
+toInt Rig1 = 1
+toInt RigW = 2
+
 export
 rigPlus : RigCount -> RigCount -> RigCount
-rigPlus Rig0 Rig0 = Rig0
-rigPlus Rig0 Rig1 = Rig1
-rigPlus Rig0 RigW = RigW
-rigPlus Rig1 Rig0 = Rig1
-rigPlus Rig1 Rig1 = RigW
-rigPlus Rig1 RigW = RigW
-rigPlus RigW Rig0 = RigW
-rigPlus RigW Rig1 = RigW
-rigPlus RigW RigW = RigW
+rigPlus a b = fromInt (toInt a + toInt b)
 
 export
 rigMult : RigCount -> RigCount -> RigCount
-rigMult Rig0 Rig0 = Rig0
-rigMult Rig0 Rig1 = Rig0
-rigMult Rig0 RigW = Rig0
-rigMult Rig1 Rig0 = Rig0
-rigMult Rig1 Rig1 = Rig1
-rigMult Rig1 RigW = RigW
-rigMult RigW Rig0 = Rig0
-rigMult RigW Rig1 = RigW
-rigMult RigW RigW = RigW
+rigMult a b = fromInt (toInt a * toInt b)
 
 public export
 data Binder : Type -> Type where
@@ -794,6 +788,12 @@ export
 subExtend : (ns : List Name) -> SubVars xs ys -> SubVars (ns ++ xs) (ns ++ ys)
 subExtend [] sub = sub
 subExtend (x :: xs) sub = KeepCons (subExtend xs sub)
+
+export
+subInclude : (ns : List Name) -> SubVars xs ys -> SubVars (xs ++ ns) (ys ++ ns)
+subInclude ns SubRefl = SubRefl
+subInclude ns (DropCons p) = DropCons (subInclude ns p)
+subInclude ns (KeepCons p) = KeepCons (subInclude ns p)
 
 mutual
   export

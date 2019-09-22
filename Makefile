@@ -23,7 +23,8 @@ idris2: src/YafflePaths.idr check_version
 	idris --build idris2.ipkg
 
 src/YafflePaths.idr:
-	@echo "module YafflePaths; export yprefix : String; yprefix = \"${PREFIX}\"; export yversion : ((Nat,Nat,Nat), String); yversion = ((${MAJOR},${MINOR},${PATCH}), \"\")" > src/YafflePaths.idr
+	echo 'module YafflePaths; export yversion : ((Nat,Nat,Nat), String); yversion = ((${MAJOR},${MINOR},${PATCH}), \"\")" > src/YafflePaths.idr
+	echo 'export yprefix : String; yprefix = "${PREFIX}"' >> src/YafflePaths.idr
 
 prelude:
 	make -C libs/prelude IDRIS2=../../idris2
@@ -56,16 +57,16 @@ install: all install-exec install-libs
 
 install-exec: idris2
 	mkdir -p ${PREFIX}/bin
-	mkdir -p ${PREFIX}/idris2/lib
-	mkdir -p ${PREFIX}/idris2/support/chez
-	mkdir -p ${PREFIX}/idris2/support/chicken
-	mkdir -p ${PREFIX}/idris2/support/racket
+	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/lib
+	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chez
+	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chicken
+	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/racket
 	install idris2 ${PREFIX}/bin
-	install support/chez/* ${PREFIX}/idris2/support/chez
-	install support/chicken/* ${PREFIX}/idris2/support/chicken
-	install support/racket/* ${PREFIX}/idris2/support/racket
+	install support/chez/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chez
+	install support/chicken/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chicken
+	install support/racket/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/racket
 
 install-libs: libs
 	make -C libs/prelude install IDRIS2=../../idris2
 	make -C libs/base install IDRIS2=../../idris2
-	make -C libs/network install IDRIS2=../../idris2
+	make -C libs/network install IDRIS2=../../idris2 IDRIS2_VERSION=${IDRIS2_VERSION}

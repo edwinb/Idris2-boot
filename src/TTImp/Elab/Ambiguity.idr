@@ -119,6 +119,11 @@ stripDelay defs tm = tm
 
 data TypeMatch = Concrete | Poly | NoMatch
 
+Show TypeMatch where
+  show Concrete = "Concrete"
+  show Poly = "Poly"
+  show NoMatch = "NoMatch"
+
 mutual
   mightMatchD : Defs -> NF vars -> NF [] -> Core TypeMatch
   mightMatchD defs l r 
@@ -200,8 +205,9 @@ couldBe {vars} defs ty@(NType _) app
 couldBe defs ty app = pure $ Just (False, app)
 
 
-notOverloadable : Defs -> RawImp -> Core Bool
-notOverloadable defs fn = notOverloadableFn (getFn fn)
+notOverloadable : Defs -> (Bool, RawImp) -> Core Bool
+notOverloadable defs (True, fn) = pure True
+notOverloadable defs (concrete, fn) = notOverloadableFn (getFn fn)
   where
     notOverloadableFn : RawImp -> Core Bool
     notOverloadableFn (IVar _ n)
@@ -227,9 +233,10 @@ pruneByType target alts
          matches_in <- traverse (couldBe defs target) alts
          let matches = mapMaybe id matches_in
          res <- if or (map Delay (map fst matches))
-                -- if there's any concrete matches, drop the ones marked
-                -- as '%allow_overloads' from the possible set
-                   then filterCore (notOverloadable defs) (map snd matches)
+                -- if there's any concrete matches, drop the non-concrete
+                -- matches marked as '%allow_overloads' from the possible set
+                   then do keep <- filterCore (notOverloadable defs) matches
+                           pure (map snd keep)
                    else pure (map snd matches)
          if isNil res
             then pure alts -- if none of them work, better to show all the errors

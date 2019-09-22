@@ -32,14 +32,14 @@ idrisTests
        "coverage001", "coverage002", "coverage003", "coverage004",
        "error001", "error002", "error003", "error004", "error005",
        "error006", "error007", "error008", "error009", "error010",
-       "import001", "import002", "import003",
+       "import001", "import002", "import003", "import004",
        "interactive001", "interactive002", "interactive003", "interactive004",
        "interactive005", "interactive006", "interactive007", "interactive008",
        "interactive009", "interactive010", "interactive011", "interactive012",
        "interface001", "interface002", "interface003", "interface004",
        "interface005", "interface006", "interface007", "interface008",
        "interface009", "interface010", "interface011", "interface012",
-       "interface013",
+       "interface013", "interface014",
        "lazy001",
        "linear001", "linear002", "linear003", "linear004", "linear005",
        "linear006", "linear007",
@@ -61,8 +61,8 @@ typeddTests
 
 chezTests : List String
 chezTests
-   = ["chez001", "chez002", "chez003", "chez004",
-      "chez005", "chez006", "chez007"]
+   = ["chez001", "chez002", "chez003", "chez004", "chez005", "chez006", 
+      "chez007", "chez008"]
 
 ideModeTests : List String
 ideModeTests

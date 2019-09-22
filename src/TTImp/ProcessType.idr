@@ -12,6 +12,7 @@ import Core.Value
 
 import TTImp.BindImplicits
 import TTImp.Elab.Check
+import TTImp.Elab.Utils
 import TTImp.Elab
 import TTImp.TTImp
 
@@ -101,7 +102,12 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
          -- TODO: Check name visibility
 
          def <- initDef n env ty opts
-         addDef (Resolved idx) (newDef fc n rig vars (abstractEnvType tfc env ty) vis def)
+         let fullty = abstractEnvType tfc env ty
+         erased <- findErased fullty
+
+         addDef (Resolved idx) 
+                (record { eraseArgs = erased }
+                        (newDef fc n rig vars fullty vis def))
          -- Flag it as checked, because we're going to check the clauses 
          -- from the top level.
          -- But, if it's a case block, it'll be checked as part of the top

@@ -98,6 +98,7 @@ modules =
     TTImp.Elab.Record,
     TTImp.Elab.Rewrite,
     TTImp.Elab.Term,
+    TTImp.Elab.Utils,
     TTImp.Interactive.CaseSplit,
     TTImp.Interactive.ExprSearch,
     TTImp.Interactive.GenerateDef,

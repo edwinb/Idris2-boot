@@ -162,6 +162,7 @@ record GlobalDef where
   location : FC
   fullname : Name -- original unresolved name
   type : ClosedTerm
+  eraseArgs : List Nat -- which argument positions to erase at runtime
   multiplicity : RigCount
   vars : List Name -- environment name is defined in
   visibility : Visibility
@@ -422,7 +423,7 @@ export
 newDef : FC -> Name -> RigCount -> List Name -> 
          ClosedTerm -> Visibility -> Def -> GlobalDef
 newDef fc n rig vars ty vis def 
-    = MkGlobalDef fc n ty rig vars vis unchecked [] empty False False False def
+    = MkGlobalDef fc n ty [] rig vars vis unchecked [] empty False False False def
                   Nothing []
 
 public export
@@ -817,7 +818,7 @@ addBuiltin : {auto x : Ref Ctxt Defs} ->
              Name -> ClosedTerm -> Totality ->
              PrimFn arity -> Core ()
 addBuiltin n ty tot op 
-    = do addDef n (MkGlobalDef emptyFC n ty RigW [] Public tot 
+    = do addDef n (MkGlobalDef emptyFC n ty [] RigW [] Public tot 
                                [Inline] empty False False True (Builtin op)
                                Nothing []) 
          pure ()
@@ -1266,6 +1267,13 @@ addOpenHint hintn_in
     = do defs <- get Ctxt
          hintn <- toResolvedNames hintn_in
          put Ctxt (record { openHints $= insert hintn () } defs)
+
+export
+dropOpenHint : {auto c : Ref Ctxt Defs} -> Name -> Core ()
+dropOpenHint hintn_in
+    = do defs <- get Ctxt
+         hintn <- toResolvedNames hintn_in
+         put Ctxt (record { openHints $= delete hintn } defs)
 
 export
 setOpenHints : {auto c : Ref Ctxt Defs} -> NameMap () -> Core ()
