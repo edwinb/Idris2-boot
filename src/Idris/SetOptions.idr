@@ -9,6 +9,7 @@ import Core.Unify
 import Idris.CommandLine
 import Idris.REPL
 import Idris.Syntax
+import Idris.Version
 
 import YafflePaths
 
@@ -21,12 +22,12 @@ addPkgDir : {auto c : Ref Ctxt Defs} ->
 addPkgDir p
     = do defs <- get Ctxt
          addExtraDir (dir_prefix (dirs (options defs)) ++ dirSep ++
-                             "idris2-" ++ version ++ dirSep ++ p)
+                             "idris2-" ++ showVersion version ++ dirSep ++ p)
 
 dirOption : Dirs -> DirCommand -> Core ()
 dirOption dirs LibDir
-    = coreLift $ putStrLn 
-         (dir_prefix dirs ++ dirSep ++ "idris2-" ++ version ++ dirSep)
+    = coreLift $ putStrLn
+         (dir_prefix dirs ++ dirSep ++ "idris2-" ++ showVersion version ++ dirSep)
 
 -- Options to be processed before type checking. Return whether to continue.
 export

@@ -1853,31 +1853,36 @@ logC lvl cmsg
                     coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg
             else pure ()
 
-
 export
-logTime : {auto c : Ref Ctxt Defs} ->
-          Lazy String -> Core a -> Core a
-logTime str act
-    = do opts <- getSession
-         if logTimings opts
-            then do clock <- coreLift clockTime
-                    let nano = 1000000000
-                    let t = seconds clock * nano + nanoseconds clock
-                    res <- act
-                    clock <- coreLift clockTime
-                    let t' = seconds clock * nano + nanoseconds clock
-                    let time = t' - t
-                    assert_total $ -- We're not dividing by 0
-                       coreLift $ putStrLn $ "TIMING " ++ str ++ ": " ++
-                                show (time `div` nano) ++ "." ++ 
-                                addZeros (unpack (show ((time `mod` nano) `div` 1000000))) ++
-                                "s"
-                    pure res
-            else act
+logTimeWhen : {auto c : Ref Ctxt Defs} ->
+              Bool -> Lazy String -> Core a -> Core a
+logTimeWhen p str act
+    = if p
+         then do clock <- coreLift clockTime
+                 let nano = 1000000000
+                 let t = seconds clock * nano + nanoseconds clock
+                 res <- act
+                 clock <- coreLift clockTime
+                 let t' = seconds clock * nano + nanoseconds clock
+                 let time = t' - t
+                 assert_total $ -- We're not dividing by 0
+                    coreLift $ putStrLn $ "TIMING " ++ str ++ ": " ++
+                             show (time `div` nano) ++ "." ++ 
+                             addZeros (unpack (show ((time `mod` nano) `div` 1000000))) ++
+                             "s"
+                 pure res
+         else act
   where
     addZeros : List Char -> String
     addZeros [] = "000"
     addZeros [x] = "00" ++ cast x
     addZeros [x,y] = "0" ++ cast x ++ cast y
     addZeros str = pack str
+
+export
+logTime : {auto c : Ref Ctxt Defs} ->
+          Lazy String -> Core a -> Core a
+logTime str act
+    = do opts <- getSession
+         logTimeWhen (logTimings opts) str act
 

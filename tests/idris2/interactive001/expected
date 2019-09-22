@@ -1,12 +1,5 @@
 1/1: Building LocType (LocType.idr)
 Welcome to Idris 2. Enjoy yourself!
 Main> Main.Vect : Nat -> Type -> Type
-Main>  0 m : Nat
- 0 a : Type
- 0 k : Nat
-   xs : Vect k a
-   x : a
-   ys : Vect m a
--------------------------------------
-xs : Vect k a
+Main> xs : Vect k a
 Main> Bye for now!

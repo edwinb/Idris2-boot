@@ -16,6 +16,7 @@ import Idris.ProcessIdr
 import Idris.REPLOpts
 import Idris.SetOptions
 import Idris.Syntax
+import Idris.Version
 import Parser.Lexer
 import Parser.Support
 import Utils.Binary
@@ -262,8 +263,8 @@ install pkg
                                (mainmod pkg)
          srcdir <- coreLift currentDir
          -- Make the package installation directory
-         let installPrefix = dir_prefix (dirs (options defs)) ++ 
-                             dirSep ++ "idris2-" ++ version
+         let installPrefix = dir_prefix (dirs (options defs)) ++
+                             dirSep ++ "idris2-" ++ showVersion version
          True <- coreLift $ changeDir installPrefix
              | False => throw (FileErr (name pkg) FileReadError)
          Right _ <- coreLift $ mkdirs [name pkg]

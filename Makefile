@@ -2,7 +2,7 @@
 MAJOR=0
 MINOR=0
 PATCH=0
-
+IDRIS2_VERSION="$MAJOR.$MINOR.$PATCH"
 PREFIX ?= ${HOME}/.idris2
 IDRIS_VERSION := $(shell idris --version)
 VALID_IDRIS_VERSION_REGEXP = "1.3.2.*"
@@ -23,7 +23,7 @@ idris2: src/YafflePaths.idr check_version
 	idris --build idris2.ipkg
 
 src/YafflePaths.idr:
-	echo 'module YafflePaths; export yversion : ((Nat,Nat,Nat), String); yversion = ((${MAJOR},${MINOR},${PATCH}), \"\")" > src/YafflePaths.idr
+	echo 'module YafflePaths; export yversion : ((Nat,Nat,Nat), String); yversion = ((${MAJOR},${MINOR},${PATCH}), "")' > src/YafflePaths.idr
 	echo 'export yprefix : String; yprefix = "${PREFIX}"' >> src/YafflePaths.idr
 
 prelude:
