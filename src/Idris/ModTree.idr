@@ -218,7 +218,8 @@ buildDeps fname
                        put MD initMetadata
                        mainttc <- getTTCFileName fname ".ttc"
                        log 10 $ "Reloading " ++ show mainttc
-                       readAsMain mainttc
+                       logTime "Reading TTC" $
+                         readAsMain mainttc
 
                        -- Load the associated metadata for interactive editing
                        mainttm <- getTTCFileName fname ".ttm"

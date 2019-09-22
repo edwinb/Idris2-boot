@@ -263,13 +263,14 @@ process buildmsg file
                                    | Nothing => pure [] -- skipped it
                               if isNil errs
                                  then
-                                   logTime ("Writing TTC/TTM for " ++ file) $
-                                     do defs <- get Ctxt
-                                        d <- getDirs
-                                        makeBuildDirectory (pathToNS (working_dir d) file)
-                                        writeToTTC !(get Syn) fn
-                                        mfn <- getTTCFileName file ".ttm"
-                                        writeToTTM mfn
-                                        pure []
+                                   do defs <- get Ctxt
+                                      d <- getDirs
+                                      makeBuildDirectory (pathToNS (working_dir d) file)
+                                      logTime ("Writing TTC for " ++ file) $
+                                          writeToTTC !(get Syn) fn
+                                      mfn <- getTTCFileName file ".ttm"
+                                      logTime ("Writing TTM for " ++ file) $
+                                          writeToTTM mfn
+                                      pure []
                                  else do pure errs)
                           (\err => pure [err])
