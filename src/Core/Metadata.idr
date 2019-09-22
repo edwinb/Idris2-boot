@@ -73,6 +73,20 @@ addLHS loc outerenvlen env tm
     toPat (b :: bs) = b :: toPat bs
     toPat [] = []
 
+-- For giving local variable names types, just substitute the name
+-- rather than storing the whole environment, otherwise we'll repeatedly
+-- store the environment and it'll get big.
+-- We'll need to rethink a bit if we want interactive editing to show
+-- the whole environment - perhaps store each environment just once
+-- along with its source span?
+-- In any case, one could always look at the other names to get their
+-- types directly!
+substEnv : {vars : _} ->
+           FC -> Env Term vars -> (tm : Term vars) -> ClosedTerm
+substEnv loc [] tm = tm
+substEnv {vars = x :: _} loc (b :: env) tm 
+    = substEnv loc env (subst (Ref loc Bound x) tm)
+
 export
 addNameType : {auto c : Ref Ctxt Defs} ->
               {auto m : Ref MD Metadata} ->
@@ -81,7 +95,7 @@ addNameType loc n env tm
     = do meta <- get MD
          n' <- getFullName n
          put MD (record { 
-                      names $= ((loc, (n', length env, bindEnv loc env tm)) ::) 
+                      names $= ((loc, (n', 0, substEnv loc env tm)) ::) 
                     } meta)
 
 export

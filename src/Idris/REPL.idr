@@ -294,9 +294,9 @@ processEdit (TypeAt line col name)
                             then throw (UndefinedName (MkFC "(interactive)" (0,0) (0,0)) name)
                             else printResult res
          if res == ""
-            then printResult !(showHole defs [] n num t)
-            else printResult (res ++ "\n\n" ++ "Locally:\n" ++ 
-                                     !(showHole defs [] n num t))
+            then printResult (nameRoot n ++ " : " ++
+                               !(displayTerm defs t))
+            else pure ()
 processEdit (CaseSplit line col name)
     = do let find = if col > 0
                        then within (line-1, col-1)

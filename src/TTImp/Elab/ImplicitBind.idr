@@ -442,8 +442,7 @@ checkBindVar rig elabinfo nest env fc str topexp
                    addNameType fc (UN str) env exp
                    checkExp rig elabinfo env fc tm (gnf env exp) topexp
               Just bty =>
-                do -- TODO: for metadata addNameType loc (UN str) env ty
-                   -- Check rig is consistent with the one in bty, and
+                do -- Check rig is consistent with the one in bty, and
                    -- update if necessary
                    combine (UN str) rig (bindingRig bty)
                    let tm = bindingTerm bty
