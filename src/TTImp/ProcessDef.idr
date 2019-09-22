@@ -626,8 +626,10 @@ processDef opts nest env fc n_in cs_in
          when (not (elem InCase opts)) $
            compileRunTime
 
+         md <- get MD -- don't need the metadata collected on the coverage check
          cov <- checkCoverage nidx mult cs tree_ct
          setCovering fc n cov
+         put MD md
 
   where
     simplePat : Term vars -> Bool

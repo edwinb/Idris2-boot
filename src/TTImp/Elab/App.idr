@@ -48,7 +48,6 @@ getNameType rigc env fc x
                                DCon t a => DataCon t a
                                TCon t a _ _ _ _ => TyCon t a
                                _ => Func
-                 addNameType fc x env (embed (type def))
                  pure (Ref fc nt (Resolved i), gnf env (embed (type def)))
   where
     isLet : Binder t -> Bool
