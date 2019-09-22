@@ -124,11 +124,12 @@ searchName fc rigc opts env target topty defining (n, ndef)
          ures <- unify InSearch fc env target appTy
          let [] = constraints ures
              | _ => pure []
-         -- Search the explicit arguments first
-         args' <- traverse (searchIfHole fc opts defining topty env)
-                           (filter explicit args)
+         -- Search the explicit arguments first, they may resolve other holes
+         traverse (searchIfHole fc opts defining topty env)
+                  (filter explicit args)
          args' <- traverse (searchIfHole fc opts defining topty env)
                            args
+
          let cs = mkCandidates fc (Ref fc namety n) args'
          logC 10 (do strs <- traverse (\t => pure (show !(toFullNames t) ++ "\n")) cs
                      pure ("Candidates: " ++ concat strs))

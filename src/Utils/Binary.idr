@@ -111,9 +111,12 @@ initBinaryS s
              | Nothing => throw (InternalError "Buffer creation failed")
          newRef Bin (newBinary buf)
 
-extendBinary : Binary -> Core Binary
-extendBinary (MkBin buf l s u)
-    = do let s' = s * 2
+extendBinary : Int -> Binary -> Core Binary
+extendBinary need (MkBin buf l s u)
+    = do let newsize = s * 2
+         let s' = if newsize < need 
+                     then newsize + need
+                     else newsize
          Just buf' <- coreLift $ resizeBuffer buf s'
              | Nothing => throw (InternalError "Buffer expansion failed")
          pure (MkBin buf' l s' u)
@@ -133,7 +136,7 @@ TTC Bits8 where
             then
               do coreLift $ setByte (buf chunk) (loc chunk) val
                  put Bin (appended 1 chunk)
-            else do chunk' <- extendBinary chunk
+            else do chunk' <- extendBinary 1 chunk
                     coreLift $ setByte (buf chunk') (loc chunk') val
                     put Bin (appended 1 chunk')
 
@@ -164,7 +167,7 @@ TTC Int where
             then 
               do coreLift $ setInt (buf chunk) (loc chunk) val
                  put Bin (appended 4 chunk)
-            else do chunk' <- extendBinary chunk
+            else do chunk' <- extendBinary 4 chunk
                     coreLift $ setInt (buf chunk') (loc chunk') val
                     put Bin (appended 4 chunk')
 
@@ -187,7 +190,7 @@ TTC String where
               then
                 do coreLift $ setString (buf chunk) (loc chunk) val
                    put Bin (appended req chunk)
-              else do chunk' <- extendBinary chunk
+              else do chunk' <- extendBinary req chunk
                       coreLift $ setString (buf chunk') (loc chunk') val
                       put Bin (appended req chunk')
 
@@ -199,7 +202,8 @@ TTC String where
                 do val <- coreLift $ getString (buf chunk) (loc chunk) len
                    put Bin (incLoc len chunk)
                    pure val
-              else throw (TTCError (EndOfBuffer "String"))
+              else throw (TTCError (EndOfBuffer ("String length " ++ show len ++ 
+                                                 " at " ++ show (loc chunk))))
 
 export
 TTC Binary where
@@ -212,7 +216,7 @@ TTC Binary where
               do coreLift $ copyData (buf val) 0 len
                                      (buf chunk) (loc chunk)
                  put Bin (appended len chunk)
-            else do chunk' <- extendBinary chunk
+            else do chunk' <- extendBinary len chunk
                     coreLift $ copyData (buf val) 0 len
                                         (buf chunk') (loc chunk')
                     put Bin (appended len chunk')
@@ -255,7 +259,7 @@ TTC Double where
             then 
               do coreLift $ setDouble (buf chunk) (loc chunk) val
                  put Bin (appended 8 chunk)
-            else do chunk' <- extendBinary chunk
+            else do chunk' <- extendBinary 8 chunk
                     coreLift $ setDouble (buf chunk') (loc chunk') val
                     put Bin (appended 8 chunk')
 
