@@ -29,6 +29,7 @@ import Idris.Parser
 import Idris.Resugar
 import public Idris.REPLCommon
 import Idris.Syntax
+import Idris.Version
 
 import TTImp.Elab
 import TTImp.Elab.Check
@@ -48,18 +49,18 @@ import System
 
 showInfo : {auto c : Ref Ctxt Defs} ->
            (Name, Int, GlobalDef) -> Core ()
-showInfo (n, idx, d) 
-    = do coreLift $ putStrLn (show (fullname d) ++ " ==> " ++ 
+showInfo (n, idx, d)
+    = do coreLift $ putStrLn (show (fullname d) ++ " ==> " ++
                               show !(toFullNames (definition d)))
          coreLift $ putStrLn (show (multiplicity d))
          coreLift $ putStrLn ("Erasable args: " ++ show (eraseArgs d))
          case compexpr d of
               Nothing => pure ()
               Just expr => coreLift $ putStrLn ("Compiled: " ++ show expr)
-         coreLift $ putStrLn ("Refers to: " ++ 
+         coreLift $ putStrLn ("Refers to: " ++
                                show !(traverse getFullName (keys (refersTo d))))
-         when (not (isNil (sizeChange d))) $ 
-            let scinfo = map (\s => show (fnCall s) ++ ": " ++ 
+         when (not (isNil (sizeChange d))) $
+            let scinfo = map (\s => show (fnCall s) ++ ": " ++
                                     show (fnArgs s)) !(traverse toFullNames (sizeChange d)) in
                 coreLift $ putStrLn $
                         "Size change: " ++ showSep ", " scinfo
@@ -69,7 +70,7 @@ isHole def
     = case definition def of
            Hole locs _ => Just locs
            _ => Nothing
-    
+
 showCount : RigCount -> String
 showCount Rig0 = " 0 "
 showCount Rig1 = " 1 "
@@ -90,14 +91,14 @@ tidy n = show n
 
 showEnv : {auto c : Ref Ctxt Defs} ->
           {auto s : Ref Syn SyntaxInfo} ->
-          Defs -> Env Term vars -> Name -> Nat -> Term vars -> 
+          Defs -> Env Term vars -> Name -> Nat -> Term vars ->
           Core (List (Name, String), String)
 showEnv defs env fn (S args) (Bind fc x (Let c val ty) sc)
     = showEnv defs env fn args (subst val sc)
 showEnv defs env fn (S args) (Bind fc x b sc)
     = do ity <- resugar env !(normalise defs env (binderType b))
          let pre = if showName x
-                      then showCount (multiplicity b) ++ 
+                      then showCount (multiplicity b) ++
                            impBracket (implicitBind b) (tidy x ++ " : " ++ show ity) ++ "\n"
                       else ""
          (envstr, ret) <- showEnv defs (b :: env) fn args sc
@@ -116,12 +117,12 @@ showEnv defs env fn args ty
 
 showHole : {auto c : Ref Ctxt Defs} ->
            {auto s : Ref Syn SyntaxInfo} ->
-           Defs -> Env Term vars -> Name -> Nat -> Term vars -> 
+           Defs -> Env Term vars -> Name -> Nat -> Term vars ->
            Core String
 showHole gam env fn args ty
     = do (envs, ret) <- showEnv gam env fn args ty
          pp <- getPPrint
-         let envs' = if showImplicits pp 
+         let envs' = if showImplicits pp
                         then envs
                         else dropShadows envs
          pure (concat (map snd envs') ++ ret)
@@ -135,9 +136,9 @@ showHole gam env fn args ty
 
 displayType : {auto c : Ref Ctxt Defs} ->
               {auto s : Ref Syn SyntaxInfo} ->
-              Defs -> (Name, Int, GlobalDef) -> 
+              Defs -> (Name, Int, GlobalDef) ->
               Core String
-displayType defs (n, i, gdef) 
+displayType defs (n, i, gdef)
     = maybe (do tm <- resugar [] !(normaliseHoles defs [] (type gdef))
                 pure (show (fullname gdef) ++ " : " ++ show tm))
             (\num => showHole defs [] n num (type gdef))
@@ -153,7 +154,7 @@ getEnvTerm _ env tm = (_ ** (env, tm))
 
 displayTerm : {auto c : Ref Ctxt Defs} ->
               {auto s : Ref Syn SyntaxInfo} ->
-              Defs -> ClosedTerm -> 
+              Defs -> ClosedTerm ->
               Core String
 displayTerm defs tm
     = do ptm <- resugar [] !(normaliseHoles defs [] tm)
@@ -161,7 +162,7 @@ displayTerm defs tm
 
 displayPatTerm : {auto c : Ref Ctxt Defs} ->
                  {auto s : Ref Syn SyntaxInfo} ->
-                 Defs -> ClosedTerm -> 
+                 Defs -> ClosedTerm ->
                  Core String
 displayPatTerm defs tm
     = do ptm <- resugarNoPatvars [] !(normaliseHoles defs [] tm)
@@ -169,7 +170,7 @@ displayPatTerm defs tm
 
 displayClause : {auto c : Ref Ctxt Defs} ->
                 {auto s : Ref Syn SyntaxInfo} ->
-                Defs -> (vs ** (Env Term vs, Term vs, Term vs)) -> 
+                Defs -> (vs ** (Env Term vs, Term vs, Term vs)) ->
                 Core String
 displayClause defs (vs ** (env, lhs, rhs))
     = do lhstm <- resugar env !(normaliseHoles defs env lhs)
@@ -178,7 +179,7 @@ displayClause defs (vs ** (env, lhs, rhs))
 
 displayPats : {auto c : Ref Ctxt Defs} ->
               {auto s : Ref Syn SyntaxInfo} ->
-              Defs -> (Name, Int, GlobalDef) -> 
+              Defs -> (Name, Int, GlobalDef) ->
               Core String
 displayPats defs (n, idx, gdef)
     = case definition gdef of
@@ -191,16 +192,16 @@ displayPats defs (n, idx, gdef)
 setOpt : {auto c : Ref Ctxt Defs} ->
          {auto o : Ref ROpts REPLOpts} ->
          REPLOpt -> Core ()
-setOpt (ShowImplicits t) 
+setOpt (ShowImplicits t)
     = do pp <- getPPrint
          setPPrint (record { showImplicits = t } pp)
-setOpt (ShowNamespace t) 
+setOpt (ShowNamespace t)
     = do pp <- getPPrint
          setPPrint (record { fullNamespace = t } pp)
-setOpt (ShowTypes t) 
+setOpt (ShowTypes t)
     = do opts <- get ROpts
          put ROpts (record { showTypes = t } opts)
-setOpt (EvalMode m) 
+setOpt (EvalMode m)
     = do opts <- get ROpts
          put ROpts (record { evalMode = m } opts)
 setOpt (Editor e)
@@ -212,7 +213,7 @@ setOpt (CG e)
            Nothing => coreLift $ putStrLn "No such code generator available"
 
 findCG : {auto c : Ref Ctxt Defs} -> Core Codegen
-findCG 
+findCG
     = do defs <- get Ctxt
          case codegen (session (options defs)) of
               Chez => pure codegenChez
@@ -248,9 +249,9 @@ execExp ctm
          inidx <- resolveName (UN "[input]")
          (tm, ty) <- elabTerm inidx InExpr [] (MkNested [])
                                  [] ttimp Nothing
-         tm_erased <- linearCheck replFC Rig1 True [] tm 
+         tm_erased <- linearCheck replFC Rig1 True [] tm
          execute !findCG tm_erased
-         
+
 anyAt : (FC -> Bool) -> FC -> a -> Bool
 anyAt p loc y = p loc
 
@@ -272,7 +273,7 @@ printClause i (ImpossibleClause _ lhsraw)
     = do lhs <- pterm lhsraw
          pure (pack (replicate i ' ') ++ show lhs ++ " impossible")
 
-lookupDefTyName : Name -> Context -> 
+lookupDefTyName : Name -> Context ->
                   Core (List (Name, Int, (Def, ClosedTerm)))
 lookupDefTyName = lookupNameBy (\g => (definition g, type g))
 
@@ -318,25 +319,25 @@ processEdit (ExprSearch line name hints all)
                   do tms <- exprSearch replFC name []
                      defs <- get Ctxt
                      restms <- traverse (normaliseHoles defs []) tms
-                     itms <- the (Core (List PTerm)) 
-                               (traverse (\tm => 
+                     itms <- the (Core (List PTerm))
+                               (traverse (\tm =>
                                            do let (_ ** (env, tm')) = dropLams locs [] tm
                                               resugar env tm') restms)
                      if all
                         then printResult $ showSep "\n" (map show itms)
                         else case itms of
                                   [] => printError "No search results"
-                                  (x :: xs) => printResult 
-                                                  (show (if brack 
+                                  (x :: xs) => printResult
+                                                  (show (if brack
                                                             then addBracket replFC x
                                                             else x))
               [] => printError $ "Unknown name " ++ show name
               _ => printError "Not a searchable hole"
   where
-    dropLams : Nat -> Env Term vars -> Term vars -> 
+    dropLams : Nat -> Env Term vars -> Term vars ->
                (vars' ** (Env Term vars', Term vars'))
     dropLams Z env tm = (_ ** (env, tm))
-    dropLams (S k) env (Bind _ _ b sc) = dropLams k (b :: env) sc 
+    dropLams (S k) env (Bind _ _ b sc) = dropLams k (b :: env) sc
     dropLams _ env tm = (_ ** (env, tm))
 processEdit (GenerateDef line name)
     = do defs <- get Ctxt
@@ -344,7 +345,7 @@ processEdit (GenerateDef line name)
              | Nothing => printError ("Can't find declaration for " ++ show name ++ " on line " ++ show line)
          case !(lookupDefExact n' (gamma defs)) of
               Just None =>
-                  catch 
+                  catch
                     (do Just (fc, cs) <- makeDef (\p, n => onLine line p) n'
                            | Nothing => processEdit (AddClause line name)
                         ls <- traverse (printClause (cast (snd (startPos fc)))) cs
@@ -368,7 +369,7 @@ processEdit (MakeLemma line name)
                      case idemode opts of
                           REPL _ => printResult (show name ++ " : " ++ show pty ++ "\n" ++ pappstr)
                           IDEMode i _ f =>
-                            send f (SExpList [SymbolAtom "return", 
+                            send f (SExpList [SymbolAtom "return",
                                     SExpList [SymbolAtom "ok",
                                       SExpList [SymbolAtom "metavariable-lemma",
                                         SExpList [SymbolAtom "replace-metavariable",
@@ -411,7 +412,7 @@ process (Eval itm)
     = do opts <- get ROpts
          case evalMode opts of
             Execute => do execExp itm; pure True
-            _ => 
+            _ =>
               do ttimp <- desugar AnyExpr [] itm
                  inidx <- resolveName (UN "[input]")
                  (tm, gty) <- elabTerm inidx (emode (evalMode opts)) [] (MkNested [])
@@ -501,24 +502,24 @@ process (ProofSearch n_in)
          coreLift (putStrLn (show itm))
          pure True
 process (Missing n)
-    = do defs <- get Ctxt 
+    = do defs <- get Ctxt
          case !(lookupCtxtName n (gamma defs)) of
               [] => throw (UndefinedName replFC n)
               ts => do traverse (\fn =>
                           do tot <- getTotality replFC fn
                              the (Core ()) $ case isCovering tot of
-                                  MissingCases cs => 
+                                  MissingCases cs =>
                                      do tms <- traverse (displayPatTerm defs) cs
                                         printResult (show fn ++ ":\n" ++
                                                         showSep "\n" tms)
                                   NonCoveringCall ns_in =>
                                     do ns <- traverse getFullName ns_in
-                                       printResult 
-                                         (show fn ++ ": Calls non covering function" 
+                                       printResult
+                                         (show fn ++ ": Calls non covering function"
                                            ++ case ns of
                                                    [fn] => " " ++ show fn
                                                    _ => "s: " ++ showSep ", " (map show ns))
-                                  _ => iputStrLn (show fn ++ ": All cases covered")) 
+                                  _ => iputStrLn (show fn ++ ": All cases covered"))
                          (map fst ts)
                        pure True
 process (Total n)
@@ -528,7 +529,7 @@ process (Total n)
               ts => do traverse (\fn =>
                           do checkTotal replFC fn
                              tot <- getTotality replFC fn
-                             iputStrLn (show fn ++ " is " ++ show !(toFullNames tot))) 
+                             iputStrLn (show fn ++ " is " ++ show !(toFullNames tot)))
                                (map fst ts)
                        pure True
 process (DebugInfo n)
@@ -559,11 +560,23 @@ process (Editing cmd)
          processEdit cmd
          setPPrint ppopts
          pure True
-process Quit 
+process Quit
     = do iputStrLn "Bye for now!"
          pure False
 process NOP
     = pure True
+process ShowVersion
+    = do opts <- get ROpts
+         case idemode opts of
+           REPL _ => iputStrLn $ showVersion version
+           IDEMode i _ f => do
+             let MkVersion (maj, min, patch) t = version
+             send f (SExpList [SymbolAtom "return",
+                               SExpList [SymbolAtom "ok",
+                                         SExpList [SExpList (map (IntegerAtom . cast) [maj, min, patch]),
+                                                   SExpList [ StringAtom $ fromMaybe "" t ]]],
+                               toSExp i])
+         pure False
 
 processCatch : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->

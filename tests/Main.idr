@@ -66,7 +66,7 @@ chezTests
 
 ideModeTests : List String
 ideModeTests
-  =  [ "ideMode001" ]
+  =  [ "ideMode001", "ideMode002" ]
 
 chdir : String -> IO Bool
 chdir dir

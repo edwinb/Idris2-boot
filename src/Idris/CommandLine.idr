@@ -2,6 +2,8 @@ module Idris.CommandLine
 
 import YafflePaths
 import Data.String
+import Idris.Version
+import YafflePaths
 
 %default total
 
@@ -143,7 +145,7 @@ optUsage d
 
 export
 versionMsg : String
-versionMsg = "Idris 2, version " ++ version
+versionMsg = "Idris 2, version " ++ showVersion version
 
 export
 usage : String

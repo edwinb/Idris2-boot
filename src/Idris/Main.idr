@@ -19,9 +19,9 @@ import Idris.ProcessIdr
 import Idris.REPL
 import Idris.SetOptions
 import Idris.Syntax
-
 import Idris.Socket
 import Idris.Socket.Data
+import Idris.Version
 
 import Data.Vect
 import System
@@ -65,9 +65,9 @@ updatePaths
          addPkgDir "prelude"
          addPkgDir "base"
          addDataDir (dir_prefix (dirs (options defs)) ++ dirSep ++
-                        "idris2-" ++ version ++ dirSep ++ "support")
+                        "idris2-" ++ showVersion version ++ dirSep ++ "support")
          addLibDir (dir_prefix (dirs (options defs)) ++ dirSep ++
-                        "idris2-" ++ version ++ dirSep ++ "lib")
+                        "idris2-" ++ showVersion version ++ dirSep ++ "lib")
 
 updateREPLOpts : {auto o : Ref ROpts REPLOpts} ->
                  Core ()
@@ -155,8 +155,7 @@ stMain opts
                            setOutput (IDEMode 0 file file)
                            replIDE {c} {u} {m}
                    else do
-                       iputStrLn $ "Welcome to Idris 2 version " ++ version
-                                    ++ ". Enjoy yourself!"
+                       iputStrLn $ "Welcome to Idris 2. Enjoy yourself!"
                        repl {c} {u} {m}
                  else
                       -- exit with an error code if there was an error, otherwise

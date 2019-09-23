@@ -1,6 +1,6 @@
 1/2: Building Stuff (Stuff.idr)
 2/2: Building LetCase (LetCase.idr)
-Welcome to Idris 2 version 0.0. Enjoy yourself!
+Welcome to Idris 2. Enjoy yourself!
 Main>    y : Nat
    res : Nat
    x : Nat

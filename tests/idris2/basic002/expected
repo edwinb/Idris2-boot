@@ -1,5 +1,5 @@
 1/1: Building Do (Do.idr)
-Welcome to Idris 2 version 0.0. Enjoy yourself!
+Welcome to Idris 2. Enjoy yourself!
 Main> Just (S (S (S Z)))
 Main> Just Z
 Main> Just (S (S (S Z)))

@@ -25,6 +25,7 @@ data IDECommand
      | MakeLemma Integer String
      | MakeCase Integer String
      | MakeWith Integer String
+     | Version
 
 readHints : List SExp -> Maybe (List String)
 readHints [] = Just []
@@ -74,6 +75,7 @@ getIDECommand (SExpList [SymbolAtom "make-case", IntegerAtom l, StringAtom n])
     = Just $ MakeCase l n
 getIDECommand (SExpList [SymbolAtom "make-with", IntegerAtom l, StringAtom n])
     = Just $ MakeWith l n
+getIDECommand (SymbolAtom "version") = Just Version
 getIDECommand _ = Nothing
 
 export
@@ -94,6 +96,7 @@ putIDECommand (GenerateDef line n)            = (SExpList [SymbolAtom "generate-
 putIDECommand (MakeLemma line n)              = (SExpList [SymbolAtom "make-lemma", IntegerAtom line, StringAtom n])
 putIDECommand (MakeCase line n)               = (SExpList [SymbolAtom "make-case", IntegerAtom line, StringAtom n])
 putIDECommand (MakeWith line n)               = (SExpList [SymbolAtom "make-with", IntegerAtom line, StringAtom n])
+putIDECommand Version                         = SymbolAtom "version"
 
 export
 getMsg : SExp -> Maybe (IDECommand, Integer)

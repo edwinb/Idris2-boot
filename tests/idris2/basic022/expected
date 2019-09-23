@@ -1,6 +1,6 @@
 1/1: Building Erase (Erase.idr)
 Erase.idr:5:1--6:1:Attempt to match on erased argument False in Main.bad
 Erase.idr:19:1--20:1:Attempt to match on erased argument LeZ in Main.minusBad
-Welcome to Idris 2 version 0.0. Enjoy yourself!
+Welcome to Idris 2. Enjoy yourself!
 Main> \m => minus (S (S m)) m prf
 Main> Bye for now!

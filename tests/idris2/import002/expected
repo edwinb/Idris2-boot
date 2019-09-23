@@ -4,5 +4,5 @@
 Test.idr:5:9--5:13:While processing type of Test.thing at Test.idr:5:1--6:1:
 Name Nat.Nat is inaccessible since Nat is not explicitly imported
 Test.idr:6:1--8:1:No type declaration for Test.thing
-Welcome to Idris 2 version 0.0. Enjoy yourself!
+Welcome to Idris 2. Enjoy yourself!
 Test> Bye for now!
