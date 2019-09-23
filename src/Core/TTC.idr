@@ -328,7 +328,7 @@ mutual
   export
   TTC (CaseTree vars) where
     toBuf b (Case {name} idx x scTy xs) 
-        = do tag 0; toBuf b name; toBuf b idx; toBuf b scTy; toBuf b xs
+        = do tag 0; toBuf b name; toBuf b idx; toBuf b xs
     toBuf b (STerm x) 
         = do tag 1; toBuf b x
     toBuf b (Unmatched msg) 
@@ -338,8 +338,8 @@ mutual
     fromBuf b 
         = case !getTag of
                0 => do name <- fromBuf b; idx <- fromBuf b
-                       scTy <- fromBuf b; xs <- fromBuf b
-                       pure (Case {name} idx (mkPrf idx) scTy xs)
+                       xs <- fromBuf b
+                       pure (Case {name} idx (mkPrf idx) (Erased emptyFC) xs)
                1 => do x <- fromBuf b
                        pure (STerm x)
                2 => do msg <- fromBuf b

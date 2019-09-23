@@ -183,6 +183,9 @@ TTC Int where
 export
 TTC String where
   toBuf b val
+      -- TODO: If we're going to allow UTF-8 identifiers (and we are...) and
+      -- UTF-8 strings in general, this has to get the length of the C string in
+      -- bytes, not the length in characters.
       = do let req : Int = cast (length val)
            toBuf b req
            chunk <- get Bin
