@@ -155,7 +155,10 @@ stMain opts
                            setOutput (IDEMode 0 file file)
                            replIDE {c} {u} {m}
                    else do
-                       iputStrLn $ "Welcome to Idris 2. Enjoy yourself!"
+                       when (not $ nobanner session) $
+                         iputStrLn $ "Welcome to Idris 2 version "
+                                     ++ showVersion version
+                                     ++ ".  Enjoy yourself!"
                        repl {c} {u} {m}
                  else
                       -- exit with an error code if there was an error, otherwise

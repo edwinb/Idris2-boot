@@ -35,6 +35,9 @@ preOptions : {auto c : Ref Ctxt Defs} ->
              {auto o : Ref ROpts REPLOpts} ->
              List CLOpt -> Core Bool
 preOptions [] = pure True
+preOptions (NoBanner :: opts)
+    = do setSession (record { nobanner = True } !getSession)
+         preOptions opts
 preOptions (Quiet :: opts)
     = do setOutput (REPL True)
          preOptions opts

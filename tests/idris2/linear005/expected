@@ -1,6 +1,5 @@
 1/2: Building Linear (Linear.idr)
 2/2: Building Door (Door.idr)
-Welcome to Idris 2. Enjoy yourself!
 Door>  0 m : Type -> Type
  1 d : Door Closed
 -------------------------------------

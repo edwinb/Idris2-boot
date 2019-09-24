@@ -49,6 +49,8 @@ data CLOpt
   Version |
    ||| Display help text
   Help |
+   ||| Suppress the banner
+  NoBanner |
    ||| Run Idris 2 in quiet mode
   Quiet |
    ||| Add a package as a dependency
@@ -116,6 +118,8 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
 
            MkOpt ["--libdir"] [] [Directory LibDir]
               (Just "Show library directory"),
+           MkOpt ["--no-banner"] [] [NoBanner]
+              (Just "Suppress the banner"),
            MkOpt ["--quiet", "-q"] [] [Quiet]
               (Just "Quiet mode; display fewer messages"),
            MkOpt ["--version", "-v"] [] [Version]

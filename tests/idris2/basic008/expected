@@ -1,5 +1,4 @@
 1/1: Building If (If.idr)
-Welcome to Idris 2. Enjoy yourself!
 Main> "Zero"
 Main> "Odd"
 Main> "Even"

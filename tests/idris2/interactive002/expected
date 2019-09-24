@@ -1,5 +1,4 @@
 1/1: Building IEdit (IEdit.idr)
-Welcome to Idris 2. Enjoy yourself!
 Main> append {n = Z} [] ys = ?foo_1
 append {n = (S k)} (x :: xs) ys = ?foo_2
 

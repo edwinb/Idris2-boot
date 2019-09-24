@@ -1,5 +1,4 @@
 1/1: Building Total (Total.idr)
-Welcome to Idris 2. Enjoy yourself!
 Main> Main.count is total
 Main> Main.badCount is not terminating due to recursive path Main.badCount -> Prelude.Functor implementation at Prelude.idr:816:1--820:1 -> Prelude.map
 Main> Main.process is total

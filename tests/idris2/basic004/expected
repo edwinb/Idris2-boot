@@ -1,6 +1,5 @@
 1/2: Building Stuff (Stuff.idr)
 2/2: Building Wheres (Wheres.idr)
-Welcome to Idris 2. Enjoy yourself!
 Wheres> [3, 2, 1]
 Wheres> 8
 Wheres> 84

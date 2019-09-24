@@ -1,6 +1,5 @@
 1/2: Building Stuff (Stuff.idr)
 2/2: Building Door (Door.idr)
-Welcome to Idris 2. Enjoy yourself!
 Main>  0 m : Type -> Type
  0 d : Door Closed
  1 d' : Door Open

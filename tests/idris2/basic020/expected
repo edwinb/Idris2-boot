@@ -1,5 +1,4 @@
 1/1: Building Mut (Mut.idr)
-Welcome to Idris 2. Enjoy yourself!
 Main> MyTrue
 Main> MyFalse
 Main> (True, False)
