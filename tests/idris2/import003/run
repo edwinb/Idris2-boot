@@ -1,4 +1,4 @@
-$1 B.idr < input
-$1 C.idr < input
+$1 --no-banner B.idr < input
+$1 --no-banner C.idr < input
 
 rm -rf build

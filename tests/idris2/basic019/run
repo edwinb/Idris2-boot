@@ -1,3 +1,3 @@
-$1 CaseBlock.idr < input
+$1 --no-banner CaseBlock.idr < input
 
 rm -rf build

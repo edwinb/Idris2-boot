@@ -1,5 +1,4 @@
 1/1: Building Vect (Vect.idr)
-Welcome to Idris 2. Enjoy yourself!
 Main> Main.append:
 append (_ :: _) _
 Main> Main.lookup: All cases covered

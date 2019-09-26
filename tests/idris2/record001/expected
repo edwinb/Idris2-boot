@@ -1,5 +1,4 @@
 1/1: Building Record (Record.idr)
-Welcome to Idris 2. Enjoy yourself!
 Main> [1, 2, 3, 4, 5]
 Main> [1, 2, 3, 4, 5]
 Main> some_fn testPerson : Nat -> Nat

@@ -1,6 +1,5 @@
 1/2: Building Stuff (Stuff.idr)
 2/2: Building Functor (Functor.idr)
-Welcome to Idris 2. Enjoy yourself!
 Main>  0 b : Type
  0 a : Type
  0 d : Type

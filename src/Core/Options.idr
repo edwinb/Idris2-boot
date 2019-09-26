@@ -83,6 +83,7 @@ public export
 record Session where
   constructor MkSessionOpts
   noprelude : Bool
+  nobanner : Bool
   codegen : CG
   logLevel : Nat
   logTimings : Bool
@@ -113,7 +114,7 @@ defaultPPrint : PPrinter
 defaultPPrint = MkPPOpts False True False
 
 defaultSession : Session
-defaultSession = MkSessionOpts False Chez 0 False
+defaultSession = MkSessionOpts False False Chez 0 False
 
 defaultElab : ElabDirectives
 defaultElab = MkElabDirectives True True
@@ -162,4 +163,3 @@ setExtension e = record { extensions $= (e ::) }
 export
 isExtension : LangExt -> Options -> Bool
 isExtension e opts = e `elem` extensions opts
-

@@ -1,4 +1,3 @@
-Welcome to Idris 2. Enjoy yourself!
 Main> 1/1: Building Do (Do.idr)
 Main> Just (S (S (S Z)))
 Main> Just Z

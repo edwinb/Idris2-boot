@@ -1,5 +1,4 @@
 1/1: Building Door (Door.idr)
-Welcome to Idris 2. Enjoy yourself!
 Main>               (y @@ res) => ?now_4
 
 Main>               (True @@ d) => ?now_4
