@@ -568,7 +568,8 @@ process NOP
 process ShowVersion
     = do opts <- get ROpts
          case idemode opts of
-           REPL _ => iputStrLn $ showVersion version
+           REPL _ => do iputStrLn $ showVersion version
+                        pure True
            IDEMode i _ f => do
              let MkVersion (maj, min, patch) t = version
              send f (SExpList [SymbolAtom "return",
@@ -576,7 +577,7 @@ process ShowVersion
                                          SExpList [SExpList (map (IntegerAtom . cast) [maj, min, patch]),
                                                    SExpList [ StringAtom $ fromMaybe "" t ]]],
                                toSExp i])
-         pure False
+             pure False
 
 processCatch : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->

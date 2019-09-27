@@ -2,12 +2,26 @@
 MAJOR=0
 MINOR=0
 PATCH=0
-IDRIS2_VERSION=${MAJOR}.${MINOR}.${PATCH}
+
+GIT_SHA1=
+VER_TAG=
+ifeq ($(shell git status >/dev/null 2>&1; echo $$?), 0)
+    # inside a git repo
+    ifneq ($(shell git describe --exact-match --tags >/dev/null 2>&1; echo $$?), 0)
+        # not tagged as a released version, so add sha1 of this build in between releases
+        GIT_SHA1 := $(shell git rev-parse --short=9 HEAD)
+        VER_TAG := -${GIT_SHA1}
+    endif
+endif
+
+IDRIS2_VERSION=${MAJOR}.${MINOR}.${PATCH}${VER_TAG}
+
 PREFIX ?= ${HOME}/.idris2
-IDRIS_VERSION := $(shell idris --version)
-VALID_IDRIS_VERSION_REGEXP = "1.3.2.*"
 export IDRIS2_PATH = ${CURDIR}/libs/prelude/build/ttc:${CURDIR}/libs/base/build/ttc
 export IDRIS2_DATA = ${CURDIR}/support
+
+IDRIS_VERSION := $(shell idris --version)
+VALID_IDRIS_VERSION_REGEXP = "1.3.2.*"
 
 -include custom.mk
 
@@ -16,14 +30,15 @@ export IDRIS2_DATA = ${CURDIR}/support
 all: idris2 libs test
 
 check_version:
-	@echo "Using idris version: $(IDRIS_VERSION)"
+	@echo "Using Idris 1 version: $(IDRIS_VERSION)"
 	@if [ $(shell expr $(IDRIS_VERSION) : $(VALID_IDRIS_VERSION_REGEXP)) -eq 0 ]; then echo "Wrong idris version, expected version matching $(VALID_IDRIS_VERSION_REGEXP)"; exit 1; fi
 
 idris2: src/YafflePaths.idr check_version
+	@echo "Building Idris 2 version: $(IDRIS2_VERSION)"
 	idris --build idris2.ipkg
 
 src/YafflePaths.idr:
-	echo 'module YafflePaths; export yversion : ((Nat,Nat,Nat), String); yversion = ((${MAJOR},${MINOR},${PATCH}), "")' > src/YafflePaths.idr
+	echo 'module YafflePaths; export yversion : ((Nat,Nat,Nat), String); yversion = ((${MAJOR},${MINOR},${PATCH}), "${GIT_SHA1}")' > src/YafflePaths.idr
 	echo 'export yprefix : String; yprefix = "${PREFIX}"' >> src/YafflePaths.idr
 
 prelude:
