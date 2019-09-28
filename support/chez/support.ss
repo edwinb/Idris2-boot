@@ -101,7 +101,7 @@
         ((i/o-write-error? x) 2)
         ((i/o-file-does-not-exist-error? x) 3)
         ((i/o-file-protection-error? x) 4)
-        (else 5)))
+        (else (+ x 256))))
 
 ;; If the file operation raises an error, catch it and return an appropriate
 ;; error code

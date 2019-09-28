@@ -34,21 +34,23 @@ data FileError = GenericFileError Int -- errno
                | FileWriteError
                | FileNotFound
                | PermissionDenied
+               | FileExists
 
 export
 Show FileError where
+  show (GenericFileError errno) = "File error: " ++ show errno
   show FileReadError = "File Read Error"
   show FileWriteError = "File Write Error"
   show FileNotFound = "File Not Found"
   show PermissionDenied = "Permission Denied"
-  show (GenericFileError errno) = "File error: " ++ show errno
+  show FileExists = "File Exists"
 
 toFileError : Int -> FileError
 toFileError 1 = FileReadError
 toFileError 2 = FileWriteError
 toFileError 3 = FileNotFound
 toFileError 4 = PermissionDenied
-toFileError x = GenericFileError x
+toFileError x = GenericFileError (x - 256)
 
 fpure : Either Int a -> IO (Either FileError a)
 fpure (Left err) = pure (Left (toFileError err))

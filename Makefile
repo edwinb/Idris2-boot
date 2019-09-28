@@ -53,18 +53,20 @@ test:
 	idris --build tests.ipkg
 	@make -C tests only=$(only)
 
-install: all install-exec install-libs
+install: all install-exec install-support install-libs
+
+install-support:
+	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chez
+	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chicken
+	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/racket
+	install support/chez/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chez
+	install support/chicken/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chicken
+	install support/racket/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/racket
 
 install-exec: idris2
 	mkdir -p ${PREFIX}/bin
 	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/lib
-	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chez
-	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chicken
-	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/racket
 	install idris2 ${PREFIX}/bin
-	install support/chez/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chez
-	install support/chicken/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chicken
-	install support/racket/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/racket
 
 install-libs: libs
 	make -C libs/prelude install IDRIS2=../../idris2
