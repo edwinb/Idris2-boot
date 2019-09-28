@@ -85,10 +85,13 @@
     (utf8->string newvec)))
 
 (define (blodwen-readbuffer h buf loc max)
-  (get-bytevector-n! h buf loc max))
+  (guard (x (#t -1))
+    (get-bytevector-n! h buf loc max)))
 
 (define (blodwen-writebuffer h buf loc max)
-  (put-bytevector h buf loc max))
+  (guard (x (#t -1))
+     (put-bytevector h buf loc max)
+     max))
 
 ;; Files: Much of the following adapted from idris-chez, thanks to Niklas
 ;; Larsson

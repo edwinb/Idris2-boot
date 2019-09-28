@@ -27,13 +27,27 @@ main
 
          Right f <- openBinaryFile "test.buf" WriteTruncate
              | Left err => putStrLn "File error on write"
-         writeBufferToFile f buf 100
+         Right _ <- writeBufferToFile f buf 100
+             | Left err => do putStrLn "Buffer write fail"
+                              closeFile f
          closeFile f
 
          Right f <- openBinaryFile "test.buf" Read
              | Left err => putStrLn "File error on read"
          buf2 <- newBuffer 100
-         readBufferFromFile f buf2 100
+         Right _ <- readBufferFromFile f buf2 100
+             | Left err => do putStrLn "Buffer read fail"
+                              closeFile f
+         closeFile f
 
          ds <- bufferData buf2
          printLn ds
+
+         Right f <- openBinaryFile "test.buf" Read
+             | Left err => putStrLn "File error on read"
+         buf3 <- newBuffer 99
+         Right _ <- readBufferFromFile f buf3 100
+             | Left err => do putStrLn "Buffer read fail"
+                              closeFile f
+         closeFile f
+

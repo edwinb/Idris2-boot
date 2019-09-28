@@ -75,15 +75,21 @@ bufferData buf
              unpackTo (val :: acc) (loc - 1)
 
 export
-readBufferFromFile : BinaryFile -> Buffer -> (maxbytes : Int) -> IO Buffer
+readBufferFromFile : BinaryFile -> Buffer -> (maxbytes : Int) -> 
+                     IO (Either FileError Buffer)
 readBufferFromFile (FHandle h) (MkBuffer buf size loc) max
     = do read <- schemeCall Int "blodwen-readbuffer" [h, buf, loc, max]
-         pure (MkBuffer buf size (loc + read))
+         if read >= 0
+            then pure (Right (MkBuffer buf size (loc + read)))
+            else pure (Left FileReadError)
 
 export
-writeBufferToFile : BinaryFile -> Buffer -> (maxbytes : Int) -> IO Buffer
+writeBufferToFile : BinaryFile -> Buffer -> (maxbytes : Int) -> 
+                    IO (Either FileError Buffer)
 writeBufferToFile (FHandle h) (MkBuffer buf size loc) max
     = do let maxwrite = size - loc
          let max' = if maxwrite < max then maxwrite else max
-         schemeCall () "blodwen-writebuffer" [h, buf, loc, max']
-         pure (MkBuffer buf size (loc + max'))
+         written <- schemeCall Int "blodwen-writebuffer" [h, buf, loc, max']
+         if written == max'
+            then pure (Right (MkBuffer buf size (loc + max')))
+            else pure (Left FileWriteError)
