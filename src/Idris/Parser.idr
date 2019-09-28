@@ -1142,12 +1142,12 @@ fieldDecl fname indents
              let rig = case rigin of
                             Rig0 => Rig0
                             _ => Rig1
-             ns <- sepBy1 (symbol ",") unqualifiedName
+             ns <- sepBy1 (symbol ",") name
              symbol ":"
              ty <- expr pdef fname indents
              end <- location
              pure (map (\n => MkField (MkFC fname start end)
-                                      rig p (UN n) ty) ns)
+                                      rig p n ty) ns)
 
 recordDecl : FileName -> IndentInfo -> Rule PDecl
 recordDecl fname indents
