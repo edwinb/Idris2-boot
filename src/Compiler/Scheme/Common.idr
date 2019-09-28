@@ -205,19 +205,19 @@ export
 mkWorld : String -> String
 mkWorld res = schConstructor 0 ["#f", res, "#f"] -- MkIORes
 
-schConstant : Constant -> String
-schConstant (I x) = show x
-schConstant (BI x) = show x
-schConstant (Str x) = show x
-schConstant (Ch x) = "#\\" ++ cast x
-schConstant (Db x) = show x
-schConstant WorldVal = "#f"
-schConstant IntType = "#t"
-schConstant IntegerType = "#t"
-schConstant StringType = "#t"
-schConstant CharType = "#t"
-schConstant DoubleType = "#t"
-schConstant WorldType = "#t"
+schConstant : (String -> String) -> Constant -> String
+schConstant _ (I x) = show x
+schConstant _ (BI x) = show x
+schConstant schString (Str x) = schString x
+schConstant _ (Ch x) = "#\\" ++ cast x
+schConstant _ (Db x) = show x
+schConstant _ WorldVal = "#f"
+schConstant _ IntType = "#t"
+schConstant _ IntegerType = "#t"
+schConstant _ StringType = "#t"
+schConstant _ CharType = "#t"
+schConstant _ DoubleType = "#t"
+schConstant _ WorldType = "#t"
 
 schCaseDef : Maybe String -> String
 schCaseDef Nothing = ""
@@ -229,7 +229,8 @@ schArglist [] = ""
 schArglist [x] = x
 schArglist (x :: xs) = x ++ " " ++ schArglist xs
 
-parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String)
+parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String,
+            schString : String -> String)
   mutual
     schConAlt : Int -> SVars vars -> String -> CConAlt vars -> Core String
     schConAlt {vars} i vs target (MkConAlt n tag args sc)
@@ -245,7 +246,7 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
 
     schConstAlt : Int -> SVars vars -> String -> CConstAlt vars -> Core String
     schConstAlt i vs target (MkConstAlt c exp)
-        = pure $ "((equal? " ++ target ++ " " ++ schConstant c ++ ") " ++ !(schExp i vs exp) ++ ")"
+        = pure $ "((equal? " ++ target ++ " " ++ schConstant schString c ++ ") " ++ !(schExp i vs exp) ++ ")"
       
     -- oops, no traverse for Vect in Core
     schArgs : Int -> SVars vars -> Vect n (CExp vars) -> Core (Vect n String)
@@ -291,7 +292,7 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
              pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) (cond "
                       ++ showSep " " !(traverse (schConstAlt (i+1) vs n) alts)
                       ++ schCaseDef defc ++ "))"
-    schExp i vs (CPrimVal fc c) = pure $ schConstant c
+    schExp i vs (CPrimVal fc c) = pure $ schConstant schString c
     schExp i vs (CErased fc) = pure "'()"
     schExp i vs (CCrash fc msg) = pure $ "(blodwen-error-quit " ++ show msg ++ ")"
 
@@ -367,11 +368,12 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
 export
 getScheme : {auto c : Ref Ctxt Defs} ->
             (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String) ->
+            (schString : String -> String) ->
             Defs -> Name -> Core String
-getScheme schExtPrim defs n
+getScheme schExtPrim schString defs n
     = case !(lookupCtxtExact n (gamma defs)) of
            Nothing => throw (InternalError ("Compiling undefined name " ++ show n))
            Just d => case compexpr d of
                           Nothing =>
                              throw (InternalError ("No compiled definition for " ++ show n))
-                          Just d => schDef schExtPrim n d
+                          Just d => schDef schExtPrim schString n d

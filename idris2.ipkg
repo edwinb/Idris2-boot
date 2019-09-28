@@ -116,6 +116,7 @@ modules =
     TTImp.WithClause,
 
     Utils.Binary,
+    Utils.Hex,
     Utils.Shunting,
 
     Yaffle.Main,

@@ -180,13 +180,15 @@ TTC Int where
                  pure val
               else throw (TTCError (EndOfBuffer ("Int " ++ show (loc chunk, size chunk))))
 
+strBytelen : String -> IO Int
+strBytelen = foreign FFI_C "strlen" (String -> IO Int)
+
 export
 TTC String where
   toBuf b val
-      -- TODO: If we're going to allow UTF-8 identifiers (and we are...) and
-      -- UTF-8 strings in general, this has to get the length of the C string in
-      -- bytes, not the length in characters.
-      = do let req : Int = cast (length val)
+      -- To support UTF-8 strings, this has to get the length of the C string
+      -- in bytes, not the length in characters.
+      = do req <- coreLift $ strBytelen val
            toBuf b req
            chunk <- get Bin
            if avail chunk >= req

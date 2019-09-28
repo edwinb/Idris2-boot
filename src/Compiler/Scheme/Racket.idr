@@ -10,6 +10,8 @@ import Core.Directory
 import Core.Name
 import Core.TT
 
+import Utils.Hex
+
 import Data.NameMap
 import Data.Vect
 import System
@@ -34,12 +36,33 @@ schHeader libs
 schFooter : String
 schFooter = ")"
 
+showRacketChar : Char -> String -> String
+showRacketChar '\\' = ("\\\\" ++)
+showRacketChar c
+   = if c < chr 32 || c > chr 126
+        then (("\\u" ++ pad (asHex (cast c))) ++)
+        else strCons c
+  where
+    pad : String -> String
+    pad str
+        = case isLTE (length str) 4 of
+               Yes _ => cast (List.replicate (4 - length str) '0') ++ str
+               No _ => str
+
+showRacketString : List Char -> String -> String
+showRacketString [] = id
+showRacketString ('"'::cs) = ("\\\"" ++) . showRacketString cs
+showRacketString (c ::cs) = (showRacketChar c) . showRacketString cs
+
+racketString : String -> String
+racketString cs = strCons '"' (showRacketString (unpack cs) "\"")
+
 mutual
   racketPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String
   racketPrim i vs CCall [ret, fn, args, world]
       = throw (InternalError ("Can't compile C FFI calls to Racket yet"))
   racketPrim i vs prim args 
-      = schExtCommon racketPrim i vs prim args
+      = schExtCommon racketPrim racketString i vs prim args
 
 -- Reference label for keeping track of loaded external libraries
 data Loaded : Type where
@@ -178,9 +201,9 @@ compileToRKT c tm outfile
          defs <- get Ctxt
          l <- newRef {t = List String} Loaded []
          fgndefs <- traverse getFgnCall ns
-         compdefs <- traverse (getScheme racketPrim defs) ns
+         compdefs <- traverse (getScheme racketPrim racketString defs) ns
          let code = concat (map snd fgndefs) ++ concat compdefs
-         main <- schExp racketPrim 0 [] !(compileExp tags tm)
+         main <- schExp racketPrim racketString 0 [] !(compileExp tags tm)
          support <- readDataFile "racket/support.rkt"
          let scm = schHeader (concat (map fst fgndefs)) ++ 
                    support ++ code ++ 

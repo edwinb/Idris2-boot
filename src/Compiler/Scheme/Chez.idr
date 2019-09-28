@@ -10,6 +10,7 @@ import Core.Directory
 import Core.Name
 import Core.Options
 import Core.TT
+import Utils.Hex
 
 import Data.NameMap
 import Data.Vect
@@ -93,6 +94,21 @@ schHeader chez libs
 schFooter : String
 schFooter = ")"
 
+showChezChar : Char -> String -> String
+showChezChar '\\' = ("\\\\" ++)
+showChezChar c
+   = if c < chr 32 || c > chr 126
+        then (("\\x" ++ asHex (cast c) ++ ";") ++)
+        else strCons c
+
+showChezString : List Char -> String -> String
+showChezString [] = id
+showChezString ('"'::cs) = ("\\\"" ++) . showChezString cs
+showChezString (c ::cs) = (showChezChar c) . showChezString cs
+
+chezString : String -> String
+chezString cs = strCons '"' (showChezString (unpack cs) "\"")
+
 mutual
   tySpec : CExp vars -> Core String
   -- Primitive types have been converted to names for the purpose of matching
@@ -124,7 +140,7 @@ mutual
       = do args <- getFArgs fargs
            argTypes <- traverse tySpec (map fst args)
            retType <- tySpec ret
-           argsc <- traverse (schExp chezExtPrim 0 vs) (map snd args)
+           argsc <- traverse (schExp chezExtPrim chezString 0 vs) (map snd args)
            pure $ handleRet retType ("((foreign-procedure #f " ++ show fn ++ " ("
                     ++ showSep " " argTypes ++ ") " ++ retType ++ ") "
                     ++ showSep " " argsc ++ ")")
@@ -134,7 +150,7 @@ mutual
   chezExtPrim i vs GetStr [world]
       = pure $ mkWorld "(get-line (current-input-port))"
   chezExtPrim i vs prim args
-      = schExtCommon chezExtPrim i vs prim args
+      = schExtCommon chezExtPrim chezString i vs prim args
 
 -- Reference label for keeping track of loaded external libraries
 data Loaded : Type where
@@ -244,9 +260,9 @@ compileToSS c tm outfile
          defs <- get Ctxt
          l <- newRef {t = List String} Loaded ["libc", "libc 6"]
          fgndefs <- traverse getFgnCall ns
-         compdefs <- traverse (getScheme chezExtPrim defs) ns
+         compdefs <- traverse (getScheme chezExtPrim chezString defs) ns
          let code = concat (map snd fgndefs) ++ concat compdefs
-         main <- schExp chezExtPrim 0 [] !(compileExp tags tm)
+         main <- schExp chezExtPrim chezString 0 [] !(compileExp tags tm)
          chez <- coreLift findChez
          support <- readDataFile "chez/support.ss"
          let scm = schHeader chez (map snd libs) ++

@@ -11,6 +11,8 @@ import Core.Name
 import Core.Options
 import Core.TT
 
+import Utils.Hex
+
 import Data.NameMap
 import Data.Vect
 import System
@@ -32,12 +34,33 @@ schHeader ds
 schFooter : String
 schFooter = ")"
 
+showChickenChar : Char -> String -> String
+showChickenChar '\\' = ("\\\\" ++)
+showChickenChar c
+   = if c < chr 32 || c > chr 126
+        then (("\\u" ++ pad (asHex (cast c))) ++)
+        else strCons c
+  where
+    pad : String -> String
+    pad str
+        = case isLTE (length str) 4 of
+               Yes _ => cast (List.replicate (4 - length str) '0') ++ str
+               No _ => str
+
+showChickenString : List Char -> String -> String
+showChickenString [] = id
+showChickenString ('"'::cs) = ("\\\"" ++) . showChickenString cs
+showChickenString (c ::cs) = (showChickenChar c) . showChickenString cs
+
+chickenString : String -> String
+chickenString cs = strCons '"' (showChickenString (unpack cs) "\"")
+
 mutual
   chickenPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String
   chickenPrim i vs CCall [ret, fn, args, world]
       = throw (InternalError ("Can't compile C FFI calls to Chicken Scheme yet"))
   chickenPrim i vs prim args 
-      = schExtCommon chickenPrim i vs prim args
+      = schExtCommon chickenPrim chickenString i vs prim args
 
 compileToSCM : Ref Ctxt Defs ->
                ClosedTerm -> (outfile : String) -> Core ()
@@ -45,9 +68,9 @@ compileToSCM c tm outfile
     = do ds <- getDirectives Chicken
          (ns, tags) <- findUsedNames tm
          defs <- get Ctxt
-         compdefs <- traverse (getScheme chickenPrim defs) ns
+         compdefs <- traverse (getScheme chickenPrim chickenString defs) ns
          let code = concat compdefs
-         main <- schExp chickenPrim 0 [] !(compileExp tags tm)
+         main <- schExp chickenPrim chickenString 0 [] !(compileExp tags tm)
          support <- readDataFile "chicken/support.scm"
          let scm = schHeader ds ++ support ++ code ++ main ++ schFooter
          Right () <- coreLift $ writeFile outfile scm
