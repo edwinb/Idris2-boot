@@ -4,12 +4,19 @@ add : Int -> Int -> Int
 %foreign "C:applyIntFn, libcb.so"
 prim_applyIntFn : Int -> Int -> (Int -> Int -> PrimIO Int) -> PrimIO Int
 
+%foreign "C:applyCharFn, libcb.so"
+prim_applyCharFn : Char -> Int -> (Char -> Int -> PrimIO Char) -> PrimIO Char
+
 %foreign "C:applyIntFnPure, libcb.so"
 applyIntFnPure : Int -> Int -> (Int -> Int -> Int) -> Int
 
 applyIntFn : Int -> Int -> (Int -> Int -> IO Int) -> IO Int
 applyIntFn x y fn
     = primIO $ prim_applyIntFn x y (\a, b => toPrim (fn a b))
+
+applyCharFn : Char -> Int -> (Char -> Int -> IO Char) -> IO Char
+applyCharFn x y fn
+    = primIO $ prim_applyCharFn x y (\a, b => toPrim (fn a b))
 
 cb : Int -> Int -> IO Int
 cb x y
@@ -25,3 +32,5 @@ main
          res <- applyIntFn 1 2 cb
          printLn res
          printLn (applyIntFnPure 5 4 (\x, y => x + y))
+         res <- applyCharFn 'a' 10 (\x, y => pure (cast (cast x + y)))
+         printLn res

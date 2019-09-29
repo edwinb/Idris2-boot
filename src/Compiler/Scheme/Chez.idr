@@ -222,10 +222,10 @@ cCall fc cfn clib args ret
              argTypes <- traverse (cftySpec fc) (filter notWorld args)
              retType <- cftySpec fc retty
              pure $
-                 "(let ([code (foreign-callable #f " ++ 
+                 "(let ([c-code (foreign-callable #f " ++ 
                        mkFun args retty n ++
                        " (" ++ showSep " " argTypes ++ ") " ++ retType ++ ")])" ++
-                       " (lock-object code) (foreign-callable-entry-point code))"
+                       " (lock-object c-code) (foreign-callable-entry-point c-code))"
 
     buildArg : (Name, CFType) -> Core String
     buildArg (n, CFFun s t) = callback (schName n) [s] t
