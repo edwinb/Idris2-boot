@@ -56,6 +56,10 @@ primIO : (1 fn : (1 x : %World) -> IORes a) -> IO a
 primIO op = MkIO op
 
 export %inline
+toPrim : IO a -> PrimIO a
+toPrim (MkIO fn) = fn
+
+export %inline
 schemeCall : (ret : Type) -> String -> (1 args : FArgList) -> IO ret
 schemeCall ret fn args = primIO (prim__schemeCall ret fn args)
  

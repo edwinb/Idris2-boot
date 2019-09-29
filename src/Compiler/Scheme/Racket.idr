@@ -77,6 +77,14 @@ cftySpec fc CFDouble = pure "_double"
 cftySpec fc CFChar = pure "_int8"
 cftySpec fc CFPtr = pure "_pointer"
 cftySpec fc (CFIORes t) = cftySpec fc t
+cftySpec fc (CFFun s t) = funTySpec [s] t
+  where
+    funTySpec : List CFType -> CFType -> Core String
+    funTySpec args (CFFun s t) = funTySpec (s :: args) t
+    funTySpec args retty
+        = do rtyspec <- cftySpec fc retty
+             argspecs <- traverse (cftySpec fc) (reverse args)
+             throw (GenericMsg fc "Callbacks not done yet")
 cftySpec fc t = throw (GenericMsg fc ("Can't pass argument of type " ++ show t ++
                          " to foreign function"))
 

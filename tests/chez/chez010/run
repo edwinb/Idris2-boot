@@ -1,0 +1,3 @@
+cc --shared cblib.c -fPIC -o libcb.so
+$1 --no-banner CB.idr < input
+rm -rf build libcb.* 

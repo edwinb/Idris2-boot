@@ -646,8 +646,9 @@ TTC CFType where
   toBuf b CFChar = tag 4
   toBuf b CFPtr = tag 5
   toBuf b CFWorld = tag 6
-  toBuf b (CFIORes t) = do tag 7; toBuf b t
-  toBuf b (CFUser n a) = do tag 8; toBuf b n; toBuf b a
+  toBuf b (CFFun s t) = do tag 7; toBuf b s; toBuf b t
+  toBuf b (CFIORes t) = do tag 8; toBuf b t
+  toBuf b (CFUser n a) = do tag 9; toBuf b n; toBuf b a
 
   fromBuf b
       = case !getTag of
@@ -658,8 +659,9 @@ TTC CFType where
              4 => pure CFChar
              5 => pure CFPtr
              6 => pure CFWorld
-             7 => do t <- fromBuf b; pure (CFIORes t)
-             8 => do n <- fromBuf b; a <- fromBuf b; pure (CFUser n a)
+             7 => do s <- fromBuf b; t <- fromBuf b; pure (CFFun s t)
+             8 => do t <- fromBuf b; pure (CFIORes t)
+             9 => do n <- fromBuf b; a <- fromBuf b; pure (CFUser n a)
              _ => corrupt "CFType"
 
 export

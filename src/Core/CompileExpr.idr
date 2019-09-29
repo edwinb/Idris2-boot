@@ -63,6 +63,7 @@ data CFType : Type where
      CFChar : CFType
      CFPtr : CFType
      CFWorld : CFType
+     CFFun : CFType -> CFType -> CFType
      CFIORes : CFType -> CFType
      CFUser : Name -> List CFType -> CFType
 
@@ -126,6 +127,7 @@ Show CFType where
   show CFChar = "Char"
   show CFPtr = "Ptr"
   show CFWorld = "%World"
+  show (CFFun s t) = show s ++ " -> " ++ show t
   show (CFIORes t) = "IORes " ++ show t
   show (CFUser n args) = show n ++ " " ++ showSep " " (map show args)
 

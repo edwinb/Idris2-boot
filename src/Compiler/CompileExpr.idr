@@ -294,7 +294,13 @@ nfToCFType (NPrimVal _ StringType) = pure CFString
 nfToCFType (NPrimVal _ DoubleType) = pure CFDouble
 nfToCFType (NPrimVal _ CharType) = pure CFChar
 nfToCFType (NPrimVal _ WorldType) = pure CFWorld
-nfToCFType (NTCon _ n _ _ args)
+nfToCFType (NBind fc _ (Pi _ _ ty) sc)
+    = do defs <- get Ctxt
+         sty <- nfToCFType ty
+         sc' <- sc defs (toClosure defaultOpts [] (Erased fc))
+         tty <- nfToCFType sc'
+         pure (CFFun sty tty)
+nfToCFType (NTCon fc n _ _ args)
     = do defs <- get Ctxt
          case getNArgs !(toFullNames n) args of
               User un uargs =>
@@ -307,7 +313,7 @@ nfToCFType (NTCon _ n _ _ args)
                 do narg <- evalClosure defs uarg
                    carg <- nfToCFType narg
                    pure (CFIORes carg)
-nfToCFType _ = pure CFUnit
+nfToCFType t = throw (GenericMsg (getLoc t) "Can't marshal type for foreign call")
 
 getCFTypes : {auto c : Ref Ctxt Defs} ->
              List CFType -> NF [] ->

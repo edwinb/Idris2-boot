@@ -162,6 +162,7 @@ cftySpec fc CFString = pure "string"
 cftySpec fc CFDouble = pure "double"
 cftySpec fc CFChar = pure "char"
 cftySpec fc CFPtr = pure "void*"
+cftySpec fc (CFFun s t) = pure "void*"
 cftySpec fc (CFIORes t) = cftySpec fc t
 cftySpec fc t = throw (GenericMsg fc ("Can't pass argument of type " ++ show t ++
                          " to foreign function"))
@@ -179,16 +180,56 @@ cCall fc cfn clib args ret
                            pure $ "(load-shared-object \""
                                     ++ escapeQuotes fullname
                                     ++ "\")\n"
-         argTypes <- traverse (\a => do s <- cftySpec fc (snd a)
-                                        pure (fst a, s)) args
+         argTypes <- traverse (\a => cftySpec fc (snd a)) args
          retType <- cftySpec fc ret
          let call = "((foreign-procedure #f " ++ show cfn ++ " ("
-                      ++ showSep " " (map snd argTypes) ++ ") " ++ retType ++ ") "
-                      ++ showSep " " (map (schName . fst) argTypes) ++ ")"
+                      ++ showSep " " argTypes ++ ") " ++ retType ++ ") "
+                      ++ showSep " " !(traverse buildArg args) ++ ")"
 
          pure (lib, case ret of
                          CFIORes _ => handleRet retType call
                          _ => call)
+  where
+    mkNs : Int -> List CFType -> List (Maybe String)
+    mkNs i [] = []
+    mkNs i (CFWorld :: xs) = Nothing :: mkNs i xs
+    mkNs i (x :: xs) = Just ("cb" ++ show i) :: mkNs (i + 1) xs
+
+    applyLams : String -> List (Maybe String) -> String
+    applyLams n [] = n
+    applyLams n (Nothing :: as) = applyLams ("(" ++ n ++ " #f)") as
+    applyLams n (Just a :: as) = applyLams ("(" ++ n ++ " " ++ a ++ ")") as
+
+    getVal : String -> String
+    getVal str = "(vector-ref " ++ str ++ "2)"
+
+    mkFun : List CFType -> CFType -> String -> String
+    mkFun args ret n
+        = let argns = mkNs 0 args in
+              "(lambda (" ++ showSep " " (mapMaybe id argns) ++ ") " ++
+              (case ret of
+                    CFIORes _ => getVal (applyLams n argns) ++ ")"
+                    _ => applyLams n argns ++ ")")
+
+    notWorld : CFType -> Bool
+    notWorld CFWorld = False
+    notWorld _ = True
+
+    callback : String -> List CFType -> CFType -> Core String
+    callback n args (CFFun s t) = callback n (s :: args) t
+    callback n args_rev retty
+        = do let args = reverse args_rev
+             argTypes <- traverse (cftySpec fc) (filter notWorld args)
+             retType <- cftySpec fc retty
+             pure $
+                 "(let ([code (foreign-callable #f " ++ 
+                       mkFun args retty n ++
+                       " (" ++ showSep " " argTypes ++ ") " ++ retType ++ ")])" ++
+                       " (lock-object code) (foreign-callable-entry-point code))"
+
+    buildArg : (Name, CFType) -> Core String
+    buildArg (n, CFFun s t) = callback (schName n) [s] t
+    buildArg (n, _) = pure $ schName n
 
 schemeCall : FC -> (sfn : String) ->
              List Name -> CFType -> Core String
