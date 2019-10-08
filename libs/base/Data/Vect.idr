@@ -180,7 +180,7 @@ merge = mergeBy compare
 ||| ```idris example
 ||| reverse [1,2,3,4]
 ||| ```
-export
+public export
 reverse : Vect len elem -> Vect len elem
 reverse xs = go [] xs
   where go : Vect n elem -> Vect m elem -> Vect (n+m) elem
