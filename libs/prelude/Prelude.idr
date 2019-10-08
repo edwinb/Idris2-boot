@@ -1308,9 +1308,11 @@ Cast Nat Double where
 -- RANGES --
 ------------
 
+public export
 countFrom : n -> (n -> n) -> Stream n
 countFrom start diff = start :: countFrom (diff start) diff
 
+public export
 partial
 takeUntil : (n -> Bool) -> Stream n -> List n
 takeUntil p (x :: xs)
