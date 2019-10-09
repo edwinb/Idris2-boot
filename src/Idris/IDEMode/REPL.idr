@@ -145,8 +145,7 @@ process : {auto c : Ref Ctxt Defs} ->
           {auto o : Ref ROpts REPLOpts} ->
           IDECommand -> Core ()
 process (Interpret cmd)
-    = do interpret cmd
-         printResult "Done"
+    = do interpret cmd ; pure ()
 process (LoadFile fname toline)
     = do opts <- get ROpts
          put ROpts (record { mainfile = Just fname } opts)

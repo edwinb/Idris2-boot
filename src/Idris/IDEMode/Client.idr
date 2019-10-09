@@ -44,25 +44,31 @@ readOutput sock = do
       pure $ either (Left . show) Right $ parseSExp msg
 
 data IDEResult : Type where
-  IDEReturn : List SExp -> IDEResult
+  IDEReturn : SExp -> IDEResult
   NetworkError : String -> IDEResult
   InputError : String -> IDEResult
   OutputError : String -> IDEResult
 
 implementation Show IDEResult where
-  show (IDEReturn exprs) = unlines $ map show exprs
+  show (IDEReturn exprs) = show exprs
   show (NetworkError reason) = reason
   show (InputError reason) = reason
   show (OutputError reason) = reason
 
 
-readResult: Socket -> List SExp -> IO IDEResult
-readResult sock outputs = do
+readResult: Socket -> (SExp -> IO Bool) -> IO IDEResult
+readResult sock cont = do
   Right output <- readOutput sock | Left err => pure (OutputError err)
   case output of
-    SExpList (SymbolAtom "return" :: rest) => pure (IDEReturn (SExpList rest :: outputs))
-    res => do
-      readResult sock (res :: outputs)
+    (SExpList (SymbolAtom "return" ::  result :: _)) => pure (IDEReturn result)
+    other => do continue <- cont other
+                if continue
+                then readResult sock cont
+                else pure (IDEReturn other)
+
+printExp : SExp -> IO Bool
+printExp exp = do putStrLn (show exp)
+                  pure True
 
 execute : Socket -> IDECommand -> IO IDEResult
 execute cnx command = do
@@ -71,7 +77,7 @@ execute cnx command = do
         Just cmd => do
           Right sent <- send cnx cmd
             | Left err => pure (NetworkError ("Failed to send command, error: " ++ show err))
-          readResult cnx []
+          readResult cnx printExp
         Nothing => pure $ InputError "Command is too long"
 
 connect : String -> Int -> IO Socket
@@ -82,12 +88,37 @@ connect host port = do
       exit 1
   pure sock
 
+covering
 makeIDECommand : REPLCmd -> Either String IDECommand
 makeIDECommand (Eval term)            = Right $ Interpret (show term)
 makeIDECommand (Check term)           = Right $ TypeOf (show term) Nothing
 makeIDECommand (Load file)            = Right $ LoadFile file Nothing
 makeIDECommand (Editing (TypeAt line col name)) = Right $ TypeOf (show name) (Just (cast line, cast col))
-makeIDECommand other                  = Left "Don't know how to interpret command"
+makeIDECommand (CD x) = Right $ Interpret (":cd " ++ x)
+makeIDECommand ShowVersion = Right Version
+makeIDECommand _ = Left $ "Don't know how to interpret command"
+-- makeIDECommand (Editing (CaseSplit x y z)) = ?makeIDECommand_rhs_1
+-- makeIDECommand (Editing (AddClause x y)) = ?makeIDECommand_rhs_2
+-- makeIDECommand (Editing (ExprSearch x y xs z)) = ?makeIDECommand_rhs_3
+-- makeIDECommand (Editing (GenerateDef x y)) = ?makeIDECommand_rhs_4
+-- makeIDECommand (Editing (MakeLemma x y)) = ?makeIDECommand_rhs_5
+-- makeIDECommand (Editing (MakeCase x y)) = ?makeIDECommand_rhs_6
+-- makeIDECommand (Editing (MakeWith x y)) = ?makeIDECommand_rhs_7
+-- makeIDECommand (PrintDef x) = ?makeIDECommand_rhs_8
+-- makeIDECommand Reload = ?makeIDECommand_rhs_9
+-- makeIDECommand Edit = ?makeIDECommand_rhs_10
+-- makeIDECommand (Compile x y) = ?makeIDECommand_rhs_11
+-- makeIDECommand (Exec x) = ?makeIDECommand_rhs_12
+-- makeIDECommand (ProofSearch x) = ?makeIDECommand_rhs_13
+-- makeIDECommand (DebugInfo x) = ?makeIDECommand_rhs_14
+-- makeIDECommand (SetOpt x) = ?makeIDECommand_rhs_15
+-- makeIDECommand (Missing x) = ?makeIDECommand_rhs_17
+-- makeIDECommand (Total x) = ?makeIDECommand_rhs_18
+-- makeIDECommand (SetLog k) = ?makeIDECommand_rhs_19
+-- makeIDECommand Metavars = ?makeIDECommand_rhs_20
+-- makeIDECommand Quit = ?makeIDECommand_rhs_22
+-- makeIDECommand NOP = ?makeIDECommand_rhs_23
+
 
 parseCommand : String -> Either String IDECommand
 parseCommand = either (Left . show) makeIDECommand . parseRepl
@@ -111,6 +142,16 @@ repl cnx
     prompt : String
     prompt = "λ> "
 
+readProtocol : Socket -> IO ()
+readProtocol sock = do
+  res <- readResult sock (const $ pure False)
+  case res of
+    (IDEReturn (SExpList [ SymbolAtom "protocol-version" , IntegerAtom 2, IntegerAtom 0])) => pure ()
+    _ => do { putStrLn ("Expected protocol version 2.0, got " ++ show res) ; exit 1 }
+
 export
 client : String -> Int -> IO ()
-client host port = connect host port  >>= repl
+client host port = do
+  sock <- connect host port
+  readProtocol sock
+  repl sock

@@ -424,8 +424,8 @@ process (Eval itm)
                  if showTypes opts
                     then do ty <- getTerm gty
                             ity <- resugar [] !(norm defs [] ty)
-                            coreLift (putStrLn (show itm ++ " : " ++ show ity))
-                    else coreLift (putStrLn (show itm))
+                            printResult (show itm ++ " : " ++ show ity)
+                    else printResult (show itm)
                  pure True
   where
     emode : REPLEval -> ElabMode
@@ -451,7 +451,7 @@ process (Check itm)
          itm <- resugar [] !(normaliseHoles defs [] tm)
          ty <- getTerm gty
          ity <- resugar [] !(normaliseScope defs [] ty)
-         coreLift (putStrLn (show itm ++ " : " ++ show ity))
+         printResult (show itm ++ " : " ++ show ity)
          pure True
 process (PrintDef fn)
     = do defs <- get Ctxt
@@ -463,7 +463,7 @@ process (PrintDef fn)
 process Reload
     = do opts <- get ROpts
          case mainfile opts of
-              Nothing => do coreLift $ putStrLn "No file loaded"
+              Nothing => do printError "No file loaded"
                             pure True
               Just f => do loadMainFile f
                            pure True
@@ -475,6 +475,7 @@ process (Load f)
          pure True
 process (CD dir)
     = do setWorkingDir dir
+         printResult ("Changed directory to "  ++ dir)
          pure True
 process Edit
     = do opts <- get ROpts
@@ -499,7 +500,7 @@ process (ProofSearch n_in)
               | ns => throw (AmbiguousName replFC (map fst ns))
          tm <- search replFC RigW False 1000 n ty []
          itm <- resugar [] !(normaliseHoles defs [] tm)
-         coreLift (putStrLn (show itm))
+         printResult (show itm)
          pure True
 process (Missing n)
     = do defs <- get Ctxt
@@ -519,7 +520,7 @@ process (Missing n)
                                            ++ case ns of
                                                    [fn] => " " ++ show fn
                                                    _ => "s: " ++ showSep ", " (map show ns))
-                                  _ => iputStrLn (show fn ++ ": All cases covered"))
+                                  _ => printResult (show fn ++ ": All cases covered"))
                          (map fst ts)
                        pure True
 process (Total n)
@@ -541,14 +542,14 @@ process (SetOpt opt)
          pure True
 process (SetLog lvl)
     = do setLogLevel lvl
-         iputStrLn $ "Log level to set " ++ show lvl
+         printResult $ "Log level to set " ++ show lvl
          pure True
 process Metavars
     = do ms <- getUserHoles
          case ms of
-              [] => iputStrLn $ "No holes"
-              [x] => iputStrLn $ "1 hole: " ++ show x
-              xs => iputStrLn $ show (length xs) ++ " holes: " ++
+              [] => printResult $ "No holes"
+              [x] => printResult $ "1 hole: " ++ show x
+              xs => printResult $ show (length xs) ++ " holes: " ++
                                 showSep ", " (map show xs)
          pure True
 process (Editing cmd)
@@ -560,7 +561,7 @@ process (Editing cmd)
          processEdit cmd
          setPPrint ppopts
          pure True
-process Quit 
+process Quit
     = pure False
 process NOP
     = pure True
@@ -597,7 +598,7 @@ processCatch cmd
                            put UST u'
                            put Syn s'
                            put ROpts o'
-                           coreLift (putStrLn !(display err))
+                           printError !(display err)
                            pure True)
 
 parseEmptyCmd : EmptyRule (Maybe REPLCmd)
@@ -653,8 +654,8 @@ repl
          repeat <- interpret inp
          end <- coreLift $ fEOF stdin
          if repeat && not end
-           then repl 
-           else 
+           then repl
+           else
              do iputStrLn "Bye for now!"
                 pure ()
 
