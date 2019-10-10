@@ -57,19 +57,19 @@ isElem x (y :: xs) with (decEq x y)
     isElem x (y :: xs) | No xny | No xnxs = No (neitherHereNorThere xny xnxs)
 
 ||| Remove the element at the given position.
-export
+public export
 dropElem : (xs : List a) -> (p : Elem x xs) -> List a
 dropElem (x :: ys)  Here     = ys
 dropElem (x :: ys) (There p) = x :: dropElem ys p
 
 ||| Erase the indices, returning the numeric position of the element
-export
+public export
 elemToNat : Elem x xs -> Nat
 elemToNat  Here     = Z
 elemToNat (There p) = S (elemToNat p)
 
 ||| Find the element with a proof at a given position, if it is valid
-export
+public export
 indexElem : Nat -> (xs : List a) -> Maybe (x ** Elem x xs)
 indexElem  _    []        = Nothing
 indexElem  Z    (y :: ys) = Just (y ** Here)

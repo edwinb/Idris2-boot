@@ -1,5 +1,7 @@
 module Data.List
 
+import Decidable.Equality
+
 public export
 isNil : List a -> Bool
 isNil []      = True
@@ -260,3 +262,34 @@ appendAssociative []      c r = Refl
 appendAssociative (x::xs) c r =
   let inductiveHypothesis = appendAssociative xs c r in
     rewrite inductiveHypothesis in Refl
+
+public export
+lemma_val_not_nil : {x : t} -> {xs : List t} -> ((x :: xs) = Prelude.Nil {a = t} -> Void)
+lemma_val_not_nil Refl impossible
+
+public export
+lemma_x_eq_xs_neq : {x : t} -> {xs : List t} -> {y : t} -> {ys : List t} -> (x = y) -> (xs = ys -> Void) -> ((x :: xs) = (y :: ys) -> Void)
+lemma_x_eq_xs_neq Refl p Refl = p Refl
+
+public export
+lemma_x_neq_xs_eq : {x : t} -> {xs : List t} -> {y : t} -> {ys : List t} -> (x = y -> Void) -> (xs = ys) -> ((x :: xs) = (y :: ys) -> Void)
+lemma_x_neq_xs_eq p Refl Refl = p Refl
+
+public export
+lemma_x_neq_xs_neq : {x : t} -> {xs : List t} -> {y : t} -> {ys : List t} -> (x = y -> Void) -> (xs = ys -> Void) -> ((x :: xs) = (y :: ys) -> Void)
+lemma_x_neq_xs_neq p p' Refl = p Refl
+
+public export
+implementation DecEq a => DecEq (List a) where
+  decEq [] [] = Yes Refl
+  decEq (x :: xs) [] = No lemma_val_not_nil
+  decEq [] (x :: xs) = No (negEqSym lemma_val_not_nil)
+  decEq (x :: xs) (y :: ys) with (decEq x y)
+    decEq (x :: xs) (x :: ys) | Yes Refl with (decEq xs ys)
+      decEq (x :: xs) (x :: xs) | (Yes Refl) | (Yes Refl) = Yes Refl
+      decEq (x :: xs) (x :: ys) | (Yes Refl) | (No p) = No (\eq => lemma_x_eq_xs_neq Refl p eq)
+    decEq (x :: xs) (y :: ys) | No p with (decEq xs ys)
+      decEq (x :: xs) (y :: xs) | (No p) | (Yes Refl) = No (\eq => lemma_x_neq_xs_eq p Refl eq)
+      decEq (x :: xs) (y :: ys) | (No p) | (No p') = No (\eq => lemma_x_neq_xs_neq p p' eq)
+
+
