@@ -189,6 +189,12 @@ process (MakeWith l n)
 process Version
     = do Idris.REPL.process ShowVersion
          pure ()
+process (Metavariables _)
+    = do Idris.REPL.process Metavars
+         pure ()
+process GetOptions
+    = do printResult ""
+         pure ()
 
 processCatch : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
