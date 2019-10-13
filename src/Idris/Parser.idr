@@ -1067,6 +1067,20 @@ constraints fname indents
          pure ((Just n, tm) :: more)
   <|> pure []
 
+implBinds : FileName -> IndentInfo -> EmptyRule (List (Name, RigCount, PTerm))
+implBinds fname indents
+    = do symbol "{"
+         m <- multiplicity
+         rig <- getMult m
+         n <- name
+         symbol ":"
+         tm <- expr pdef fname indents
+         symbol "}"
+         symbol "->"
+         more <- implBinds fname indents
+         pure ((n, rig, tm) :: more)
+  <|> pure []
+
 ifaceParam : FileName -> IndentInfo -> Rule (Name, PTerm)
 ifaceParam fname indents
     = do symbol "("
@@ -1111,6 +1125,7 @@ implDecl fname indents
                                      iname <- name
                                      symbol "]"
                                      pure (Just iname))
+         impls <- implBinds fname indents
          cons <- constraints fname indents
          n <- name
          params <- many (simpleExpr fname indents)
@@ -1119,7 +1134,7 @@ implDecl fname indents
          atEnd indents
          end <- location
          pure (PImplementation (MkFC fname start end)
-                         vis Single cons n params iname 
+                         vis Single impls cons n params iname 
                          (map (collectDefs . concat) body))
 
 fieldDecl : FileName -> IndentInfo -> Rule (List PField)

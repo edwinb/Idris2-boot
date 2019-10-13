@@ -197,6 +197,7 @@ mutual
                     PDecl
        PImplementation : FC ->
                          Visibility -> Pass ->
+                         (implicits : List (Name, RigCount, PTerm)) ->
                          (constraints : List (Maybe Name, PTerm)) ->
                          Name ->
                          (params : List PTerm) ->

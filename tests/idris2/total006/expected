@@ -1,6 +1,6 @@
 1/1: Building Total (Total.idr)
 Main> Main.count is total
-Main> Main.badCount is not terminating due to recursive path Main.badCount -> Prelude.Functor implementation at Prelude.idr:816:1--820:1 -> Prelude.map
+Main> Main.badCount is not terminating due to recursive path Main.badCount -> Prelude.Functor implementation at Prelude.idr:824:1--828:1 -> Prelude.map
 Main> Main.process is total
 Main> Main.badProcess is not terminating due to recursive path Main.badProcess -> Main.badProcess -> Main.badProcess
 Main> Main.doubleInt is total

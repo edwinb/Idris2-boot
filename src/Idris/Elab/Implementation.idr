@@ -37,6 +37,11 @@ bindConstraints fc p [] ty = ty
 bindConstraints fc p ((n, ty) :: rest) sc
     = IPi fc RigW p n ty (bindConstraints fc p rest sc)
 
+bindImpls : FC -> List (Name, RigCount, RawImp) -> RawImp -> RawImp
+bindImpls fc [] ty = ty
+bindImpls fc ((n, r, ty) :: rest) sc
+    = IPi fc r Implicit (Just n) ty (bindImpls fc rest sc)
+
 addDefaults : FC -> Name -> List Name -> List (Name, List ImpClause) ->
               List ImpDecl -> 
               (List ImpDecl, List Name) -- Updated body, list of missing methods
@@ -90,6 +95,7 @@ elabImplementation : {auto c : Ref Ctxt Defs} ->
                      {auto m : Ref MD Metadata} ->
                      FC -> Visibility -> Pass ->
                      Env Term vars -> NestedNames vars ->
+                     (implicits : List (Name, RigCount, RawImp)) ->
                      (constraints : List (Maybe Name, RawImp)) ->
                      Name ->
                      (ps : List RawImp) ->
@@ -97,7 +103,7 @@ elabImplementation : {auto c : Ref Ctxt Defs} ->
                      Maybe (List ImpDecl) ->
                      Core ()
 -- TODO: Refactor all these steps into separate functions
-elabImplementation {vars} fc vis pass env nest cons iname ps impln mbody
+elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
     = do let impName_in = maybe (mkImpl fc iname ps) id impln
          impName <- inCurrentNS impName_in
          syn <- get Syn
@@ -132,7 +138,7 @@ elabImplementation {vars} fc vis pass env nest cons iname ps impln mbody
          -- Don't make it a hint if it's a named implementation
          let opts = maybe [Inline, Hint True] (const [Inline]) impln
 
-         let initTy = bindConstraints fc AutoImplicit cons 
+         let initTy = bindImpls fc is $ bindConstraints fc AutoImplicit cons 
                          (apply (IVar fc iname) ps)
          let paramBinds = findBindableNames True vars [] initTy
          let impTy = doBind paramBinds initTy

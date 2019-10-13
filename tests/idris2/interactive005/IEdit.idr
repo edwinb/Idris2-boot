@@ -6,9 +6,9 @@ data Vect : Nat -> Type -> Type where
 
 my_cong : forall f . (x : a) -> (y : a) -> x = y -> f x = f y
 
-curry : ((a, b) -> c) -> a -> b -> c
+my_curry : ((a, b) -> c) -> a -> b -> c
 
-uncurry : (a -> b -> c) -> (a, b) -> c
+my_uncurry : (a -> b -> c) -> (a, b) -> c
 
 append : Vect n a -> Vect m a -> Vect (n + m) a
 

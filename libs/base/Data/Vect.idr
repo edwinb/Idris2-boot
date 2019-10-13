@@ -787,20 +787,20 @@ transpose (x :: xs) = zipWith (::) x (transpose xs) -- = [| x :: xs |]
 --------------------------------------------------------------------------------
 -- Applicative/Monad/Traversable
 --------------------------------------------------------------------------------
--- TODO: Need to work out how to deal with name visibility here
+-- These only work if the length is known at run time! 
 
--- implementation Applicative (Vect k) where
---     pure = replicate _
---     fs <*> vs = zipWith apply fs vs
--- 
+implementation {k : Nat} -> Applicative (Vect k) where
+    pure = replicate _
+    fs <*> vs = zipWith apply fs vs
+
 -- ||| This monad is different from the List monad, (>>=)
 -- ||| uses the diagonal.
--- implementation Monad (Vect len) where
---     m >>= f = diag (map f m)
--- 
--- implementation Traversable (Vect n) where
---     traverse f []        = pure []
---     traverse f (x :: xs) = pure (::) <*> (f x) <*> (traverse f xs)
+implementation {len : Nat} -> Monad (Vect len) where
+    m >>= f = diag (map f m)
+
+implementation {n : Nat} -> Traversable (Vect n) where
+    traverse f []        = pure []
+    traverse f (x :: xs) = pure (::) <*> (f x) <*> (traverse f xs)
 
 --------------------------------------------------------------------------------
 -- Elem

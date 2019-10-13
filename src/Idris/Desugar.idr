@@ -457,8 +457,8 @@ mutual
   --         implementation headers (i.e. note their existence, but not the bodies)
   -- Everything else on the second pass
   getDecl : Pass -> PDecl -> Maybe PDecl
-  getDecl p (PImplementation fc vis _ cons n ps iname ds)
-      = Just (PImplementation fc vis p cons n ps iname ds)
+  getDecl p (PImplementation fc vis _ is cons n ps iname ds)
+      = Just (PImplementation fc vis p is cons n ps iname ds)
 
   getDecl p (PNamespace fc ns ds)
       = Just (PNamespace fc ns (mapMaybe (getDecl p) ds))
@@ -567,21 +567,24 @@ mutual
       expandConstraint (Nothing, p)
           = map (\x => (Nothing, x)) (pairToCons p)
 
-  desugarDecl ps (PImplementation fc vis pass cons tn params impname body)
-      = do cons' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
+  desugarDecl ps (PImplementation fc vis pass is cons tn params impname body)
+      = do is' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd (snd ntm))
+                                        pure (fst ntm, fst (snd ntm), tm')) is
+           cons' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
                                           pure (fst ntm, tm')) cons
            params' <- traverse (desugar AnyExpr ps) params
            -- Look for bindable names in all the constraints and parameters
            let bnames = concatMap (findBindableNames True ps []) (map snd cons') ++
                         concatMap (findBindableNames True ps []) params'
            let paramsb = map (doBind bnames) params'
+           let isb = map (\ (n, r, tm) => (n, r, doBind bnames tm)) is'
            let consb = map (\ (n, tm) => (n, doBind bnames tm)) cons'
 
            body' <- maybe (pure Nothing)
                           (\b => do b' <- traverse (desugarDecl ps) b
                                     pure (Just (concat b'))) body
            pure [IPragma (\c, nest, env =>
-                             elabImplementation fc vis pass env nest consb
+                             elabImplementation fc vis pass env nest isb consb
                                                 tn paramsb impname 
                                                 body')]
   desugarDecl ps (PRecord fc vis tn params conname fields)
