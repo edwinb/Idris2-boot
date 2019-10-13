@@ -1064,7 +1064,7 @@ retry mode c
               Just (MkConstraint loc env x y)
                   => catch (do logTermNF 5 "Retrying" env x 
                                logTermNF 5 "....with" env y
-                               cs <- unify mode loc env x y 
+                               cs <- unifyWithLazy mode loc env x y 
                                case constraints cs of
                                  [] => do deleteConstraint c
                                           pure success
@@ -1109,6 +1109,26 @@ retryGuess mode smode (hid, (loc, hname))
                                              LastChance => 
                                                  throw !(normaliseErr err)
                                              _ => pure False) -- Postpone again
+               Guess tm [constr] =>
+                 do let umode = case smode of
+                                     MatchArgs => InMatch
+                                     _ => mode
+                    cs <- retry umode constr
+                    case constraints cs of
+                         [] => do tm' <- case addLazy cs of
+                                           NoLazy => pure tm
+                                           AddForce => pure (TForce loc tm)
+                                           AddDelay r => 
+                                              do ty <- getType [] tm
+                                                 pure $ TDelay loc r !(getTerm ty) tm
+                                  let gdef = record { definition = PMDef True [] (STerm tm') (STerm tm') [] } def
+                                  logTerm 5 ("Resolved " ++ show hname) tm'
+                                  addDef (Resolved hid) gdef
+                                  removeGuess hid
+                                  pure (holesSolved cs)
+                         newcs => do let gdef = record { definition = Guess tm newcs } def
+                                     addDef (Resolved hid) gdef
+                                     pure False
                Guess tm constrs => 
                  do let umode = case smode of
                                      MatchArgs => InMatch
