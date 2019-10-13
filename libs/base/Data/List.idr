@@ -73,11 +73,6 @@ elemBy p e (x::xs) =
   else
     elemBy p e xs
 
-||| Check if something is a member of a list using the default Boolean equality.
-public export
-elem : Eq a => a -> List a -> Bool
-elem = elemBy (==)
-
 public export
 span : (a -> Bool) -> List a -> (List a, List a)
 span p []      = ([], [])

@@ -113,9 +113,9 @@ expandAmbigName mode nest env orig args (IImplicitApp fc f n a) exp
                       ((fc, Just n, a) :: args) f exp
 expandAmbigName elabmode nest env orig args tm exp = pure orig
 
-stripDelay : Defs -> NF vars -> NF vars
-stripDelay defs (NDelayed fc r t) = t
-stripDelay defs tm = tm
+stripDelay : NF vars -> NF vars
+stripDelay (NDelayed fc r t) = stripDelay t
+stripDelay tm = tm
 
 data TypeMatch = Concrete | Poly | NoMatch
 
@@ -127,7 +127,7 @@ Show TypeMatch where
 mutual
   mightMatchD : Defs -> NF vars -> NF [] -> Core TypeMatch
   mightMatchD defs l r 
-      = mightMatch defs (stripDelay defs l) (stripDelay defs r)
+      = mightMatch defs (stripDelay l) (stripDelay r)
 
   mightMatchArg : Defs -> 
                   Closure vars -> Closure [] -> 
@@ -226,12 +226,14 @@ filterCore f (x :: xs)
 
 pruneByType : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
-              NF vars -> List RawImp -> 
+              Env Term vars -> NF vars -> List RawImp -> 
               Core (List RawImp)
-pruneByType target alts
+pruneByType env target alts
     = do defs <- get Ctxt
-         matches_in <- traverse (couldBe defs target) alts
+         matches_in <- traverse (couldBe defs (stripDelay target)) alts
          let matches = mapMaybe id matches_in
+         logNF 10 "Prune by" env target
+         log 10 (show matches)
          res <- if or (map Delay (map fst matches))
                 -- if there's any concrete matches, drop the non-concrete
                 -- matches marked as '%allow_overloads' from the possible set
@@ -291,7 +293,7 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
                                 then gnf env exp
                                 else expected
 
-                  alts' <- pruneByType !(getNF exp') alts
+                  alts' <- pruneByType env !(getNF exp') alts
 
                   logGlueNF 5 ("Ambiguous elaboration " ++ show alts' ++ 
                                " at " ++ show fc ++
@@ -322,7 +324,6 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
             (\delayed => 
                do solveConstraints solvemode Normal
                   defs <- get Ctxt
-                  alts' <- pruneByType !(getNF expected) alts
                   exp <- getTerm expected
 
                   -- We can't just use the old NF on the second attempt, 
@@ -330,6 +331,8 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
                   let exp' = if delayed 
                                 then gnf env exp
                                 else expected
+
+                  alts' <- pruneByType env !(getNF exp') alts
 
                   logGlueNF 5 ("Ambiguous elaboration " ++ show alts' ++ 
                                " at " ++ show fc ++
