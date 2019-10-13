@@ -86,6 +86,14 @@ public export
 apply : (a -> b) -> a -> b
 apply f a = f a
 
+public export
+curry : ((a, b) -> c) -> a -> b -> c
+curry f a b = f (a, b)
+
+public export
+uncurry : (a -> b -> c) -> (a, b) -> c
+uncurry f (a, b) = f a b
+
 -- $ is compiled specially to shortcut any tricky unification issues, but if
 -- it did have a type this is what it would be, and it might be useful to
 -- use directly sometimes (e.g. in higher order functions)
