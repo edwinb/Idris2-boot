@@ -63,6 +63,20 @@ public export
 lookup : Eq a => a -> List (a, b) -> Maybe b
 lookup = lookupBy (==)
 
+||| Check if something is a member of a list using a custom comparison.
+public export
+elemBy : (a -> a -> Bool) -> a -> List a -> Bool
+elemBy p e []      = False
+elemBy p e (x::xs) =
+  if p e x then
+    True
+  else
+    elemBy p e xs
+
+||| Check if something is a member of a list using the default Boolean equality.
+public export
+elem : Eq a => a -> List a -> Bool
+elem = elemBy (==)
 
 public export
 span : (a -> Bool) -> List a -> (List a, List a)
@@ -103,13 +117,15 @@ partition p (x::xs) =
     else
       (lefts, x::rights)
 
+public export
 reverseOnto : List a -> List a -> List a
 reverseOnto acc [] = acc
 reverseOnto acc (x::xs) = reverseOnto (x::acc) xs
 
-export
+public export
 reverse : List a -> List a
 reverse = reverseOnto []
+
 
 ||| Compute the intersect of two lists by user-supplied equality predicate.
 export
@@ -149,6 +165,15 @@ intersperse sep (x::xs) = x :: intersperse' sep xs
     intersperse' sep []      = []
     intersperse' sep (y::ys) = sep :: y :: intersperse' sep ys
 
+||| Apply a partial function to the elements of a list, keeping the ones at which
+||| it is defined.
+export
+mapMaybe : (a -> Maybe b) -> List a -> List b
+mapMaybe f []      = []
+mapMaybe f (x::xs) =
+  case f x of
+    Nothing => mapMaybe f xs
+    Just j  => j :: mapMaybe f xs
 
 --------------------------------------------------------------------------------
 -- Sorting
@@ -262,6 +287,23 @@ appendAssociative []      c r = Refl
 appendAssociative (x::xs) c r =
   let inductiveHypothesis = appendAssociative xs c r in
     rewrite inductiveHypothesis in Refl
+
+revOnto : (xs, vs : _) -> reverseOnto xs vs = reverse vs ++ xs
+revOnto xs [] = Refl
+revOnto xs (v :: vs) 
+    = rewrite revOnto (v :: xs) vs in 
+        rewrite appendAssociative (reverse vs) [v] xs in
+				  rewrite revOnto [v] vs in Refl
+
+export
+revAppend : (vs, ns : List a) -> reverse ns ++ reverse vs = reverse (vs ++ ns)
+revAppend [] ns = rewrite appendNilRightNeutral (reverse ns) in Refl
+revAppend (v :: vs) ns 
+    = rewrite revOnto [v] vs in
+        rewrite revOnto [v] (vs ++ ns) in
+          rewrite sym (revAppend vs ns) in
+            rewrite appendAssociative (reverse ns) (reverse vs) [v] in
+              Refl
 
 public export
 lemma_val_not_nil : {x : t} -> {xs : List t} -> ((x :: xs) = Prelude.Nil {a = t} -> Void)
