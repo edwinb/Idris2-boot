@@ -213,7 +213,11 @@ notOverloadable defs (concrete, fn) = notOverloadableFn (getFn fn)
     notOverloadableFn (IVar _ n)
         = do Just gdef <- lookupCtxtExact n (gamma defs)
                   | Nothing => pure True
-             pure (not (Overloadable `elem` flags gdef))
+             pure False -- If the name exists, and doesn't have a concrete type
+                        -- but another possibility does, remove it from the set
+                        -- no matter what
+                        -- (TODO: Consider whether %allow_overloads should exist)
+                        -- (not (Overloadable `elem` flags gdef))
     notOverloadableFn _ = pure True
 
 filterCore : (a -> Core Bool) -> List a -> Core (List a)
