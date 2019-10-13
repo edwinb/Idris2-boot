@@ -553,7 +553,7 @@ mutual
     where
       toHolesOnly : Closure vs -> Closure vs
       toHolesOnly (MkClosure _ locs env tm) 
-          = MkClosure withArgHoles locs env tm
+          = MkClosure withHoles locs env tm
       toHolesOnly c = c
   quoteGenNF q defs bound env (NForce fc arg args) 
       = do args' <- quoteArgs q defs bound env args 
