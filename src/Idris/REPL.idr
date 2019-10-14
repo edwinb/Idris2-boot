@@ -352,7 +352,7 @@ processEdit (MakeWith line name)
 public export
 data MissedResult : Type where
   CasesMissing : Name -> List String  -> MissedResult
-  CallsNonCovering : Name -> List a -> MissedResult
+  CallsNonCovering : Name -> List Name -> MissedResult
   AllCasesCovered : Name -> MissedResult
 
 public export
@@ -364,7 +364,8 @@ data REPLResult : Type where
   Printed : List String -> REPLResult
   TermChecked : PTerm -> PTerm -> REPLResult
   FileLoaded : String -> REPLResult
-  ErrorsLoadingFile : String -> List a -> REPLResult
+  ErrorLoadingFile : String -> FileError -> REPLResult
+  ErrorsBuildingFile : String -> List Error -> REPLResult
   NoFileLoaded : REPLResult
   ChangedDirectory : String -> REPLResult
   CompilationFailed: REPLResult
@@ -423,13 +424,13 @@ loadMainFile f
     = do resetContext
          Right res <- coreLift (readFile f)
             | Left err => do setSource ""
-                             pure (ErrorsLoadingFile f [err])
+                             pure (ErrorLoadingFile f err)
          errs <- buildDeps f
          updateErrorLine errs
          setSource res
          case errs of
            [] => pure (FileLoaded f)
-           _ => pure (ErrorsLoadingFile f errs)
+           _ => pure (ErrorsBuildingFile f errs)
 
 
 ||| Process a single `REPLCmd`
@@ -546,7 +547,7 @@ process (Total n)
               ts => map CheckedTotal $
                     traverse (\fn =>
                           do checkTotal replFC fn
-                             tot <- getTotality replFC fn
+                             tot <- getTotality replFC fn >>= toFullNames
                              pure $ (fn, tot))
                                (map fst ts)
 process (DebugInfo n)
@@ -637,28 +638,79 @@ interpret inp
            Right Nothing => pure Done
            Right (Just cmd) => processCatch cmd
 
-export
-repl : {auto c : Ref Ctxt Defs} ->
-       {auto u : Ref UST UState} ->
-       {auto s : Ref Syn SyntaxInfo} ->
-       {auto m : Ref MD Metadata} ->
-       {auto o : Ref ROpts REPLOpts} ->
-       Core ()
-repl
-    = do ns <- getNS
-         opts <- get ROpts
-         coreLift (putStr (prompt (evalMode opts) ++ showSep "." (reverse ns) ++ "> "))
-         inp <- coreLift getLine
-         repeat <- interpret inp
-         end <- coreLift $ fEOF stdin
-         if repeat && not end
-           then repl
-           else
-             do iputStrLn "Bye for now!"
-                pure ()
+mutual
+  export
 
-  where
-    prompt : REPLEval -> String
-    prompt EvalTC = "[tc] "
-    prompt NormaliseAll = ""
-    prompt Execute = "[exec] "
+  repl : {auto c : Ref Ctxt Defs} ->
+         {auto u : Ref UST UState} ->
+         {auto s : Ref Syn SyntaxInfo} ->
+         {auto m : Ref MD Metadata} ->
+         {auto o : Ref ROpts REPLOpts} ->
+         Core ()
+  repl
+      = do ns <- getNS
+           opts <- get ROpts
+           coreLift (putStr (prompt (evalMode opts) ++ showSep "." (reverse ns) ++ "> "))
+           inp <- coreLift getLine
+           end <- coreLift $ fEOF stdin
+           if end
+              then do
+                      -- start a new line in REPL mode (not relevant in IDE mode)
+                      coreLift $ putStrLn ""
+                      iputStrLn "Bye for now!"
+              else do res <- interpret inp
+                      handleResult res
+
+    where
+      prompt : REPLEval -> String
+      prompt EvalTC = "[tc] "
+      prompt NormaliseAll = ""
+      prompt Execute = "[exec] "
+
+  handleMissing : MissedResult -> String
+  handleMissing (CasesMissing x xs) = show x ++ ":\n" ++ showSep "\n" xs
+  handleMissing (CallsNonCovering fn ns) = (show fn ++ ": Calls non covering function"
+                                           ++ (case ns of
+                                                 [f] => " " ++ show f
+                                                 _ => "s: " ++ showSep ", " (map show ns)))
+  handleMissing (AllCasesCovered fn) = show fn ++ ": All cases covered"
+
+  handleResult : {auto c : Ref Ctxt Defs} ->
+         {auto u : Ref UST UState} ->
+         {auto s : Ref Syn SyntaxInfo} ->
+         {auto m : Ref MD Metadata} ->
+         {auto o : Ref ROpts REPLOpts} -> REPLResult -> Core ()
+  handleResult Exited = pure ()
+  handleResult other = do { displayResult other ; repl }
+
+  displayResult : {auto c : Ref Ctxt Defs} ->
+         {auto u : Ref UST UState} ->
+         {auto s : Ref Syn SyntaxInfo} ->
+         {auto m : Ref MD Metadata} ->
+         {auto o : Ref ROpts REPLOpts} -> REPLResult -> Core ()
+  displayResult  (REPLError err) = printError err
+  displayResult  (Executed x) = printResult $ "Executed " ++ show x
+  displayResult  (Evaluated x Nothing) = printResult $ show x
+  displayResult  (Evaluated x (Just y)) = printResult $ show x ++ " : " ++ show y
+  displayResult  (Printed xs) = printResult (showSep "\n" xs)
+  displayResult  (TermChecked x y) = printResult $ show x ++ " : " ++ show y
+  displayResult  (FileLoaded x) = printResult $ "Loaded file " ++ x
+  displayResult  (ErrorLoadingFile x err) = printError $ "Error loading file " ++ x ++ ": " ++ show err
+  displayResult  (ErrorsBuildingFile x errs) = printError $ "Error(s) building file " ++ x ++ ": " ++ (showSep "\n" $ map show errs)
+  displayResult  NoFileLoaded = printError "No file can be reloaded"
+  displayResult  (ChangedDirectory dir) = printResult ("Changed directory to " ++ dir)
+  displayResult  CompilationFailed = printError "Compilation failed"
+  displayResult  (Compiled f) = printResult $ "File " ++ f ++ " written"
+  displayResult  (ProofFound x) = printResult $ show x
+  displayResult  (Missed cases) = printResult $ showSep "\n" $ map handleMissing cases
+  displayResult  (CheckedTotal xs) = printResult $ showSep "\n" $ map (\ (fn, tot) => (show fn ++ " is " ++ show tot)) xs
+  displayResult  (FoundHoles []) = printResult $ "No holes"
+  displayResult  (FoundHoles [x]) = printResult $ "1 hole: " ++ show x
+  displayResult  (FoundHoles xs) = printResult $ show (length xs) ++ " holes: " ++
+                                   showSep ", " (map show xs)
+  displayResult  (LogLevelSet k) = printResult $ "Set loglevel to " ++ show k
+  displayResult  (VersionIs x) = printResult $ showVersion x
+  displayResult  (Edited (DisplayEdit xs)) = printResult $ showSep "\n" xs
+  displayResult  (Edited (EditError x)) = printError x
+  displayResult  (Edited (MadeLemma name pty pappstr)) = printResult (show name ++ " : " ++ show pty ++ "\n" ++ pappstr)
+  displayResult  _ = printResult ""
