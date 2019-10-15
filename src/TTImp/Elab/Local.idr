@@ -16,7 +16,7 @@ import TTImp.TTImp
 
 export
 checkLocal : {vars : _} ->
-{auto c : Ref Ctxt Defs} ->
+             {auto c : Ref Ctxt Defs} ->
              {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
              {auto e : Ref EST (EState vars)} ->
