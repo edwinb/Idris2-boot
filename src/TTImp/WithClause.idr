@@ -19,7 +19,7 @@ mutual
       = if n == n' && isSuffixOf ns' ns then pure [] else matchFail loc
   getMatch lhs (IVar _ (NS ns n)) (IVar loc n')
       = if n == n' then pure [] else matchFail loc
-  getMatch lhs (IVar _ n) (IVar loc n') 
+  getMatch lhs (IVar _ n) (IVar loc n')
       = if n == n' then pure [] else matchFail loc
   getMatch lhs (IPi _ c p n arg ret) (IPi loc c' p' n' arg' ret')
       = if c == c' && p == p' && n == n'
@@ -29,7 +29,7 @@ mutual
   getMatch lhs (IApp _ f a) (IApp loc f' a')
       = matchAll lhs [(f, f'), (a, a')]
   getMatch lhs (IImplicitApp _ f n a) (IImplicitApp loc f' n' a')
-      = if n == n' 
+      = if n == n'
            then matchAll lhs [(f, f'), (a, a')]
            else matchFail loc
   getMatch lhs (IWithApp _ f a) (IWithApp loc f' a')
@@ -52,12 +52,16 @@ mutual
   getMatch lhs (IAs _ _ (UN n) p) (IAs fc _ (UN n') p')
       = do ms <- getMatch lhs p p'
            mergeMatches lhs ((n, IBindVar fc n') :: ms)
-  getMatch lhs (IAs _ _ (UN n) p) p' 
+  getMatch lhs (IAs _ _ (UN n) p) p'
       = do ms <- getMatch lhs p p'
            mergeMatches lhs ((n, p') :: ms)
   getMatch lhs (IAs _ _ _ p) p' = getMatch lhs p p'
   getMatch lhs p (IAs _ _ _ p') = getMatch lhs p p'
   getMatch lhs (IType _) (IType _) = pure []
+  getMatch lhs (IPrimVal fc c) (IPrimVal fc' c') =
+    if c == c'
+    then pure []
+    else matchFail fc
   getMatch lhs pat spec = matchFail (getFC pat)
 
   matchAll : (lhs : Bool) -> List (RawImp, RawImp) ->
@@ -95,7 +99,7 @@ getArgMatch ploc search warg ms (Just (_, UN n))
            Nothing => Implicit ploc True
            Just tm => tm
 getArgMatch ploc search warg ms _ = Implicit ploc True
-    
+
 export
 getNewLHS : {auto c : Ref Ctxt Defs} ->
             FC -> (drop : Nat) -> NestedNames vars ->
@@ -120,7 +124,7 @@ getNewLHS ploc drop nest wname wargnames lhs_raw patlhs
          log 5 $ "New LHS: " ++ show newlhs
          pure newlhs
   where
-    dropWithArgs : Nat -> RawImp -> 
+    dropWithArgs : Nat -> RawImp ->
                    Core (RawImp, List RawImp)
     dropWithArgs Z tm = pure (tm, [])
     dropWithArgs (S k) (IApp _ f arg)
@@ -129,12 +133,12 @@ getNewLHS ploc drop nest wname wargnames lhs_raw patlhs
     -- Shouldn't happen if parsed correctly, but there's no guarantee that
     -- inputs come from parsed source so throw an error.
     dropWithArgs _ _ = throw (GenericMsg ploc "Badly formed 'with' clause")
-        
+
 -- Find a 'with' application on the RHS and update it
 export
 withRHS : {auto c : Ref Ctxt Defs} ->
           FC -> (drop : Nat) -> Name -> List (Maybe (PiInfo, Name)) ->
-          RawImp -> RawImp -> 
+          RawImp -> RawImp ->
           Core RawImp
 withRHS fc drop wname wargnames tm toplhs
     = wrhs tm
@@ -185,5 +189,3 @@ withRHS fc drop wname wargnames tm toplhs
       wrhsC : ImpClause -> Core ImpClause
       wrhsC (PatClause fc lhs rhs) = pure $ PatClause fc lhs !(wrhs rhs)
       wrhsC c = pure c
-    
-
