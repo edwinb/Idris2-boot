@@ -147,7 +147,7 @@ stMain opts
                                    when (not $ noprelude session) $
                                      readPrelude
                       Just f => logTime "Loading main file" $
-                                   (loadMainFile f >>= const (pure ()))
+                                   (loadMainFile f >>= displayErrors)
 
                  doRepl <- postOptions opts
                  if doRepl

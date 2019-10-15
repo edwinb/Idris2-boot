@@ -675,21 +675,22 @@ mutual
                                                  _ => "s: " ++ showSep ", " (map show ns)))
   handleMissing (AllCasesCovered fn) = show fn ++ ": All cases covered"
 
+  export
   handleResult : {auto c : Ref Ctxt Defs} ->
          {auto u : Ref UST UState} ->
          {auto s : Ref Syn SyntaxInfo} ->
          {auto m : Ref MD Metadata} ->
          {auto o : Ref ROpts REPLOpts} -> REPLResult -> Core ()
-  handleResult Exited = pure ()
+  handleResult Exited = iputStrLn "Bye for now!"
   handleResult other = do { displayResult other ; repl }
 
+  export
   displayResult : {auto c : Ref Ctxt Defs} ->
          {auto u : Ref UST UState} ->
          {auto s : Ref Syn SyntaxInfo} ->
          {auto m : Ref MD Metadata} ->
          {auto o : Ref ROpts REPLOpts} -> REPLResult -> Core ()
   displayResult  (REPLError err) = printError err
-  displayResult  (Executed x) = printResult $ "Executed " ++ show x
   displayResult  (Evaluated x Nothing) = printResult $ show x
   displayResult  (Evaluated x (Just y)) = printResult $ show x ++ " : " ++ show y
   displayResult  (Printed xs) = printResult (showSep "\n" xs)
@@ -713,4 +714,13 @@ mutual
   displayResult  (Edited (DisplayEdit xs)) = printResult $ showSep "\n" xs
   displayResult  (Edited (EditError x)) = printError x
   displayResult  (Edited (MadeLemma name pty pappstr)) = printResult (show name ++ " : " ++ show pty ++ "\n" ++ pappstr)
-  displayResult  _ = printResult ""
+  displayResult  _ = pure ()
+
+  export
+  displayErrors : {auto c : Ref Ctxt Defs} ->
+         {auto u : Ref UST UState} ->
+         {auto s : Ref Syn SyntaxInfo} ->
+         {auto m : Ref MD Metadata} ->
+         {auto o : Ref ROpts REPLOpts} -> REPLResult -> Core ()
+  displayErrors  (ErrorLoadingFile x err) = printError $ "File error in " ++ x ++ ": " ++ show err
+  displayErrors _ = pure ()
