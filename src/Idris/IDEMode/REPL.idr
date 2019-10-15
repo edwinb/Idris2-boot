@@ -22,6 +22,7 @@ import Idris.Parser
 import Idris.Resugar
 import Idris.REPL
 import Idris.Syntax
+import Idris.Version
 
 import Idris.IDEMode.Parser
 import Idris.IDEMode.Commands
@@ -143,78 +144,115 @@ process : {auto c : Ref Ctxt Defs} ->
           {auto s : Ref Syn SyntaxInfo} ->
           {auto m : Ref MD Metadata} ->
           {auto o : Ref ROpts REPLOpts} ->
-          IDECommand -> Core ()
+          IDECommand -> Core REPLResult
 process (Interpret cmd)
-    = do interpret cmd ; pure ()
-process (LoadFile fname toline)
-    = do opts <- get ROpts
-         put ROpts (record { mainfile = Just fname } opts)
-         resetContext
-         errs <- buildDeps fname
-         updateErrorLine errs
-         Right res <- coreLift (readFile fname)
-            | Left err => setSource ""
-         setSource res
-         case errs of
-              [] => printResult $ "Loaded " ++ fname
-              _ => printError $ "Failed to load " ++ fname
+    = interpret cmd
+process (LoadFile fname _)
+    = Idris.REPL.process (Load fname)
 process (TypeOf n Nothing)
-    = do Idris.REPL.process (Check (PRef replFC (UN n)))
-         pure ()
+    = Idris.REPL.process (Check (PRef replFC (UN n)))
 process (TypeOf n (Just (l, c)))
-    = do Idris.REPL.process (Editing (TypeAt (fromInteger l) (fromInteger c) (UN n)))
-         pure ()
+    = Idris.REPL.process (Editing (TypeAt (fromInteger l) (fromInteger c) (UN n)))
 process (CaseSplit l c n)
-    = do Idris.REPL.process (Editing (CaseSplit (fromInteger l) (fromInteger c) (UN n)))
-         pure ()
+    = Idris.REPL.process (Editing (CaseSplit (fromInteger l) (fromInteger c) (UN n)))
 process (AddClause l n)
-    = do Idris.REPL.process (Editing (AddClause (fromInteger l) (UN n)))
-         pure ()
+    = Idris.REPL.process (Editing (AddClause (fromInteger l) (UN n)))
 process (ExprSearch l n hs all)
-    = do Idris.REPL.process (Editing (ExprSearch (fromInteger l) (UN n)
+    = Idris.REPL.process (Editing (ExprSearch (fromInteger l) (UN n)
                                                  (map UN hs) all))
-         pure ()
 process (GenerateDef l n)
-    = do Idris.REPL.process (Editing (GenerateDef (fromInteger l) (UN n)))
-         pure ()
+    = Idris.REPL.process (Editing (GenerateDef (fromInteger l) (UN n)))
 process (MakeLemma l n)
-    = do Idris.REPL.process (Editing (MakeLemma (fromInteger l) (UN n)))
-         pure ()
+    = Idris.REPL.process (Editing (MakeLemma (fromInteger l) (UN n)))
 process (MakeCase l n)
-    = do Idris.REPL.process (Editing (MakeCase (fromInteger l) (UN n)))
-         pure ()
+    = Idris.REPL.process (Editing (MakeCase (fromInteger l) (UN n)))
 process (MakeWith l n)
-    = do Idris.REPL.process (Editing (MakeWith (fromInteger l) (UN n)))
-         pure ()
+    = Idris.REPL.process (Editing (MakeWith (fromInteger l) (UN n)))
 process Version
-    = do Idris.REPL.process ShowVersion
-         pure ()
+    = Idris.REPL.process ShowVersion
 process (Metavariables _)
-    = do Idris.REPL.process Metavars
-         pure ()
+    = Idris.REPL.process Metavars
 process GetOptions
-    = do printResult ""
-         pure ()
+    = pure Done
 
 processCatch : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
                {auto s : Ref Syn SyntaxInfo} ->
                {auto m : Ref MD Metadata} ->
                {auto o : Ref ROpts REPLOpts} ->
-               IDECommand -> Core ()
+               IDECommand -> Core REPLResult
 processCatch cmd
     = do c' <- branch
          u' <- get UST
          s' <- get Syn
          o' <- get ROpts
-         catch (do process cmd
-                   commit)
+         catch (do res <- process cmd
+                   commit
+                   pure res)
                (\err => do put Ctxt c'
                            put UST u'
                            put Syn s'
                            put ROpts o'
-                           emitError err
-                           printError "Command failed")
+                           msg <- perror err
+                           pure $ REPLError msg)
+
+idePutStrLn : File -> Int -> String -> Core ()
+idePutStrLn outf i msg
+    = send outf (SExpList [SymbolAtom "write-string",
+                toSExp msg, toSExp i])
+
+printIDEWithStatus : File -> Int -> String -> String -> Core ()
+printIDEWithStatus outf i status msg
+    = do let m = SExpList [SymbolAtom status, toSExp msg ]
+         send outf (SExpList [SymbolAtom "return", m, toSExp i])
+
+printIDEResult : File -> Int -> String -> Core ()
+printIDEResult outf i msg = printIDEWithStatus outf i "ok" msg
+
+printIDEError : File -> Int -> String -> Core ()
+printIDEError outf i msg = printIDEWithStatus outf i "error" msg
+
+displayIDEResult : {auto c : Ref Ctxt Defs} ->
+       {auto u : Ref UST UState} ->
+       {auto s : Ref Syn SyntaxInfo} ->
+       {auto m : Ref MD Metadata} ->
+       {auto o : Ref ROpts REPLOpts} ->
+       File -> Int -> REPLResult -> Core ()
+displayIDEResult outf i  (REPLError err) = printIDEError outf i err
+displayIDEResult outf i  (Evaluated x Nothing) = printIDEResult outf i $ show x
+displayIDEResult outf i  (Evaluated x (Just y)) = printIDEResult outf i $ show x ++ " : " ++ show y
+displayIDEResult outf i  (Printed xs) = printIDEResult outf i (showSep "\n" xs)
+displayIDEResult outf i  (TermChecked x y) = printIDEResult outf i $ show x ++ " : " ++ show y
+displayIDEResult outf i  (FileLoaded x) = printIDEResult outf i $ "Loaded file " ++ x
+displayIDEResult outf i  (ErrorLoadingFile x err) = printIDEError outf i $ "Error loading file " ++ x ++ ": " ++ show err
+displayIDEResult outf i  (ErrorsBuildingFile x errs) = printIDEError outf i $ "Error(s) building file " ++ x ++ ": " ++ (showSep "\n" $ map show errs)
+displayIDEResult outf i  NoFileLoaded = printIDEError outf i "No file can be reloaded"
+displayIDEResult outf i  (ChangedDirectory dir) = printIDEResult outf i ("Changed directory to " ++ dir)
+displayIDEResult outf i  CompilationFailed = printIDEError outf i "Compilation failed"
+displayIDEResult outf i  (Compiled f) = printIDEResult outf i $ "File " ++ f ++ " written"
+displayIDEResult outf i  (ProofFound x) = printIDEResult outf i $ show x
+--displayIDEResult outf i  (Missed cases) = printIDEResult outf i $ showSep "\n" $ map handleMissing cases
+displayIDEResult outf i  (CheckedTotal xs) = printIDEResult outf i $ showSep "\n" $ map (\ (fn, tot) => (show fn ++ " is " ++ show tot)) xs
+displayIDEResult outf i  (FoundHoles []) = printIDEResult outf i $ "No holes"
+displayIDEResult outf i  (FoundHoles [x]) = printIDEResult outf i $ "1 hole: " ++ show x
+displayIDEResult outf i  (FoundHoles xs) = printIDEResult outf i $ show (length xs) ++ " holes: " ++
+                                 showSep ", " (map show xs)
+displayIDEResult outf i  (LogLevelSet k) = printIDEResult outf i $ "Set loglevel to " ++ show k
+displayIDEResult outf i  (VersionIs x) = printIDEResult outf i $ showVersion x
+displayIDEResult outf i  (Edited (DisplayEdit xs)) = printIDEResult outf i $ showSep "\n" xs
+displayIDEResult outf i  (Edited (EditError x)) = printIDEError outf i x
+displayIDEResult outf i  (Edited (MadeLemma name pty pappstr)) = printIDEResult outf i (show name ++ " : " ++ show pty ++ "\n" ++ pappstr)
+displayIDEResult outf i  _ = pure ()
+
+
+handleIDEResult : {auto c : Ref Ctxt Defs} ->
+       {auto u : Ref UST UState} ->
+       {auto s : Ref Syn SyntaxInfo} ->
+       {auto m : Ref MD Metadata} ->
+       {auto o : Ref ROpts REPLOpts} ->
+       File -> Int -> REPLResult -> Core ()
+handleIDEResult outf i Exited = idePutStrLn outf i "Bye for now!"
+handleIDEResult outf i other = displayIDEResult outf i other
 
 loop : {auto c : Ref Ctxt Defs} ->
        {auto u : Ref UST UState} ->
@@ -226,22 +264,23 @@ loop
     = do res <- getOutput
          case res of
               REPL _ => printError "Running idemode but output isn't"
-              IDEMode _ inf outf => do
+              IDEMode idx inf outf => do
                 inp <- coreLift $ getInput inf
                 end <- coreLift $ fEOF inf
                 if end then pure ()
                 else case parseSExp inp of
                   Left err =>
-                    do printError ("Parse error: " ++ show err)
+                    do printIDEError outf idx ("Parse error: " ++ show err)
                        loop
                   Right sexp =>
                     case getMsg sexp of
                       Just (cmd, i) =>
                         do updateOutput i
-                           processCatch cmd
+                           res <- processCatch cmd
+                           handleIDEResult outf idx res
                            loop
                       Nothing =>
-                        do printError ("Unrecognised command: " ++ show sexp)
+                        do printIDEError ("Unrecognised command: " ++ show sexp)
                            loop
   where
     updateOutput : Integer -> Core ()
