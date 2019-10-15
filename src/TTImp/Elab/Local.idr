@@ -16,7 +16,7 @@ import TTImp.TTImp
 
 export
 checkLocal : {vars : _} ->
-             {auto c : Ref Ctxt Defs} ->
+{auto c : Ref Ctxt Defs} ->
              {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
              {auto e : Ref EST (EState vars)} ->
@@ -26,10 +26,12 @@ checkLocal : {vars : _} ->
              (expTy : Maybe (Glued vars)) ->
              Core (Term vars, Glued vars)
 checkLocal {vars} rig elabinfo nest env fc nestdecls scope expty
-    = do let defNames = definedInBlock nestdecls
-         est <- get EST
-         let f = defining est
-         names' <- traverse (applyEnv f) defNames
+    = do let defNames = definedInBlock nestdecls   
+         est <- get EST                            
+         let f = defining est                      
+         names' <- traverse (applyEnv f) 
+                            (nub defNames) -- binding names must be unique
+                                           -- fixes bug #115
          let nest' = record { names $= (names' ++) } nest
          let env' = dropLinear env
          traverse (processDecl [] nest' env') (map (updateName nest') nestdecls)
@@ -46,11 +48,12 @@ checkLocal {vars} rig elabinfo nest env fc nestdecls scope expty
              then setMultiplicity b Rig0 :: dropLinear bs
              else b :: dropLinear bs
 
-    applyEnv : Int -> Name -> 
+    applyEnv : {auto c : Ref Ctxt Defs} -> Int -> Name -> 
                Core (Name, (Maybe Name, FC -> NameType -> Term vars))
     applyEnv outer inner 
-          = do n' <- resolveName (Nested outer inner)
-               pure (inner, (Just (Nested outer inner), 
+          = do let nestedName = Nested outer inner
+               n' <- addName nestedName
+               pure (inner, (Just nestedName, 
                         \fc, nt => applyTo fc 
                                (Ref fc nt (Resolved n')) env))
 
