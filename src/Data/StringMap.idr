@@ -11,16 +11,16 @@ Key = String
 
 private
 data Tree : Nat -> Type -> Type where
-  Leaf : Key -> v -> Tree Z v 
-  Branch2 : Tree n v -> Key -> Tree n v -> Tree (S n) v 
-  Branch3 : Tree n v -> Key -> Tree n v -> Key -> Tree n v -> Tree (S n) v 
+  Leaf : Key -> v -> Tree Z v
+  Branch2 : Tree n v -> Key -> Tree n v -> Tree (S n) v
+  Branch3 : Tree n v -> Key -> Tree n v -> Key -> Tree n v -> Tree (S n) v
 
 branch4 :
   Tree n v -> Key ->
   Tree n v -> Key ->
   Tree n v -> Key ->
   Tree n v ->
-  Tree (S (S n)) v 
+  Tree (S (S n)) v
 branch4 a b c d e f g =
   Branch2 (Branch2 a b c) d (Branch2 e f g)
 
@@ -260,7 +260,7 @@ export
 values : StringMap v -> List v
 values = map snd . toList
 
-treeMap : (a -> b) -> Tree n a -> Tree n b 
+treeMap : (a -> b) -> Tree n a -> Tree n b
 treeMap f (Leaf k v) = Leaf k (f v)
 treeMap f (Branch2 t1 k t2) = Branch2 (treeMap f t1) k (treeMap f t2)
 treeMap f (Branch3 t1 k1 t2 k2 t3)
@@ -292,6 +292,10 @@ merge = mergeWith (<+>)
 export
 mergeLeft : StringMap v -> StringMap v -> StringMap v
 mergeLeft x y = mergeWith const x y
+
+export
+Show v => Show (StringMap v) where
+  show m = show $ map {b=String} (\(k,v) => k ++ "->" ++ show v) $ toList m
 
 -- TODO: is this the right variant of merge to use for this? I think it is, but
 -- I could also see the advantages of using `mergeLeft`. The current approach is

@@ -295,14 +295,14 @@ foldWithKeysC : Monoid b => (List String -> Core b) -> (List String -> a -> Core
 foldWithKeysC {a} {b} fk fv = go []
   where
   go : List String -> StringTrie a -> Core b
-  go as (MkStringTrie nd) =
+  go ks (MkStringTrie nd) =
     map bifold $ bitraverseC
-                   (fv as)
+                   (fv ks)
                    (\sm => foldlC
                              (\x, (k, vs) =>
-                               do let as' = as ++ [k]
-                                  y <- assert_total $ go as' vs
-                                  z <- fk as'
+                               do let ks' = ks++[k]
+                                  y <- assert_total $ go ks' vs
+                                  z <- fk ks'
                                   pure $ x <+> y <+> z)
                              neutral
                              (toList sm))
@@ -325,14 +325,14 @@ clean pkg
                              (\m => fst m :: map fst (modules pkg))
                              (mainmod pkg)
          srcdir <- coreLift currentDir
-         let builddir = srcdir ++ dirSep ++ build
+         let builddir = srcdir ++ dirSep ++ build ++ dirSep ++ "ttc"
          -- the usual pair syntax breaks with `No such variable a` here for some reason
          let pkgTrie = the (StringTrie (List String)) $
                        foldl (\trie, ksv =>
                                 let ks = fst ksv
                                     v = snd ksv
                                   in
-                                insertWith ks (maybe [v] (v::)) trie) empty toClean
+                                insertWith (reverse ks) (maybe [v] (v::)) trie) empty toClean
          foldWithKeysC (deleteFolder builddir)
                        (\ks => map concat . traverse (deleteBin builddir ks))
                        pkgTrie
@@ -344,10 +344,10 @@ clean pkg
                                    coreLift $ putStrLn $ path ++ ": " ++ show (GenericFileError err)
                    coreLift $ putStrLn $ "Removed: " ++ path
   deleteFolder : String -> List String -> Core ()
-  deleteFolder builddir ns = delete $ builddir ++ dirSep ++ showSep "/" (reverse ns)
+  deleteFolder builddir ns = delete $ builddir ++ dirSep ++ showSep dirSep ns
   deleteBin : String -> List String -> String -> Core ()
   deleteBin builddir ns mod
-      = do let ttFile = builddir ++ dirSep ++ showSep "/" (reverse ns) ++ dirSep ++ mod
+      = do let ttFile = builddir ++ dirSep ++ showSep dirSep ns ++ dirSep ++ mod
            delete $ ttFile ++ ".ttc"
            delete $ ttFile ++ ".ttm"
 
