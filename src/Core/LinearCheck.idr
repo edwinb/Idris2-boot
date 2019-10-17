@@ -279,9 +279,11 @@ mutual
                       -- it makes the check very slow (id id id id ... id id etc
                       -- for example) and there may be similar realistic cases.
                       -- If elaboration is correct, this should never fail!
---                       when (not (convert gam env aty ty)) $
---                          throw (CantConvert loc env (quote (noGam gam) env ty) 
---                                                     (quote (noGam gam) env aty))
+--                       aty <- getNF gaty
+--                       when (not !(convert defs env aty ty)) $
+--                          do ty' <- quote defs env ty
+--                             aty' <- quote defs env aty
+--                             throw (CantConvert fc env ty' aty') 
                       pure (App fc f' aerased, 
                             glueBack defs env sc', 
                             fused ++ aused)

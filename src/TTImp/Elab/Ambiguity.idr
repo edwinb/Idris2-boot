@@ -286,7 +286,7 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
                               InLHS c => InLHS
                               _ => InTerm
          delayOnFailure fc rig env expected ambiguous $ 
-            (\delayed => 
+             \delayed =>
                do solveConstraints solvemode Normal
                   defs <- get Ctxt
                   exp <- getTerm expected
@@ -315,7 +315,7 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
                            (map (\t => 
                              (getName t, 
                               checkImp rig elabinfo nest env t (Just exp')))
-                              alts'))
+                              alts')
 checkAlternative rig elabinfo nest env fc uniq alts mexpected
     = do expected <- maybe (do nm <- genName "altTy"
                                ty <- metaVar fc Rig0 env nm (TType fc)
@@ -325,7 +325,7 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
                               InLHS c => InLHS
                               _ => InTerm
          delayOnFailure fc rig env expected ambiguous $ 
-            (\delayed => 
+             \delayed =>
                do solveConstraints solvemode Normal
                   defs <- get Ctxt
                   exp <- getTerm expected
@@ -354,5 +354,5 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
                           solveConstraints solvemode Normal
                           solveConstraints solvemode Normal
                           log 10 $ show (getName t) ++ " success"
-                          pure res)) alts'))
+                          pure res)) alts')
 

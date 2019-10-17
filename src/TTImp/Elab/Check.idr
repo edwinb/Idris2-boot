@@ -586,17 +586,24 @@ checkExp rig elabinfo env fc tm got (Just exp)
     = do vs <- convertWithLazy True fc elabinfo env got exp
          case (constraints vs) of
               [] => case addLazy vs of
-                         NoLazy => pure (tm, got)
+                         NoLazy => do logTerm 5 "Solved" tm
+                                      pure (tm, got)
                          AddForce => do logTerm 5 "Force" tm
                                         logGlue 5 "Got" env got
                                         logGlue 5 "Exp" env exp
                                         pure (TForce fc tm, exp)
                          AddDelay r => do ty <- getTerm got
+                                          logTerm 5 "Delay" tm
                                           pure (TDelay fc r ty tm, exp)
-              cs => do defs <- get Ctxt
+              cs => do logTerm 5 "Not solved" tm
+                       defs <- get Ctxt
                        empty <- clearDefs defs
                        cty <- getTerm exp
                        ctm <- newConstant fc rig env tm cty cs
                        dumpConstraints 5 False
-                       pure (ctm, got)
+                       case addLazy vs of
+                            NoLazy => pure (ctm, got)
+                            AddForce => pure (TForce fc tm, got)
+                            AddDelay r => do ty <- getTerm got
+                                             pure (TDelay fc r ty tm, got)
 checkExp rig elabinfo env fc tm got Nothing = pure (tm, got)

@@ -1055,8 +1055,9 @@ Eq SolveMode where
 
 retry : {auto c : Ref Ctxt Defs} ->
         {auto u : Ref UST UState} ->
+        (withLazy : Bool) ->
         UnifyMode -> Int -> Core UnifyResult
-retry mode c
+retry withLazy mode c
     = do ust <- get UST
          case lookup c (constraints ust) of
               Nothing => pure success
@@ -1064,17 +1065,19 @@ retry mode c
               Just (MkConstraint loc env x y)
                   => catch (do logTermNF 5 "Retrying" env x 
                                logTermNF 5 "....with" env y
-                               cs <- unifyWithLazy mode loc env x y 
+                               cs <- if withLazy
+                                        then unifyWithLazy mode loc env x y 
+                                        else unify mode loc env x y 
                                case constraints cs of
                                  [] => do deleteConstraint c
-                                          pure success
+                                          pure cs
                                  _ => pure cs)
                        (\err => throw (WhenUnifying loc env x y err)) 
               Just (MkSeqConstraint loc env xs ys)
                   => do cs <- unifyArgs mode loc env xs ys
                         case constraints cs of
                              [] => do deleteConstraint c 
-                                      pure success
+                                      pure cs
                              _ => pure cs
 
 -- Retry the given constraint, return True if progress was made
@@ -1113,7 +1116,7 @@ retryGuess mode smode (hid, (loc, hname))
                  do let umode = case smode of
                                      MatchArgs => InMatch
                                      _ => mode
-                    cs <- retry umode constr
+                    cs <- retry True umode constr
                     case constraints cs of
                          [] => do tm' <- case addLazy cs of
                                            NoLazy => pure tm
@@ -1133,7 +1136,7 @@ retryGuess mode smode (hid, (loc, hname))
                  do let umode = case smode of
                                      MatchArgs => InMatch
                                      _ => mode
-                    cs' <- traverse (retry umode) constrs
+                    cs' <- traverse (retry False umode) constrs
                     let csAll = unionAll cs'
                     case constraints csAll of
                          -- All constraints resolved, so turn into a
