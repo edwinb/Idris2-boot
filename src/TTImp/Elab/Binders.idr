@@ -89,6 +89,8 @@ inferLambda rig elabinfo nest env fc rigl info n argTy scope expTy
                                       nest' env' scope Nothing)
          let lamty = gnf env (Bind fc n (Pi rigb info tyv) !(getTerm scopet))
          logGlue 5 "Inferred lambda type" env lamty
+         maybe (pure ())
+               (logGlueNF 5 "Expected lambda type" env) expTy
          checkExp rig elabinfo env fc
                   (Bind fc n (Lam rigb info tyv) scopev)
                   lamty expTy

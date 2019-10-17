@@ -406,7 +406,8 @@ newConstant {vars} fc rig env tm ty constrs
     = do let def = mkConstant fc env tm
          let defty = abstractFullEnvType fc env ty
          cn <- genName "postpone"
-         let guess = newDef fc cn rig [] defty Public (Guess def constrs)
+         let guess = newDef fc cn rig [] defty Public 
+                            (Guess def (length env) constrs)
          log 5 $ "Adding new constant " ++ show (cn, fc, rig)
          logTerm 10 ("New constant type " ++ show cn) defty
          idx <- addDef cn guess
@@ -527,7 +528,7 @@ checkValidHole (idx, (fc, n))
                      Just ty <- lookupTyExact n (gamma defs)
                           | Nothing => pure ()
                      throw (CantSolveGoal fc [] ty)
-              Guess tm (con :: _) => 
+              Guess tm envb (con :: _) => 
                   do ust <- get UST
                      let Just c = lookup con (constraints ust)
                           | Nothing => pure ()
@@ -599,7 +600,7 @@ dumpHole lvl hole
                case !(lookupCtxtExact (Resolved hole) (gamma defs)) of
                  Nothing => pure ()
                  Just gdef => case (definition gdef, type gdef) of
-                    (Guess tm constraints, ty) => 
+                    (Guess tm envb constraints, ty) => 
                          do log lvl $ "!" ++ show !(getFullName (Resolved hole)) ++ " : " ++ 
                                               show !(toFullNames !(normaliseHoles defs [] ty))
                             log lvl $ "\t  = " ++ show !(normaliseHoles defs [] tm)

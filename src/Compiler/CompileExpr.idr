@@ -366,7 +366,7 @@ toCDef tags n _ (TCon tag arity _ _ _ _)
 toCDef tags n ty (Hole _ _)
     = pure $ MkError $ CCrash emptyFC ("Encountered unimplemented hole " ++
                                        show !(getFullName n))
-toCDef tags n ty (Guess _ _)
+toCDef tags n ty (Guess _ _ _)
     = pure $ MkError $ CCrash emptyFC ("Encountered constrained hole " ++
                                        show !(getFullName n))
 toCDef tags n ty (BySearch _ _ _)

@@ -1080,6 +1080,16 @@ retry withLazy mode c
                                       pure cs
                              _ => pure cs
 
+delayMeta : LazyReason -> Nat -> Term vars -> Term vars -> Term vars
+delayMeta r (S k) ty (Bind fc n b sc)
+    = Bind fc n b (delayMeta r k (weaken ty) sc)
+delayMeta r envb ty tm = TDelay (getLoc tm) r ty tm
+
+forceMeta : Nat -> Term vars -> Term vars
+forceMeta (S k) (Bind fc n b sc)
+    = Bind fc n b (forceMeta k sc)
+forceMeta envb tm = TForce (getLoc tm) tm
+
 -- Retry the given constraint, return True if progress was made
 retryGuess : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
@@ -1112,7 +1122,7 @@ retryGuess mode smode (hid, (loc, hname))
                                              LastChance => 
                                                  throw !(normaliseErr err)
                                              _ => pure False) -- Postpone again
-               Guess tm [constr] =>
+               Guess tm envb [constr] =>
                  do let umode = case smode of
                                      MatchArgs => InMatch
                                      _ => mode
@@ -1120,19 +1130,19 @@ retryGuess mode smode (hid, (loc, hname))
                     case constraints cs of
                          [] => do tm' <- case addLazy cs of
                                            NoLazy => pure tm
-                                           AddForce => pure (TForce loc tm)
+                                           AddForce => pure $ forceMeta envb tm
                                            AddDelay r => 
                                               do ty <- getType [] tm
-                                                 pure $ TDelay loc r !(getTerm ty) tm
+                                                 pure $ delayMeta r envb !(getTerm ty) tm
                                   let gdef = record { definition = PMDef True [] (STerm tm') (STerm tm') [] } def
                                   logTerm 5 ("Resolved " ++ show hname) tm'
                                   addDef (Resolved hid) gdef
                                   removeGuess hid
                                   pure (holesSolved cs)
-                         newcs => do let gdef = record { definition = Guess tm newcs } def
+                         newcs => do let gdef = record { definition = Guess tm envb newcs } def
                                      addDef (Resolved hid) gdef
                                      pure False
-               Guess tm constrs => 
+               Guess tm envb constrs => 
                  do let umode = case smode of
                                      MatchArgs => InMatch
                                      _ => mode
@@ -1147,7 +1157,7 @@ retryGuess mode smode (hid, (loc, hname))
                                   addDef (Resolved hid) gdef
                                   removeGuess hid
                                   pure (holesSolved csAll)
-                         newcs => do let gdef = record { definition = Guess tm newcs } def
+                         newcs => do let gdef = record { definition = Guess tm envb newcs } def
                                      addDef (Resolved hid) gdef
                                      pure False
                _ => pure False
@@ -1178,7 +1188,7 @@ giveUpConstraints
              case !(lookupDefExact (Resolved hid) (gamma defs)) of
                   Just (BySearch _ _ _) =>
                          updateDef (Resolved hid) (const (Just (Hole 0 False)))
-                  Just (Guess _ _) =>
+                  Just (Guess _ _ _) =>
                          updateDef (Resolved hid) (const (Just (Hole 0 False)))
                   _ => pure ()
 

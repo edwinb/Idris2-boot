@@ -750,7 +750,8 @@ TTC Def where
       = do tag 6; toBuf b locs; toBuf b p
   toBuf b (BySearch c depth def) 
       = do tag 7; toBuf b c; toBuf b depth; toBuf b def
-  toBuf b (Guess guess constraints) = do tag 8; toBuf b guess; toBuf b constraints
+  toBuf b (Guess guess envb constraints) 
+      = do tag 8; toBuf b guess; toBuf b envb; toBuf b constraints
   toBuf b ImpBind = tag 9
   toBuf b Delayed = tag 10
 
@@ -779,8 +780,8 @@ TTC Def where
              7 => do c <- fromBuf b; depth <- fromBuf b
                      def <- fromBuf b
                      pure (BySearch c depth def)
-             8 => do g <- fromBuf b; cs <- fromBuf b
-                     pure (Guess g cs)
+             8 => do g <- fromBuf b; envb <- fromBuf b; cs <- fromBuf b
+                     pure (Guess g envb cs)
              9 => pure ImpBind
              10 => pure Context.Delayed
              _ => corrupt "Def"

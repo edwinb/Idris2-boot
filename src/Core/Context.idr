@@ -53,7 +53,10 @@ data Def : Type where
     BySearch : RigCount -> (maxdepth : Nat) -> (defining : Name) -> Def
     -- Constraints are integer references into the current map of
     -- constraints in the UnifyState (see Core.UnifyState)
-    Guess : (guess : ClosedTerm) -> (constraints : List Int) -> Def
+    Guess : (guess : ClosedTerm) -> 
+            (envbind : Nat) -> -- Number of things in the environment when
+                               -- we guessed the term
+            (constraints : List Int) -> Def
     ImpBind : Def -- global name temporarily standing for an implicitly bound name
     -- A delayed elaboration. The elaborators themselves are stored in the
     -- unifiation state
@@ -75,7 +78,7 @@ Show Def where
   show (Builtin {arity} _) = "<builtin with arith " ++ show arity ++ ">"
   show (Hole _ p) = "Hole" ++ if p then " [impl]" else ""
   show (BySearch c depth def) = "Search in " ++ show def
-  show (Guess tm cs) = "Guess " ++ show tm ++ " when " ++ show cs
+  show (Guess tm _ cs) = "Guess " ++ show tm ++ " when " ++ show cs
   show ImpBind = "Bound name"
   show Delayed = "Delayed"
 
@@ -560,8 +563,8 @@ HasNames Def where
                               !(traverse (full gam) cs)
   full gam (BySearch c d def)
       = pure $ BySearch c d !(full gam def)
-  full gam (Guess tm cs) 
-      = pure $ Guess !(full gam tm) cs
+  full gam (Guess tm b cs) 
+      = pure $ Guess !(full gam tm) b cs
   full gam t = pure t
   
   resolved gam (PMDef r args ct rt pats) 
@@ -578,8 +581,8 @@ HasNames Def where
                               !(traverse (resolved gam) cs)
   resolved gam (BySearch c d def)
       = pure $ BySearch c d !(resolved gam def)
-  resolved gam (Guess tm cs) 
-      = pure $ Guess !(resolved gam tm) cs
+  resolved gam (Guess tm b cs) 
+      = pure $ Guess !(resolved gam tm) b cs
   resolved gam t = pure t
 
 HasNames (NameMap a) where
