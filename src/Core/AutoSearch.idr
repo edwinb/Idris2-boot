@@ -199,6 +199,7 @@ usableLocal loc defaults env (NBind fc x (Pi _ _ _) sc)
     = do defs <- get Ctxt
          usableLocal loc defaults env 
                 !(sc defs (toClosure defaultOpts env (Erased fc)))
+usableLocal loc defaults env (NErased _) = pure False
 usableLocal loc _ _ _ = pure True
 
 searchLocalWith : {auto c : Ref Ctxt Defs} ->
@@ -514,6 +515,6 @@ Core.Unify.search fc rigc defaults depth def top env
          tm <- searchType fc rigc defaults [] depth def 
                           True (abstractEnvType fc env top) env 
                           top
-         logTerm 2 "Result" tm
+         logTermNF 2 "Result" env tm
          defs <- get Ctxt
          pure tm

@@ -68,6 +68,7 @@ data CLOpt
    ||| Run as a checker for the core language TTImp
   Yaffle String |
   Timing |
+  DebugElabCheck |
   BlodwenPaths
 
 
@@ -126,17 +127,21 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
               (Just "Display version string"),
            MkOpt ["--help", "-h", "-?"] [] [Help]
               (Just "Display help text"),
-           MkOpt ["--yaffle", "--ttimp"] ["ttimp file"] (\f => [Yaffle f])
-              Nothing,
            MkOpt ["--timing"] [] [Timing]
-              (Just "Display timing logs")
+              (Just "Display timing logs"),
+
+           -- Internal debugging options
+           MkOpt ["--yaffle", "--ttimp"] ["ttimp file"] (\f => [Yaffle f])
+              Nothing, -- run ttimp REPL rather than full Idris
+           MkOpt ["--debug-elab-check"] [] [DebugElabCheck]
+              Nothing -- do more elaborator checks (currently conversion in LinearCheck)
            ]
 
 optUsage : OptDesc -> String
 optUsage d
     = maybe "" -- Don't show anything if there's no help string (that means
                -- it's an internal option)
-        (\h =>
+        (\h => "  " ++
             let optshow = showSep "," (flags d) ++ " " ++
                     showSep " " (map (\x => "<" ++ x ++ ">") (argdescs d)) in
                 optshow ++ pack (List.replicate (minus 26 (length optshow)) ' ')
@@ -156,7 +161,7 @@ usage : String
 usage = versionMsg ++ "\n" ++
         "Usage: idris2 [options] [input file]\n\n" ++
         "Available options:\n" ++
-        concatMap (\u => "  " ++ optUsage u) options
+        concatMap optUsage options
 
 processArgs : String -> (args : List String) -> List String -> ActType args ->
               Either String (List CLOpt, List String)

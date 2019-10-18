@@ -1812,6 +1812,13 @@ setLogTimings b
          put Ctxt (record { options->session->logTimings = b } defs)
 
 export
+setDebugElabCheck : {auto c : Ref Ctxt Defs} ->
+                    Bool -> Core ()
+setDebugElabCheck b
+    = do defs <- get Ctxt
+         put Ctxt (record { options->session->debugElabCheck = b } defs)
+
+export
 getSession : {auto c : Ref Ctxt Defs} ->
              Core Session
 getSession

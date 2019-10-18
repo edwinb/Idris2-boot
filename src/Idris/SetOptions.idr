@@ -63,6 +63,9 @@ preOptions (Directory d :: opts)
 preOptions (Timing :: opts)
     = do setLogTimings True
          preOptions opts
+preOptions (DebugElabCheck :: opts)
+    = do setDebugElabCheck True
+         preOptions opts
 preOptions (_ :: opts) = preOptions opts
 
 -- Options to be processed after type checking. Returns whether execution

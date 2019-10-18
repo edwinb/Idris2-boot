@@ -500,6 +500,9 @@ checkBindHere rig elabinfo nest env fc bindmode tm exp
          solveConstraints (case elabMode elabinfo of
                                 InLHS c => InLHS
                                 _ => InTerm) Normal
+         solveConstraints (case elabMode elabinfo of
+                                InLHS c => InLHS
+                                _ => InTerm) Defaults
          ust <- get UST
          catch (retryDelayed (delayedElab ust))
                (\err =>
