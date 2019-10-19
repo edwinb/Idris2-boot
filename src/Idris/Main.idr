@@ -95,6 +95,17 @@ tryYaffle (Yaffle f :: _) = do yaffleMain f []
                                pure True
 tryYaffle (c :: cs) = tryYaffle cs
 
+
+banner : String
+banner = "     ____    __     _         ___                                           \n" ++
+         "    /  _/___/ /____(_)____   |__ \\                                          \n" ++
+         "    / // __  / ___/ / ___/   __/ /     Version " ++ showVersion version ++ "\n" ++
+         "  _/ // /_/ / /  / (__  )   / __/      http://www.idris-lang.org            \n" ++
+         " /___/\\__,_/_/  /_/____/   /____/                                           \n" ++
+         "\n" ++
+         "Welcome to Idris 2.  Enjoy yourself!"
+
+
 stMain : List CLOpt -> Core ()
 stMain opts
     = do False <- tryYaffle opts
@@ -156,9 +167,7 @@ stMain opts
                            replIDE {c} {u} {m}
                    else do
                        when (not $ nobanner session) $
-                         iputStrLn $ "Welcome to Idris 2 version "
-                                     ++ showVersion version
-                                     ++ ".  Enjoy yourself!"
+                         iputStrLn banner
                        repl {c} {u} {m}
                  else
                       -- exit with an error code if there was an error, otherwise
