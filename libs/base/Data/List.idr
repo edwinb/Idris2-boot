@@ -140,6 +140,20 @@ export
 Uninhabited (NonEmpty []) where
   uninhabited IsNonEmpty impossible
 
+||| Get the head of a non-empty list.
+||| @ ok proof the list is non-empty
+public export
+head : (l : List a) -> {auto ok : NonEmpty l} -> a
+head [] impossible
+head (x :: xs) = x
+
+||| Get the tail of a non-empty list.
+||| @ ok proof the list is non-empty
+public export
+tail : (l : List a) -> {auto ok : NonEmpty l} -> List a
+tail [] impossible
+tail (x :: xs) = xs
+
 ||| Convert any Foldable structure to a list.
 export
 toList : Foldable t => t a -> List a
