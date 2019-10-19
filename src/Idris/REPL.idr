@@ -602,7 +602,7 @@ processCatch cmd
 parseEmptyCmd : EmptyRule (Maybe REPLCmd)
 parseEmptyCmd = eoi *> (pure Nothing)
 
-parseCmd : Rule (Maybe REPLCmd)
+parseCmd : EmptyRule (Maybe REPLCmd)
 parseCmd = do c <- command; eoi; pure $ Just c
 
 parseRepl : String -> Either ParseError (Maybe REPLCmd)
