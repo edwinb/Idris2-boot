@@ -560,9 +560,8 @@ process (Editing cmd)
          processEdit cmd
          setPPrint ppopts
          pure True
-process Quit
-    = do iputStrLn "Bye for now!"
-         pure False
+process Quit 
+    = pure False
 process NOP
     = pure True
 process ShowVersion
@@ -600,11 +599,17 @@ processCatch cmd
                            coreLift (putStrLn !(display err))
                            pure True)
 
-parseRepl : String -> Either ParseError REPLCmd
+parseEmptyCmd : EmptyRule (Maybe REPLCmd)
+parseEmptyCmd = eoi *> (pure Nothing)
+
+parseCmd : Rule (Maybe REPLCmd)
+parseCmd = do c <- command; eoi; pure $ Just c
+
+parseRepl : String -> Either ParseError (Maybe REPLCmd)
 parseRepl inp
     = case fnameCmd [(":load ", Load), (":l ", Load), (":cd ", CD)] inp of
-           Nothing => runParser inp (do c <- command; eoi; pure c)
-           Just cmd => Right cmd
+           Nothing => runParser inp (parseEmptyCmd <|> parseCmd)
+           Just cmd => Right $ Just cmd
   where
     -- a right load of hackery - we can't tokenise the filename using the
     -- ordinary parser. There's probably a better way...
@@ -629,7 +634,8 @@ interpret inp
     = case parseRepl inp of
            Left err => do printError (show err)
                           pure True
-           Right cmd => processCatch cmd
+           Right Nothing => pure True
+           Right (Just cmd) => processCatch cmd
 
 export
 repl : {auto c : Ref Ctxt Defs} ->
@@ -643,15 +649,13 @@ repl
          opts <- get ROpts
          coreLift (putStr (prompt (evalMode opts) ++ showSep "." (reverse ns) ++ "> "))
          inp <- coreLift getLine
+         repeat <- interpret inp
          end <- coreLift $ fEOF stdin
-         if end
-            then do
-                    -- start a new line in REPL mode (not relevant in IDE mode)
-                    coreLift $ putStrLn ""
-                    iputStrLn "Bye for now!"
-            else if !(interpret inp)
-                    then repl
-                    else pure ()
+         if repeat && not end
+           then repl 
+           else 
+             do iputStrLn "Bye for now!"
+                pure ()
 
   where
     prompt : REPLEval -> String
