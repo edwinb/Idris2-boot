@@ -19,7 +19,7 @@ ttimpTests
        "qtt001", "qtt002", "qtt003",
        "search001", "search002", "search003", "search004", "search005",
        "total001", "total002", "total003",
-       "with001"]
+       "with001",  "with002" ]
 
 idrisTests : List String
 idrisTests
@@ -61,7 +61,7 @@ typeddTests
 
 chezTests : List String
 chezTests
-   = ["chez001", "chez002", "chez003", "chez004", "chez005", "chez006", 
+   = ["chez001", "chez002", "chez003", "chez004", "chez005", "chez006",
       "chez007", "chez008", "chez009", "chez010"]
 
 ideModeTests : List String
