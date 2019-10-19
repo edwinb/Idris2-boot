@@ -17,7 +17,7 @@ data Vect : (len : Nat) -> (elem : Type) -> Type where
 -- Hints for interactive editing
 %name Vect xs,ys,zs,ws
 
-export
+public export
 length : (xs : Vect len elem) -> Nat
 length [] = 0
 length (x::xs) = 1 + length xs
@@ -180,7 +180,7 @@ merge = mergeBy compare
 ||| ```idris example
 ||| reverse [1,2,3,4]
 ||| ```
-export
+public export
 reverse : Vect len elem -> Vect len elem
 reverse xs = go [] xs
   where go : Vect n elem -> Vect m elem -> Vect (n+m) elem
