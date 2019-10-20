@@ -713,31 +713,31 @@ mutual
               else postponeS True loc "Postponing constraint"
                              env (NApp fc hd args) tm
 
-  doUnifyBothApps : {auto c : Ref Ctxt Defs} ->
-                    {auto u : Ref UST UState} ->
-                    {vars : _} ->
-                    UnifyMode -> FC -> Env Term vars ->
-                    FC -> NHead vars -> List (Closure vars) -> 
-                    FC -> NHead vars -> List (Closure vars) ->
-                    Core UnifyResult
-  doUnifyBothApps mode loc env xfc (NLocal xr x xp) [] yfc (NLocal yr y yp) []
+  unifyBothApps : {auto c : Ref Ctxt Defs} ->
+                  {auto u : Ref UST UState} ->
+                  {vars : _} ->
+                  UnifyMode -> FC -> Env Term vars ->
+                  FC -> NHead vars -> List (Closure vars) -> 
+                  FC -> NHead vars -> List (Closure vars) ->
+                  Core UnifyResult
+  unifyBothApps mode loc env xfc (NLocal xr x xp) [] yfc (NLocal yr y yp) []
       = if x == y
            then pure success
            else convertError loc env (NApp xfc (NLocal xr x xp) [])
                                      (NApp yfc (NLocal yr y yp) [])
   -- Locally bound things, in a term (not LHS). Since we have to unify
   -- for *all* possible values, we can safely unify the arguments.
-  doUnifyBothApps InTerm loc env xfc (NLocal xr x xp) xargs yfc (NLocal yr y yp) yargs
+  unifyBothApps InTerm loc env xfc (NLocal xr x xp) xargs yfc (NLocal yr y yp) yargs
       = if x == y
            then unifyArgs InTerm loc env xargs yargs
            else postpone loc "Postponing local app"
                          env (NApp xfc (NLocal xr x xp) xargs)
                              (NApp yfc (NLocal yr y yp) yargs)
-  doUnifyBothApps _ loc env xfc (NLocal xr x xp) xargs yfc (NLocal yr y yp) yargs
+  unifyBothApps _ loc env xfc (NLocal xr x xp) xargs yfc (NLocal yr y yp) yargs
       = unifyIfEq True loc env (NApp xfc (NLocal xr x xp) xargs)
                                (NApp yfc (NLocal yr y yp) yargs)
   -- If they're both holes, solve the one with the bigger context
-  doUnifyBothApps mode loc env xfc (NMeta xn xi xargs) xargs' yfc (NMeta yn yi yargs) yargs'
+  unifyBothApps mode loc env xfc (NMeta xn xi xargs) xargs' yfc (NMeta yn yi yargs) yargs'
       = do invx <- isDefInvertible xi
            if xi == yi && (invx || mode == InSearch)
                                -- Invertible, (from auto implicit search)
@@ -764,17 +764,17 @@ mutual
                  NApp _ (NLocal _ _ _) _ => pure $ S !(localsIn cs)
                  _ => localsIn cs
       
-  doUnifyBothApps mode loc env xfc (NMeta xn xi xargs) xargs' yfc fy yargs'
+  unifyBothApps mode loc env xfc (NMeta xn xi xargs) xargs' yfc fy yargs'
       = unifyApp False mode loc env xfc (NMeta xn xi xargs) xargs'
                                         (NApp yfc fy yargs')
-  doUnifyBothApps mode loc env xfc fx xargs' yfc (NMeta yn yi yargs) yargs'
+  unifyBothApps mode loc env xfc fx xargs' yfc (NMeta yn yi yargs) yargs'
       = unifyApp True mode loc env xfc (NMeta yn yi yargs) yargs'
                                        (NApp xfc fx xargs')
-  doUnifyBothApps InSearch loc env xfc fx@(NRef xt hdx) xargs yfc fy@(NRef yt hdy) yargs
+  unifyBothApps InSearch loc env xfc fx@(NRef xt hdx) xargs yfc fy@(NRef yt hdy) yargs
       = if hdx == hdy
            then unifyArgs InSearch loc env xargs yargs
            else unifyApp False InSearch loc env xfc fx xargs (NApp yfc fy yargs)
-  doUnifyBothApps InMatch loc env xfc fx@(NRef xt hdx) xargs yfc fy@(NRef yt hdy) yargs
+  unifyBothApps InMatch loc env xfc fx@(NRef xt hdx) xargs yfc fy@(NRef yt hdy) yargs
       = if hdx == hdy
            then do logC 5 (do defs <- get Ctxt
                               xs <- traverse (quote defs env) xargs
@@ -782,21 +782,8 @@ mutual
                               pure ("Matching args " ++ show xs ++ " " ++ show ys))
                    unifyArgs InMatch loc env xargs yargs
            else unifyApp False InMatch loc env xfc fx xargs (NApp yfc fy yargs)
-  doUnifyBothApps mode loc env xfc fx ax yfc fy ay
+  unifyBothApps mode loc env xfc fx ax yfc fy ay
       = unifyApp False mode loc env xfc fx ax (NApp yfc fy ay)
-
-  unifyBothApps : {auto c : Ref Ctxt Defs} ->
-                  {auto u : Ref UST UState} ->
-                  {vars : _} ->
-                  UnifyMode -> FC -> Env Term vars ->
-                  FC -> NHead vars -> List (Closure vars) -> 
-                  FC -> NHead vars -> List (Closure vars) ->
-                  Core UnifyResult
-  unifyBothApps mode loc env xfc hx ax yfc hy ay
-      = do defs <- get Ctxt
-           if !(convert defs env (NApp xfc hx ax) (NApp yfc hy ay))
-              then pure success
-              else doUnifyBothApps mode loc env xfc hx ax yfc hy ay
 
   -- Comparing multiplicities when converting pi binders
   subRig : RigCount -> RigCount -> Bool

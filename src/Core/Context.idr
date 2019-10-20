@@ -1874,6 +1874,32 @@ logC lvl cmsg
             else pure ()
 
 export
+logTimeOver : {auto c : Ref Ctxt Defs} ->
+              Integer -> Core String -> Core a -> Core a
+logTimeOver nsecs str act
+    = do clock <- coreLift clockTime
+         let nano = 1000000000
+         let t = seconds clock * nano + nanoseconds clock
+         res <- act
+         clock <- coreLift clockTime
+         let t' = seconds clock * nano + nanoseconds clock
+         let time = t' - t
+         when (time > nsecs) $
+           assert_total $ -- We're not dividing by 0
+              do str' <- str
+                 coreLift $ putStrLn $ "TIMING " ++ str' ++ ": " ++
+                          show (time `div` nano) ++ "." ++ 
+                          addZeros (unpack (show ((time `mod` nano) `div` 1000000))) ++
+                          "s"
+         pure res
+  where
+    addZeros : List Char -> String
+    addZeros [] = "000"
+    addZeros [x] = "00" ++ cast x
+    addZeros [x,y] = "0" ++ cast x ++ cast y
+    addZeros str = pack str
+
+export
 logTimeWhen : {auto c : Ref Ctxt Defs} ->
               Bool -> Lazy String -> Core a -> Core a
 logTimeWhen p str act
