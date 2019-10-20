@@ -611,7 +611,16 @@ thin n (Ref fc nt name) = Ref fc nt name
 thin n (Meta fc name idx args) = Meta fc name idx (map (thin n) args)
 thin {outer} {inner} n (Bind fc x b scope) 
     = let sc' = thin {outer = x :: outer} {inner} n scope in
-          Bind fc x (assert_total (map (thin n) b)) sc'
+          Bind fc x (thinBinder n b) sc'
+  where
+    thinBinder : (n : Name) -> Binder (Term (outer ++ inner)) ->
+                 Binder (Term (outer ++ n :: inner))
+    thinBinder n (Lam c p ty) = Lam c p (thin n ty)
+    thinBinder n (Let c val ty) = Let c (thin n val) (thin n ty)
+    thinBinder n (Pi c p ty) = Pi c p (thin n ty)
+    thinBinder n (PVar c p ty) = PVar c p (thin n ty)
+    thinBinder n (PLet c val ty) = PLet c (thin n val) (thin n ty)
+    thinBinder n (PVTy c ty) = PVTy c (thin n ty)
 thin n (App fc fn arg) = App fc (thin n fn) (thin n arg)
 thin n (As fc nm tm) = As fc (thin n nm) (thin n tm)
 thin n (TDelayed fc r ty) = TDelayed fc r (thin n ty)
