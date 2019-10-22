@@ -994,10 +994,11 @@ paramDecls fname indents
          keyword "parameters"
          commit
          symbol "("
-         ps <- some (do x <- unqualifiedName
-                        symbol ":"
-                        ty <- typeExpr pdef fname indents
-                        pure (UN x, ty))
+         ps <- sepBy (symbol ",")
+                     (do x <- unqualifiedName
+                         symbol ":"
+                         ty <- typeExpr pdef fname indents
+                         pure (UN x, ty))
          symbol ")"
          ds <- assert_total (nonEmptyBlock (topDecl fname))
          end <- location
