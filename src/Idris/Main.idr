@@ -169,6 +169,7 @@ stMain opts
                        when (not $ nobanner session) $
                          iputStrLn banner
                        repl {c} {u} {m}
+                       showTimeRecord
                  else
                       -- exit with an error code if there was an error, otherwise
                       -- just exit
