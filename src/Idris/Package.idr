@@ -175,6 +175,8 @@ addField (PHomePage fc a)    pkg = pure $ record { homepage = Just a } pkg
 addField (PSourceLoc fc a)   pkg = pure $ record { sourceloc = Just a } pkg
 addField (PBugTracker fc a)  pkg = pure $ record { bugtracker = Just a } pkg
 addField (PDepends ds)       pkg = pure $ record { depends = ds } pkg
+-- we can't resolve source files for modules without knowing the source directory,
+-- so we save them for the second pass
 addField (PModules ms)       pkg = do put ParsedMods ms
                                       pure pkg
 addField (PMainMod loc n)    pkg = do put MainMod (Just (loc, n))

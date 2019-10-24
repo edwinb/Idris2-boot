@@ -109,16 +109,16 @@ pathToNS wdir sdir fname
     = let wsplit = splitSep wdir
           ssplit = maybe [] splitSep sdir
           fsplit = splitSep fname
-          sdrop = dropWdir ssplit fsplit fsplit
+          wdrop = dropDir wsplit fsplit fsplit
        in
-      dropWdir wsplit sdrop sdrop
+      dropDir ssplit wdrop wdrop
   where
-    dropWdir : List String -> List String -> List String -> List String
-    dropWdir wdir orig [] = []
-    dropWdir wdir orig (x :: xs)
-        = if wdir == xs
+    dropDir : List String -> List String -> List String -> List String
+    dropDir dir orig [] = []
+    dropDir dir orig (x :: xs)
+        = if dir == xs
              then [x]
-             else x :: dropWdir wdir orig xs
+             else x :: dropDir dir orig xs
 
     splitSep : String -> List String
     splitSep fname
