@@ -62,12 +62,16 @@ record TTCFile extra where
   extraData : extra
 
 HasNames a => HasNames (List a) where
-  full c [] = pure []
-  full c (n :: ns) = pure $ !(full c n) :: !(full c ns)
+  full c ns = full_aux c [] ns
+    where full_aux : Context -> List a -> List a -> Core (List a)
+          full_aux c res [] = pure (reverse res)
+          full_aux c res (n :: ns) = full_aux c (!(full c n):: res) ns
 
-  resolved c [] = pure []
-  resolved c (n :: ns) = pure $ !(resolved c n) :: !(resolved c ns)
 
+  resolved c ns = resolved_aux c [] ns
+    where resolved_aux : Context -> List a -> List a -> Core (List a)
+          resolved_aux c res [] = pure (reverse res)
+          resolved_aux c res (n :: ns) = resolved_aux c (!(resolved c n) :: res) ns
 HasNames (Int, FC, Name) where
   full c (i, fc, n) = pure (i, fc, !(full c n))
   resolved c (i, fc, n) = pure (i, fc, !(resolved c n))
