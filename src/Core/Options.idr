@@ -8,6 +8,7 @@ public export
 record Dirs where
   constructor MkDirs
   working_dir : String
+  source_dir : Maybe String -- source directory, relative to working directory
   build_dir : String -- build directory, relative to working directory
   dir_prefix : String -- installation prefix, for finding data files (e.g. run time support)
   extra_dirs : List String -- places to look for import files
@@ -16,8 +17,9 @@ record Dirs where
 
 public export
 toString : Dirs -> String
-toString (MkDirs wdir bdir dfix edirs ldirs ddirs) =
+toString (MkDirs wdir sdir bdir dfix edirs ldirs ddirs) =
   unlines [ "+ Working Directory   :: " ++ show wdir
+          , "+ Source Directory    :: " ++ show sdir
           , "+ Build Directory     :: " ++ show bdir
           , "+ Installation Prefix :: " ++ show dfix
           , "+ Extra Directories :: " ++ show edirs
@@ -109,7 +111,7 @@ record Options where
   extensions : List LangExt
 
 defaultDirs : Dirs
-defaultDirs = MkDirs "." "build" "/usr/local" ["."] ["."] []
+defaultDirs = MkDirs "." Nothing "build" "/usr/local" ["."] ["."] []
 
 defaultPPrint : PPrinter
 defaultPPrint = MkPPOpts False True False

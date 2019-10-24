@@ -28,7 +28,7 @@ processDecl : {auto c : Ref Ctxt Defs} ->
               {auto m : Ref MD Metadata} ->
               PDecl -> Core (Maybe Error)
 processDecl decl
-    = catch (do impdecls <- desugarDecl [] decl 
+    = catch (do impdecls <- desugarDecl [] decl
                 traverse (Check.processDecl [] (MkNested []) []) impdecls
                 pure Nothing)
             (\err => do giveUpConstraints -- or we'll keep trying...
@@ -41,7 +41,7 @@ processDecls : {auto c : Ref Ctxt Defs} ->
                List PDecl -> Core (List Error)
 processDecls decls
     = do xs <- traverse processDecl decls
-         Nothing <- checkDelayedHoles 
+         Nothing <- checkDelayedHoles
              | Just err => pure (case mapMaybe id xs of
                                       [] => [err]
                                       errs => errs)
@@ -61,7 +61,7 @@ readModule top loc vis reexp imp as
     = do Right fname <- nsToPath loc imp
                | Left err => throw err
          Just (syn, hash, more) <- logTime ("Reading " ++ show imp) $
-                                         readFromTTC {extra = SyntaxInfo} 
+                                         readFromTTC {extra = SyntaxInfo}
                                                   loc vis fname imp as
               | Nothing => when vis (setVisible imp) -- already loaded, just set visibility
          addImported (imp, reexp, as)
@@ -72,7 +72,7 @@ readModule top loc vis reexp imp as
 
          modNS <- getNS
          when vis $ setVisible imp
-         traverse_ (\ mimp => 
+         traverse_ (\ mimp =>
                        do let m = fst mimp
                           let reexp = fst (snd mimp)
                           let as = snd (snd mimp)
@@ -95,7 +95,7 @@ readHash imp
          h <- readIFaceHash fname
          -- If the import is a 'public' import, then it forms part of
          -- our own interface so add its hash to our hash
-         when (reexport imp) $ 
+         when (reexport imp) $
             do log 5 $ "Reexporting " ++ show (path imp) ++ " hash " ++ show h
                addHash h
          pure (nameAs imp, h)
@@ -109,7 +109,7 @@ readPrelude : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               {auto s : Ref Syn SyntaxInfo} ->
               Core ()
-readPrelude = do readImport prelude 
+readPrelude = do readImport prelude
                  setNS ["Main"]
 
 -- Import a TTC for use as the main file (e.g. at the REPL)
@@ -119,7 +119,7 @@ readAsMain : {auto c : Ref Ctxt Defs} ->
              {auto s : Ref Syn SyntaxInfo} ->
              (fname : String) -> Core ()
 readAsMain fname
-    = do Just (syn, _, more) <- readFromTTC {extra = SyntaxInfo} 
+    = do Just (syn, _, more) <- readFromTTC {extra = SyntaxInfo}
                                              toplevelFC True fname [] []
               | Nothing => throw (InternalError "Already loaded")
          replNS <- getNS
@@ -127,7 +127,7 @@ readAsMain fname
          extendAs replNS replNS syn
 
          ustm <- get UST
-         traverse (\ mimp => 
+         traverse (\ mimp =>
                        do let m = fst mimp
                           let as = snd (snd mimp)
                           fname <- nsToPath emptyFC m
@@ -144,7 +144,7 @@ readAsMain fname
          setNestedNS replNestedNS
 
 addPrelude : List Import -> List Import
-addPrelude imps 
+addPrelude imps
   = if not (["Prelude"] `elem` map path imps)
        then prelude :: imps
        else imps
@@ -177,7 +177,7 @@ processMod : {auto c : Ref Ctxt Defs} ->
              {auto m : Ref MD Metadata} ->
              {auto o : Ref ROpts REPLOpts} ->
              (srcf : String) -> (ttcf : String) -> (msg : String) ->
-             Module -> 
+             Module ->
              (sourcecode : String) ->
              Core (Maybe (List Error))
 processMod srcf ttcf msg mod sourcecode
@@ -185,8 +185,8 @@ processMod srcf ttcf msg mod sourcecode
                 when (ns /= ["Main"]) $
                    do let MkFC fname _ _ = headerloc mod
                       d <- getDirs
-                      when (pathToNS (working_dir d) fname /= ns) $
-                          throw (GenericMsg (headerloc mod) 
+                      when (pathToNS (working_dir d) (source_dir d) fname /= ns) $
+                          throw (GenericMsg (headerloc mod)
                                    ("Module name " ++ showSep "." (reverse ns) ++
                                     " does not match file name " ++ fname))
                 -- Add an implicit prelude import
@@ -214,7 +214,7 @@ processMod srcf ttcf msg mod sourcecode
                         -- for the REPL
                         do setNS ns
                            pure Nothing
-                   else 
+                   else
                      do iputStrLn msg
                         -- read imports here
                         -- Note: We should only import .ttc - assumption is that there's
@@ -242,7 +242,7 @@ process : {auto c : Ref Ctxt Defs} ->
           {auto u : Ref UST UState} ->
           {auto s : Ref Syn SyntaxInfo} ->
           {auto o : Ref ROpts REPLOpts} ->
-          String -> FileName -> 
+          String -> FileName ->
           Core (List Error)
 process buildmsg file
     = do Right res <- coreLift (readFile file)
@@ -265,7 +265,7 @@ process buildmsg file
                                  then
                                    do defs <- get Ctxt
                                       d <- getDirs
-                                      makeBuildDirectory (pathToNS (working_dir d) file)
+                                      makeBuildDirectory (pathToNS (working_dir d) (source_dir d) file)
                                       logTime ("Writing TTC for " ++ file) $
                                           writeToTTC !(get Syn) fn
                                       mfn <- getTTCFileName file ".ttm"
