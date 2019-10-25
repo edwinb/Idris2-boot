@@ -459,19 +459,29 @@ implicitsAs defs ns tm = setAs (map Just (ns ++ map UN (findIBinds tm))) tm
     setAs is tm = pure tm
 
 export
-definedInBlock : List ImpDecl -> List Name
-definedInBlock = concatMap defName
+definedInBlock : List String -> -- namespace to resolve names
+                 List ImpDecl -> List Name
+definedInBlock ns = concatMap (defName ns)
   where
     getName : ImpTy -> Name
     getName (MkImpTy _ n _) = n
 
-    defName : ImpDecl -> List Name
-    defName (IClaim _ _ _ _ ty) = [getName ty]
-    defName (IData _ _ (MkImpData _ n _ _ cons)) = n :: map getName cons
-    defName (IData _ _ (MkImpLater _ n _)) = [n]
-    defName (IParameters _ _ pds) = concatMap defName pds
-    defName (IRecord _ _ (MkImpRecord _ n _ _ _)) = [n]
-    defName _ = []
+    expandNS : List String -> Name -> Name
+    expandNS [] n = n
+    expandNS ns (UN n) = NS ns (UN n)
+    expandNS ns n@(MN _ _) = NS ns n
+    expandNS ns n@(DN _ _) = NS ns n
+    expandNS ns n = n
+
+    defName : List String -> ImpDecl -> List Name
+    defName ns (IClaim _ _ _ _ ty) = [expandNS ns (getName ty)]
+    defName ns (IData _ _ (MkImpData _ n _ _ cons))
+        = expandNS ns n :: map (expandNS ns) (map getName cons)
+    defName ns (IData _ _ (MkImpLater _ n _)) = [expandNS ns n]
+    defName ns (IParameters _ _ pds) = concatMap (defName ns) pds
+    defName ns (INamespace _ _ n nds) = concatMap (defName (n ++ ns)) nds
+    defName ns (IRecord _ _ (MkImpRecord _ n _ _ _)) = [n]
+    defName _ _ = []
 
 export
 getFC : RawImp -> FC

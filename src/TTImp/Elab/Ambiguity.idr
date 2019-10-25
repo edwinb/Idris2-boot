@@ -317,42 +317,47 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
                               checkImp rig elabinfo nest env t (Just exp')))
                               alts')
 checkAlternative rig elabinfo nest env fc uniq alts mexpected
-    = do expected <- maybe (do nm <- genName "altTy"
-                               ty <- metaVar fc Rig0 env nm (TType fc)
-                               pure (gnf env ty))
-                           pure mexpected
-         let solvemode = case elabMode elabinfo of
-                              InLHS c => InLHS
-                              _ => InTerm
-         delayOnFailure fc rig env expected ambiguous $ 
-             \delayed =>
-               do solveConstraints solvemode Normal
-                  defs <- get Ctxt
-                  exp <- getTerm expected
+    = do alts' <- maybe (pure [])
+                        (\exp => pruneByType env !(getNF exp) alts) mexpected
+         case alts' of
+           [alt] => checkImp rig elabinfo nest env alt mexpected
+           _ =>
+             do expected <- maybe (do nm <- genName "altTy"
+                                      ty <- metaVar fc Rig0 env nm (TType fc)
+                                      pure (gnf env ty))
+                                  pure mexpected
+                let solvemode = case elabMode elabinfo of
+                                      InLHS c => InLHS
+                                      _ => InTerm
+                delayOnFailure fc rig env expected ambiguous $ 
+                     \delayed =>
+                       do solveConstraints solvemode Normal
+                          defs <- get Ctxt
+                          exp <- getTerm expected
 
-                  -- We can't just use the old NF on the second attempt, 
-                  -- because we might know more now, so recalculate it
-                  let exp' = if delayed 
-                                then gnf env exp
-                                else expected
+                          -- We can't just use the old NF on the second attempt, 
+                          -- because we might know more now, so recalculate it
+                          let exp' = if delayed 
+                                        then gnf env exp
+                                        else expected
 
-                  alts' <- pruneByType env !(getNF exp') alts
+                          alts' <- pruneByType env !(getNF exp') alts
 
-                  logGlueNF 5 ("Ambiguous elaboration " ++ show alts' ++ 
-                               " at " ++ show fc ++
-                               "\nTarget type ") env exp'
-                  let tryall = case uniq of
-                                    FirstSuccess => anyOne fc
-                                    _ => exactlyOne fc env
-                  tryall (map (\t => 
-                      (getName t, 
-                       do res <- checkImp rig elabinfo nest env t (Just exp')
-                          -- Do it twice for interface resolution;
-                          -- first pass gets the determining argument
-                          -- (maybe rethink this, there should be a better
-                          -- way that allows one pass)
-                          solveConstraints solvemode Normal
-                          solveConstraints solvemode Normal
-                          log 10 $ show (getName t) ++ " success"
-                          pure res)) alts')
+                          logGlueNF 5 ("Ambiguous elaboration " ++ show alts' ++ 
+                                       " at " ++ show fc ++
+                                       "\nTarget type ") env exp'
+                          let tryall = case uniq of
+                                            FirstSuccess => anyOne fc
+                                            _ => exactlyOne fc env
+                          tryall (map (\t => 
+                              (getName t, 
+                               do res <- checkImp rig elabinfo nest env t (Just exp')
+                                  -- Do it twice for interface resolution;
+                                  -- first pass gets the determining argument
+                                  -- (maybe rethink this, there should be a better
+                                  -- way that allows one pass)
+                                  solveConstraints solvemode Normal
+                                  solveConstraints solvemode Normal
+                                  log 10 $ show (getName t) ++ " success"
+                                  pure res)) alts')
 

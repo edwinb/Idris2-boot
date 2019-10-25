@@ -26,7 +26,7 @@ checkLocal : {vars : _} ->
              (expTy : Maybe (Glued vars)) ->
              Core (Term vars, Glued vars)
 checkLocal {vars} rig elabinfo nest env fc nestdecls scope expty
-    = do let defNames = definedInBlock nestdecls   
+    = do let defNames = definedInBlock [] nestdecls
          est <- get EST                            
          let f = defining est                      
          names' <- traverse (applyEnv f) 

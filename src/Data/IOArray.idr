@@ -39,7 +39,7 @@ unsafeWriteArray (MkIORawArray p) i val
 ||| There is *no* bounds checking, hence this is unsafe. Safe interfaces can
 ||| be implemented on top of this, either with a run time or compile time
 ||| check.
-export
+export %inline
 unsafeReadArray : IORawArray elem -> Int -> IO elem
 unsafeReadArray (MkIORawArray p) i
     = do MkRaw val <- foreign FFI_C "idris_arrayGet"

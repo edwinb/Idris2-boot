@@ -719,6 +719,8 @@ record Defs where
   userHoles : NameMap ()
      -- ^ Metavariables the user still has to fill in. In practice, that's
      -- everything with a user accessible name and a definition of Hole
+  timings : StringMap Integer
+     -- ^ record of timings from logTimeRecord
 
 -- Label for context references
 export
@@ -735,15 +737,17 @@ initDefs : Core Defs
 initDefs
     = do gam <- initCtxt
          pure (MkDefs gam [] ["Main"] [] defaults empty 100
-                      empty empty empty [] [] [] 5381 [] [] [] [] [] empty)
-
+                      empty empty empty [] [] [] 5381 [] [] [] [] [] empty
+                      empty)
+      
 -- Reset the context, except for the options
 export
 clearCtxt : {auto c : Ref Ctxt Defs} ->
             Core ()
 clearCtxt
     = do defs <- get Ctxt
-         put Ctxt (record { options = options defs } !initDefs)
+         put Ctxt (record { options = options defs,
+                            timings = timings defs } !initDefs)
 
 export
 addHash : {auto c : Ref Ctxt Defs} ->
@@ -1880,6 +1884,32 @@ logC lvl cmsg
             else pure ()
 
 export
+logTimeOver : {auto c : Ref Ctxt Defs} ->
+              Integer -> Core String -> Core a -> Core a
+logTimeOver nsecs str act
+    = do clock <- coreLift clockTime
+         let nano = 1000000000
+         let t = seconds clock * nano + nanoseconds clock
+         res <- act
+         clock <- coreLift clockTime
+         let t' = seconds clock * nano + nanoseconds clock
+         let time = t' - t
+         when (time > nsecs) $
+           assert_total $ -- We're not dividing by 0
+              do str' <- str
+                 coreLift $ putStrLn $ "TIMING " ++ str' ++ ": " ++
+                          show (time `div` nano) ++ "." ++ 
+                          addZeros (unpack (show ((time `mod` nano) `div` 1000000))) ++
+                          "s"
+         pure res
+  where
+    addZeros : List Char -> String
+    addZeros [] = "000"
+    addZeros [x] = "00" ++ cast x
+    addZeros [x,y] = "0" ++ cast x ++ cast y
+    addZeros str = pack str
+
+export
 logTimeWhen : {auto c : Ref Ctxt Defs} ->
               Bool -> Lazy String -> Core a -> Core a
 logTimeWhen p str act
@@ -1904,6 +1934,48 @@ logTimeWhen p str act
     addZeros [x] = "00" ++ cast x
     addZeros [x,y] = "0" ++ cast x ++ cast y
     addZeros str = pack str
+
+-- for ad-hoc profiling, record the time the action takes and add it
+-- to the time for the given category
+export
+logTimeRecord : {auto c : Ref Ctxt Defs} ->
+                String -> Core a -> Core a
+logTimeRecord key act
+    = do clock <- coreLift clockTime
+         let nano = 1000000000
+         let t = seconds clock * nano + nanoseconds clock
+         res <- act
+         clock <- coreLift clockTime
+         let t' = seconds clock * nano + nanoseconds clock
+         let time = t' - t
+         defs <- get Ctxt
+         let tot = case lookup key (timings defs) of
+                        Nothing => 0
+                        Just t => t
+         put Ctxt (record { timings $= insert key (tot + time) } defs)
+         pure res
+
+export
+showTimeRecord : {auto c : Ref Ctxt Defs} ->
+                 Core ()
+showTimeRecord
+    = do defs <- get Ctxt
+         traverse_ showTimeLog (toList (timings defs))
+  where
+    addZeros : List Char -> String
+    addZeros [] = "000"
+    addZeros [x] = "00" ++ cast x
+    addZeros [x,y] = "0" ++ cast x ++ cast y
+    addZeros str = pack str
+
+    showTimeLog : (String, Integer) -> Core ()
+    showTimeLog (key, time)
+        = do coreLift $ putStr (key ++ ": ")
+             let nano = 1000000000
+             assert_total $ -- We're not dividing by 0
+                    coreLift $ putStrLn $ show (time `div` nano) ++ "." ++ 
+                               addZeros (unpack (show ((time `mod` nano) `div` 1000000))) ++
+                               "s"
 
 export
 logTime : {auto c : Ref Ctxt Defs} ->

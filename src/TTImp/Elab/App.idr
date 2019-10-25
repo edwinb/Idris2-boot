@@ -15,6 +15,16 @@ import TTImp.TTImp
 
 %default covering
 
+checkVisibleNS : {auto c : Ref Ctxt Defs} ->
+                 FC -> Name -> Visibility -> Core ()
+checkVisibleNS fc (NS ns x) vis
+    = if !(isVisible ns)
+         then if visibleInAny (!getNS :: !getNestedNS) (NS ns x) vis
+                 then pure ()
+                 else throw $ InvisibleName fc (NS ns x) Nothing
+         else throw $ InvisibleName fc (NS ns x) (Just ns)
+checkVisibleNS _ _ _ = pure ()
+
 -- Get the type of a variable, assuming we haven't found it in the nested
 -- names. Look in the Env first, then the global context.
 getNameType : {vars : _} ->
@@ -41,7 +51,7 @@ getNameType rigc env fc x
                  [(pname, i, def)] <- lookupCtxtName x (gamma defs)
                       | [] => throw (UndefinedName fc x)
                       | ns => throw (AmbiguousName fc (map fst ns))
-                 checkVisibleNS !(getFullName pname) (visibility def)
+                 checkVisibleNS fc !(getFullName pname) (visibility def)
                  rigSafe (multiplicity def) rigc
                  let nt = case definition def of
                                PMDef _ _ _ _ _ => Func
@@ -59,16 +69,6 @@ getNameType rigc env fc x
     rigSafe Rig0 RigW = throw (LinearMisuse fc !(getFullName x) Rig0 RigW)
     rigSafe Rig0 Rig1 = throw (LinearMisuse fc !(getFullName x) Rig0 Rig1)
     rigSafe _ _ = pure ()
-
-    checkVisibleNS : Name -> Visibility -> Core ()
-    checkVisibleNS (NS ns x) vis
-        = if !(isVisible ns)
-             then if visibleInAny (!getNS :: !getNestedNS) (NS ns x) vis
-                     then pure ()
-                     else throw $ InvisibleName fc (NS ns x) Nothing
-             else throw $ InvisibleName fc (NS ns x) (Just ns)
-    checkVisibleNS _ _ = pure ()
-          
 
 -- Get the type of a variable, looking it up in the nested names first.
 getVarType : {vars : _} ->
@@ -95,7 +95,8 @@ getVarType rigc nest env fc x
                              tm = tmf fc nt
                              tyenv = useVars (getArgs tm)
                                              (embed (type ndef)) in
-                             do logTerm 10 ("Type of " ++ show n') tyenv
+                             do checkVisibleNS fc (fullname ndef) (visibility ndef)
+                                logTerm 10 ("Type of " ++ show n') tyenv
                                 logTerm 10 ("Expands to") tm
                                 pure (tm, gnf env tyenv)
     where
