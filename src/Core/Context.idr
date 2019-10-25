@@ -34,7 +34,7 @@ data Def : Type where
                 -- find size changes in termination checking
             Def -- Ordinary function definition
     ExternDef : (arity : Nat) -> Def
-    ForeignDef : (arity : Nat) -> 
+    ForeignDef : (arity : Nat) ->
                  List String -> -- supported calling conventions,
                                 -- e.g "C:printf,libc,stdlib.h", "scheme:display", ...
                  Def
@@ -53,7 +53,7 @@ data Def : Type where
     BySearch : RigCount -> (maxdepth : Nat) -> (defining : Name) -> Def
     -- Constraints are integer references into the current map of
     -- constraints in the UnifyState (see Core.UnifyState)
-    Guess : (guess : ClosedTerm) -> 
+    Guess : (guess : ClosedTerm) ->
             (envbind : Nat) -> -- Number of things in the environment when
                                -- we guessed the term
             (constraints : List Int) -> Def
@@ -65,15 +65,15 @@ data Def : Type where
 export
 Show Def where
   show None = "undefined"
-  show (PMDef _ args ct rt pats) 
+  show (PMDef _ args ct rt pats)
       = show args ++ "; " ++ show ct
   show (DCon t a) = "DataCon " ++ show t ++ " " ++ show a
-  show (TCon t a ps ds ms cons) 
-      = "TyCon " ++ show t ++ " " ++ show a ++ " params: " ++ show ps ++ 
-        " constructors: " ++ show cons ++ 
+  show (TCon t a ps ds ms cons)
+      = "TyCon " ++ show t ++ " " ++ show a ++ " params: " ++ show ps ++
+        " constructors: " ++ show cons ++
         " mutual with: " ++ show ms
   show (ExternDef arity) = "<external def with arity " ++ show arity ++ ">"
-  show (ForeignDef a cs) = "<foreign def with arity " ++ show a ++ 
+  show (ForeignDef a cs) = "<foreign def with arity " ++ show a ++
                            " " ++ show cs ++">"
   show (Builtin {arity} _) = "<builtin with arith " ++ show arity ++ ">"
   show (Hole _ p) = "Hole" ++ if p then " [impl]" else ""
@@ -104,7 +104,7 @@ public export
 data TotalReq = Total | CoveringOnly | PartialOK
 
 public export
-data DefFlag 
+data DefFlag
     = Inline
     | Invertible -- assume safe to cancel arguments in unification
     | Overloadable -- allow ad-hoc overloads
@@ -174,7 +174,7 @@ record GlobalDef where
   refersToM : Maybe (NameMap Bool)
   invertible : Bool -- for an ordinary definition, is it invertible in unification
   noCycles : Bool -- for metavariables, whether they can be cyclic (this
-                  -- would only be allowed when using a metavariable as a 
+                  -- would only be allowed when using a metavariable as a
                   -- placeholder for a yet to be elaborated arguments, but
                   -- not for implicits because that'd indicate failing the
                   -- occurs check)
@@ -211,7 +211,7 @@ record Context where
     -- Map from strings to all the possible names in all namespaces
     possibles : StringMap (List (Name, Int))
     -- Reference to the actual content, indexed by Int
-    content : Ref Arr (IOArray ContextEntry)    
+    content : Ref Arr (IOArray ContextEntry)
     -- Branching depth, in a backtracking elaborator. 0 is top level; at lower
     -- levels we need to stage updates rather than add directly to the
     -- 'content' store
@@ -252,7 +252,7 @@ export
 initCtxt : Core Context
 initCtxt = initCtxtS initSize
 
-addPossible : Name -> Int -> 
+addPossible : Name -> Int ->
               StringMap (List (Name, Int)) -> StringMap (List (Name, Int))
 addPossible n i ps
     = case userNameRoot n of
@@ -284,7 +284,7 @@ getPosition : Name -> Context -> Core (Int, Context)
 getPosition (Resolved idx) ctxt = pure (idx, ctxt)
 getPosition n ctxt
     = case lookup n (resolvedAs ctxt) of
-           Just idx => 
+           Just idx =>
               do pure (idx, ctxt)
            Nothing => newEntry n ctxt
 
@@ -322,7 +322,7 @@ addEntry n entry ctxt_in
 
 returnDef : Bool -> Int -> GlobalDef -> Maybe (Int, GlobalDef)
 returnDef False idx def = Just (idx, def)
-returnDef True idx def 
+returnDef True idx def
     = case definition def of
            PMDef True _ _ _ _ => Just (idx, def)
            _ => Nothing
@@ -331,7 +331,7 @@ export
 lookupCtxtExactI : Name -> Context -> Core (Maybe (Int, GlobalDef))
 lookupCtxtExactI (Resolved idx) ctxt
     = case lookup idx (staging ctxt) of
-           Just val => 
+           Just val =>
                  pure $ returnDef (inlineOnly ctxt) idx !(decode ctxt idx val)
            Nothing =>
               do let a = content ctxt
@@ -348,7 +348,7 @@ export
 lookupCtxtExact : Name -> Context -> Core (Maybe GlobalDef)
 lookupCtxtExact (Resolved idx) ctxt
     = case lookup idx (staging ctxt) of
-           Just res => 
+           Just res =>
                 do def <- decode ctxt idx res
                    case returnDef (inlineOnly ctxt) idx def of
                         Nothing => pure Nothing
@@ -378,7 +378,7 @@ lookupCtxtName n ctxt
               do let Just ps = lookup r (possibles ctxt)
                       | Nothing => pure []
                  ps' <- the (Core (List (Maybe (Name, Int, GlobalDef)))) $
-                           traverse (\ (n, i) => 
+                           traverse (\ (n, i) =>
                                     do Just res <- lookupCtxtExact (Resolved i) ctxt
                                             | pure Nothing
                                        pure (Just (n, i, res))) ps
@@ -388,8 +388,8 @@ lookupCtxtName n ctxt
     matches (NS ns _) (NS cns _, _, _) = ns `isPrefixOf` cns
     matches (NS _ _) _ = True -- no in library name, so root doesn't match
     matches _ _ = True -- no prefix, so root must match, so good
-    
-    getMatches : List (Maybe (Name, Int, GlobalDef)) -> 
+
+    getMatches : List (Maybe (Name, Int, GlobalDef)) ->
                  Core (List (Name, Int, GlobalDef))
     getMatches [] = pure []
     getMatches (Nothing :: rs) = getMatches rs
@@ -423,9 +423,9 @@ commitCtxt ctxt
              commitStaged rest arr
 
 export
-newDef : FC -> Name -> RigCount -> List Name -> 
+newDef : FC -> Name -> RigCount -> List Name ->
          ClosedTerm -> Visibility -> Def -> GlobalDef
-newDef fc n rig vars ty vis def 
+newDef fc n rig vars ty vis def
     = MkGlobalDef fc n ty [] rig vars vis unchecked [] empty False False False def
                   Nothing []
 
@@ -452,20 +452,20 @@ HasNames Name where
 
 export
 HasNames (Term vars) where
-  full gam (Ref fc x (Resolved i)) 
+  full gam (Ref fc x (Resolved i))
       = do Just gdef <- lookupCtxtExact (Resolved i) gam
                 | Nothing => do coreLift $ putStrLn $ "Missing name! " ++ show i
                                 pure (Ref fc x (Resolved i))
            pure (Ref fc x (fullname gdef))
-  full gam (Meta fc x y xs) 
+  full gam (Meta fc x y xs)
       = pure (Meta fc x y !(traverse (full gam) xs))
-  full gam (Bind fc x b scope) 
+  full gam (Bind fc x b scope)
       = pure (Bind fc x !(traverse (full gam) b) !(full gam scope))
-  full gam (App fc fn arg) 
+  full gam (App fc fn arg)
       = pure (App fc !(full gam fn) !(full gam arg))
   full gam (As fc p tm)
       = pure (As fc !(full gam p) !(full gam tm))
-  full gam (TDelayed fc x y) 
+  full gam (TDelayed fc x y)
       = pure (TDelayed fc x !(full gam y))
   full gam (TDelay fc x t y)
       = pure (TDelay fc x !(full gam t) !(full gam y))
@@ -473,22 +473,22 @@ HasNames (Term vars) where
       = pure (TForce fc !(full gam y))
   full gam tm = pure tm
 
-  resolved gam (Ref fc x n) 
-      = do let Just i = getNameID n gam 
+  resolved gam (Ref fc x n)
+      = do let Just i = getNameID n gam
                 | Nothing => pure (Ref fc x n)
            pure (Ref fc x (Resolved i))
-  resolved gam (Meta fc x y xs) 
+  resolved gam (Meta fc x y xs)
       = do xs' <- traverse (resolved gam) xs
            let Just i = getNameID x gam
                | Nothing => pure (Meta fc x y xs')
            pure (Meta fc x i xs')
-  resolved gam (Bind fc x b scope) 
+  resolved gam (Bind fc x b scope)
       = pure (Bind fc x !(traverse (resolved gam) b) !(resolved gam scope))
-  resolved gam (App fc fn arg) 
+  resolved gam (App fc fn arg)
       = pure (App fc !(resolved gam fn) !(resolved gam arg))
   resolved gam (As fc p tm)
       = pure (As fc !(resolved gam p) !(resolved gam tm))
-  resolved gam (TDelayed fc x y) 
+  resolved gam (TDelayed fc x y)
       = pure (TDelayed fc x !(resolved gam y))
   resolved gam (TDelay fc x t y)
       = pure (TDelay fc x !(resolved gam t) !(resolved gam y))
@@ -527,7 +527,7 @@ mutual
 
     resolved gam (ConCase n t args sc)
         = do sc' <- resolved gam sc
-             let Just i = getNameID n gam 
+             let Just i = getNameID n gam
                 | Nothing => pure (ConCase n t args sc')
              pure $ ConCase (Resolved i) t args sc'
     resolved gam (DelayCase ty arg sc)
@@ -549,39 +549,39 @@ HasNames (Env Term vars) where
 
 export
 HasNames Def where
-  full gam (PMDef r args ct rt pats) 
+  full gam (PMDef r args ct rt pats)
       = pure $ PMDef r args !(full gam ct) !(full gam rt)
                      !(traverse fullNamesPat pats)
     where
       fullNamesPat : (vs ** (Env Term vs, Term vs, Term vs)) ->
                      Core (vs ** (Env Term vs, Term vs, Term vs))
       fullNamesPat (_ ** (env, lhs, rhs))
-          = pure $ (_ ** (!(full gam env), 
-                          !(full gam lhs), !(full gam rhs))) 
+          = pure $ (_ ** (!(full gam env),
+                          !(full gam lhs), !(full gam rhs)))
   full gam (TCon t a ps ds ms cs)
       = pure $ TCon t a ps ds !(traverse (full gam) ms)
                               !(traverse (full gam) cs)
   full gam (BySearch c d def)
       = pure $ BySearch c d !(full gam def)
-  full gam (Guess tm b cs) 
+  full gam (Guess tm b cs)
       = pure $ Guess !(full gam tm) b cs
   full gam t = pure t
-  
-  resolved gam (PMDef r args ct rt pats) 
+
+  resolved gam (PMDef r args ct rt pats)
       = pure $ PMDef r args !(resolved gam ct) !(resolved gam rt)
                      !(traverse resolvedNamesPat pats)
     where
       resolvedNamesPat : (vs ** (Env Term vs, Term vs, Term vs)) ->
                          Core (vs ** (Env Term vs, Term vs, Term vs))
       resolvedNamesPat (_ ** (env, lhs, rhs))
-          = pure $ (_ ** (!(resolved gam env), 
-                          !(resolved gam lhs), !(resolved gam rhs))) 
+          = pure $ (_ ** (!(resolved gam env),
+                          !(resolved gam lhs), !(resolved gam rhs)))
   resolved gam (TCon t a ps ds ms cs)
       = pure $ TCon t a ps ds !(traverse (resolved gam) ms)
                               !(traverse (resolved gam) cs)
   resolved gam (BySearch c d def)
       = pure $ BySearch c d !(resolved gam def)
-  resolved gam (Guess tm b cs) 
+  resolved gam (Guess tm b cs)
       = pure $ Guess !(resolved gam tm) b cs
   resolved gam t = pure t
 
@@ -592,7 +592,7 @@ HasNames (NameMap a) where
       insertAll : NameMap a -> List (Name, a) -> Core (NameMap a)
       insertAll ms [] = pure ms
       insertAll ms ((k, v) :: ns)
-          = insertAll (insert !(full gam k) v ms) ns 
+          = insertAll (insert !(full gam k) v ms) ns
 
   resolved gam nmap
       = insertAll empty (toList nmap)
@@ -600,7 +600,7 @@ HasNames (NameMap a) where
       insertAll : NameMap a -> List (Name, a) -> Core (NameMap a)
       insertAll ms [] = pure ms
       insertAll ms ((k, v) :: ns)
-          = insertAll (insert !(resolved gam k) v ms) ns 
+          = insertAll (insert !(resolved gam k) v ms) ns
 
 export
 HasNames PartialReason where
@@ -653,8 +653,8 @@ HasNames a => HasNames (Maybe a) where
 
 export
 HasNames GlobalDef where
-  full gam def 
-      = do 
+  full gam def
+      = do
 --            ts <- full gam (type def)
 --            d <- full gam (definition def)
 --            coreLift $ printLn (fullname def, ts)
@@ -669,7 +669,7 @@ HasNames GlobalDef where
       = pure $ record { type = !(resolved gam (type def)),
                         definition = !(resolved gam (definition def)),
                         totality = !(resolved gam (totality def)),
-                        refersToM = !(resolved gam (refersToM def)), 
+                        refersToM = !(resolved gam (refersToM def)),
                         sizeChange = !(traverse (resolved gam) (sizeChange def))
                       } def
 
@@ -684,15 +684,15 @@ record Defs where
   toSave : NameMap ()
   nextTag : Int
   typeHints : NameMap (List (Name, Bool))
-     -- ^ a mapping from type names to hints (and a flag setting whether it's 
+     -- ^ a mapping from type names to hints (and a flag setting whether it's
      -- a "direct" hint). Direct hints are searched first (as part of a group)
      -- the indirect hints. Indirect hints, in practice, are used to find
      -- instances of parent interfaces, and we don't search these until we've
      -- tried to find a direct result via a constructor or a top level hint.
   autoHints : NameMap Bool
      -- ^ global search hints. A mapping from the hint name, to whether it is
-     -- a "default hint". A default hint is used only if all other attempts 
-     -- to search fail (this flag is really only intended as a mechanism 
+     -- a "default hint". A default hint is used only if all other attempts
+     -- to search fail (this flag is really only intended as a mechanism
      -- for defaulting of literals)
   openHints : NameMap ()
      -- ^ currently open global hints; just for the rest of this module (not exported)
@@ -712,7 +712,7 @@ record Defs where
      -- twice unnecessarily (this is a record of all the things we've
      -- called 'readFromTTC' with, in practice)
   cgdirectives : List (CG, String)
-     -- ^ Code generator directives, which are free form text and thus to 
+     -- ^ Code generator directives, which are free form text and thus to
      -- be interpreted however the specific code generator requires
   toCompile : List Name
      -- ^ Names which need to be compiled to run time case trees
@@ -734,9 +734,9 @@ clearDefs defs
 
 export
 initDefs : Core Defs
-initDefs 
+initDefs
     = do gam <- initCtxt
-         pure (MkDefs gam [] ["Main"] [] defaults empty 100 
+         pure (MkDefs gam [] ["Main"] [] defaults empty 100
                       empty empty empty [] [] [] 5381 [] [] [] [] [] empty
                       empty)
       
@@ -757,7 +757,7 @@ addHash x
          put Ctxt (record { ifaceHash = hashWithSalt (ifaceHash defs) x } defs)
 
 export
-initHash : {auto c : Ref Ctxt Defs} -> 
+initHash : {auto c : Ref Ctxt Defs} ->
            Core ()
 initHash
     = do defs <- get Ctxt
@@ -799,7 +799,7 @@ getUserHoles
                   _ => pure False
 
 export
-addDef : {auto c : Ref Ctxt Defs} -> 
+addDef : {auto c : Ref Ctxt Defs} ->
          Name -> GlobalDef -> Core Int
 addDef n def
     = do defs <- get Ctxt
@@ -812,7 +812,7 @@ addDef n def
          pure idx
 
 export
-addContextEntry : {auto c : Ref Ctxt Defs} -> 
+addContextEntry : {auto c : Ref Ctxt Defs} ->
                   Name -> Binary -> Core Int
 addContextEntry n def
     = do defs <- get Ctxt
@@ -824,14 +824,14 @@ export
 addBuiltin : {auto x : Ref Ctxt Defs} ->
              Name -> ClosedTerm -> Totality ->
              PrimFn arity -> Core ()
-addBuiltin n ty tot op 
-    = do addDef n (MkGlobalDef emptyFC n ty [] RigW [] Public tot 
+addBuiltin n ty tot op
+    = do addDef n (MkGlobalDef emptyFC n ty [] RigW [] Public tot
                                [Inline] empty False False True (Builtin op)
-                               Nothing []) 
+                               Nothing [])
          pure ()
 
 export
-updateDef : {auto c : Ref Ctxt Defs} -> 
+updateDef : {auto c : Ref Ctxt Defs} ->
             Name -> (Def -> Maybe Def) -> Core ()
 updateDef n fdef
     = do defs <- get Ctxt
@@ -941,7 +941,7 @@ addToSave n
 
 -- Specific lookup functions
 export
-lookupExactBy : (GlobalDef -> a) -> Name -> Context -> 
+lookupExactBy : (GlobalDef -> a) -> Name -> Context ->
               Core (Maybe a)
 lookupExactBy fn n gam
   = do Just gdef <- lookupCtxtExact n gam
@@ -949,7 +949,7 @@ lookupExactBy fn n gam
        pure (Just (fn gdef))
 
 export
-lookupNameBy : (GlobalDef -> a) -> Name -> Context -> 
+lookupNameBy : (GlobalDef -> a) -> Name -> Context ->
              Core (List (Name, Int, a))
 lookupNameBy fn n gam
   = do gdef <- lookupCtxtName n gam
@@ -961,15 +961,15 @@ lookupDefExact = lookupExactBy definition
 
 export
 lookupDefName : Name -> Context -> Core (List (Name, Int, Def))
-lookupDefName = lookupNameBy definition 
+lookupDefName = lookupNameBy definition
 
 export
 lookupTyExact : Name -> Context -> Core (Maybe ClosedTerm)
-lookupTyExact = lookupExactBy type 
+lookupTyExact = lookupExactBy type
 
 export
 lookupTyName : Name -> Context -> Core (List (Name, Int, ClosedTerm))
-lookupTyName = lookupNameBy type 
+lookupTyName = lookupNameBy type
 
 export
 lookupDefTyExact : Name -> Context -> Core (Maybe (Def, ClosedTerm))
@@ -1000,7 +1000,7 @@ reducibleInAny nss n vis = any (\ns => reducibleIn ns n vis) nss
 export
 toFullNames : {auto c : Ref Ctxt Defs} ->
               HasNames a => a -> Core a
-toFullNames t 
+toFullNames t
     = do defs <- get Ctxt
          full (gamma defs) t
 
@@ -1147,7 +1147,7 @@ public export
 record SearchData where
   constructor MkSearchData
   detArgs : List Nat -- determining argument positions
-  hintGroups : List (Bool, List Name) 
+  hintGroups : List (Bool, List Name)
        -- names of functions to use as hints, and whether ambiguity is allowed
     {- In proof search, for every group of names
         * If exactly one succeeds, use it
@@ -1179,14 +1179,14 @@ getSearchData fc defaults target
                                              (toList (autoHints defs))) in
                      pure (MkSearchData [] [(False, defns)])
             else let opens = map fst (toList (openHints defs))
-                     autos = map fst (filter (not . isDefault) 
+                     autos = map fst (filter (not . isDefault)
                                              (toList (autoHints defs)))
-                     tyhs = map fst (filter direct hs) 
+                     tyhs = map fst (filter direct hs)
                      chasers = map fst (filter (not . direct) hs) in
                      pure (MkSearchData dets (filter (isCons . snd)
-                               [(False, opens), 
-                                (False, autos), 
-                                (False, tyhs), 
+                               [(False, opens),
+                                (False, autos),
+                                (False, tyhs),
                                 (True, chasers)]))
   where
     isDefault : (Name, Bool) -> Bool
@@ -1200,7 +1200,7 @@ setMutWith : {auto c : Ref Ctxt Defs} ->
              FC -> Name -> List Name -> Core ()
 setMutWith fc tn tns
     = do defs <- get Ctxt
-         Just g <- lookupCtxtExact tn (gamma defs) 
+         Just g <- lookupCtxtExact tn (gamma defs)
               | _ => throw (UndefinedName fc tn)
          let TCon t a ps dets _ cons = definition g
               | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setMutWith]"))
@@ -1225,7 +1225,7 @@ setDetermining : {auto c : Ref Ctxt Defs} ->
                  FC -> Name -> List Name -> Core ()
 setDetermining fc tyn args
     = do defs <- get Ctxt
-         Just g <- lookupCtxtExact tyn (gamma defs) 
+         Just g <- lookupCtxtExact tyn (gamma defs)
               | _ => throw (UndefinedName fc tyn)
          let TCon t a ps _ cons ms = definition g
               | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setDetermining]"))
@@ -1427,7 +1427,7 @@ getPs acc tyn (Bind _ x (Pi _ _ ty) sc)
     shrink (Just tm) = shrinkTerm tm (DropCons SubRefl)
 getPs acc tyn tm
     = case getFnArgs tm of
-           (Ref _ _ n, args) => 
+           (Ref _ _ n, args) =>
               if n == tyn
                  then Just (updateParams acc args)
                  else acc
@@ -1460,10 +1460,10 @@ export
 addData : {auto c : Ref Ctxt Defs} ->
 					List Name -> Visibility -> Int -> DataDef -> Core Int
 addData vars vis tidx (MkData (MkCon dfc tyn arity tycon) datacons)
-    = do defs <- get Ctxt 
-         tag <- getNextTypeTag 
-         let tydef = newDef dfc tyn RigW vars tycon vis 
-                            (TCon tag arity 
+    = do defs <- get Ctxt
+         tag <- getNextTypeTag
+         let tydef = newDef dfc tyn RigW vars tycon vis
+                            (TCon tag arity
                                   (paramPos (Resolved tidx) (map type datacons))
                                   (allDet arity)
                                   [] (map name datacons))
@@ -1480,7 +1480,7 @@ addData vars vis tidx (MkData (MkCon dfc tyn arity tycon) datacons)
     conVisibility Export = Private
     conVisibility x = x
 
-    addDataConstructors : (tag : Int) -> List Constructor -> 
+    addDataConstructors : (tag : Int) -> List Constructor ->
                           Context -> Core Context
     addDataConstructors tag [] gam = pure gam
     addDataConstructors tag (MkCon fc n a ty :: cs) gam
@@ -1536,7 +1536,7 @@ isVisible : {auto c : Ref Ctxt Defs} ->
             (nspace : List String) -> Core Bool
 isVisible nspace
     = do defs <- get Ctxt
-         pure (any visible (allParents (currentNS defs) ++ 
+         pure (any visible (allParents (currentNS defs) ++
                             nestedNS defs ++
                             visibleNS (gamma defs)))
   where
@@ -1636,6 +1636,12 @@ setBuildDir : {auto c : Ref Ctxt Defs} -> String -> Core ()
 setBuildDir dir
     = do defs <- get Ctxt
          put Ctxt (record { options->dirs->build_dir = dir } defs)
+
+export
+setSourceDir : {auto c : Ref Ctxt Defs} -> Maybe String -> Core ()
+setSourceDir mdir
+    = do defs <- get Ctxt
+         put Ctxt (record { options->dirs->source_dir = mdir } defs)
 
 export
 setWorkingDir : {auto c : Ref Ctxt Defs} -> String -> Core ()
@@ -1754,7 +1760,7 @@ addNameDirective fc n ns
 export
 isPairType : {auto c : Ref Ctxt Defs} ->
              Name -> Core Bool
-isPairType n 
+isPairType n
     = do defs <- get Ctxt
          case pairnames (options defs) of
               Nothing => pure False
@@ -1770,7 +1776,7 @@ fstName
 export
 sndName : {auto c : Ref Ctxt Defs} ->
           Core (Maybe Name)
-sndName 
+sndName
     = do defs <- get Ctxt
          pure $ maybe Nothing (Just . sndName) (pairnames (options defs))
 
@@ -1784,7 +1790,7 @@ getRewrite
 export
 isEqualTy : {auto c : Ref Ctxt Defs} ->
             Name -> Core Bool
-isEqualTy n 
+isEqualTy n
     = do defs <- get Ctxt
          case rewritenames (options defs) of
               Nothing => pure False
@@ -1854,7 +1860,7 @@ logTerm lvl msg tm
     = do opts <- getSession
          if logLevel opts >= lvl
             then do tm' <- toFullNames tm
-                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg 
+                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg
                                           ++ ": " ++ show tm'
             else pure ()
 
@@ -1917,7 +1923,7 @@ logTimeWhen p str act
                  let time = t' - t
                  assert_total $ -- We're not dividing by 0
                     coreLift $ putStrLn $ "TIMING " ++ str ++ ": " ++
-                             show (time `div` nano) ++ "." ++ 
+                             show (time `div` nano) ++ "." ++
                              addZeros (unpack (show ((time `mod` nano) `div` 1000000))) ++
                              "s"
                  pure res

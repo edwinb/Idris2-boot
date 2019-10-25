@@ -44,6 +44,7 @@ record PkgDesc where
   mainmod : Maybe (List String, String) -- main file (i.e. file to load at REPL)
   executable : Maybe String -- name of executable
   options : Maybe (FC, String)
+  sourcedir : Maybe String
   prebuild : Maybe (FC, String) -- Script to run before building
   postbuild : Maybe (FC, String) -- Script to run after building
   preinstall : Maybe (FC, String) -- Script to run after building, before installing
@@ -65,7 +66,7 @@ Show PkgDesc where
              maybe "" (\m => "Main: " ++ snd m ++ "\n") (mainmod pkg) ++
              maybe "" (\m => "Exec: " ++ m ++ "\n") (executable pkg) ++
              maybe "" (\m => "Opts: " ++ snd m ++ "\n") (options pkg) ++
-             maybe "" (\m => "Prebuild: " ++ snd m ++ "\n") (prebuild pkg) ++
+             maybe "" (\m => "SourceDir: " ++ m ++ "\n") (sourcedir pkg) ++
              maybe "" (\m => "Postbuild: " ++ snd m ++ "\n") (postbuild pkg) ++
              maybe "" (\m => "Preinstall: " ++ snd m ++ "\n") (preinstall pkg) ++
              maybe "" (\m => "Postinstall: " ++ snd m ++ "\n") (postinstall pkg)
@@ -75,7 +76,7 @@ initPkgDesc pname
     = MkPkgDesc pname "0" "Anonymous" Nothing Nothing
                 Nothing Nothing Nothing Nothing Nothing
                 [] []
-                Nothing Nothing Nothing Nothing Nothing Nothing Nothing
+                Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 
 data DescField : Type where
   PVersion     : FC -> String -> DescField
@@ -92,6 +93,7 @@ data DescField : Type where
   PMainMod     : FC -> List String -> DescField
   PExec        : String -> DescField
   POpts        : FC -> String -> DescField
+  PSourceDir   : FC -> String -> DescField
   PPrebuild    : FC -> String -> DescField
   PPostbuild   : FC -> String -> DescField
   PPreinstall  : FC -> String -> DescField
@@ -110,6 +112,7 @@ field fname
     <|> strField PBugTracker "bugtracker"
     <|> strField POpts "options"
     <|> strField POpts "opts"
+    <|> strField PSourceDir "sourcedir"
     <|> strField PPrebuild "prebuild"
     <|> strField PPostbuild "postbuild"
     <|> strField PPreinstall "preinstall"
@@ -154,37 +157,57 @@ parsePkgDesc fname
          fields <- many (field fname)
          pure (name, fields)
 
-addField : {auto c : Ref Ctxt Defs} ->
-           DescField -> PkgDesc -> Core PkgDesc
-addField (PVersion fc n) pkg = pure (record { version = n } pkg)
-addField (PAuthors fc a) pkg = pure (record { authors = a } pkg)
-addField (PMaintainers fc a) pkg = pure (record { maintainers = Just a } pkg)
-addField (PLicense fc a) pkg = pure (record { license = Just a } pkg)
-addField (PBrief fc a) pkg = pure (record { brief = Just a } pkg)
-addField (PReadMe fc a) pkg = pure (record { readme = Just a } pkg)
-addField (PHomePage fc a) pkg = pure (record { homepage = Just a } pkg)
-addField (PSourceLoc fc a) pkg = pure (record { sourceloc = Just a } pkg)
-addField (PBugTracker fc a) pkg = pure (record { bugtracker = Just a } pkg)
+data ParsedMods : Type where
 
-addField (PDepends ds) pkg = pure (record { depends = ds } pkg)
-addField (PModules ms) pkg
-    = pure (record { modules = !(traverse toSource ms) } pkg)
-  where
-    toSource : (FC, List String) -> Core (List String, String)
-    toSource (loc, ns) = pure (ns, !(nsToSource loc ns))
-addField (PMainMod loc n) pkg
-    = pure (record { mainmod = Just (n, !(nsToSource loc n)) } pkg)
-addField (PExec e) pkg = pure (record { executable = Just e } pkg)
-addField (POpts fc e) pkg = pure (record { options = Just (fc, e) } pkg)
-addField (PPrebuild fc e) pkg = pure (record { prebuild = Just (fc, e) } pkg)
-addField (PPostbuild fc e) pkg = pure (record { postbuild = Just (fc, e) } pkg)
-addField (PPreinstall fc e) pkg = pure (record { preinstall = Just (fc, e) } pkg)
-addField (PPostinstall fc e) pkg = pure (record { postinstall = Just (fc, e) } pkg)
+data MainMod : Type where
+
+addField : {auto c : Ref Ctxt Defs} ->
+           {auto p : Ref ParsedMods (List (FC, List String))} ->
+           {auto m : Ref MainMod (Maybe (FC, List String))} ->
+           DescField -> PkgDesc -> Core PkgDesc
+addField (PVersion fc n)     pkg = pure $ record { version = n } pkg
+addField (PAuthors fc a)     pkg = pure $ record { authors = a } pkg
+addField (PMaintainers fc a) pkg = pure $ record { maintainers = Just a } pkg
+addField (PLicense fc a)     pkg = pure $ record { license = Just a } pkg
+addField (PBrief fc a)       pkg = pure $ record { brief = Just a } pkg
+addField (PReadMe fc a)      pkg = pure $ record { readme = Just a } pkg
+addField (PHomePage fc a)    pkg = pure $ record { homepage = Just a } pkg
+addField (PSourceLoc fc a)   pkg = pure $ record { sourceloc = Just a } pkg
+addField (PBugTracker fc a)  pkg = pure $ record { bugtracker = Just a } pkg
+addField (PDepends ds)       pkg = pure $ record { depends = ds } pkg
+-- we can't resolve source files for modules without knowing the source directory,
+-- so we save them for the second pass
+addField (PModules ms)       pkg = do put ParsedMods ms
+                                      pure pkg
+addField (PMainMod loc n)    pkg = do put MainMod (Just (loc, n))
+                                      pure pkg
+addField (PExec e)           pkg = pure $ record { executable = Just e } pkg
+addField (POpts fc e)        pkg = pure $ record { options = Just (fc, e) } pkg
+addField (PSourceDir fc a)   pkg = pure $ record { sourcedir = Just a } pkg
+addField (PPrebuild fc e)    pkg = pure $ record { prebuild = Just (fc, e) } pkg
+addField (PPostbuild fc e)   pkg = pure $ record { postbuild = Just (fc, e) } pkg
+addField (PPreinstall fc e)  pkg = pure $ record { preinstall = Just (fc, e) } pkg
+addField (PPostinstall fc e) pkg = pure $ record { postinstall = Just (fc, e) } pkg
 
 addFields : {auto c : Ref Ctxt Defs} ->
             List DescField -> PkgDesc -> Core PkgDesc
-addFields [] desc = pure desc
-addFields (x :: xs) desc = addFields xs !(addField x desc)
+addFields xs desc = do p <- newRef ParsedMods []
+                       m <- newRef MainMod Nothing
+                       added <- go {p} {m} xs desc
+                       setSourceDir (sourcedir added)
+                       ms <- get ParsedMods
+                       mmod <- get MainMod
+                       pure $ record { modules = !(traverse toSource ms)
+                                     , mainmod = !(traverseOpt toSource mmod)
+                                     } added
+  where
+    toSource : (FC, List String) -> Core (List String, String)
+    toSource (loc, ns) = pure (ns, !(nsToSource loc ns))
+    go : {auto p : Ref ParsedMods (List (FC, List String))} ->
+         {auto m : Ref MainMod (Maybe (FC, List String))} ->
+         List DescField -> PkgDesc -> Core PkgDesc
+    go [] dsc = pure dsc
+    go (x :: xs) dsc = go xs !(addField x dsc)
 
 runScript : Maybe (FC, String) -> Core ()
 runScript Nothing = pure ()
@@ -197,8 +220,7 @@ addDeps : {auto c : Ref Ctxt Defs} ->
           PkgDesc -> Core ()
 addDeps pkg
     = do defs <- get Ctxt
-         traverse addPkgDir (depends pkg)
-         pure ()
+         traverse_ addPkgDir (depends pkg)
 
 processOptions : {auto c : Ref Ctxt Defs} ->
                  {auto o : Ref ROpts REPLOpts} ->

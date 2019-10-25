@@ -28,14 +28,14 @@ fullPath : String -> List String
 fullPath fp = filter (/="") $ split (==sep) fp
 
 dropExtension : String -> String
-dropExtension fname 
+dropExtension fname
     = case span (/= '.') (reverse fname) of
            (all, "") => -- no extension
                reverse all
-           (ext, root) => 
+           (ext, root) =>
                -- assert that root can't be empty
                reverse (assert_total (strTail root))
-    
+
 -- Return the name of the first file available in the list
 firstAvailable : List String -> Core (Maybe String)
 firstAvailable [] = pure Nothing
@@ -50,7 +50,7 @@ readDataFile : {auto c : Ref Ctxt Defs} ->
                String -> Core String
 readDataFile fname
     = do d <- getDirs
-         let fs = map (\p => p ++ cast sep ++ fname) (data_dirs d)
+         let fs = map (\p => p ++ dirSep ++ fname) (data_dirs d)
          Just f <- firstAvailable fs
             | Nothing => throw (InternalError ("Can't find data file " ++ fname))
          Right d <- coreLift $ readFile f
@@ -58,30 +58,30 @@ readDataFile fname
          pure d
 
 -- Look for a library file required by a code generator. Look in the
--- library directories, and in the lib/ subdirectoriy of all the 'extra import' 
+-- library directories, and in the lib/ subdirectoriy of all the 'extra import'
 -- directories
 export
 findLibraryFile : {auto c : Ref Ctxt Defs} ->
                   String -> Core String
 findLibraryFile fname
     = do d <- getDirs
-         let fs = map (\p => p ++ cast sep ++ fname) 
-                      (lib_dirs d ++ map (\x => x ++ cast sep ++ "lib")
+         let fs = map (\p => p ++ dirSep ++ fname)
+                      (lib_dirs d ++ map (\x => x ++ dirSep ++ "lib")
                                          (extra_dirs d))
          Just f <- firstAvailable fs
             | Nothing => throw (InternalError ("Can't find library " ++ fname))
          pure f
 
--- Given a namespace, return the full path to the checked module, 
+-- Given a namespace, return the full path to the checked module,
 -- looking first in the build directory then in the extra_dirs
 export
 nsToPath : {auto c : Ref Ctxt Defs} ->
            FC -> List String -> Core (Either Error String)
 nsToPath loc ns
     = do d <- getDirs
-         let fnameBase = showSep (cast sep) (reverse ns)
-         let fs = map (\p => p ++ cast sep ++ fnameBase ++ ".ttc")
-                      ((build_dir d ++ cast sep ++ "ttc") :: extra_dirs d)
+         let fnameBase = showSep dirSep (reverse ns)
+         let fs = map (\p => p ++ dirSep ++ fnameBase ++ ".ttc")
+                      ((build_dir d ++ dirSep ++ "ttc") :: extra_dirs d)
          Just f <- firstAvailable fs
             | Nothing => pure (Left (ModuleNotFound loc ns))
          pure (Right f)
@@ -93,31 +93,35 @@ nsToSource : {auto c : Ref Ctxt Defs} ->
              FC -> List String -> Core String
 nsToSource loc ns
     = do d <- getDirs
-         let fnameBase = showSep (cast sep) (reverse ns)
+         let fnameOrig = showSep dirSep (reverse ns)
+         let fnameBase = maybe fnameOrig (\srcdir => srcdir ++ dirSep ++ fnameOrig) (source_dir d)
          let fs = map (\ext => fnameBase ++ ext)
                       [".yaff", ".idr", ".lidr"]
          Just f <- firstAvailable fs
             | Nothing => throw (ModuleNotFound loc ns)
          pure f
 
--- Given a filename in the working directory, return the correct
+-- Given a filename in the working directory + source directory, return the correct
 -- namespace for it
 export
-pathToNS : String -> String -> List String
-pathToNS wdir fname
+pathToNS : String -> Maybe String -> String -> List String
+pathToNS wdir sdir fname
     = let wsplit = splitSep wdir
-          fsplit = splitSep fname in
-          dropWdir wsplit fsplit fsplit
+          ssplit = maybe [] splitSep sdir
+          fsplit = splitSep fname
+          wdrop = dropDir wsplit fsplit fsplit
+       in
+      dropDir ssplit wdrop wdrop
   where
-    dropWdir : List String -> List String -> List String -> List String
-    dropWdir wdir orig [] = []
-    dropWdir wdir orig (x :: xs)
-        = if wdir == xs
+    dropDir : List String -> List String -> List String -> List String
+    dropDir dir orig [] = []
+    dropDir dir orig (x :: xs)
+        = if dir == xs
              then [x]
-             else x :: dropWdir wdir orig xs
+             else x :: dropDir dir orig xs
 
     splitSep : String -> List String
-    splitSep fname 
+    splitSep fname
         = case span (/=sep) fname of
                (end, "") => [dropExtension end]
                (mod, rest) => assert_total (splitSep (strTail rest)) ++ [mod]
@@ -139,7 +143,7 @@ mkdirs (d :: ds)
                     changeDir ".."
                     pure (Right ())
 
--- Given a namespace (i.e. a module name), make the build directory for the 
+-- Given a namespace (i.e. a module name), make the build directory for the
 -- corresponding ttc file
 export
 makeBuildDirectory : {auto c : Ref Ctxt Defs} ->
@@ -150,28 +154,28 @@ makeBuildDirectory ns
          let ndirs = case ns of
                           [] => []
                           (n :: ns) => ns -- first item is file name
-         let fname = showSep (cast sep) (reverse ndirs)
+         let fname = showSep dirSep (reverse ndirs)
          Right _ <- coreLift $ mkdirs (build_dir d :: "ttc" :: reverse ndirs)
-            | Left err => throw (FileErr (bdir ++ cast sep ++ fname) err)
+            | Left err => throw (FileErr (bdir ++ dirSep ++ fname) err)
          pure ()
 
 -- Given a source file, return the name of the ttc file to generate
 export
-getTTCFileName : {auto c : Ref Ctxt Defs} -> 
+getTTCFileName : {auto c : Ref Ctxt Defs} ->
                  String -> String -> Core String
 getTTCFileName inp ext
     = do ns <- getNS
          d <- getDirs
          -- Get its namespace from the file relative to the working directory
          -- and generate the ttc file from that
-         let ns = pathToNS (working_dir d) inp
-         let fname = showSep (cast sep) (reverse ns) ++ ext
+         let ns = pathToNS (working_dir d) (source_dir d) inp
+         let fname = showSep dirSep (reverse ns) ++ ext
          let bdir = build_dir d
-         pure $ bdir ++ cast sep ++ "ttc" ++ cast sep ++ fname
+         pure $ bdir ++ dirSep ++ "ttc" ++ dirSep ++ fname
 
 -- Given a root executable name, return the name in the build directory
 export
 getExecFileName : {auto c : Ref Ctxt Defs} -> String -> Core String
 getExecFileName efile
     = do d <- getDirs
-         pure $ build_dir d ++ cast sep ++ efile
+         pure $ build_dir d ++ dirSep ++ efile

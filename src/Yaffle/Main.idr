@@ -28,7 +28,7 @@ usage = "Usage: yaffle <input file> [--timing]"
 processArgs : List String -> Core Bool
 processArgs [] = pure False
 processArgs ["--timing"] = pure True
-processArgs _ 
+processArgs _
     = coreLift $ do putStrLn usage
                     exitWith (ExitFailure 1)
 
@@ -39,7 +39,7 @@ HasNames () where
 export
 yaffleMain : String -> List String -> Core ()
 yaffleMain fname args
-    = do defs <- initDefs 
+    = do defs <- initDefs
          c <- newRef Ctxt defs
          m <- newRef MD initMetadata
          u <- newRef UST initUState
@@ -54,7 +54,7 @@ yaffleMain fname args
               _ => do coreLift $ putStrLn "Processing as TTImp"
                       ok <- processTTImpFile fname
                       when ok $
-                         do makeBuildDirectory (pathToNS (working_dir d) fname)
+                         do makeBuildDirectory (pathToNS (working_dir d) (source_dir d) fname)
                             writeToTTC () !(getTTCFileName fname ".ttc")
                             coreLift $ putStrLn "Written TTC"
          ust <- get UST

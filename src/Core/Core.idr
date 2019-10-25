@@ -25,7 +25,7 @@ data CaseError = DifferingArgNumbers
 
 -- All possible errors, carrying a location
 public export
-data Error 
+data Error
     = Fatal Error -- flag as unrecoverable (so don't postpone awaiting further info)
     | CantConvert FC (Env Term vars) (Term vars) (Term vars)
     | CantSolveEq FC (Env Term vars) (Term vars) (Term vars)
@@ -35,7 +35,7 @@ data Error
     | ValidCase FC (Env Term vars) (Either (Term vars) Error)
     | UndefinedName FC Name
     | InvisibleName FC Name (Maybe (List String))
-    | BadTypeConType FC Name 
+    | BadTypeConType FC Name
     | BadDataConType FC Name Name
     | NotCovering FC Name Covering
     | NotTotal FC Name PartialReason
@@ -67,7 +67,7 @@ data Error
     | NotFunctionType FC (Env Term vars) (Term vars)
     | RewriteNoChange FC (Env Term vars) (Term vars) (Term vars)
     | NotRewriteRule FC (Env Term vars) (Term vars)
-    | CaseCompile FC Name CaseError 
+    | CaseCompile FC Name CaseError
     | MatchTooSpecific FC (Env Term vars) (Term vars)
     | BadDotPattern FC (Env Term vars) String (Term vars) (Term vars)
     | BadImplicit FC String
@@ -98,29 +98,29 @@ Show TTCErrorMsg where
 export
 Show Error where
   show (Fatal err) = show err
-  show (CantConvert fc env x y) 
+  show (CantConvert fc env x y)
       = show fc ++ ":Type mismatch: " ++ show x ++ " and " ++ show y
-  show (CantSolveEq fc env x y) 
+  show (CantSolveEq fc env x y)
       = show fc ++ ":" ++ show x ++ " and " ++ show y ++ " are not equal"
   show (PatternVariableUnifies fc env n x)
       = show fc ++ ":Pattern variable " ++ show n ++ " unifies with " ++ show x
-  show (CyclicMeta fc n) 
+  show (CyclicMeta fc n)
       = show fc ++ ":Cycle detected in metavariable solution " ++ show n
   show (WhenUnifying fc _ x y err)
       = show fc ++ ":When unifying: " ++ show x ++ " and " ++ show y ++ "\n\t" ++ show err
   show (ValidCase fc _ prob)
-      = show fc ++ ":" ++ 
+      = show fc ++ ":" ++
            case prob of
              Left tm => assert_total (show tm) ++ " is not a valid impossible pattern because it typechecks"
              Right err => "Not a valid impossible pattern:\n\t" ++ assert_total (show err)
   show (UndefinedName fc x) = show fc ++ ":Undefined name " ++ show x
-  show (InvisibleName fc x (Just ns)) 
+  show (InvisibleName fc x (Just ns))
        = show fc ++ ":Name " ++ show x ++ " is inaccessible since " ++
          showSep "." (reverse ns) ++ " is not explicitly imported"
   show (InvisibleName fc x _) = show fc ++ ":Name " ++ show x ++ " is private"
-  show (BadTypeConType fc n) 
+  show (BadTypeConType fc n)
        = show fc ++ ":Return type of " ++ show n ++ " must be Type"
-  show (BadDataConType fc n fam) 
+  show (BadDataConType fc n fam)
        = show fc ++ ":Return type of " ++ show n ++ " must be in " ++ show fam
   show (NotCovering fc n cov)
        = show fc ++ ":" ++ show n ++ " is not covering:\n\t" ++
@@ -128,7 +128,7 @@ Show Error where
                  IsCovering => "Oh yes it is (Internal error!)"
                  MissingCases cs => "Missing cases:\n\t" ++
                                            showSep "\n\t" (map show cs)
-                 NonCoveringCall ns => "Calls non covering function" 
+                 NonCoveringCall ns => "Calls non covering function"
                                            ++ (case ns of
                                                    [fn] => " " ++ show fn
                                                    _ => "s: " ++ showSep ", " (map show ns))
@@ -151,7 +151,7 @@ Show Error where
        showRel Rig1 = "relevant"
        showRel RigW = "non-linear"
   show (BorrowPartial fc env t arg)
-      = show fc ++ ":" ++ show t ++ " borrows argument " ++ show arg ++ 
+      = show fc ++ ":" ++ show t ++ " borrows argument " ++ show arg ++
                    " so must be fully applied"
   show (BorrowPartialType fc env t)
       = show fc ++ ":" ++ show t ++ " borrows, so must return a concrete type"
@@ -164,25 +164,25 @@ Show Error where
       = show fc ++ ":Can't infer type of record to update"
   show (NotRecordField fc fld Nothing)
       = show fc ++ ":" ++ fld ++ " is not part of a record type"
-  show (NotRecordField fc fld (Just ty)) 
-      = show fc ++ ":Record type " ++ show ty ++ " has no field " ++ fld 
+  show (NotRecordField fc fld (Just ty))
+      = show fc ++ ":Record type " ++ show ty ++ " has no field " ++ fld
   show (NotRecordType fc ty)
       = show fc ++ ":" ++ show ty ++ " is not a record type"
-  show (IncompatibleFieldUpdate fc flds) 
-      = show fc ++ ":Field update " ++ showSep "->" flds ++ " not compatible with other updates" 
-  show (InvalidImplicits fc env ns tm) 
-     = show fc ++ ":" ++ show ns ++ " are not valid implicit arguments in " ++ show tm 
-  show (TryWithImplicits fc env imps) 
-     = show fc ++ ":Need to bind implicits " 
+  show (IncompatibleFieldUpdate fc flds)
+      = show fc ++ ":Field update " ++ showSep "->" flds ++ " not compatible with other updates"
+  show (InvalidImplicits fc env ns tm)
+     = show fc ++ ":" ++ show ns ++ " are not valid implicit arguments in " ++ show tm
+  show (TryWithImplicits fc env imps)
+     = show fc ++ ":Need to bind implicits "
           ++ showSep "," (map (\x => show (fst x) ++ " : " ++ show (snd x)) imps)
           ++ "\n(The front end should probably have done this for you. Please report!)"
   show (BadUnboundImplicit fc env n ty)
-      = show fc ++ ":Can't bind name " ++ nameRoot n ++ 
+      = show fc ++ ":Can't bind name " ++ nameRoot n ++
                    " with type " ++ show ty
-  show (CantSolveGoal fc env g) 
+  show (CantSolveGoal fc env g)
       = show fc ++ ":Can't solve goal " ++ assert_total (show g)
   show (DeterminingArg fc n i env g)
-      = show fc ++ ":Can't solve goal " ++ assert_total (show g) ++ 
+      = show fc ++ ":Can't solve goal " ++ assert_total (show g) ++
                 " since argument " ++ show n ++ " can't be inferred"
   show (UnsolvedHoles hs) = "Unsolved holes " ++ show hs
   show (CantInferArgType fc env n h ty)
@@ -201,19 +201,19 @@ Show Error where
       = show fc ++ ":Rewriting by " ++ show rule ++ " did not change type " ++ show ty
   show (NotRewriteRule fc env rule)
       = show fc ++ ":" ++ show rule ++ " is not a rewrite rule type"
-  show (CaseCompile fc n DifferingArgNumbers) 
+  show (CaseCompile fc n DifferingArgNumbers)
       = show fc ++ ":Patterns for " ++ show n ++ " have different numbers of arguments"
-  show (CaseCompile fc n DifferingTypes) 
+  show (CaseCompile fc n DifferingTypes)
       = show fc ++ ":Patterns for " ++ show n ++ " require matching on different types"
-  show (CaseCompile fc n UnknownType) 
+  show (CaseCompile fc n UnknownType)
       = show fc ++ ":Can't infer type to match in " ++ show n
   show (CaseCompile fc n (MatchErased (_ ** (env, tm))))
-      = show fc ++ ":Attempt to match on erased argument " ++ show tm ++ 
+      = show fc ++ ":Attempt to match on erased argument " ++ show tm ++
                    " in " ++ show n
   show (MatchTooSpecific fc env tm)
       = show fc ++ ":Can't match on " ++ show tm ++ " as it is has a polymorphic type"
   show (BadDotPattern fc env reason x y)
-      = show fc ++ ":Can't match on " ++ show x ++ 
+      = show fc ++ ":Can't match on " ++ show x ++
            (if reason /= "" then " (" ++ reason ++ ")" else "") ++
            " - it elaborates to " ++ show y
   show (BadImplicit fc str) = show fc ++ ":" ++ str ++ " can't be bound here"
@@ -222,7 +222,7 @@ Show Error where
   show (TTCError msg) = "Error in TTC file: " ++ show msg
   show (FileErr fname err) = "File error (" ++ fname ++ "): " ++ show err
   show (ParseFail fc err) = "Parse error (" ++ show err ++ ")"
-  show (ModuleNotFound fc ns) 
+  show (ModuleNotFound fc ns)
       = show fc ++ ":" ++ showSep "." (reverse ns) ++ " not found"
   show (CyclicImports ns)
       = "Module imports form a cycle: " ++ showSep " -> " (map showMod ns)
@@ -315,7 +315,7 @@ record Core t where
   runCore : IO (Either Error t)
 
 export
-coreRun : Core a -> 
+coreRun : Core a ->
           (Error -> IO b) -> (a -> IO b) -> IO b
 coreRun (MkCore act) err ok
     = either err ok !act
@@ -342,7 +342,7 @@ coreLift op = MkCore (do op' <- op
 {- Monad, Applicative, Traversable are specialised by hand for Core.
 In theory, this shouldn't be necessary, but it turns out that Idris 1 doesn't
 specialise interfaces under 'case' expressions, and this has a significant
-impact on both compile time and run time. 
+impact on both compile time and run time.
 
 Of course it would be a good idea to fix this in Idris, but it's not an urgent
 thing on the road to self hosting, and we can make sure this isn't a problem
@@ -356,8 +356,8 @@ map f (MkCore a) = MkCore (map (map f) a)
 -- Monad (specialised)
 export %inline
 (>>=) : Core a -> (a -> Core b) -> Core b
-(>>=) (MkCore act) f 
-    = MkCore (act >>= 
+(>>=) (MkCore act) f
+    = MkCore (act >>=
                    (\x => case x of
                                Left err => pure (Left err)
                                Right val => runCore (f val)))
@@ -378,7 +378,7 @@ when False f = pure ()
 
 export
 Catchable Core Error where
-  catch (MkCore prog) h 
+  catch (MkCore prog) h
       = MkCore ( do p' <- prog
                     case p' of
                          Left e => let MkCore he = h e in he
@@ -388,12 +388,17 @@ Catchable Core Error where
 -- Traversable (specialised)
 traverse' : (a -> Core b) -> List a -> List b -> Core (List b)
 traverse' f [] acc = pure (reverse acc)
-traverse' f (x :: xs) acc 
-    = traverse' f xs (!(f x) :: acc) 
+traverse' f (x :: xs) acc
+    = traverse' f xs (!(f x) :: acc)
 
 export
 traverse : (a -> Core b) -> List a -> Core (List b)
 traverse f xs = traverse' f xs []
+
+export
+traverseOpt : (a -> Core b) -> Maybe a -> Core (Maybe b)
+traverseOpt f Nothing = pure Nothing
+traverseOpt f (Just x) = map Just (f x)
 
 export
 traverse_ : (a -> Core b) -> List a -> Core ()
@@ -443,11 +448,11 @@ data Ref : label -> Type -> Type where
 
 export
 newRef : (x : label) -> t -> Core (Ref x t)
-newRef x val 
+newRef x val
     = do ref <- coreLift (newIORef val)
          pure (MkRef ref)
 
-export %inline 
+export %inline
 get : (x : label) -> {auto ref : Ref x a} -> Core a
 get x {ref = MkRef io} = coreLift (readIORef io)
 
@@ -463,6 +468,6 @@ cond ((x, y) :: xs) def = if x then y else cond xs def
 export
 condC : List (Core Bool, Core a) -> Core a -> Core a
 condC [] def = def
-condC ((x, y) :: xs) def 
+condC ((x, y) :: xs) def
     = if !x then y else condC xs def
 

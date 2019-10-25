@@ -25,6 +25,9 @@ record ModTree where
   sourceFile : Maybe String
   deps : List ModTree
 
+Show ModTree where
+  show t = show (sourceFile t) ++ " " ++ show (nspace t) ++ "<-" ++ show (deps t)
+
 -- A module file to build, and its list of dependencies
 -- From this we can work out if the source file needs rebuilding, assuming
 -- things are build in dependency order. A source file needs rebuilding
@@ -32,7 +35,7 @@ record ModTree where
 --  + Its corresponding ttc is older than the source file
 --  + Any of the import ttcs are *newer* than the corresponding ttc
 --    (If so: also any imported ttc's fingerprint is different from the one
---    stored in the source file's ttc) 
+--    stored in the source file's ttc)
 public export
 record BuildMod where
   constructor MkBuildMod
@@ -60,7 +63,7 @@ readHeader loc mod
     -- Stop at the first :, that's definitely not part of the header, to
     -- save lexing the whole file unnecessarily
     isColon : TokenData Token -> Bool
-    isColon t 
+    isColon t
         = case tok t of
                Symbol ":" => True
                _ => False
@@ -69,14 +72,14 @@ data AllMods : Type where
 
 mkModTree : {auto c : Ref Ctxt Defs} ->
             {auto a : Ref AllMods (List (List String, ModTree))} ->
-            FC -> 
+            FC ->
             (done : List (List String)) -> -- if 'mod' is here we have a cycle
             (mod : List String) ->
             Core ModTree
 mkModTree loc done mod
   = if mod `elem` done
        then throw (CyclicImports (done ++ [mod]))
-       else 
+       else
           -- Read imports from source file. If the source file isn't
           -- available, it's not our responsibility
           catch (do all <- get AllMods
@@ -92,7 +95,7 @@ mkModTree loc done mod
                               pure mt
                          Just m => pure m)
                 -- Couldn't find source, assume it's in a package directory
-                (\err => 
+                (\err =>
                     case err of
                          CyclicImports _ => throw err
                          _ => pure (MkModTree mod Nothing []))
@@ -105,7 +108,7 @@ mkBuildMods acc mod
           maybe req -- only build ones where we can find the source code
              (\sf => if sf `elem` map buildFile req
                         then req
-                        else MkBuildMod sf (nspace mod) 
+                        else MkBuildMod sf (nspace mod)
                                         (map nspace (deps mod)) :: req)
              (sourceFile mod)
   where
@@ -117,13 +120,12 @@ mkBuildMods acc mod
 -- built for that main file, in the order they need to be built
 getBuildMods : {auto c : Ref Ctxt Defs} ->
                {auto o : Ref ROpts REPLOpts} ->
-               FC -> (mainFile : String) -> 
+               FC -> (mainFile : String) ->
                Core (List BuildMod)
 getBuildMods loc fname
     = do a <- newRef AllMods []
          d <- getDirs
-
-         t <- mkModTree {a} loc [] (pathToNS (working_dir d) fname)
+         t <- mkModTree {a} loc [] (pathToNS (working_dir d) (source_dir d) fname)
          pure (reverse (mkBuildMods [] t))
 
 fnameModified : String -> Core Integer
@@ -139,7 +141,7 @@ fnameModified fname
 buildMod : {auto c : Ref Ctxt Defs} ->
            {auto s : Ref Syn SyntaxInfo} ->
            {auto o : Ref ROpts REPLOpts} ->
-           FC -> Nat -> Nat -> BuildMod -> 
+           FC -> Nat -> Nat -> BuildMod ->
            Core (List Error)
 -- Build from source if any of the dependencies, or the associated source
 -- file, have a modification time which is newer than the module's ttc
@@ -193,7 +195,7 @@ buildMod loc num len mod
 buildMods : {auto c : Ref Ctxt Defs} ->
             {auto s : Ref Syn SyntaxInfo} ->
             {auto o : Ref ROpts REPLOpts} ->
-            FC -> Nat -> Nat -> List BuildMod -> 
+            FC -> Nat -> Nat -> List BuildMod ->
             Core (List Error)
 buildMods fc num len [] = pure []
 buildMods fc num len (m :: ms)
@@ -207,7 +209,7 @@ buildDeps : {auto c : Ref Ctxt Defs} ->
             {auto m : Ref MD Metadata} ->
             {auto u : Ref UST UState} ->
             {auto o : Ref ROpts REPLOpts} ->
-            (mainFile : String) -> 
+            (mainFile : String) ->
             Core (List Error)
 buildDeps fname
     = do mods <- getBuildMods toplevelFC fname
@@ -233,7 +235,7 @@ export
 buildAll : {auto c : Ref Ctxt Defs} ->
            {auto s : Ref Syn SyntaxInfo} ->
            {auto o : Ref ROpts REPLOpts} ->
-           (allFiles : List String) -> 
+           (allFiles : List String) ->
            Core (List Error)
 buildAll allFiles
     = do mods <- traverse (getBuildMods toplevelFC) allFiles
