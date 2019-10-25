@@ -92,13 +92,13 @@ size (MkGTree xs) = sizeAll xs
 
 qsortBad : Ord a => List a -> List a
 qsortBad [] = []
-qsortBad (x :: xs) 
+qsortBad (x :: xs)
    = qsortBad (filter (< x) xs) ++ x :: qsortBad (filter (> x) xs)
 
 qsort : Ord a => List a -> List a
 qsort [] = []
-qsort (x :: xs) 
-   = qsort (assert_smaller (x :: xs) (filter (< x) xs)) ++ 
+qsort (x :: xs)
+   = qsort (assert_smaller (x :: xs) (filter (< x) xs)) ++
          x :: qsort (assert_smaller (x :: xs) (filter (> x) xs))
 
 qsort' : Ord a => List a -> List a

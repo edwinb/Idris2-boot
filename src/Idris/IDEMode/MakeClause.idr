@@ -6,7 +6,7 @@ import Parser.Lexer
 -- Implement make-with and make-case from the IDE mode
 
 isLit : String -> (Bool, String)
-isLit str 
+isLit str
     = assert_total $
          if length str > 0 && strHead str == '>'
             then (True, strTail str)
@@ -27,7 +27,7 @@ makeWith n srcline
              case span isSpace src of
                   (spc, rest) => (length spc, rest)
           indent = fst isrc
-          src = snd isrc 
+          src = snd isrc
           lhs = pack (readLHS 0 (unpack src)) in
           mkWithArg lit indent lhs ++ "\n" ++
           mkWithPat lit indent lhs ++ "\n"
@@ -43,15 +43,15 @@ makeWith n srcline
 
     pref : Bool -> Nat -> String
     pref l ind
-        = (if l then ">" else "") ++ 
+        = (if l then ">" else "") ++
           pack (replicate ind ' ')
 
     mkWithArg : Bool -> Nat -> String -> String
-    mkWithArg lit indent lhs 
+    mkWithArg lit indent lhs
         = pref lit indent ++ lhs ++ "with (_)"
 
     mkWithPat : Bool -> Nat -> String -> String
-    mkWithPat lit indent lhs 
-        = pref lit (indent + 2) ++ lhs ++ "| with_pat = ?" ++ 
+    mkWithPat lit indent lhs
+        = pref lit (indent + 2) ++ lhs ++ "| with_pat = ?" ++
               showRHSName n ++ "_rhs"
 

@@ -4,7 +4,7 @@ import Idris.Syntax
 import Idris.Socket
 
 public export
-data OutputMode 
+data OutputMode
   = IDEMode Integer File File
   | REPL Bool -- quiet flag (ignore iputStrLn)
 
@@ -53,7 +53,7 @@ setSource src
 export
 getSource : {auto o : Ref ROpts REPLOpts} ->
             Core String
-getSource 
+getSource
     = do opts <- get ROpts
          pure (source opts)
 

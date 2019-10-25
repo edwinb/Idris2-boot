@@ -33,7 +33,7 @@ parseCommand "quit" "" = Just Quit
 parseCommand _ _ = Nothing
 
 parse : (input : String) -> Maybe Command
-parse input 
+parse input
     = case span (/= ' ') input of
            (cmd, args) => parseCommand cmd (ltrim args)
 

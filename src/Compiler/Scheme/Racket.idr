@@ -63,7 +63,7 @@ mutual
   racketPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String
   racketPrim i vs CCall [ret, fn, args, world]
       = throw (InternalError ("Can't compile C FFI calls to Racket yet"))
-  racketPrim i vs prim args 
+  racketPrim i vs prim args
       = schExtCommon racketPrim racketString i vs prim args
 
 -- Reference label for keeping track of loaded external libraries
@@ -91,7 +91,7 @@ cftySpec fc t = throw (GenericMsg fc ("Can't pass argument of type " ++ show t +
 
 loadlib : String -> String -> String
 loadlib libn ver
-    = "(define-ffi-definer define-" ++ libn ++ 
+    = "(define-ffi-definer define-" ++ libn ++
       " (ffi-lib \"" ++ libn ++ "\" " ++ ver ++ "))\n"
 
 getLibVers : String -> (String, String)
@@ -131,8 +131,8 @@ cCall fc cfn libspec args ret
          argTypes <- traverse (\a => do s <- cftySpec fc (snd a)
                                         pure (a, s)) args
          retType <- cftySpec fc ret
-         let cbind = "(define-" ++ libn ++ " " ++ cfn ++ 
-                     " (_fun " ++ showSep " " (map snd argTypes) ++ " -> " ++ 
+         let cbind = "(define-" ++ libn ++ " " ++ cfn ++
+                     " (_fun " ++ showSep " " (map snd argTypes) ++ " -> " ++
                          retType ++ "))\n"
          let call = "(" ++ cfn ++ " " ++
                     showSep " " !(traverse useArg argTypes) ++ ")"
@@ -149,7 +149,7 @@ cCall fc cfn libspec args ret
     applyLams : String -> List (Maybe (String, CFType)) -> String
     applyLams n [] = n
     applyLams n (Nothing :: as) = applyLams ("(" ++ n ++ " #f)") as
-    applyLams n (Just (a, ty) :: as) 
+    applyLams n (Just (a, ty) :: as)
         = applyLams ("(" ++ n ++ " " ++ cToRkt ty a ++ ")") as
 
     getVal : CFType -> String -> String
@@ -199,7 +199,7 @@ useCC fc [] args ret
 useCC fc (cc :: ccs) args ret
     = case parseCC cc of
            Nothing => useCC fc ccs args ret
-           Just ("scheme", [sfn]) => 
+           Just ("scheme", [sfn]) =>
                do body <- schemeCall fc sfn (map fst args) ret
                   pure ("", body)
            Just ("C", [cfn, clib]) => cCall fc cfn clib args ret
@@ -216,7 +216,7 @@ mkArgs i (c :: cs) = (MN "farg" i, True) :: mkArgs (i + 1) cs
 schFgnDef : {auto c : Ref Ctxt Defs} ->
             {auto l : Ref Loaded (List String)} ->
             FC -> Name -> CDef -> Core (String, String)
-schFgnDef fc n (MkForeign cs args ret) 
+schFgnDef fc n (MkForeign cs args ret)
     = do let argns = mkArgs 0 args
          let allargns = map fst argns
          let useargns = map fst (filter snd argns)
@@ -251,9 +251,9 @@ compileToRKT c tm outfile
          let code = concat (map snd fgndefs) ++ concat compdefs
          main <- schExp racketPrim racketString 0 [] !(compileExp tags tm)
          support <- readDataFile "racket/support.rkt"
-         let scm = schHeader (concat (map fst fgndefs)) ++ 
-                   support ++ code ++ 
-                   "(void " ++ main ++ ")\n" ++ 
+         let scm = schHeader (concat (map fst fgndefs)) ++
+                   support ++ code ++
+                   "(void " ++ main ++ ")\n" ++
                    schFooter
          Right () <- coreLift $ writeFile outfile scm
             | Left err => throw (FileErr outfile err)

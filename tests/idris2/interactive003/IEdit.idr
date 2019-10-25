@@ -5,7 +5,7 @@ data Vect : Nat -> Type -> Type where
 %name Vect xs, ys, zs
 
 append : Vect n a -> Vect m a -> Vect (n + m) a
-append xs ys 
+append xs ys
     = case xs of
            foo => ?bar
 

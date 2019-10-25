@@ -13,16 +13,16 @@ Key = Name
 
 private
 data Tree : Nat -> Type -> Type where
-  Leaf : Key -> v -> Tree Z v 
-  Branch2 : Tree n v -> Key -> Tree n v -> Tree (S n) v 
-  Branch3 : Tree n v -> Key -> Tree n v -> Key -> Tree n v -> Tree (S n) v 
+  Leaf : Key -> v -> Tree Z v
+  Branch2 : Tree n v -> Key -> Tree n v -> Tree (S n) v
+  Branch3 : Tree n v -> Key -> Tree n v -> Key -> Tree n v -> Tree (S n) v
 
 branch4 :
   Tree n v -> Key ->
   Tree n v -> Key ->
   Tree n v -> Key ->
   Tree n v ->
-  Tree (S (S n)) v 
+  Tree (S (S n)) v
 branch4 a b c d e f g =
   Branch2 (Branch2 a b c) d (Branch2 e f g)
 
@@ -198,9 +198,9 @@ treeToList = treeToList' []
   where
     treeToList' : List (Key, v) -> Tree n v -> List (Key, v)
     treeToList' rest (Leaf k v) = (k, v) :: rest
-    treeToList' rest (Branch2 t1 _ t2) 
+    treeToList' rest (Branch2 t1 _ t2)
         = treeToList' (treeToList' rest t2) t1
-    treeToList' rest (Branch3 t1 _ t2 _ t3) 
+    treeToList' rest (Branch3 t1 _ t2 _ t3)
         = treeToList' (treeToList' (treeToList' rest t3) t2) t1
 
 export
@@ -260,7 +260,7 @@ export
 values : NameMap v -> List v
 values = map snd . toList
 
-treeMap : (a -> b) -> Tree n a -> Tree n b 
+treeMap : (a -> b) -> Tree n a -> Tree n b
 treeMap f (Leaf k v) = Leaf k (f v)
 treeMap f (Branch2 t1 k t2) = Branch2 (treeMap f t1) k (treeMap f t2)
 treeMap f (Branch3 t1 k1 t2 k2 t3)

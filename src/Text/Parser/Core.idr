@@ -212,20 +212,20 @@ doParse com xs (MustWork g) =
            Failure com' _ msg ts => Failure com' True msg ts
            res => res
 doParse com [] (Terminal err f) = Failure com False "End of input" []
-doParse com (x :: xs) (Terminal err f) 
+doParse com (x :: xs) (Terminal err f)
       = maybe
            (Failure com False err (x :: xs))
            (\a => NonEmptyRes com {xs=[]} a xs)
            (f x)
 doParse com [] EOF = EmptyRes com () []
-doParse com (x :: xs) EOF 
+doParse com (x :: xs) EOF
       = Failure com False "Expected end of input" (x :: xs)
 doParse com [] (NextIs err f) = Failure com False "End of input" []
-doParse com (x :: xs) (NextIs err f) 
+doParse com (x :: xs) (NextIs err f)
       = if f x
            then EmptyRes com x (x :: xs)
            else Failure com False err (x :: xs)
-doParse com xs (Alt x y) 
+doParse com xs (Alt x y)
     = let p' = doParse False xs x in
           case p' of
                Failure com' fatal msg ts

@@ -18,7 +18,7 @@ record Iso a b where
 
 interface Finite t where
   card : Nat
-  iso  : Iso t (Fin card)  
+  iso  : Iso t (Fin card)
 
   -- default methods
 

@@ -23,7 +23,7 @@ import TTImp.Utils
 %default covering
 
 fnName : Bool -> Name -> String
-fnName lhs (UN n) 
+fnName lhs (UN n)
     = if any (not . identChar) (unpack n)
          then if lhs then "(" ++ n ++ ")"
                      else "op"
@@ -49,10 +49,10 @@ uniqueRHS c = pure c
 expandClause : {auto c : Ref Ctxt Defs} ->
                {auto m : Ref MD Metadata} ->
                {auto u : Ref UST UState} ->
-               FC -> Int -> ImpClause -> 
+               FC -> Int -> ImpClause ->
                Core (List ImpClause)
 expandClause loc n c
-    = do log 10 $ "Trying clause " ++ show c 
+    = do log 10 $ "Trying clause " ++ show c
          c <- uniqueRHS c
          Just clause <- checkClause Rig1 False n [] (MkNested []) [] c
             | Nothing => pure [] -- TODO: impossible clause, do something
@@ -71,8 +71,8 @@ expandClause loc n c
          rhsnf <- normaliseHoles defs [] rhs'
          let (_ ** (env', rhsenv)) = dropLams locs [] rhsnf
 
-         rhsraw <- unelab env' rhsenv 
-         logTermNF 5 "Got clause" env lhs 
+         rhsraw <- unelab env' rhsenv
+         logTermNF 5 "Got clause" env lhs
          logTermNF 5 "        = " env' rhsenv
          pure [updateRHS c rhsraw]
   where
@@ -82,10 +82,10 @@ expandClause loc n c
     updateRHS (WithClause fc lhs wval cs) rhs = WithClause fc lhs wval cs
     updateRHS (ImpossibleClause fc lhs) _ = ImpossibleClause fc lhs
 
-    dropLams : Nat -> Env Term vars -> Term vars -> 
+    dropLams : Nat -> Env Term vars -> Term vars ->
                (vars' ** (Env Term vars', Term vars'))
     dropLams Z env tm = (_ ** (env, tm))
-    dropLams (S k) env (Bind _ _ b sc) = dropLams k (b :: env) sc 
+    dropLams (S k) env (Bind _ _ b sc) = dropLams k (b :: env) sc
     dropLams _ env tm = (_ ** (env, tm))
 
 splittableNames : RawImp -> List Name
@@ -129,19 +129,19 @@ trySplit loc lhsraw lhs rhs n
                Nothing => IBindVar loc' n
                Just tm => fixNames tm
     updateLHS ups (IApp loc' f a) = IApp loc' (updateLHS ups f) (updateLHS ups a)
-    updateLHS ups (IImplicitApp loc' f t a) 
+    updateLHS ups (IImplicitApp loc' f t a)
         = IImplicitApp loc' (updateLHS ups f) t (updateLHS ups a)
     updateLHS ups tm = tm
 
 generateSplits : {auto m : Ref MD Metadata} ->
                  {auto c : Ref Ctxt Defs} ->
                  {auto u : Ref UST UState} ->
-                 FC -> Int -> ImpClause -> 
+                 FC -> Int -> ImpClause ->
                  Core (List (Name, List ImpClause))
 generateSplits loc fn (ImpossibleClause fc lhs) = pure []
 generateSplits loc fn (WithClause fc lhs wval cs) = pure []
-generateSplits {c} {m} {u} loc fn (PatClause fc lhs rhs) 
-    = do (lhstm, _) <- 
+generateSplits {c} {m} {u} loc fn (PatClause fc lhs rhs)
+    = do (lhstm, _) <-
                 elabTerm fn (InLHS Rig1) [] (MkNested []) []
                          (IBindHere loc PATTERN lhs) Nothing
          traverse (trySplit fc lhs lhstm rhs) (splittableNames lhs)
@@ -151,10 +151,10 @@ mutual
                  {auto m : Ref MD Metadata} ->
                  {auto u : Ref UST UState} ->
                  FC -> Int -> Error ->
-                 List (Name, List ImpClause) -> 
+                 List (Name, List ImpClause) ->
                  Core (List ImpClause)
   tryAllSplits loc n err [] = throw err
-  tryAllSplits loc n err ((x, []) :: rest) 
+  tryAllSplits loc n err ((x, []) :: rest)
       = tryAllSplits loc n err rest
   tryAllSplits loc n err ((x, cs) :: rest)
       = do log 5 $ "Splitting on " ++ show x
@@ -165,7 +165,7 @@ mutual
   mkSplits : {auto c : Ref Ctxt Defs} ->
              {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
-             FC -> Int -> ImpClause -> 
+             FC -> Int -> ImpClause ->
              Core (List ImpClause)
   -- If the clause works, use it. Otherwise, split on one of the splittable
   -- variables and try all of the resulting clauses
@@ -180,9 +180,9 @@ export
 makeDef : {auto c : Ref Ctxt Defs} ->
           {auto m : Ref MD Metadata} ->
           {auto u : Ref UST UState} ->
-          (FC -> (Name, Nat, ClosedTerm) -> Bool) -> 
+          (FC -> (Name, Nat, ClosedTerm) -> Bool) ->
           Name -> Core (Maybe (FC, List ImpClause))
-makeDef p n 
+makeDef p n
     = do Just (loc, nidx, envlen, ty) <- findTyDeclAt p
             | Nothing => pure Nothing
          n <- getFullName nidx
@@ -193,10 +193,10 @@ makeDef p n
          argns <- getEnvArgNames defs envlen !(nf defs [] ty)
          -- Need to add implicit patterns for the outer environment.
          -- We won't try splitting on these
-         let pre_env = replicate envlen (Implicit loc True) 
+         let pre_env = replicate envlen (Implicit loc True)
 
          rhshole <- uniqueName defs [] (fnName False n ++ "_rhs")
-         let initcs = PatClause loc 
+         let initcs = PatClause loc
                             (apply (IVar loc n) (pre_env ++ (map (IBindVar loc) argns)))
                             (IHole loc rhshole)
          let Just nidx = getNameID n (gamma defs)

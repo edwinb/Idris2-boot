@@ -30,7 +30,7 @@ holeIdent : Lexer
 holeIdent = is '?' <+> ident
 
 srcTokens : TokenMap SourcePart
-srcTokens = 
+srcTokens =
     [(ident, Name),
      (holeIdent, \x => HoleName (assert_total (strTail x))),
      (space, Whitespace),
@@ -41,10 +41,10 @@ srcTokens =
 
 export
 tokens : String -> List SourcePart
-tokens str 
+tokens str
     = case lex srcTokens str of
            -- Add the EndInput token so that we'll have a line and column
            -- number to read when storing spans in the file
-           (srctoks, (l, c, rest)) => 
+           (srctoks, (l, c, rest)) =>
               map tok srctoks ++ (if rest == "" then [] else [Other rest])
 
