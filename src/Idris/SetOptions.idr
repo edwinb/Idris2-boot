@@ -38,6 +38,19 @@ preOptions [] = pure True
 preOptions (NoBanner :: opts)
     = do setSession (record { nobanner = True } !getSession)
          preOptions opts
+-- These things are processed later, but imply nobanner too
+preOptions (OutputFile _ :: opts)
+    = do setSession (record { nobanner = True } !getSession)
+         preOptions opts
+preOptions (ExecFn _ :: opts)
+    = do setSession (record { nobanner = True } !getSession)
+         preOptions opts
+preOptions (IdeMode :: opts)
+    = do setSession (record { nobanner = True } !getSession)
+         preOptions opts
+preOptions (CheckOnly :: opts)
+    = do setSession (record { nobanner = True } !getSession)
+         preOptions opts
 preOptions (Quiet :: opts)
     = do setOutput (REPL True)
          preOptions opts

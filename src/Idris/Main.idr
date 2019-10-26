@@ -139,6 +139,8 @@ stMain opts
                  u <- newRef UST initUState
                  updateREPLOpts
                  session <- getSession
+                 when (not $ nobanner session) $
+                   iputStrLn banner
                  case fname of
                       Nothing => logTime "Loading prelude" $
                                    when (not $ noprelude session) $
@@ -166,8 +168,6 @@ stMain opts
                            setOutput (IDEMode 0 file file)
                            replIDE {c} {u} {m}
                    else do
-                       when (not $ nobanner session) $
-                         iputStrLn banner
                        repl {c} {u} {m}
                        showTimeRecord
                  else
