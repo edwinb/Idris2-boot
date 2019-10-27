@@ -85,7 +85,7 @@ span p (x::xs) =
 
 public export
 break : (a -> Bool) -> List a -> (List a, List a)
-break p = span (not . p)
+break p xs = span (not . p) xs
 
 public export
 split : (a -> Bool) -> List a -> List (List a)
@@ -159,6 +159,18 @@ export
 toList : Foldable t => t a -> List a
 toList = foldr (::) []
 
+||| Prefix every element in the list with the given element
+|||
+||| ```idris example
+||| with List (mergeReplicate '>' ['a', 'b', 'c', 'd', 'e'])
+||| ```
+|||
+export
+mergeReplicate : a -> List a -> List a
+mergeReplicate sep []      = []
+mergeReplicate sep (y::ys) = sep :: y :: mergeReplicate sep ys
+
+
 ||| Insert some separator between the elements of a list.
 |||
 ||| ````idris example
@@ -168,11 +180,7 @@ toList = foldr (::) []
 export
 intersperse : a -> List a -> List a
 intersperse sep []      = []
-intersperse sep (x::xs) = x :: intersperse' sep xs
-  where
-    intersperse' : a -> List a -> List a
-    intersperse' sep []      = []
-    intersperse' sep (y::ys) = sep :: y :: intersperse' sep ys
+intersperse sep (x::xs) = x :: mergeReplicate sep xs
 
 ||| Apply a partial function to the elements of a list, keeping the ones at which
 ||| it is defined.
@@ -212,7 +220,7 @@ mergeBy order (x::xs) (y::ys) =
 ||| Merge two sorted lists using the default ordering for the type of their elements.
 export
 merge : Ord a => List a -> List a -> List a
-merge = mergeBy compare
+merge left right = mergeBy compare left right
 
 ||| Sort a list using some arbitrary comparison predicate.
 |||
