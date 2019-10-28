@@ -22,6 +22,8 @@ modules = Control.Monad.Identity,
           Data.Strings,
           Data.Vect,
 
+          Debug.Trace,
+
           Decidable.Equality,
 
           Language.Reflection,
