@@ -121,6 +121,13 @@ public export
 reverse : List a -> List a
 reverse = reverseOnto []
 
+||| Construct a list with `n` copies of `x`.
+||| @ n how many copies
+||| @ x the element to replicate
+public export
+replicate : (n : Nat) -> (x : a) -> List a
+replicate Z     _ = []
+replicate (S n) x = x :: replicate n x
 
 ||| Compute the intersect of two lists by user-supplied equality predicate.
 export
