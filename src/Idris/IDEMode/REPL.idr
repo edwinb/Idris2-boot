@@ -196,52 +196,64 @@ processCatch cmd
                            msg <- perror err
                            pure $ REPLError msg)
 
-idePutStrLn : File -> Int -> String -> Core ()
+idePutStrLn : File -> Integer -> String -> Core ()
 idePutStrLn outf i msg
     = send outf (SExpList [SymbolAtom "write-string",
                 toSExp msg, toSExp i])
 
-printIDEWithStatus : File -> Int -> String -> String -> Core ()
+printIDEWithStatus : File -> Integer -> String -> SExp -> Core ()
 printIDEWithStatus outf i status msg
     = do let m = SExpList [SymbolAtom status, toSExp msg ]
          send outf (SExpList [SymbolAtom "return", m, toSExp i])
 
-printIDEResult : File -> Int -> String -> Core ()
+printIDEResult : File -> Integer -> SExp -> Core ()
 printIDEResult outf i msg = printIDEWithStatus outf i "ok" msg
 
-printIDEError : File -> Int -> String -> Core ()
-printIDEError outf i msg = printIDEWithStatus outf i "error" msg
+printIDEError : File -> Integer -> String -> Core ()
+printIDEError outf i msg = printIDEWithStatus outf i "error" (toSExp msg)
 
 displayIDEResult : {auto c : Ref Ctxt Defs} ->
        {auto u : Ref UST UState} ->
        {auto s : Ref Syn SyntaxInfo} ->
        {auto m : Ref MD Metadata} ->
        {auto o : Ref ROpts REPLOpts} ->
-       File -> Int -> REPLResult -> Core ()
+       File -> Integer -> REPLResult -> Core ()
 displayIDEResult outf i  (REPLError err) = printIDEError outf i err
-displayIDEResult outf i  (Evaluated x Nothing) = printIDEResult outf i $ show x
-displayIDEResult outf i  (Evaluated x (Just y)) = printIDEResult outf i $ show x ++ " : " ++ show y
-displayIDEResult outf i  (Printed xs) = printIDEResult outf i (showSep "\n" xs)
-displayIDEResult outf i  (TermChecked x y) = printIDEResult outf i $ show x ++ " : " ++ show y
-displayIDEResult outf i  (FileLoaded x) = printIDEResult outf i $ "Loaded file " ++ x
+displayIDEResult outf i  (Evaluated x Nothing) = printIDEResult outf i $ StringAtom $ show x
+displayIDEResult outf i  (Evaluated x (Just y)) = printIDEResult outf i $ StringAtom $ show x ++ " : " ++ show y
+displayIDEResult outf i  (Printed xs) = printIDEResult outf i $ StringAtom $ showSep "\n" xs
+displayIDEResult outf i  (TermChecked x y) = printIDEResult outf i $ StringAtom $ show x ++ " : " ++ show y
+displayIDEResult outf i  (FileLoaded x) = printIDEResult outf i $ StringAtom $ "Loaded " ++ x
 displayIDEResult outf i  (ErrorLoadingFile x err) = printIDEError outf i $ "Error loading file " ++ x ++ ": " ++ show err
 displayIDEResult outf i  (ErrorsBuildingFile x errs) = printIDEError outf i $ "Error(s) building file " ++ x ++ ": " ++ (showSep "\n" $ map show errs)
 displayIDEResult outf i  NoFileLoaded = printIDEError outf i "No file can be reloaded"
-displayIDEResult outf i  (ChangedDirectory dir) = printIDEResult outf i ("Changed directory to " ++ dir)
+displayIDEResult outf i  (ChangedDirectory dir) = printIDEResult outf i $ StringAtom $ "Changed directory to " ++ dir
 displayIDEResult outf i  CompilationFailed = printIDEError outf i "Compilation failed"
-displayIDEResult outf i  (Compiled f) = printIDEResult outf i $ "File " ++ f ++ " written"
-displayIDEResult outf i  (ProofFound x) = printIDEResult outf i $ show x
+displayIDEResult outf i  (Compiled f) = printIDEResult outf i $ StringAtom $ "File " ++ f ++ " written"
+displayIDEResult outf i  (ProofFound x) = printIDEResult outf i $ StringAtom $ show x
 --displayIDEResult outf i  (Missed cases) = printIDEResult outf i $ showSep "\n" $ map handleMissing cases
-displayIDEResult outf i  (CheckedTotal xs) = printIDEResult outf i $ showSep "\n" $ map (\ (fn, tot) => (show fn ++ " is " ++ show tot)) xs
-displayIDEResult outf i  (FoundHoles []) = printIDEResult outf i $ "No holes"
-displayIDEResult outf i  (FoundHoles [x]) = printIDEResult outf i $ "1 hole: " ++ show x
-displayIDEResult outf i  (FoundHoles xs) = printIDEResult outf i $ show (length xs) ++ " holes: " ++
+displayIDEResult outf i  (CheckedTotal xs) = printIDEResult outf i $ StringAtom $ showSep "\n" $ map (\ (fn, tot) => (show fn ++ " is " ++ show tot)) xs
+displayIDEResult outf i  (FoundHoles []) = printIDEResult outf i $ StringAtom "No holes"
+displayIDEResult outf i  (FoundHoles [x]) = printIDEResult outf i $ StringAtom $ "1 hole: " ++ show x
+displayIDEResult outf i  (FoundHoles xs) = printIDEResult outf i $ StringAtom $show (length xs) ++ " holes: " ++
                                  showSep ", " (map show xs)
-displayIDEResult outf i  (LogLevelSet k) = printIDEResult outf i $ "Set loglevel to " ++ show k
-displayIDEResult outf i  (VersionIs x) = printIDEResult outf i $ showVersion x
-displayIDEResult outf i  (Edited (DisplayEdit xs)) = printIDEResult outf i $ showSep "\n" xs
+displayIDEResult outf i  (LogLevelSet k) = printIDEResult outf i $ StringAtom $ "Set loglevel to " ++ show k
+displayIDEResult outf i  (VersionIs x) = printIDEResult outf i versionSExp
+  where
+  semverSexp : SExp
+  semverSexp = case (semVer x) of
+                  (maj, min, patch) => SExpList (map toSExp [maj, min, patch])
+  tagSexp : SExp
+  tagSexp = case versionTag x of
+              Nothing => SExpList [ StringAtom "" ]
+              Just t => SExpList [ StringAtom t ]
+  versionSExp : SExp
+  versionSExp = SExpList [ semverSexp, tagSexp ]
+
+
+displayIDEResult outf i  (Edited (DisplayEdit xs)) = printIDEResult outf i $ StringAtom $ showSep "\n" xs
 displayIDEResult outf i  (Edited (EditError x)) = printIDEError outf i x
-displayIDEResult outf i  (Edited (MadeLemma name pty pappstr)) = printIDEResult outf i (show name ++ " : " ++ show pty ++ "\n" ++ pappstr)
+displayIDEResult outf i  (Edited (MadeLemma name pty pappstr)) = printIDEResult outf i $ StringAtom $ show name ++ " : " ++ show pty ++ "\n" ++ pappstr
 displayIDEResult outf i  _ = pure ()
 
 
@@ -250,7 +262,7 @@ handleIDEResult : {auto c : Ref Ctxt Defs} ->
        {auto s : Ref Syn SyntaxInfo} ->
        {auto m : Ref MD Metadata} ->
        {auto o : Ref ROpts REPLOpts} ->
-       File -> Int -> REPLResult -> Core ()
+       File -> Integer -> REPLResult -> Core ()
 handleIDEResult outf i Exited = idePutStrLn outf i "Bye for now!"
 handleIDEResult outf i other = displayIDEResult outf i other
 
@@ -277,10 +289,10 @@ loop
                       Just (cmd, i) =>
                         do updateOutput i
                            res <- processCatch cmd
-                           handleIDEResult outf idx res
+                           handleIDEResult outf i res
                            loop
                       Nothing =>
-                        do printIDEError ("Unrecognised command: " ++ show sexp)
+                        do printIDEError outf idx ("Unrecognised command: " ++ show sexp)
                            loop
   where
     updateOutput : Integer -> Core ()

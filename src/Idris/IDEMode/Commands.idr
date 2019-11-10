@@ -157,6 +157,10 @@ SExpable Int where
   toSExp = IntegerAtom . cast
 
 export
+SExpable Nat where
+  toSExp = IntegerAtom . cast
+
+export
 SExpable Name where
   toSExp = SymbolAtom . show
 
@@ -171,6 +175,11 @@ export
 SExpable a => SExpable (List a) where
   toSExp xs
       = SExpList (map toSExp xs)
+
+export
+SExpable a => SExpable (Maybe a) where
+  toSExp Nothing = SExpList []
+  toSExp (Just x) = toSExp x
 
 export
 sym : String -> Name
