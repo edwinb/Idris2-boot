@@ -142,7 +142,7 @@ mutual
       = updateHoleUsage useInHole var t
   updateHoleUsage useInHole var (TDelay _ _ _ t) 
       = updateHoleUsage useInHole var t
-  updateHoleUsage useInHole var (TForce _ t) 
+  updateHoleUsage useInHole var (TForce _ _ t) 
       = updateHoleUsage useInHole var t
   updateHoleUsage useInHole var tm 
       = case getFnArgs tm of
@@ -305,13 +305,13 @@ mutual
            (val', gty, u) <- lcheck rig erase env val
            ty <- getTerm gty
            pure (TDelay fc r ty' val', gnf env (TDelayed fc r ty), u)
-  lcheck rig erase env (TForce fc val) 
+  lcheck rig erase env (TForce fc r val) 
       = do (val', gty, u) <- lcheck rig erase env val
            tynf <- getNF gty
            case tynf of
                 NDelayed _ r narg
                     => do defs <- get Ctxt
-                          pure (TForce fc val', glueBack defs env narg, u)
+                          pure (TForce fc r val', glueBack defs env narg, u)
                 _ => throw (GenericMsg fc "Not a delayed tyoe")
   lcheck rig erase env (PrimVal fc c) 
       = pure (PrimVal fc c, gErased fc, [])

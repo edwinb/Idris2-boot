@@ -469,8 +469,8 @@ HasNames (Term vars) where
       = pure (TDelayed fc x !(full gam y))
   full gam (TDelay fc x t y)
       = pure (TDelay fc x !(full gam t) !(full gam y))
-  full gam (TForce fc y)
-      = pure (TForce fc !(full gam y))
+  full gam (TForce fc r y)
+      = pure (TForce fc r !(full gam y))
   full gam tm = pure tm
 
   resolved gam (Ref fc x n)
@@ -492,8 +492,8 @@ HasNames (Term vars) where
       = pure (TDelayed fc x !(resolved gam y))
   resolved gam (TDelay fc x t y)
       = pure (TDelay fc x !(resolved gam t) !(resolved gam y))
-  resolved gam (TForce fc y)
-      = pure (TForce fc !(resolved gam y))
+  resolved gam (TForce fc r y)
+      = pure (TForce fc r !(resolved gam y))
   resolved gam tm = pure tm
 
 mutual

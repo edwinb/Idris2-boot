@@ -588,10 +588,10 @@ checkExp rig elabinfo env fc tm got (Just exp)
               [] => case addLazy vs of
                          NoLazy => do logTerm 5 "Solved" tm
                                       pure (tm, got)
-                         AddForce => do logTerm 5 "Force" tm
-                                        logGlue 5 "Got" env got
-                                        logGlue 5 "Exp" env exp
-                                        pure (TForce fc tm, exp)
+                         AddForce r => do logTerm 5 "Force" tm
+                                          logGlue 5 "Got" env got
+                                          logGlue 5 "Exp" env exp
+                                          pure (TForce fc r tm, exp)
                          AddDelay r => do ty <- getTerm got
                                           logTerm 5 "Delay" tm
                                           pure (TDelay fc r ty tm, exp)
@@ -603,7 +603,7 @@ checkExp rig elabinfo env fc tm got (Just exp)
                        dumpConstraints 5 False
                        case addLazy vs of
                             NoLazy => pure (ctm, got)
-                            AddForce => pure (TForce fc tm, got)
+                            AddForce r => pure (TForce fc r tm, got)
                             AddDelay r => do ty <- getTerm got
                                              pure (TDelay fc r ty tm, got)
 checkExp rig elabinfo env fc tm got Nothing = pure (tm, got)

@@ -87,6 +87,6 @@ checkForce rig elabinfo nest env fc tm exp
          (tm', gty) <- check rig elabinfo nest env tm expf
          tynf <- getNF gty
          case tynf of
-              NDelayed _ _ expnf =>
-                 pure (TForce fc tm', glueBack defs env expnf)
+              NDelayed _ r expnf =>
+                 pure (TForce fc r tm', glueBack defs env expnf)
               _ => throw (GenericMsg fc "Forcing a non-delayed type")

@@ -23,7 +23,7 @@ used idx (App _ f a) = used idx f || used idx a
 used idx (As _ _ pat) = used idx pat
 used idx (TDelayed _ _ tm) = used idx tm
 used idx (TDelay _ _ _ tm) = used idx tm
-used idx (TForce _ tm) = used idx tm
+used idx (TForce _ _ tm) = used idx tm
 used idx _ = False
 
 data IArg
@@ -176,7 +176,7 @@ mutual
       = do (tm', ty) <- unelabTy' umode env tm
            defs <- get Ctxt
            pure (IDelay fc tm', gErased fc)
-  unelabTy' umode env (TForce fc tm)
+  unelabTy' umode env (TForce fc r tm)
       = do (tm', ty) <- unelabTy' umode env tm
            defs <- get Ctxt
            pure (IForce fc tm', gErased fc)

@@ -52,10 +52,10 @@ mutual
            tm' <- getNF gtm
            defs <- get Ctxt
            pure $ glueBack defs env (NDelayed fc r tm')
-  chk env (TForce fc tm) 
+  chk env (TForce fc r tm) 
       = do tm' <- chk env tm
            case !(getNF tm') of
-                NDelayed fc r fty => 
+                NDelayed fc _ fty => 
                     do defs <- get Ctxt
                        pure $ glueBack defs env fty
   chk env (PrimVal fc x) = pure $ gnf env (chkConstant fc x)

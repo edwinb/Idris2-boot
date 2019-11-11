@@ -28,7 +28,7 @@ bindable p tm
            (Ref _ (DataCon _ _) _, args) => any (bindable p) args
            (TDelayed _ _ t, args) => any (bindable p) (t :: args)
            (TDelay _ _ _ t, args) => any (bindable p) (t :: args)
-           (TForce _ t, args) => any (bindable p) (t :: args)
+           (TForce _ _ t, args) => any (bindable p) (t :: args)
            (Local _ _ p' _, []) => p == p'
            _ => False
 

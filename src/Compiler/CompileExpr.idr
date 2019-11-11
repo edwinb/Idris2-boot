@@ -175,7 +175,7 @@ mutual
   toCExpTm tags n (TDelayed fc _ _) = pure $ CErased fc
   toCExpTm tags n (TDelay fc _ _ arg)
       = pure (CDelay fc !(toCExp tags n arg))
-  toCExpTm tags n (TForce fc arg)
+  toCExpTm tags n (TForce fc _ arg)
       = pure (CForce fc !(toCExp tags n arg))
   toCExpTm tags n (PrimVal fc c)
       = let t = constTag c in

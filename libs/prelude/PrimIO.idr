@@ -10,9 +10,22 @@ export
 data IO : Type -> Type where
      MkIO : (1 fn : (1 x : %World) -> IORes a) -> IO a
 
+public export
+PrimIO : Type -> Type
+PrimIO a = (1 x : %World) -> IORes a
+
+export
+prim_io_pure : a -> PrimIO a
+prim_io_pure x = \w => MkIORes x w
+
 export
 io_pure : a -> IO a
 io_pure x = MkIO (\w => MkIORes x w)
+
+export
+prim_io_bind : (1 act : PrimIO a) -> (1 k : a -> PrimIO b) -> PrimIO b
+prim_io_bind fn k w
+    = let MkIORes x' w' = fn w in k x' w'
 
 export
 io_bind : (1 act : IO a) -> (1 k : a -> IO b) -> IO b
@@ -20,10 +33,6 @@ io_bind (MkIO fn)
     = \k => MkIO (\w => let MkIORes x' w' = fn w 
                             MkIO res = k x' in
                             res w')
-
-public export
-PrimIO : Type -> Type
-PrimIO a = (1 x : %World) -> IORes a
 
 %extern prim__putStr : String -> (1 x : %World) -> IORes ()
 %extern prim__getStr : (1 x : %World) -> IORes String
@@ -56,7 +65,7 @@ primIO : (1 fn : (1 x : %World) -> IORes a) -> IO a
 primIO op = MkIO op
 
 export %inline
-toPrim : IO a -> PrimIO a
+toPrim : (1 act : IO a) -> PrimIO a
 toPrim (MkIO fn) = fn
 
 export %inline
@@ -82,6 +91,10 @@ getLine = primIO prim__getStr
 export
 fork : (1 prog : IO ()) -> IO ThreadID
 fork (MkIO act) = schemeCall ThreadID "blodwen-thread" [act]
+
+export
+prim_fork : (1 prog : PrimIO ()) -> PrimIO ThreadID
+prim_fork act w = prim__schemeCall ThreadID "blodwen-thread" [act] w 
 
 unsafeCreateWorld : (1 f : (1 x : %World) -> a) -> a
 unsafeCreateWorld f = f %MkWorld

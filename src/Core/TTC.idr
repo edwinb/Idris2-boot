@@ -232,9 +232,9 @@ mutual
     toBuf b (TDelay fc r ty tm)
         = do tag 7;
              toBuf b r; toBuf b ty; toBuf b tm
-    toBuf b (TForce fc tm)
+    toBuf b (TForce fc r tm)
         = do tag 8;
-             toBuf b tm
+             toBuf b r; toBuf b tm
     toBuf b (PrimVal fc c) 
         = do tag 9;
              toBuf b c
@@ -267,8 +267,8 @@ mutual
                7 => do lr <- fromBuf b; 
                        ty <- fromBuf b; tm <- fromBuf b
                        pure (TDelay emptyFC lr ty tm)
-               8 => do tm <- fromBuf b
-                       pure (TForce emptyFC tm)
+               8 => do lr <- fromBuf b; tm <- fromBuf b
+                       pure (TForce emptyFC lr tm)
                9 => do c <- fromBuf b
                        pure (PrimVal emptyFC c)
                10 => pure (Erased emptyFC)

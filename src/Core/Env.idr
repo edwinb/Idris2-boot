@@ -153,7 +153,7 @@ mutual
       = findUsed env used tm
   findUsed env used (TDelay fc r ty tm)
       = findUsed env (findUsed env used ty) tm
-  findUsed env used (TForce fc tm)
+  findUsed env used (TForce fc r tm)
       = findUsed env used tm
   findUsed env used _ = used
   

@@ -37,8 +37,8 @@ changeVar old new (TDelayed fc r p)
     = TDelayed fc r (changeVar old new p)
 changeVar old new (TDelay fc r t p)
     = TDelay fc r (changeVar old new t) (changeVar old new p)
-changeVar old new (TForce fc p)
-    = TForce fc (changeVar old new p)
+changeVar old new (TForce fc r p)
+    = TForce fc r (changeVar old new p)
 changeVar old new tm = tm
 
 findLater : (x : Name) -> (newer : List Name) -> Var (newer ++ x :: older)

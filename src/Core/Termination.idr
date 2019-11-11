@@ -49,7 +49,7 @@ scEq (As _ a p) p' = scEq p p'
 scEq p (As _ a p') = scEq p p'
 scEq (TDelayed _ _ t) (TDelayed _ _ t') = scEq t t'
 scEq (TDelay _ _ t x) (TDelay _ _ t' x') = scEq t t' && scEq x x'
-scEq (TForce _ t) (TForce _ t') = scEq t t'
+scEq (TForce _ _ t) (TForce _ _ t') = scEq t t'
 scEq (PrimVal _ c) (PrimVal _ c') = c == c'
 scEq (Erased _) (Erased _) = True
 scEq (TType _) (TType _) = True
@@ -218,7 +218,7 @@ mutual
           urhs (TDelayed fc r ty) = TDelayed fc r (updateRHS ms ty)
           urhs (TDelay fc r ty tm) 
               = TDelay fc r (updateRHS ms ty) (updateRHS ms tm)
-          urhs (TForce fc tm) = TForce fc (updateRHS ms tm)
+          urhs (TForce fc r tm) = TForce fc r (updateRHS ms tm)
           urhs (Bind fc x b sc)
               = Bind fc x (map (updateRHS ms) b) 
                   (updateRHS (map (\vt => (weaken (fst vt), weaken (snd vt))) ms) sc)
@@ -278,8 +278,8 @@ mutual
           rhs <- normaliseOpts tcOnly defs env tm
           findSC defs env g pats rhs
 
--- Remove all laziness annotations which are nothing to do with coinduction,
--- meaning that all only Force/Delay left is to guard coinductive calls.
+-- Remove all force and delay annotations which are nothing to do with 
+-- coinduction meaning that all Delays left guard coinductive calls.
 delazy : Defs -> Term vars -> Term vars
 delazy defs (TDelayed fc r tm) 
     = let tm' = delazy defs tm in
@@ -292,6 +292,10 @@ delazy defs (TDelay fc r ty tm)
           case r of
                LInf => TDelay fc r ty' tm'
                _ => tm'
+delazy defs (TForce fc r t) 
+    = case r of
+           LInf => TForce fc r (delazy defs t)
+           _ => delazy defs t
 delazy defs (Meta fc n i args) = Meta fc n i (map (delazy defs) args)
 delazy defs (Bind fc x b sc) 
     = Bind fc x (map (delazy defs) b) (delazy defs sc)

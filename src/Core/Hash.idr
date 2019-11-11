@@ -114,7 +114,7 @@ mutual
         = h `hashWithSalt` 6 `hashWithSalt` y
     hashWithSalt h (TDelay fc x t y)
         = h `hashWithSalt` 7 `hashWithSalt` t `hashWithSalt` y
-    hashWithSalt h (TForce fc x)
+    hashWithSalt h (TForce fc r x)
         = h `hashWithSalt` 8 `hashWithSalt` x
     hashWithSalt h (PrimVal fc c) 
         = h `hashWithSalt` 9 `hashWithSalt` (show c)

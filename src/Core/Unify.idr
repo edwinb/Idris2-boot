@@ -32,12 +32,12 @@ Eq UnifyMode where
 -- explicit force or delay to the first argument to unification. This says
 -- which to add, if any. Can only added at the very top level.
 public export
-data AddLazy = NoLazy | AddForce | AddDelay LazyReason
+data AddLazy = NoLazy | AddForce LazyReason | AddDelay LazyReason
 
 export
 Show AddLazy where
   show NoLazy = "NoLazy"
-  show AddForce = "AddForce"
+  show (AddForce _) = "AddForce"
   show (AddDelay _) = "AddDelay"
 
 public export
@@ -895,7 +895,7 @@ mutual
       = unify mode loc env x y
   unifyNoEta mode loc env (NDelay xfc _ xty x) (NDelay yfc _ yty y)
       = unifyArgs mode loc env [xty, x] [yty, y]
-  unifyNoEta mode loc env (NForce xfc x axs) (NForce yfc y ays)
+  unifyNoEta mode loc env (NForce xfc _ x axs) (NForce yfc _ y ays)
       = do cs <- unify mode loc env x y
            cs' <- unifyArgs mode loc env axs ays
            pure (union cs cs')
@@ -984,7 +984,7 @@ mutual
        = unify mode loc env tmx tmy
     unifyWithLazyD _ _ mode loc env (NDelayed _ r tmx) tmy
        = do vs <- unify mode loc env tmx tmy
-            pure (record { addLazy = AddForce } vs)
+            pure (record { addLazy = AddForce r } vs)
     unifyWithLazyD _ _ mode loc env tmx (NDelayed _ r tmy)
        = do vs <- unify mode loc env tmx tmy
             pure (record { addLazy = AddDelay r } vs)
@@ -1072,10 +1072,10 @@ delayMeta r (S k) ty (Bind fc n b sc)
     = Bind fc n b (delayMeta r k (weaken ty) sc)
 delayMeta r envb ty tm = TDelay (getLoc tm) r ty tm
 
-forceMeta : Nat -> Term vars -> Term vars
-forceMeta (S k) (Bind fc n b sc)
-    = Bind fc n b (forceMeta k sc)
-forceMeta envb tm = TForce (getLoc tm) tm
+forceMeta : LazyReason -> Nat -> Term vars -> Term vars
+forceMeta r (S k) (Bind fc n b sc)
+    = Bind fc n b (forceMeta r k sc)
+forceMeta r envb tm = TForce (getLoc tm) r tm
 
 -- Retry the given constraint, return True if progress was made
 retryGuess : {auto c : Ref Ctxt Defs} ->
@@ -1117,7 +1117,7 @@ retryGuess mode smode (hid, (loc, hname))
                     case constraints cs of
                          [] => do tm' <- case addLazy cs of
                                            NoLazy => pure tm
-                                           AddForce => pure $ forceMeta envb tm
+                                           AddForce r => pure $ forceMeta r envb tm
                                            AddDelay r => 
                                               do ty <- getType [] tm
                                                  pure $ delayMeta r envb !(getTerm ty) tm

@@ -110,12 +110,12 @@ parameters (defs : Defs, topopts : EvalOpts)
     eval env locs (TDelay fc r ty tm) stk 
         = pure (NDelay fc r (MkClosure topopts locs env ty)
                             (MkClosure topopts locs env tm))
-    eval env locs (TForce fc tm) stk 
+    eval env locs (TForce fc r tm) stk 
         = do tm' <- eval env locs tm []
              case tm' of
                   NDelay fc r _ arg => 
                       eval env (arg :: locs) (Local {name = UN "fvar"} fc Nothing _ First) stk
-                  _ => pure (NForce fc tm' stk)
+                  _ => pure (NForce fc r tm' stk)
     eval env locs (PrimVal fc c) stk = pure $ NPrimVal fc c
     eval env locs (Erased fc) stk = pure $ NErased fc
     eval env locs (TType fc) stk = pure $ NType fc
@@ -555,14 +555,14 @@ mutual
       toHolesOnly (MkClosure _ locs env tm) 
           = MkClosure withHoles locs env tm
       toHolesOnly c = c
-  quoteGenNF q defs bound env (NForce fc arg args) 
+  quoteGenNF q defs bound env (NForce fc r arg args) 
       = do args' <- quoteArgs q defs bound env args 
            case arg of
                 NDelay fc _ _ arg =>
                    do argNF <- evalClosure defs arg
                       pure $ apply fc !(quoteGenNF q defs bound env argNF) args'
                 t => do arg' <- quoteGenNF q defs bound env arg
-                        pure $ apply fc (TForce fc arg') args'
+                        pure $ apply fc (TForce fc r arg') args'
   quoteGenNF q defs bound env (NPrimVal fc c) = pure $ PrimVal fc c
   quoteGenNF q defs bound env (NErased fc) = pure $ Erased fc
   quoteGenNF q defs bound env (NType fc) = pure $ TType fc
@@ -727,9 +727,11 @@ mutual
         = if compatible r r'
              then convGen q defs env arg arg'
              else pure False
-    convGen q defs env (NForce _ arg args) (NForce _ arg' args')
-        = if !(convGen q defs env arg arg')
-             then allConv q defs env args args'
+    convGen q defs env (NForce _ r arg args) (NForce _ r' arg' args')
+        = if compatible r r'
+             then if !(convGen q defs env arg arg')
+                     then allConv q defs env args args'
+                     else pure False
              else pure False
 
     convGen q defs env (NPrimVal _ c) (NPrimVal _ c') = pure (c == c')
@@ -887,10 +889,10 @@ replace' {vars} tmpi defs env lhs parg tm
         = do ty' <- replace' tmpi defs env lhs parg !(evalClosure defs ty)
              tm' <- replace' tmpi defs env lhs parg !(evalClosure defs tm)
              pure (TDelay fc r ty' tm')
-    repSub (NForce fc tm args)
+    repSub (NForce fc r tm args)
         = do args' <- traverse repArg args
              tm' <- repSub tm
-             pure $ apply fc (TForce fc tm') args'
+             pure $ apply fc (TForce fc r tm') args'
     repSub tm = do empty <- clearDefs defs
                    quote empty env tm
 
