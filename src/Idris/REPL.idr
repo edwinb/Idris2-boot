@@ -212,6 +212,17 @@ setOpt (CG e)
            Just cg => setCG cg
            Nothing => iputStrLn "No such code generator available"
 
+getOptions : {auto c : Ref Ctxt Defs} ->
+         {auto o : Ref ROpts REPLOpts} ->
+         Core (List REPLOpt)
+getOptions = do
+  pp <- getPPrint
+  opts <- get ROpts
+  pure $ [ ShowImplicits (showImplicits pp), ShowNamespace (fullNamespace pp)
+         , ShowTypes (showTypes opts), EvalMode (evalMode opts)
+         , Editor (editor opts)
+         ]
+
 findCG : {auto c : Ref Ctxt Defs} -> Core Codegen
 findCG
     = do defs <- get Ctxt
@@ -374,6 +385,7 @@ data REPLResult : Type where
   Missed : List MissedResult -> REPLResult
   CheckedTotal : List (Name, Totality) -> REPLResult
   FoundHoles : List Name -> REPLResult
+  OptionsSet : List REPLOpt -> REPLResult
   LogLevelSet : Nat -> REPLResult
   VersionIs : Version -> REPLResult
   Exited : REPLResult
@@ -557,6 +569,9 @@ process (DebugInfo n)
 process (SetOpt opt)
     = do setOpt opt
          pure Done
+process GetOpts
+    = do opts <- getOptions
+         pure $ OptionsSet opts
 process (SetLog lvl)
     = do setLogLevel lvl
          pure $ LogLevelSet lvl
@@ -607,6 +622,7 @@ parseEmptyCmd = eoi *> (pure Nothing)
 parseCmd : EmptyRule (Maybe REPLCmd)
 parseCmd = do c <- command; eoi; pure $ Just c
 
+export
 parseRepl : String -> Either ParseError (Maybe REPLCmd)
 parseRepl inp
     = case fnameCmd [(":load ", Load), (":l ", Load), (":cd ", CD)] inp of
@@ -714,6 +730,7 @@ mutual
   displayResult  (Edited (DisplayEdit xs)) = printResult $ showSep "\n" xs
   displayResult  (Edited (EditError x)) = printError x
   displayResult  (Edited (MadeLemma name pty pappstr)) = printResult (show name ++ " : " ++ show pty ++ "\n" ++ pappstr)
+  displayResult  (OptionsSet opts) = printResult $ showSep "\n" $ map show opts
   displayResult  _ = pure ()
 
   export

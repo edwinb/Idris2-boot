@@ -173,7 +173,7 @@ process Version
 process (Metavariables _)
     = Idris.REPL.process Metavars
 process GetOptions
-    = pure Done
+    = Idris.REPL.process GetOpts
 
 processCatch : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
@@ -212,6 +212,23 @@ printIDEResult outf i msg = printIDEWithStatus outf i "ok" msg
 printIDEError : File -> Integer -> String -> Core ()
 printIDEError outf i msg = printIDEWithStatus outf i "error" (toSExp msg)
 
+SExpable REPLEval where
+  toSExp EvalTC = SymbolAtom "typecheck"
+  toSExp NormaliseAll = SymbolAtom "normalise"
+  toSExp Execute = SymbolAtom "execute"
+
+SExpable REPLOpt where
+  toSExp (ShowImplicits impl) = SExpList [ SymbolAtom "show-implicits", toSExp impl ]
+  toSExp (ShowNamespace ns) = SExpList [ SymbolAtom "show-namespace", toSExp ns ]
+  toSExp (ShowTypes typs) = SExpList [ SymbolAtom "show-types", toSExp typs ]
+  toSExp (EvalMode mod) = SExpList [ SymbolAtom "eval", toSExp mod ]
+  toSExp (Editor editor) = SExpList [ SymbolAtom "editor", toSExp editor ]
+  toSExp (CG str) = SExpList [ SymbolAtom "cg", toSExp str ]
+
+
+sexpName :  Name -> SExp
+sexpName n = SExpList [ StringAtom (show  n), SExpList [], SExpList [] ]
+
 displayIDEResult : {auto c : Ref Ctxt Defs} ->
        {auto u : Ref UST UState} ->
        {auto s : Ref Syn SyntaxInfo} ->
@@ -223,7 +240,7 @@ displayIDEResult outf i  (Evaluated x Nothing) = printIDEResult outf i $ StringA
 displayIDEResult outf i  (Evaluated x (Just y)) = printIDEResult outf i $ StringAtom $ show x ++ " : " ++ show y
 displayIDEResult outf i  (Printed xs) = printIDEResult outf i $ StringAtom $ showSep "\n" xs
 displayIDEResult outf i  (TermChecked x y) = printIDEResult outf i $ StringAtom $ show x ++ " : " ++ show y
-displayIDEResult outf i  (FileLoaded x) = printIDEResult outf i $ StringAtom $ "Loaded " ++ x
+displayIDEResult outf i  (FileLoaded x) = printIDEResult outf i $ SExpList []
 displayIDEResult outf i  (ErrorLoadingFile x err) = printIDEError outf i $ "Error loading file " ++ x ++ ": " ++ show err
 displayIDEResult outf i  (ErrorsBuildingFile x errs) = printIDEError outf i $ "Error(s) building file " ++ x ++ ": " ++ (showSep "\n" $ map show errs)
 displayIDEResult outf i  NoFileLoaded = printIDEError outf i "No file can be reloaded"
@@ -233,11 +250,17 @@ displayIDEResult outf i  (Compiled f) = printIDEResult outf i $ StringAtom $ "Fi
 displayIDEResult outf i  (ProofFound x) = printIDEResult outf i $ StringAtom $ show x
 --displayIDEResult outf i  (Missed cases) = printIDEResult outf i $ showSep "\n" $ map handleMissing cases
 displayIDEResult outf i  (CheckedTotal xs) = printIDEResult outf i $ StringAtom $ showSep "\n" $ map (\ (fn, tot) => (show fn ++ " is " ++ show tot)) xs
-displayIDEResult outf i  (FoundHoles []) = printIDEResult outf i $ StringAtom "No holes"
-displayIDEResult outf i  (FoundHoles [x]) = printIDEResult outf i $ StringAtom $ "1 hole: " ++ show x
-displayIDEResult outf i  (FoundHoles xs) = printIDEResult outf i $ StringAtom $show (length xs) ++ " holes: " ++
-                                 showSep ", " (map show xs)
+displayIDEResult outf i  (FoundHoles []) = printIDEResult outf i $ SExpList []
+displayIDEResult outf i  (FoundHoles xs) = printIDEResult outf i $ holesSexp
+  where
+    holesSexp : SExp
+    holesSexp = SExpList $ map sexpName xs
+
 displayIDEResult outf i  (LogLevelSet k) = printIDEResult outf i $ StringAtom $ "Set loglevel to " ++ show k
+displayIDEResult outf i  (OptionsSet opts) = printIDEResult outf i optionsSexp
+  where
+    optionsSexp : SExp
+    optionsSexp = SExpList $ map toSExp opts
 displayIDEResult outf i  (VersionIs x) = printIDEResult outf i versionSExp
   where
   semverSexp : SExp

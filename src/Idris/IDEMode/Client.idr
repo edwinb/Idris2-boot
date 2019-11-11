@@ -121,7 +121,11 @@ makeIDECommand _ = Left $ "Don't know how to interpret command"
 
 
 parseCommand : String -> Either String IDECommand
-parseCommand = either (Left . show) makeIDECommand . parseRepl
+parseCommand str =
+  case parseRepl str of
+    Left err => Left $ show err
+    Right Nothing => Left "No command"
+    Right (Just cmd) => makeIDECommand cmd
 
 repl : Socket -> IO ()
 repl cnx
