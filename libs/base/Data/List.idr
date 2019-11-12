@@ -121,7 +121,6 @@ public export
 reverse : List a -> List a
 reverse = reverseOnto []
 
-
 ||| Compute the intersect of two lists by user-supplied equality predicate.
 export
 intersectBy : (a -> a -> Bool) -> List a -> List a -> List a
@@ -153,6 +152,16 @@ public export
 tail : (l : List a) -> {auto ok : NonEmpty l} -> List a
 tail [] impossible
 tail (x :: xs) = xs
+
+||| Attempt to get the head of a list. If the list is empty, return `Nothing`.
+head' : List a -> Maybe a
+head' []      = Nothing
+head' (x::xs) = Just x
+
+||| Attempt to get the tail of a list. If the list is empty, return `Nothing`.
+tail' : List a -> Maybe (List a)
+tail' []      = Nothing
+tail' (x::xs) = Just xs
 
 ||| Convert any Foldable structure to a list.
 export
@@ -299,15 +308,15 @@ appendAssociative (x::xs) c r =
 
 revOnto : (xs, vs : _) -> reverseOnto xs vs = reverse vs ++ xs
 revOnto xs [] = Refl
-revOnto xs (v :: vs) 
-    = rewrite revOnto (v :: xs) vs in 
+revOnto xs (v :: vs)
+    = rewrite revOnto (v :: xs) vs in
         rewrite appendAssociative (reverse vs) [v] xs in
 				  rewrite revOnto [v] vs in Refl
 
 export
 revAppend : (vs, ns : List a) -> reverse ns ++ reverse vs = reverse (vs ++ ns)
 revAppend [] ns = rewrite appendNilRightNeutral (reverse ns) in Refl
-revAppend (v :: vs) ns 
+revAppend (v :: vs) ns
     = rewrite revOnto [v] vs in
         rewrite revOnto [v] (vs ++ ns) in
           rewrite sym (revAppend vs ns) in

@@ -2,6 +2,10 @@ module Data.Strings
 
 import Data.List
 
+export
+singleton : Char -> String
+singleton c = strCons c ""
+
 -- This works quickly because when string-append builds the result, it allocates
 -- enough room in advance so there's only one allocation, rather than lots!
 export

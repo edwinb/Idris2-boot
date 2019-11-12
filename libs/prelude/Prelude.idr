@@ -4,7 +4,7 @@ import public Builtin
 import public PrimIO
 
 {-
-The Prelude is minimal (since it is effectively part of the language 
+The Prelude is minimal (since it is effectively part of the language
 specification, this seems to be desirable - we should, nevertheless, aim to
 provide a good selection of base libraries). A rule of thumb is that it should
 contain the basic functions required by almost any non-trivial program.
@@ -219,7 +219,7 @@ interface Eq ty => Ord ty where
 
   (<) : ty -> ty -> Bool
   (<) x y = compare x y == LT
-    
+
   (>) : ty -> ty -> Bool
   (>) x y = compare x y == GT
 
@@ -352,10 +352,10 @@ Abs Integer where
 
 public export
 Integral Integer where
-  div x y 
+  div x y
       = case y == 0 of
              False => prim__div_Integer x y
-  mod x y 
+  mod x y
       = case y == 0 of
              False => prim__mod_Integer x y
 
@@ -386,10 +386,10 @@ Abs Int where
 
 public export
 Integral Int where
-  div x y 
+  div x y
       = case y == 0 of
              False => prim__div_Int x y
-  mod x y 
+  mod x y
       = case y == 0 of
              False => prim__mod_Int x y
 
@@ -435,7 +435,7 @@ shiftR : Int -> Int -> Int
 shiftR = prim__shr_Int
 
 ---------------------------------
--- FUNCTOR, APPLICATIVE, MONAD --
+-- FUNCTOR, APPLICATIVE, ALTERNATIVE, MONAD --
 ---------------------------------
 
 public export
@@ -445,6 +445,10 @@ interface Functor f where
 public export
 (<$>) : Functor f => (func : a -> b) -> f a -> f b
 (<$>) func x = map func x
+
+public export
+ignore : Functor f => f a -> f ()
+ignore = map (const ())
 
 public export
 interface Functor f => Applicative f where
@@ -465,8 +469,8 @@ a *> b = map (const id) a <*> b
 
 public export
 interface Applicative f => Alternative f where
-    empty : f a
-    (<|>) : f a -> f a -> f a
+  empty : f a
+  (<|>) : f a -> f a -> f a
 
 public export
 interface Applicative m => Monad m where
@@ -544,6 +548,35 @@ public export
 for_ : (Foldable t, Applicative f) => t a -> (a -> f b) -> f ()
 for_ = flip traverse_
 
+||| Fold using Alternative
+|||
+||| If you have a left-biased alternative operator `<|>`, then `choice`
+||| performs left-biased choice from a list of alternatives, which means that
+||| it evaluates to the left-most non-`empty` alternative.
+|||
+||| If the list is empty, or all values in it are `empty`, then it
+||| evaluates to `empty`.
+|||
+||| Example:
+|||
+||| ```
+||| -- given a parser expression like:
+||| expr = literal <|> keyword <|> funcall
+|||
+||| -- choice lets you write this as:
+||| expr = choice [literal, keyword, funcall]
+||| ```
+|||
+||| Note: In Haskell, `choice` is called `asum`.
+public export
+choice : (Foldable t, Alternative f) => t (f a) -> f a
+choice = foldr (<|>) empty
+
+||| A fused version of `choice` and `map`.
+public export
+choiceMap : (Foldable t, Alternative f) => (a -> f b) -> t a -> f b
+choiceMap f = foldr (\e, a => f e <|> a) empty
+
 public export
 interface (Functor t, Foldable t) => Traversable (t : Type -> Type) where
   ||| Map each element of a structure to a computation, evaluate those
@@ -571,9 +604,9 @@ data Nat = Z | S Nat
 
 public export
 integerToNat : Integer -> Nat
-integerToNat x 
+integerToNat x
   = if intToBool (prim__lte_Integer x 0)
-       then Z 
+       then Z
        else S (assert_total (integerToNat (prim__sub_Integer x 1)))
 
 -- Define separately so we can spot the name when optimising Nats
@@ -617,6 +650,18 @@ public export
 natToInteger : Nat -> Integer
 natToInteger Z = 0
 natToInteger (S k) = 1 + natToInteger k
+
+-----------
+-- PAIRS --
+-----------
+
+public export
+Functor (Pair a) where
+  map f (x, y) = (x, f y)
+
+public export
+mapFst : (a -> c) -> (a, b) -> (c, b)
+mapFst f (x, y) = (f x, y)
 
 -----------
 -- MAYBE --
@@ -756,7 +801,7 @@ Ord a => Ord (List a) where
   compare [] [] = EQ
   compare [] (x :: xs) = LT
   compare (x :: xs) [] = GT
-  compare (x :: xs) (y ::ys) 
+  compare (x :: xs) (y ::ys)
      = case compare x y of
             EQ => compare xs ys
             c => c
@@ -876,7 +921,7 @@ pack (x :: xs) = strCons x (pack xs)
 
 export
 fastPack : List Char -> String
-fastPack xs 
+fastPack xs
    = unsafePerformIO (schemeCall String "string" (toFArgs xs))
   where
     toFArgs : List Char -> FArgList
@@ -927,7 +972,7 @@ isAlphaNum x = isDigit x || isAlpha x
 
 public export
 isSpace : Char -> Bool
-isSpace x 
+isSpace x
     = x == ' '  || x == '\t' || x == '\r' ||
       x == '\n' || x == '\f' || x == '\v' ||
       x == '\xa0'
@@ -938,14 +983,14 @@ isNL x = x == '\r' || x == '\n'
 
 public export
 toUpper : Char -> Char
-toUpper x 
+toUpper x
     = if (isLower x)
          then prim__cast_IntChar (prim__cast_CharInt x - 32)
          else x
 
 public export
 toLower : Char -> Char
-toLower x 
+toLower x
     = if (isUpper x)
          then prim__cast_IntChar (prim__cast_CharInt x + 32)
          else x
@@ -964,7 +1009,7 @@ isOctDigit x = (x >= '0' && x <= '7')
 
 public export
 isControl : Char -> Bool
-isControl x 
+isControl x
     = (x >= '\x0000' && x <= '\x001f')
        || (x >= '\x007f' && x <= '\x009f')
 
@@ -1048,7 +1093,7 @@ showLitChar '\v'   = ("\\v" ++)
 showLitChar '\SO'  = protectEsc (== 'H') "\\SO"
 showLitChar '\DEL' = ("\\DEL" ++)
 showLitChar '\\'   = ("\\\\" ++)
-showLitChar c      
+showLitChar c
     = case getAt (fromInteger (prim__cast_CharInteger c)) asciiTab of
            Just k => strCons '\\' . (k ++)
            Nothing => if (c > '\DEL')
@@ -1104,7 +1149,7 @@ export
 
 export
 Show a => Show (List a) where
-  show xs = "[" ++ show' "" xs ++ "]" 
+  show xs = "[" ++ show' "" xs ++ "]"
     where
       show' : String -> List a -> String
       show' acc []        = acc
@@ -1127,7 +1172,7 @@ Functor IO where
 public export
 Applicative IO where
   pure x = io_pure x
-  f <*> a 
+  f <*> a
       = io_bind f (\f' =>
           io_bind a (\a' =>
             io_pure (f' a')))
@@ -1166,7 +1211,7 @@ log x = prim__doubleLog x
 
 public export
 pow : Double -> Double -> Double
-pow x y = exp (y * log x) 
+pow x y = exp (y * log x)
 
 public export
 sin : Double -> Double
@@ -1335,7 +1380,7 @@ takeBefore p (x :: xs)
          then []
          else x :: takeBefore p xs
 
-public export 
+public export
 interface Range a where
   rangeFromTo : a -> a -> List a
   rangeFromThenTo : a -> a -> a -> List a
@@ -1347,35 +1392,35 @@ interface Range a where
 -- think it's worth going to those lengths! Let's keep it simple and assert.
 export
 Range Nat where
-  rangeFromTo x y 
+  rangeFromTo x y
       = if y > x
            then assert_total $ takeUntil (>= y) (countFrom x S)
            else if x > y
                    then assert_total $ takeUntil (<= y) (countFrom x (\n => minus n 1))
                    else [x]
-  rangeFromThenTo x y z 
+  rangeFromThenTo x y z
       = if y > x
            then (if z > x
                     then assert_total $ takeBefore (> z) (countFrom x (plus (minus y x)))
                     else [])
-           else (if x == y 
+           else (if x == y
                     then (if x == z then [x] else [])
                     else assert_total $ takeBefore (< z) (countFrom x (\n => minus n (minus x y))))
   rangeFrom x = countFrom x S
-  rangeFromThen x y 
-      = if y > x 
+  rangeFromThen x y
+      = if y > x
            then countFrom x (plus (minus y x))
            else countFrom x (\n => minus n (minus x y))
-           
+
 export
 (Integral a, Ord a, Neg a) => Range a where
-  rangeFromTo x y 
+  rangeFromTo x y
       = if y > x
            then assert_total $ takeUntil (>= y) (countFrom x (+1))
            else if x > y
                    then assert_total $ takeUntil (<= y) (countFrom x (\x => x-1))
                    else [x]
-  rangeFromThenTo x y z 
+  rangeFromThenTo x y z
       = if (z - x) > (z - y)
            then -- go up
              assert_total $ takeBefore (> z) (countFrom x (+ (y-x)))
@@ -1386,8 +1431,8 @@ export
                   if x == y && y == z
                      then [x] else []
   rangeFrom x = countFrom x (1+)
-  rangeFromThen x y 
-      = if y > x 
+  rangeFromThen x y
+      = if y > x
            then countFrom x (+ (y - x))
            else countFrom x (\n => n - (x - y))
 
