@@ -31,6 +31,8 @@ import TTImp.Elab
 import TTImp.TTImp
 import TTImp.ProcessDecls
 
+import Utils.Hex
+
 import Control.Catchable
 import System
 import Idris.Socket
@@ -99,38 +101,12 @@ getNChars i (S k)
          xs <- getNChars i k
          pure (x :: xs)
 
-hex : Char -> Maybe Int
-hex '0' = Just 0
-hex '1' = Just 1
-hex '2' = Just 2
-hex '3' = Just 3
-hex '4' = Just 4
-hex '5' = Just 5
-hex '6' = Just 6
-hex '7' = Just 7
-hex '8' = Just 8
-hex '9' = Just 9
-hex 'a' = Just 10
-hex 'b' = Just 11
-hex 'c' = Just 12
-hex 'd' = Just 13
-hex 'e' = Just 14
-hex 'f' = Just 15
-hex _ = Nothing
-
-export
-toHex : Int -> List Char -> Maybe Int
-toHex _ [] = Just 0
-toHex m (d :: ds)
-    = pure $ !(hex (toLower d)) * m + !(toHex (m*16) ds)
-
-
 -- Read 6 characters. If they're a hex number, read that many characters.
 -- Otherwise, just read to newline
 getInput : File -> IO String
 getInput f
     = do x <- getNChars f 6
-         case toHex 1 (reverse x) of
+         case fromHexChars (reverse x) of
               Nothing =>
                 do rest <- getFLine f
                    pure (pack x ++ rest)

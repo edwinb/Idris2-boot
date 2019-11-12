@@ -67,6 +67,7 @@ Show PkgDesc where
              maybe "" (\m => "Exec: " ++ m ++ "\n") (executable pkg) ++
              maybe "" (\m => "Opts: " ++ snd m ++ "\n") (options pkg) ++
              maybe "" (\m => "SourceDir: " ++ m ++ "\n") (sourcedir pkg) ++
+             maybe "" (\m => "Prebuild: " ++ snd m ++ "\n") (prebuild pkg) ++
              maybe "" (\m => "Postbuild: " ++ snd m ++ "\n") (postbuild pkg) ++
              maybe "" (\m => "Preinstall: " ++ snd m ++ "\n") (preinstall pkg) ++
              maybe "" (\m => "Postinstall: " ++ snd m ++ "\n") (postinstall pkg)

@@ -11,10 +11,11 @@ public export
 FileName : Type
 FileName = String
 
+||| A file context is a filename together with starting and ending positions
 public export
 data FC = MkFC FileName FilePos FilePos
         | EmptyFC
-        
+
 export
 file : FC -> FileName
 file (MkFC fn _ _) = fn
@@ -38,7 +39,7 @@ within (x, y) (MkFC _ start end)
    = (x, y) >= start && (x, y) <= end
 within _ _ = False
 
--- Return whether a given line is on the same line as the file context (assuming 
+-- Return whether a given line is on the same line as the file context (assuming
 -- we're in the right file)
 export
 onLine : Int -> FC -> Bool
@@ -58,8 +59,8 @@ toplevelFC = MkFC "(toplevel)" (0, 0) (0, 0)
 
 export
 Show FC where
-  show loc = file loc ++ ":" ++ 
-             showPos (startPos loc) ++ "--" ++ 
+  show loc = file loc ++ ":" ++
+             showPos (startPos loc) ++ "--" ++
              showPos (endPos loc)
 
 
