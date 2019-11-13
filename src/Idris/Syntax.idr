@@ -217,6 +217,7 @@ mutual
        PMutual : FC -> List PDecl -> PDecl
        PFixity : FC -> Fixity -> Nat -> OpStr -> PDecl
        PNamespace : FC -> List String -> List PDecl -> PDecl
+       PTransform : FC -> PTerm -> PTerm -> PDecl
        PDirective : FC -> Directive -> PDecl
 
 definedInData : PDataDecl -> List Name

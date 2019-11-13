@@ -6,6 +6,7 @@ import Core.Env
 import Core.LinearCheck
 import Core.Metadata
 import Core.Normalise
+import Core.Transform
 import Core.UnifyState
 import Core.Unify
 

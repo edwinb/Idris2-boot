@@ -881,6 +881,20 @@ TTC GlobalDef where
                                         RigW [] Public unchecked [] refs
                                         False False True def cdef [])
 
+TTC Transform where
+  toBuf b (MkTransform {vars} env lhs rhs)
+      = do toBuf b vars
+           toBuf b env
+           toBuf b lhs
+           toBuf b rhs
+
+  fromBuf b
+      = do vars <- fromBuf b
+           env <- fromBuf b
+           lhs <- fromBuf b
+           rhs <- fromBuf b
+           pure (MkTransform {vars} env lhs rhs)
+
 -- decode : Context -> Int -> ContextEntry -> Core GlobalDef
 Core.Context.decode gam idx (Coded bin) 
     = do b <- newRef Bin bin

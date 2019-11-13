@@ -337,6 +337,9 @@ mutual
   toPDecl (INamespace fc _ ns ds)
       = do ds' <- traverse toPDecl ds
            pure (Just (PNamespace fc ns (mapMaybe id ds')))
+  toPDecl (ITransform fc lhs rhs)
+      = pure (Just (PTransform fc !(toPTerm startPrec lhs)
+                                  !(toPTerm startPrec rhs)))
   toPDecl (IPragma _) = pure Nothing
   toPDecl (ILog _) = pure Nothing
 

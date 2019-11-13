@@ -285,6 +285,7 @@ mutual
                       -- ^ if True, parent namespaces in the same file can also 
                       -- look inside and see private/export names in full
                     List String -> List ImpDecl -> ImpDecl 
+       ITransform : FC -> RawImp -> RawImp -> ImpDecl
        IPragma : ({vars : _} -> Ref Ctxt Defs -> 
                   NestedNames vars -> Env Term vars -> Core ()) -> 
                  ImpDecl
@@ -302,6 +303,8 @@ mutual
     show (INamespace _ nest ns decls) 
         = "namespace " ++ if nest then "[nested] " else "" ++ show ns ++ 
           showSep "\n" (assert_total $ map show decls)
+    show (ITransform _ lhs rhs)
+        = "%transform " ++ show lhs ++ " ==> " ++ show rhs
     show (IPragma _) = "[externally defined pragma]"
     show (ILog lvl) = "%logging " ++ show lvl
 
@@ -836,9 +839,11 @@ mutual
         = do tag 4; toBuf b fc; toBuf b vis; toBuf b r
     toBuf b (INamespace fc n xs ds) 
         = do tag 5; toBuf b fc; toBuf b n; toBuf b xs; toBuf b ds
+    toBuf b (ITransform fc lhs rhs)
+        = do tag 6; toBuf b fc; toBuf b lhs; toBuf b rhs
     toBuf b (IPragma f) = throw (InternalError "Can't write Pragma")
     toBuf b (ILog n) 
-        = do tag 6; toBuf b n
+        = do tag 7; toBuf b n
 
     fromBuf b
         = case !getTag of
@@ -861,7 +866,9 @@ mutual
                5 => do fc <- fromBuf b; n <- fromBuf b; xs <- fromBuf b
                        ds <- fromBuf b
                        pure (INamespace fc n xs ds)
-               6 => do n <- fromBuf b
+               6 => do fc <- fromBuf b; lhs <- fromBuf b; rhs <- fromBuf b
+                       pure (ITransform fc lhs rhs)
+               7 => do n <- fromBuf b
                        pure (ILog n)
                _ => corrupt "ImpDecl"
 

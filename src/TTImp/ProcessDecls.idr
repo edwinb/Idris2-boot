@@ -46,6 +46,8 @@ process eopts nest env (INamespace fc nested ns decls)
                             nestedNS = if nested
                                           then newns :: nns
                                           else nns } defs)
+process eopts nest env (ITransform fc lhs rhs)
+    = throw (GenericMsg fc "%transform not yet implemented")
 process {c} eopts nest env (IPragma act)
     = act c nest env
 process eopts nest env (ILog n)
