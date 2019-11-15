@@ -39,6 +39,19 @@ dropWhile : (p : a -> Bool) -> List a -> List a
 dropWhile p []      = []
 dropWhile p (x::xs) = if p x then dropWhile p xs else x::xs
 
+||| Repeat some value some number of times.
+|||
+||| @ len the number of times to repeat it
+||| @ x the value to repeat
+|||
+||| ```idris example
+||| replicate 4 1
+||| ```
+public export
+replicate : (len : Nat) -> (x : a) -> List a
+replicate Z     x = []
+replicate (S k) x = x :: replicate k x
+
 public export
 filter : (p : a -> Bool) -> List a -> List a
 filter p [] = []
@@ -299,15 +312,15 @@ appendAssociative (x::xs) c r =
 
 revOnto : (xs, vs : _) -> reverseOnto xs vs = reverse vs ++ xs
 revOnto xs [] = Refl
-revOnto xs (v :: vs) 
-    = rewrite revOnto (v :: xs) vs in 
+revOnto xs (v :: vs)
+    = rewrite revOnto (v :: xs) vs in
         rewrite appendAssociative (reverse vs) [v] xs in
 				  rewrite revOnto [v] vs in Refl
 
 export
 revAppend : (vs, ns : List a) -> reverse ns ++ reverse vs = reverse (vs ++ ns)
 revAppend [] ns = rewrite appendNilRightNeutral (reverse ns) in Refl
-revAppend (v :: vs) ns 
+revAppend (v :: vs) ns
     = rewrite revOnto [v] vs in
         rewrite revOnto [v] (vs ++ ns) in
           rewrite sym (revAppend vs ns) in
@@ -342,5 +355,3 @@ implementation DecEq a => DecEq (List a) where
     decEq (x :: xs) (y :: ys) | No p with (decEq xs ys)
       decEq (x :: xs) (y :: xs) | (No p) | (Yes Refl) = No (\eq => lemma_x_neq_xs_eq p Refl eq)
       decEq (x :: xs) (y :: ys) | (No p) | (No p') = No (\eq => lemma_x_neq_xs_neq p p' eq)
-
-

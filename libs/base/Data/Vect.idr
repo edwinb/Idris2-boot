@@ -23,7 +23,7 @@ length [] = 0
 length (x::xs) = 1 + length xs
 
 ||| Show that the length function on vectors in fact calculates the length
-private 
+private
 lengthCorrect : (len : Nat) -> (xs : Vect len elem) -> length xs = len
 lengthCorrect Z     []        = Refl
 lengthCorrect (S n) (x :: xs) = rewrite lengthCorrect n xs in Refl
@@ -137,7 +137,7 @@ public export
 (++) []      ys = ys
 (++) (x::xs) ys = x :: xs ++ ys
 
-||| Repeate some value some number of times.
+||| Repeat some value some number of times.
 |||
 ||| @ len the number of times to repeat it
 ||| @ x the value to repeat
@@ -295,7 +295,7 @@ public export
 unzip3 : (xs : Vect n (a, b, c)) -> (Vect n a, Vect n b, Vect n c)
 unzip3 []            = ([], [], [])
 unzip3 ((l,c,r)::xs) with (unzip3 xs)
-  unzip3 ((l,c,r)::xs) | (lefts, centers, rights) 
+  unzip3 ((l,c,r)::xs) | (lefts, centers, rights)
       = (l::lefts, c::centers, r::rights)
 
 --------------------------------------------------------------------------------
@@ -315,7 +315,7 @@ implementation (Eq elem) => Eq (Vect len elem) where
 public export
 implementation Ord elem => Ord (Vect len elem) where
   compare []      []      = EQ
-  compare (x::xs) (y::ys) 
+  compare (x::xs) (y::ys)
       = case compare x y of
              EQ => compare xs ys
              x => x
@@ -528,7 +528,7 @@ findIndex p (x :: xs) = if p x then Just FZ else map FS (findIndex p xs)
 public export
 findIndices : (elem -> Bool) -> Vect m elem -> List (Fin m)
 findIndices p []        = []
-findIndices p (x :: xs) 
+findIndices p (x :: xs)
      = let is = map FS $ findIndices p xs in
            if p x then FZ :: is else is
 
@@ -787,7 +787,7 @@ transpose (x :: xs) = zipWith (::) x (transpose xs) -- = [| x :: xs |]
 --------------------------------------------------------------------------------
 -- Applicative/Monad/Traversable
 --------------------------------------------------------------------------------
--- These only work if the length is known at run time! 
+-- These only work if the length is known at run time!
 
 implementation {k : Nat} -> Applicative (Vect k) where
     pure = replicate _
@@ -849,7 +849,7 @@ replaceByElem (x::xs) Here y = y :: xs
 replaceByElem (x::xs) (There xinxs) y = x :: replaceByElem xs xinxs y
 
 public export
-mapElem : {0 xs : Vect k t} -> {0 f : t -> u} -> 
+mapElem : {0 xs : Vect k t} -> {0 f : t -> u} ->
           Elem x xs -> Elem (f x) (map f xs)
 mapElem Here = Here
 mapElem (There e) = There (mapElem e)
@@ -895,5 +895,3 @@ overLength {m} n xs with (cmp m n)
          = Just (0 ** xs)
   overLength {m = plus n (S x)} n xs | (CmpGT x)
          = Just (S x ** rewrite plusCommutative (S x) n in xs)
-
-
