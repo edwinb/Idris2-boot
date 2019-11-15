@@ -89,7 +89,7 @@ export
 isLTE : (m, n : Nat) -> Dec (LTE m n)
 isLTE Z n = Yes LTEZero
 isLTE (S k) Z = No succNotLTEzero
-isLTE (S k) (S j) 
+isLTE (S k) (S j)
     = case isLTE k j of
            No contra => No (contra . fromLteSucc)
            Yes prf => Yes (LTESucc prf)
@@ -213,6 +213,11 @@ divCeilNZ x y p = case (modNatNZ x y p) of
 export
 divCeil : Nat -> Nat -> Nat
 divCeil x (S y) = divCeilNZ x (S y) SIsNotZ
+
+public export
+Integral Nat where
+  div = divNat
+  mod = modNat
 
 export
 gcd : (a: Nat) -> (b: Nat) -> {auto ok: NotBothZero a b} -> Nat
@@ -410,5 +415,3 @@ multOneRightNeutral (S left) =
   let inductiveHypothesis = multOneRightNeutral left in
     rewrite inductiveHypothesis in
             Refl
-
-
