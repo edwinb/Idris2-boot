@@ -18,7 +18,7 @@ checkEqNat (S k) (S j) = case checkEqNat k j of
                               Nothing => Nothing
                               Just eq => Just (sameS _ _ eq)
 
-exactLength : {m : _} -> 
+exactLength : {m : _} ->
               (len : Nat) -> (input : Vect m a) -> Maybe (Vect len a)
 exactLength {m} len input = case checkEqNat m len of
                                  Nothing => Nothing

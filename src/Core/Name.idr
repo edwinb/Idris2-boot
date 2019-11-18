@@ -95,7 +95,7 @@ nameTag (Resolved _) = 8
 
 export
 Ord Name where
-    compare (NS x y) (NS x' y') 
+    compare (NS x y) (NS x' y')
         = case compare y y' of -- Compare base name first (more likely to differ)
                EQ => compare x x'
                -- Because of the terrible way Idris 1 compiles 'case', this
@@ -103,7 +103,7 @@ Ord Name where
                GT => GT
                LT => LT
     compare (UN x) (UN y) = compare x y
-    compare (MN x y) (MN x' y') 
+    compare (MN x y) (MN x' y')
         = case compare y y' of
                EQ => compare x x'
                GT => GT
@@ -176,5 +176,5 @@ nameEq (WithBlock x y) (WithBlock x' y') with (decEq x x')
 nameEq (Resolved x) (Resolved y) with (decEq x y)
   nameEq (Resolved y) (Resolved y) | (Yes Refl) = Just Refl
   nameEq (Resolved x) (Resolved y) | (No contra) = Nothing
-nameEq _ _ = Nothing 
+nameEq _ _ = Nothing
 

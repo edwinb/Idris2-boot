@@ -18,12 +18,12 @@ interface DecEq t where
 --------------------------------------------------------------------------------
 
 ||| The negation of equality is symmetric (follows from symmetry of equality)
-export total 
+export total
 negEqSym : forall a, b . (a = b -> Void) -> (b = a -> Void)
 negEqSym p h = p (sym h)
 
 ||| Everything is decidably equal to itself
-export total 
+export total
 decEqSelfIsYes : DecEq a => {x : a} -> decEq x x = Yes Refl
 decEqSelfIsYes {x} with (decEq x x)
   decEqSelfIsYes {x} | Yes Refl = Refl
@@ -78,7 +78,7 @@ implementation (DecEq t) => DecEq (Maybe t) where
   decEq Nothing Nothing = Yes Refl
   decEq (Just x') (Just y') with (decEq x' y')
     decEq (Just x') (Just y') | Yes p = Yes $ cong Just p
-    decEq (Just x') (Just y') | No p 
+    decEq (Just x') (Just y') | No p
        = No $ \h : Just x' = Just y' => p $ justInjective h
   decEq Nothing (Just _) = No nothingNotJust
   decEq (Just _) Nothing = No (negEqSym nothingNotJust)
@@ -86,7 +86,7 @@ implementation (DecEq t) => DecEq (Maybe t) where
 -- TODO: Other prelude data types
 
 -- For the primitives, we have to cheat because we don't have access to their
--- internal implementations. We use believe_me for the inequality proofs 
+-- internal implementations. We use believe_me for the inequality proofs
 -- because we don't them to reduce (and they should never be needed anyway...)
 -- A postulate would be better, but erasure analysis may think they're needed
 -- for computation in a higher order setting.
@@ -97,7 +97,7 @@ implementation (DecEq t) => DecEq (Maybe t) where
 export
 implementation DecEq Int where
     decEq x y = case x == y of -- Blocks if x or y not concrete
-                     True => Yes primitiveEq 
+                     True => Yes primitiveEq
                      False => No primitiveNotEq
        where primitiveEq : forall x, y . x = y
              primitiveEq = believe_me (Refl {x})
@@ -110,7 +110,7 @@ implementation DecEq Int where
 export
 implementation DecEq Char where
     decEq x y = case x == y of -- Blocks if x or y not concrete
-                     True => Yes primitiveEq 
+                     True => Yes primitiveEq
                      False => No primitiveNotEq
        where primitiveEq : forall x, y . x = y
              primitiveEq = believe_me (Refl {x})
@@ -123,7 +123,7 @@ implementation DecEq Char where
 export
 implementation DecEq Integer where
     decEq x y = case x == y of -- Blocks if x or y not concrete
-                     True => Yes primitiveEq 
+                     True => Yes primitiveEq
                      False => No primitiveNotEq
        where primitiveEq : forall x, y . x = y
              primitiveEq = believe_me (Refl {x})
@@ -136,7 +136,7 @@ implementation DecEq Integer where
 export
 implementation DecEq String where
     decEq x y = case x == y of -- Blocks if x or y not concrete
-                     True => Yes primitiveEq 
+                     True => Yes primitiveEq
                      False => No primitiveNotEq
        where primitiveEq : forall x, y . x = y
              primitiveEq = believe_me (Refl {x})

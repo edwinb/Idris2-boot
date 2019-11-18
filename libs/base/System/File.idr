@@ -82,13 +82,13 @@ stderr = FHandle prim__stderr
 
 export
 openFile : String -> Mode -> IO (Either FileError File)
-openFile f m 
+openFile f m
     = do res <- primIO (prim__open f (modeStr m) 0)
          fpure (map FHandle res)
 
 export
 openBinaryFile : String -> Mode -> IO (Either FileError BinaryFile)
-openBinaryFile f m 
+openBinaryFile f m
     = do res <- primIO (prim__open f (modeStr m) 1)
          fpure (map FHandle res)
 
@@ -98,7 +98,7 @@ closeFile (FHandle f) = primIO (prim__close f)
 
 export
 fGetLine : (h : File) -> IO (Either FileError String)
-fGetLine (FHandle f) 
+fGetLine (FHandle f)
     = do res <- primIO (prim__readLine f)
          fpure res
 
@@ -110,14 +110,14 @@ fPutStr (FHandle f) str
 
 export
 fPutStrLn : (h : File) -> String -> IO (Either FileError ())
-fPutStrLn f str = fPutStr f (str ++ "\n") 
+fPutStrLn f str = fPutStr f (str ++ "\n")
 
 export
 fEOF : (h : File) -> IO Bool
 fEOF (FHandle f)
     = do res <- primIO (prim__eof f)
          pure (res /= 0)
-    
+
 export
 readFile : String -> IO (Either FileError String)
 readFile file

@@ -51,13 +51,13 @@ dump (Other str) = str
 data UPD : Type where
 
 doUpdates : {auto u : Ref UPD (List String)} ->
-            Defs -> List (String, String) -> List SourcePart -> 
+            Defs -> List (String, String) -> List SourcePart ->
             Core (List SourcePart)
 doUpdates defs ups [] = pure []
 doUpdates defs ups (LBrace :: xs)
     = case dropSpace xs of
            Name n :: RBrace :: rest =>
-                pure (LBrace :: Name n :: 
+                pure (LBrace :: Name n ::
                       Whitespace " " :: Equal :: Whitespace " " ::
                       !(doUpdates defs ups (Name n :: RBrace :: rest)))
            Name n :: Equal :: rest =>
@@ -80,14 +80,14 @@ doUpdates defs ups (HoleName n :: xs)
          n' <- uniqueName defs used n
          put UPD (n' :: used)
          pure $ HoleName n' :: !(doUpdates defs ups xs)
-doUpdates defs ups (x :: xs) 
+doUpdates defs ups (x :: xs)
     = pure $ x :: !(doUpdates defs ups xs)
 
 -- State here is a list of new hole names we generated (so as not to reuse any).
--- Update the token list with the string replacements for each match, and return 
+-- Update the token list with the string replacements for each match, and return
 -- the newly generated strings.
 updateAll : {auto u : Ref UPD (List String)} ->
-            Defs -> List SourcePart -> List (List (String, String)) -> 
+            Defs -> List SourcePart -> List (List (String, String)) ->
             Core (List String)
 updateAll defs l [] = pure []
 updateAll defs l (rs :: rss)
@@ -104,7 +104,7 @@ getReplaces : {auto c : Ref Ctxt Defs} ->
 getReplaces updates
     = do strups <- traverse toStrUpdate updates
          pure (concat strups)
-         
+
 showImpossible : {auto c : Ref Ctxt Defs} ->
                  {auto s : Ref Syn SyntaxInfo} ->
                  {auto o : Ref ROpts REPLOpts} ->
@@ -131,7 +131,7 @@ updateCase splits line col
                    let thisline = getLine (cast line) (lines file)
                    case thisline of
                         Nothing => throw (InternalError "File too short!")
-                        Just l => 
+                        Just l =>
                             do let valid = mapMaybe getValid splits
                                let bad = mapMaybe getBad splits
                                if isNil valid
@@ -151,7 +151,7 @@ updateCase splits line col
     getBad _ = Nothing
 
 fnName : Bool -> Name -> String
-fnName lhs (UN n) 
+fnName lhs (UN n)
     = if any (not . identChar) (unpack n)
          then if lhs then "(" ++ n ++ ")"
                      else "op"
@@ -171,7 +171,7 @@ getClause l n
              | Nothing => pure Nothing
          n <- getFullName nidx
          argns <- getEnvArgNames defs envlen !(nf defs [] ty)
-         pure (Just (indent loc ++ fnName True n ++ concat (map (" " ++) argns) ++ 
+         pure (Just (indent loc ++ fnName True n ++ concat (map (" " ++) argns) ++
                   " = ?" ++ fnName False n ++ "_rhs"))
   where
     indent : FC -> String

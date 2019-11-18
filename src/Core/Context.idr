@@ -739,7 +739,7 @@ initDefs
          pure (MkDefs gam [] ["Main"] [] defaults empty 100
                       empty empty empty [] [] [] 5381 [] [] [] [] [] empty
                       empty)
-      
+
 -- Reset the context, except for the options
 export
 clearCtxt : {auto c : Ref Ctxt Defs} ->
@@ -1898,7 +1898,7 @@ logTimeOver nsecs str act
            assert_total $ -- We're not dividing by 0
               do str' <- str
                  coreLift $ putStrLn $ "TIMING " ++ str' ++ ": " ++
-                          show (time `div` nano) ++ "." ++ 
+                          show (time `div` nano) ++ "." ++
                           addZeros (unpack (show ((time `mod` nano) `div` 1000000))) ++
                           "s"
          pure res
@@ -1973,7 +1973,7 @@ showTimeRecord
         = do coreLift $ putStr (key ++ ": ")
              let nano = 1000000000
              assert_total $ -- We're not dividing by 0
-                    coreLift $ putStrLn $ show (time `div` nano) ++ "." ++ 
+                    coreLift $ putStrLn $ show (time `div` nano) ++ "." ++
                                addZeros (unpack (show ((time `mod` nano) `div` 1000000))) ++
                                "s"
 

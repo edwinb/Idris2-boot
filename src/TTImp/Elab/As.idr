@@ -23,11 +23,11 @@ checkAs : {vars : _} ->
           {auto m : Ref MD Metadata} ->
           {auto u : Ref UST UState} ->
           {auto e : Ref EST (EState vars)} ->
-          RigCount -> ElabInfo -> 
-          NestedNames vars -> Env Term vars -> 
+          RigCount -> ElabInfo ->
+          NestedNames vars -> Env Term vars ->
           FC -> UseSide -> Name -> RawImp -> Maybe (Glued vars) ->
           Core (Term vars, Glued vars)
-checkAs rig elabinfo nest env fc side n_in pat topexp 
+checkAs rig elabinfo nest env fc side n_in pat topexp
     = do let elabmode = elabMode elabinfo
          let InLHS _ = elabmode
              | _ => throw (GenericMsg fc "@-patterns only allowed in pattern clauses")
@@ -40,7 +40,7 @@ checkAs rig elabinfo nest env fc side n_in pat topexp
          noteLHSPatVar elabmode str
          notePatVar n
          case lookup n (boundNames est) of
-              Nothing => 
+              Nothing =>
                  do (pattm, patty) <- check rigPat elabinfo nest env pat topexp
                     (tm, exp, bty) <- mkPatternHole fc rig n env
                                             (implicitMode elabinfo)
@@ -56,7 +56,7 @@ checkAs rig elabinfo nest env fc side n_in pat topexp
                     (ntm, nty) <- checkExp rig elabinfo env fc tm (gnf env exp)
                                            (Just patty)
                     pure (As fc ntm pattm, patty)
-              Just bty => throw (NonLinearPattern fc n_in) 
+              Just bty => throw (NonLinearPattern fc n_in)
   where
     -- Only one side can be usable if it's linear! Normally we'd assume this
     -- to be the new variable (UseRight), but in generated case blocks it's

@@ -22,9 +22,9 @@ iputStrLn msg
               REPL False => coreLift $ putStrLn msg
               REPL _ => pure ()
               IDEMode i _ f =>
-                send f (SExpList [SymbolAtom "write-string", 
+                send f (SExpList [SymbolAtom "write-string",
                                  toSExp msg, toSExp i])
-                                                                
+
 
 printWithStatus : {auto o : Ref ROpts REPLOpts} ->
                   String -> String -> Core ()
@@ -33,7 +33,7 @@ printWithStatus status msg
          case idemode opts of
               REPL _ => coreLift $ putStrLn msg
               IDEMode i _ f =>
-                do let m = SExpList [SymbolAtom status, toSExp msg, 
+                do let m = SExpList [SymbolAtom status, toSExp msg,
                                      -- highlighting; currently blank
                                      SExpList []]
                    send f (SExpList [SymbolAtom "return", m, toSExp i])
@@ -58,7 +58,7 @@ emitError : {auto c : Ref Ctxt Defs} ->
 emitError err
     = do opts <- get ROpts
          case idemode opts of
-              REPL _ => 
+              REPL _ =>
                   do msg <- display err
                      coreLift $ putStrLn msg
               IDEMode i _ f =>
@@ -66,10 +66,10 @@ emitError err
                      case getErrorLoc err of
                           Nothing => iputStrLn msg
                           Just fc =>
-                            send f (SExpList [SymbolAtom "warning", 
-                                   SExpList [toSExp (file fc), 
-                                            toSExp (addOne (startPos fc)), 
-                                              toSExp (addOne (endPos fc)), 
+                            send f (SExpList [SymbolAtom "warning",
+                                   SExpList [toSExp (file fc),
+                                            toSExp (addOne (startPos fc)),
+                                              toSExp (addOne (endPos fc)),
                                               toSExp msg,
                                               -- highlighting; currently blank
                                               SExpList []],

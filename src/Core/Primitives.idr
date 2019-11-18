@@ -65,40 +65,40 @@ strLength _ = Nothing
 
 strHead : Vect 1 (NF vars) -> Maybe (NF vars)
 strHead [NPrimVal fc (Str "")] = Nothing
-strHead [NPrimVal fc (Str str)] 
+strHead [NPrimVal fc (Str str)]
     = Just (NPrimVal fc (Ch (assert_total (strHead str))))
 strHead _ = Nothing
 
 strTail : Vect 1 (NF vars) -> Maybe (NF vars)
 strTail [NPrimVal fc (Str "")] = Nothing
-strTail [NPrimVal fc (Str str)] 
+strTail [NPrimVal fc (Str str)]
     = Just (NPrimVal fc (Str (assert_total (strTail str))))
 strTail _ = Nothing
 
 strIndex : Vect 2 (NF vars) -> Maybe (NF vars)
-strIndex [NPrimVal fc (Str str), NPrimVal _ (I i)] 
+strIndex [NPrimVal fc (Str str), NPrimVal _ (I i)]
     = if i >= 0 && cast i < length str
          then Just (NPrimVal fc (Ch (assert_total (prim__strIndex str i))))
          else Nothing
 strIndex _ = Nothing
 
 strCons : Vect 2 (NF vars) -> Maybe (NF vars)
-strCons [NPrimVal fc (Ch x), NPrimVal _ (Str y)] 
+strCons [NPrimVal fc (Ch x), NPrimVal _ (Str y)]
     = Just (NPrimVal fc (Str (strCons x y)))
 strCons _ = Nothing
 
 strAppend : Vect 2 (NF vars) -> Maybe (NF vars)
-strAppend [NPrimVal fc (Str x), NPrimVal _ (Str y)] 
+strAppend [NPrimVal fc (Str x), NPrimVal _ (Str y)]
     = Just (NPrimVal fc (Str (x ++ y)))
 strAppend _ = Nothing
 
 strReverse : Vect 1 (NF vars) -> Maybe (NF vars)
-strReverse [NPrimVal fc (Str x)] 
+strReverse [NPrimVal fc (Str x)]
     = Just (NPrimVal fc (Str (reverse x)))
 strReverse _ = Nothing
 
 strSubstr : Vect 3 (NF vars) -> Maybe (NF vars)
-strSubstr [NPrimVal fc (I start), NPrimVal _ (I len), NPrimVal _ (Str str)] 
+strSubstr [NPrimVal fc (I start), NPrimVal _ (I len), NPrimVal _ (Str str)]
     = Just (NPrimVal fc (Str (prim__strSubstr start len str)))
 strSubstr _ = Nothing
 
@@ -241,14 +241,14 @@ believeMe [_, _, NType fc] = Just (NType fc)
 believeMe [_, _, val] = Nothing
 
 constTy : Constant -> Constant -> Constant -> ClosedTerm
-constTy a b c 
-    = PrimVal emptyFC a `linFnType` 
+constTy a b c
+    = PrimVal emptyFC a `linFnType`
          (PrimVal emptyFC b `linFnType` PrimVal emptyFC c)
 
 constTy3 : Constant -> Constant -> Constant -> Constant -> ClosedTerm
-constTy3 a b c d 
-    = PrimVal emptyFC a `linFnType` 
-         (PrimVal emptyFC b `linFnType` 
+constTy3 a b c d
+    = PrimVal emptyFC a `linFnType`
+         (PrimVal emptyFC b `linFnType`
              (PrimVal emptyFC c `linFnType` PrimVal emptyFC d))
 
 predTy : Constant -> Constant -> ClosedTerm
@@ -264,7 +264,7 @@ doubleTy : ClosedTerm
 doubleTy = predTy DoubleType DoubleType
 
 believeMeTy : ClosedTerm
-believeMeTy 
+believeMeTy
     = Bind emptyFC (UN "a") (Pi Rig0 Explicit (TType emptyFC)) $
       Bind emptyFC (UN "b") (Pi Rig0 Explicit (TType emptyFC)) $
       Bind emptyFC (UN "x") (Pi RigW Explicit (Local emptyFC Nothing _ (Later First))) $
@@ -279,7 +279,7 @@ castTo DoubleType = castDouble
 castTo _ = const Nothing
 
 export
-getOp : PrimFn arity -> 
+getOp : PrimFn arity ->
         {vars : List Name} -> Vect arity (NF vars) -> Maybe (NF vars)
 getOp (Add ty) = binOp add
 getOp (Sub ty) = binOp sub
@@ -373,7 +373,7 @@ allPrimitives =
     map (\t => MkPrim (Neg t) (predTy t t) isTotal) [IntType, IntegerType, DoubleType] ++
     map (\t => MkPrim (ShiftL t) (arithTy t) notCovering) [IntType] ++
     map (\t => MkPrim (ShiftR t) (arithTy t) notCovering) [IntType] ++
-    
+
     map (\t => MkPrim (LT t) (cmpTy t) isTotal) [IntType, IntegerType, CharType, DoubleType, StringType] ++
     map (\t => MkPrim (LTE t) (cmpTy t) isTotal) [IntType, IntegerType, CharType, DoubleType, StringType] ++
     map (\t => MkPrim (EQ t) (cmpTy t) isTotal) [IntType, IntegerType, CharType, DoubleType, StringType] ++

@@ -26,10 +26,10 @@ changeVar (MkVar {i=x} old) (MkVar new) (Local fc r idx p)
          else Local fc r _ p
 changeVar old new (Meta fc nm i args)
     = Meta fc nm i (map (changeVar old new) args)
-changeVar (MkVar old) (MkVar new) (Bind fc x b sc) 
-    = Bind fc x (assert_total (map (changeVar (MkVar old) (MkVar new)) b)) 
+changeVar (MkVar old) (MkVar new) (Bind fc x b sc)
+    = Bind fc x (assert_total (map (changeVar (MkVar old) (MkVar new)) b))
 		            (changeVar (MkVar (Later old)) (MkVar (Later new)) sc)
-changeVar old new (App fc fn arg) 
+changeVar old new (App fc fn arg)
     = App fc (changeVar old new fn) (changeVar old new arg)
 changeVar old new (As fc nm p)
     = As fc (changeVar old new nm) (changeVar old new p)
@@ -48,10 +48,10 @@ findLater {older} x (_ :: xs)
           MkVar (Later p)
 
 -- For any variable *not* in vs', re-abstract over it in the term
-absOthers : FC -> Env Term vs -> SubVars vs' vs -> 
+absOthers : FC -> Env Term vs -> SubVars vs' vs ->
             Term (done ++ vs) -> Term (done ++ vs)
 absOthers fc _ SubRefl tm = tm
-absOthers {done} {vs = x :: vars} fc (b :: env) (KeepCons sub) tm 
+absOthers {done} {vs = x :: vars} fc (b :: env) (KeepCons sub) tm
   = rewrite appendAssociative done [x] vars in
             absOthers {done = done ++ [x]} fc env sub
                (rewrite sym (appendAssociative done [x] vars) in tm)
@@ -60,7 +60,7 @@ absOthers {done} {vs = x :: vars} fc (b :: env) (DropCons sub) tm
                       = rewrite appendAssociative done [x] vars in
                                 map (weakenNs (done ++ [x])) b
         b' = Pi (multiplicity b) Explicit (binderType bindervs)
-        btm = Bind fc x b' 
+        btm = Bind fc x b'
                    (changeVar (findLater _ (x :: done)) (MkVar First) (weaken tm)) in
         rewrite appendAssociative done [x] vars in
                 absOthers {done = done ++ [x]} fc env sub
@@ -70,43 +70,43 @@ absOthers {done} {vs = x :: vars} fc (b :: env) (DropCons sub) tm
 -- unbound implicits at the point in the environment where they were
 -- created (which is after the outer environment was bound)
 export
-abstractOver : FC -> Defs -> BindMode -> Env Term vs -> 
+abstractOver : FC -> Defs -> BindMode -> Env Term vs ->
                Maybe (SubVars outer vs) -> List (Name, ImplBinding outer) ->
                (tm : Term vs) -> Core ClosedTerm
 abstractOver fc defs bindmode [] Nothing imps tm = pure tm
-abstractOver fc defs bindmode [] (Just SubRefl) imps tm 
-    = do tm' <- if isNil imps 
+abstractOver fc defs bindmode [] (Just SubRefl) imps tm
+    = do tm' <- if isNil imps
                    then pure tm
                    else normaliseHoles defs [] tm
          (bimptm, _) <- bindImplicits fc bindmode defs [] imps tm' (TType fc)
          pure bimptm
-abstractOver fc defs bindmode (b :: env) (Just SubRefl) imps tm 
+abstractOver fc defs bindmode (b :: env) (Just SubRefl) imps tm
     = do let c : RigCount
             = case multiplicity b of
                    Rig1 => Rig0
                    r => r
-         tm' <- if isNil imps 
+         tm' <- if isNil imps
                    then pure tm
                    else normaliseHoles defs (b :: env) tm
          (bimptm, _) <- bindImplicits fc bindmode defs (b :: env) imps
                                       tm' (TType fc)
-         abstractOver fc defs bindmode env Nothing imps 
+         abstractOver fc defs bindmode env Nothing imps
                   (Bind fc _ (Pi c Explicit (binderType b)) bimptm)
-abstractOver fc defs bindmode (b :: env) (Just (DropCons p)) imps tm 
+abstractOver fc defs bindmode (b :: env) (Just (DropCons p)) imps tm
     = let c = case multiplicity b of
                    Rig1 => Rig0
                    r => r in
-      abstractOver fc defs bindmode env (Just p) imps 
+      abstractOver fc defs bindmode env (Just p) imps
                    (Bind fc _ (Pi c Explicit (binderType b)) tm)
-abstractOver fc defs bindmode (b :: env) _ imps tm 
+abstractOver fc defs bindmode (b :: env) _ imps tm
     = let c = case multiplicity b of
                    Rig1 => Rig0
                    r => r in
-      abstractOver fc defs bindmode env Nothing imps 
+      abstractOver fc defs bindmode env Nothing imps
                    (Bind fc _ (Pi c Explicit (binderType b)) tm)
 
 toRig1 : {idx : Nat} -> .(IsVar name idx vs) -> Env Term vs -> Env Term vs
-toRig1 First (b :: bs) 
+toRig1 First (b :: bs)
     = if multiplicity b == Rig0
          then setMultiplicity b Rig1 :: bs
          else b :: bs
@@ -126,7 +126,7 @@ updateMults : List (Var vs) -> Env Term vs -> Env Term vs
 updateMults [] env = env
 updateMults (MkVar p :: us) env = updateMults us (toRig0 p env)
 
-shrinkImp : SubVars outer vars -> 
+shrinkImp : SubVars outer vars ->
             (Name, ImplBinding vars) -> Maybe (Name, ImplBinding outer)
 shrinkImp sub (n, NameBinding c p tm ty)
     = do tm' <- shrinkTerm tm sub
@@ -141,11 +141,11 @@ shrinkImp sub (n, AsBinding c p tm ty pat)
 findImpsIn : FC -> Env Term vars -> List (Name, Term vars) -> Term vars ->
              Core ()
 findImpsIn fc env ns (Bind _ n b@(Pi _ Implicit ty) sc)
-    = findImpsIn fc (b :: env) 
+    = findImpsIn fc (b :: env)
                  ((n, weaken ty) :: map (\x => (fst x, weaken (snd x))) ns)
                  sc
 findImpsIn fc env ns (Bind _ n b sc)
-    = findImpsIn fc (b :: env) 
+    = findImpsIn fc (b :: env)
                  (map (\x => (fst x, weaken (snd x))) ns)
                  sc
 findImpsIn fc env ns ty
@@ -160,7 +160,7 @@ merge (v :: vs) xs
 
 -- Extend the list of variables we need in the environment so far, removing
 -- duplicates
-extendNeeded : Binder (Term vs) -> 
+extendNeeded : Binder (Term vs) ->
                Env Term vs -> List (Var vs) -> List (Var vs)
 extendNeeded (Let c ty val) env needed
     = merge (findUsedLocs env ty) (merge (findUsedLocs env val) needed)
@@ -183,16 +183,16 @@ isNeeded x (MkVar {i} _ :: xs) = x == i || isNeeded x xs
 -- starting from the 'outerEnv' which is the fragment of the environment
 -- used for the outer scope)
 shrinkEnv : Defs -> SubVars outer vs -> List (Var vs) ->
-            (done : List Name) -> Env Term vs -> 
+            (done : List Name) -> Env Term vs ->
             Core (outer' ** SubVars outer' vs)
-shrinkEnv defs SubRefl needed done env 
+shrinkEnv defs SubRefl needed done env
     = pure (_ ** SubRefl) -- keep them all
 -- usable name, so drop from the outer environment
-shrinkEnv {vs = UN n :: _} defs (DropCons p) needed done (b :: env) 
+shrinkEnv {vs = UN n :: _} defs (DropCons p) needed done (b :: env)
     = do b' <- traverse (normaliseHoles defs env) b
-         (_ ** p') <- shrinkEnv defs p 
-                        (extendNeeded b' 
-                                      env (dropFirst needed)) 
+         (_ ** p') <- shrinkEnv defs p
+                        (extendNeeded b'
+                                      env (dropFirst needed))
                                       (UN n :: done) env
          -- if shadowed and not needed, keep in the outer env
          if (UN n `elem` done) && not (isNeeded 0 needed)
@@ -200,22 +200,22 @@ shrinkEnv {vs = UN n :: _} defs (DropCons p) needed done (b :: env)
             else pure (_ ** DropCons p')
 shrinkEnv {vs = n :: _} defs (DropCons p) needed done (b :: env)
     = do b' <- traverse (normaliseHoles defs env) b
-         (_ ** p') <- shrinkEnv defs p 
-                        (extendNeeded b' 
-                                      env (dropFirst needed)) 
+         (_ ** p') <- shrinkEnv defs p
+                        (extendNeeded b'
+                                      env (dropFirst needed))
                                       (n :: done) env
          if isNeeded 0 needed || notLam b
-            then pure (_ ** DropCons p') 
+            then pure (_ ** DropCons p')
             else pure (_ ** KeepCons p')
   where
     notLam : Binder t -> Bool
     notLam (Lam _ _ _) = False
     notLam _ = True
-shrinkEnv {vs = n :: _} defs (KeepCons p) needed done (b :: env) 
+shrinkEnv {vs = n :: _} defs (KeepCons p) needed done (b :: env)
     = do b' <- traverse (normaliseHoles defs env) b
-         (_ ** p') <- shrinkEnv defs p 
+         (_ ** p') <- shrinkEnv defs p
                         (extendNeeded b'
-                                      env (dropFirst needed)) 
+                                      env (dropFirst needed))
                                       (n :: done) env
          pure (_ ** KeepCons p') -- still keep it
 
@@ -237,14 +237,14 @@ findScrutinee _ _ _ = Nothing
 
 export
 caseBlock : {vars : _} ->
-            {auto c : Ref Ctxt Defs} -> 
+            {auto c : Ref Ctxt Defs} ->
             {auto m : Ref MD Metadata} ->
             {auto u : Ref UST UState} ->
             {auto e : Ref EST (EState vars)} ->
-            RigCount -> 
-            ElabInfo -> FC -> 
-            NestedNames vars -> 
-            Env Term vars -> 
+            RigCount ->
+            ElabInfo -> FC ->
+            NestedNames vars ->
+            Env Term vars ->
             RawImp -> -- original scrutinee
             Term vars -> -- checked scrutinee
             Term vars -> -- its type
@@ -261,7 +261,7 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
                                (implicitMode elabinfo) env []
          let fullImps = mapMaybe (shrinkImp (subEnv est)) fullImps_in
          log 5 $ "Doing a case under unbound implicits " ++ show fullImps
-         
+
          scrn <- genVarName "scr"
          casen <- genCaseName (defining est)
 
@@ -287,15 +287,15 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
          -- if the scrutinee is ones of the arguments in 'env' we should
          -- split on that, rather than adding it as a new argument
          let splitOn = findScrutinee env smaller scr
-         
+
          caseretty <- the (Core (Term vars)) $ case expected of
                            Just ty => getTerm ty
                            _ =>
                               do nmty <- genName "caseTy"
                                  metaVar fc Rig0 env nmty (TType fc)
 
-         let envscope = absOthers {done = []} fc (allow splitOn env) smaller 
-                            (maybe (Bind fc scrn (Pi caseRig Explicit scrty) 
+         let envscope = absOthers {done = []} fc (allow splitOn env) smaller
+                            (maybe (Bind fc scrn (Pi caseRig Explicit scrty)
                                        (weaken caseretty))
                                    (const caseretty) splitOn)
          casefnty <- abstractOver fc defs (implicitMode elabinfo)
@@ -317,20 +317,20 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
 
          let alts' = map (updateClause casen splitOn env smaller) alts
          log 2 $ "Generated alts: " ++ show alts'
-         let nest' = record { names $= ((Resolved cidx, (Nothing, 
-                                  (\fc, nt => applyToFull fc caseRef pre_env))) ::) } 
+         let nest' = record { names $= ((Resolved cidx, (Nothing,
+                                  (\fc, nt => applyToFull fc caseRef pre_env))) ::) }
                             nest
          processDecl [InCase] nest' pre_env (IDef fc casen alts')
 
          let applyEnv = applyToOthers fc (applyToFull fc caseRef env) env smaller
-         pure (maybe (App fc applyEnv scrtm) 
-                     (const applyEnv) splitOn, 
+         pure (maybe (App fc applyEnv scrtm)
+                     (const applyEnv) splitOn,
                gnf env caseretty)
 
   where
     mkLocalEnv : Env Term vs -> Env Term vs
     mkLocalEnv [] = []
-    mkLocalEnv (b :: bs) 
+    mkLocalEnv (b :: bs)
         = let b' = if isLinear (multiplicity b)
                       then setMultiplicity b Rig0
                       else b in
@@ -341,7 +341,7 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
        = if n `elem` vs then Nothing else Just n
     canBindName _ vs = Nothing
 
-    addEnv : Env Term vs -> SubVars vs' vs -> List Name -> 
+    addEnv : Env Term vs -> SubVars vs' vs -> List Name ->
              (List (Maybe RawImp), List Name)
     addEnv [] sub used = ([], used)
     addEnv {vs = v :: vs} (b :: bs) SubRefl used
@@ -359,22 +359,22 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
     -- Replace a variable in the argument list; if the reference is to
     -- a variable kept in the outer environment (therefore not an argument
     -- in the list) don't consume it
-    replace : {idx : Nat} -> .(IsVar name idx vs) -> 
+    replace : {idx : Nat} -> .(IsVar name idx vs) ->
               RawImp -> List (Maybe RawImp) ->
               List RawImp
-    replace First lhs (old :: xs) 
+    replace First lhs (old :: xs)
        = let lhs' = case old of
-                         Just (IAs loc' side n _) => IAs loc' side n lhs 
+                         Just (IAs loc' side n _) => IAs loc' side n lhs
                          _ => lhs in
              lhs' :: mapMaybe id xs
-    replace (Later p) lhs (Nothing :: xs) 
+    replace (Later p) lhs (Nothing :: xs)
         = replace p lhs xs
-    replace (Later p) lhs (Just x :: xs) 
+    replace (Later p) lhs (Just x :: xs)
         = x :: replace p lhs xs
     replace _ _ xs = mapMaybe id xs
 
-    mkSplit : Maybe (Var vs) -> 
-              RawImp -> List (Maybe RawImp) -> 
+    mkSplit : Maybe (Var vs) ->
+              RawImp -> List (Maybe RawImp) ->
               List RawImp
     mkSplit Nothing lhs args = reverse (lhs :: mapMaybe id args)
     mkSplit (Just (MkVar prf)) lhs args
@@ -414,15 +414,15 @@ checkCase : {vars : _} ->
             {auto u : Ref UST UState} ->
             {auto e : Ref EST (EState vars)} ->
             RigCount -> ElabInfo ->
-            NestedNames vars -> Env Term vars -> 
-            FC -> (scr : RawImp) -> (ty : RawImp) -> List ImpClause -> 
+            NestedNames vars -> Env Term vars ->
+            FC -> (scr : RawImp) -> (ty : RawImp) -> List ImpClause ->
             Maybe (Glued vars) ->
             Core (Term vars, Glued vars)
 checkCase rig elabinfo nest env fc scr scrty_exp alts exp
     = delayElab fc rig env exp $
-        do (scrtyv, scrtyt) <- check Rig0 elabinfo nest env scrty_exp 
+        do (scrtyv, scrtyt) <- check Rig0 elabinfo nest env scrty_exp
                                      (Just (gType fc))
-                                     
+
            logTerm 10 "Expected scrutinee type" scrtyv
            -- Try checking at the given multiplicity; if that doesn't work,
            -- try checking at Rig1 (meaning that we're using a linear variable
@@ -432,7 +432,7 @@ checkCase rig elabinfo nest env fc scr scrty_exp alts exp
                   pure (fst c, snd c, RigW))
               (\err => case err of
                             LinearMisuse _ _ Rig1 _
-                              => do c <- check Rig1 elabinfo nest env scr 
+                              => do c <- check Rig1 elabinfo nest env scr
                                                (Just (gnf env scrtyv))
                                     pure (fst c, snd c, Rig1)
                             e => throw e)

@@ -49,12 +49,12 @@ reflection n = NS ["Reflection", "Language"] (UN n)
 
 export
 cantReify : NF vars -> String -> Core a
-cantReify val ty 
+cantReify val ty
     = throw (GenericMsg (getLoc val) ("Can't reify as " ++ ty))
 
 export
 cantReflect : FC -> String -> Core a
-cantReflect fc ty 
+cantReflect fc ty
     = throw (GenericMsg fc ("Can't reflect as " ++ ty))
 
 export
@@ -187,14 +187,14 @@ Reify Name where
 
 export
 Reflect Name where
-  reflect fc defs env (UN x) 
+  reflect fc defs env (UN x)
       = do x' <- reflect fc defs env x
            appCon fc defs (reflection "UN") [x']
-  reflect fc defs env (MN x i) 
+  reflect fc defs env (MN x i)
       = do x' <- reflect fc defs env x
            i' <- reflect fc defs env i
            appCon fc defs (reflection "MN") [x', i']
-  reflect fc defs env (NS ns n) 
+  reflect fc defs env (NS ns n)
       = do ns' <- reflect fc defs env ns
            n' <- reflect fc defs env n
            appCon fc defs (reflection "NS") [ns', n']
@@ -385,9 +385,9 @@ export
 Reflect (IsVar name idx vs) where
   reflect fc defs env First
       = appCon fc defs (reflection "First") [Erased fc, Erased fc]
-  reflect fc defs env (Later p) 
+  reflect fc defs env (Later p)
       = do p' <- reflect fc defs env p
-           appCon fc defs (reflection "Later") 
+           appCon fc defs (reflection "Later")
                   [Erased fc, Erased fc, Erased fc, Erased fc, p']
 
 -- Assume terms are normalised so there's not Let bindings in particular

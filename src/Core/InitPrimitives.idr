@@ -10,11 +10,11 @@ import Core.TT
 
 addPrim : {auto c : Ref Ctxt Defs} ->
           Prim -> Core ()
-addPrim p 
+addPrim p
     = do addBuiltin (opName (fn p)) (type p) (totality p) (fn p)
          -- compileDef empty (opName (fn p))
 
 export
 addPrimitives : {auto c : Ref Ctxt Defs} -> Core ()
-addPrimitives 
+addPrimitives
     = traverse_ addPrim allPrimitives
