@@ -15,7 +15,7 @@ public export
 interface Hashable a where
   hash : a -> Int
   hashWithSalt : Int -> a -> Int
-  
+
   hash = hashWithSalt 5381
   hashWithSalt h i = h * 33 + hash i
 
@@ -54,9 +54,9 @@ Hashable String where
       hashChars : Int -> Int -> Int -> String -> Int
       hashChars h p len str
           = assert_total $
-              if p == len 
+              if p == len
                  then h
-                 else hashChars (h * 33 + cast (strIndex str p)) 
+                 else hashChars (h * 33 + cast (strIndex str p))
                                 (p + 1) len str
 
 export
@@ -79,7 +79,7 @@ Hashable PiInfo where
 
 export
 Hashable ty => Hashable (Binder ty) where
-  hashWithSalt h (Lam c p ty) 
+  hashWithSalt h (Lam c p ty)
       = h `hashWithSalt` 0 `hashWithSalt` c `hashWithSalt` p `hashWithSalt` ty
   hashWithSalt h (Let c val ty)
       = h `hashWithSalt` 1 `hashWithSalt` c `hashWithSalt` val `hashWithSalt` ty
@@ -98,72 +98,72 @@ Hashable (Var vars) where
 mutual
   export
   Hashable (Term vars) where
-    hashWithSalt h (Local fc x idx y) 
+    hashWithSalt h (Local fc x idx y)
         = h `hashWithSalt` 0 `hashWithSalt` idx
-    hashWithSalt h (Ref fc x name) 
+    hashWithSalt h (Ref fc x name)
         = h `hashWithSalt` 1 `hashWithSalt` name
-    hashWithSalt h (Meta fc x y xs) 
+    hashWithSalt h (Meta fc x y xs)
         = h `hashWithSalt` 2 `hashWithSalt` y `hashWithSalt` xs
-    hashWithSalt h (Bind fc x b scope) 
+    hashWithSalt h (Bind fc x b scope)
         = h `hashWithSalt` 3 `hashWithSalt` b `hashWithSalt` scope
-    hashWithSalt h (App fc fn arg) 
+    hashWithSalt h (App fc fn arg)
         = h `hashWithSalt` 4 `hashWithSalt` fn `hashWithSalt` arg
     hashWithSalt h (As fc nm pat)
         = h `hashWithSalt` 5 `hashWithSalt` nm `hashWithSalt` pat
-    hashWithSalt h (TDelayed fc x y) 
+    hashWithSalt h (TDelayed fc x y)
         = h `hashWithSalt` 6 `hashWithSalt` y
     hashWithSalt h (TDelay fc x t y)
         = h `hashWithSalt` 7 `hashWithSalt` t `hashWithSalt` y
     hashWithSalt h (TForce fc x)
         = h `hashWithSalt` 8 `hashWithSalt` x
-    hashWithSalt h (PrimVal fc c) 
+    hashWithSalt h (PrimVal fc c)
         = h `hashWithSalt` 9 `hashWithSalt` (show c)
-    hashWithSalt h (Erased fc) 
+    hashWithSalt h (Erased fc)
         = hashWithSalt h 10
     hashWithSalt h (TType fc)
         = hashWithSalt h 11
 
   export
   Hashable Pat where
-    hashWithSalt h (PAs fc nm pat) 
+    hashWithSalt h (PAs fc nm pat)
         = h `hashWithSalt` 0 `hashWithSalt` nm `hashWithSalt` pat
-    hashWithSalt h (PCon fc x tag arity xs) 
+    hashWithSalt h (PCon fc x tag arity xs)
         = h `hashWithSalt` 1 `hashWithSalt` x `hashWithSalt` xs
-    hashWithSalt h (PTyCon fc x arity xs) 
+    hashWithSalt h (PTyCon fc x arity xs)
         = h `hashWithSalt` 2 `hashWithSalt` x `hashWithSalt` xs
-    hashWithSalt h (PConst fc c) 
+    hashWithSalt h (PConst fc c)
         = h `hashWithSalt` 3 `hashWithSalt` (show c)
-    hashWithSalt h (PArrow fc x s t) 
+    hashWithSalt h (PArrow fc x s t)
         = h `hashWithSalt` 4 `hashWithSalt` s `hashWithSalt` t
     hashWithSalt h (PDelay fc r t p)
         = h `hashWithSalt` 5 `hashWithSalt` t `hashWithSalt` p
-    hashWithSalt h (PLoc fc x) 
+    hashWithSalt h (PLoc fc x)
         = h `hashWithSalt` 6 `hashWithSalt` x
-    hashWithSalt h (PUnmatchable fc x) 
+    hashWithSalt h (PUnmatchable fc x)
         = h `hashWithSalt` 7 `hashWithSalt` x
 
   export
   Hashable (CaseTree vars) where
-    hashWithSalt h (Case idx x scTy xs) 
+    hashWithSalt h (Case idx x scTy xs)
         = h `hashWithSalt` 0 `hashWithSalt` idx `hashWithSalt` xs
-    hashWithSalt h (STerm x) 
+    hashWithSalt h (STerm x)
         = h `hashWithSalt` 1 `hashWithSalt` x
-    hashWithSalt h (Unmatched msg) 
+    hashWithSalt h (Unmatched msg)
         = h `hashWithSalt` 2
     hashWithSalt h Impossible
         = h `hashWithSalt` 3
 
   export
   Hashable (CaseAlt vars) where
-    hashWithSalt h (ConCase x tag args y) 
+    hashWithSalt h (ConCase x tag args y)
         = h `hashWithSalt` 0 `hashWithSalt` x `hashWithSalt` args
             `hashWithSalt` y
-    hashWithSalt h (DelayCase t x y) 
-        = h `hashWithSalt` 2 `hashWithSalt` (show t) 
+    hashWithSalt h (DelayCase t x y)
+        = h `hashWithSalt` 2 `hashWithSalt` (show t)
             `hashWithSalt` (show x) `hashWithSalt` y
-    hashWithSalt h (ConstCase x y) 
+    hashWithSalt h (ConstCase x y)
         = h `hashWithSalt` 3 `hashWithSalt` (show x) `hashWithSalt` y
-    hashWithSalt h (DefaultCase x) 
+    hashWithSalt h (DefaultCase x)
         = h `hashWithSalt` 4 `hashWithSalt` x
 
 

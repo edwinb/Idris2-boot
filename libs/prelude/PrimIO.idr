@@ -17,7 +17,7 @@ io_pure x = MkIO (\w => MkIORes x w)
 export
 io_bind : (1 act : IO a) -> (1 k : a -> IO b) -> IO b
 io_bind (MkIO fn)
-    = \k => MkIO (\w => let MkIORes x' w' = fn w 
+    = \k => MkIO (\w => let MkIORes x' w' = fn w
                             MkIO res = k x' in
                             res w')
 
@@ -46,9 +46,9 @@ data FArgList : Type where
      Nil : FArgList
      (::) : {a : Type} -> (1 arg : a) -> (1 args : FArgList) -> FArgList
 
-%extern prim__cCall : (ret : Type) -> String -> (1 args : FArgList) -> 
+%extern prim__cCall : (ret : Type) -> String -> (1 args : FArgList) ->
                       (1 x : %World) -> IORes ret
-%extern prim__schemeCall : (ret : Type) -> String -> (1 args : FArgList) -> 
+%extern prim__schemeCall : (ret : Type) -> String -> (1 args : FArgList) ->
                            (1 x : %World) -> IORes ret
 
 export %inline
@@ -62,11 +62,11 @@ toPrim (MkIO fn) = fn
 export %inline
 schemeCall : (ret : Type) -> String -> (1 args : FArgList) -> IO ret
 schemeCall ret fn args = primIO (prim__schemeCall ret fn args)
- 
+
 export %inline
 cCall : (ret : Type) -> String -> FArgList -> IO ret
 cCall ret fn args = primIO (prim__cCall ret fn args)
- 
+
 export
 putStr : String -> IO ()
 putStr str = primIO (prim__putStr str)

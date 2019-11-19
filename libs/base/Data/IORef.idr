@@ -16,7 +16,7 @@ data IORef : Type -> Type where
 
 export
 newIORef : a -> IO (IORef a)
-newIORef val 
+newIORef val
     = do m <- primIO (prim__newIORef val)
          pure (MkRef m)
 

@@ -16,7 +16,7 @@ import Parser.Support
 pshow : {auto c : Ref Ctxt Defs} ->
         {auto s : Ref Syn SyntaxInfo} ->
         Env Term vars -> Term vars -> Core String
-pshow env tm 
+pshow env tm
     = do defs <- get Ctxt
          itm <- resugar env !(normaliseHoles defs env tm)
          pure (show itm)
@@ -24,7 +24,7 @@ pshow env tm
 pshowNoNorm : {auto c : Ref Ctxt Defs} ->
         {auto s : Ref Syn SyntaxInfo} ->
         Env Term vars -> Term vars -> Core String
-pshowNoNorm env tm 
+pshowNoNorm env tm
     = do defs <- get Ctxt
          itm <- resugar env tm
          pure (show itm)
@@ -37,10 +37,10 @@ perror (Fatal err) = perror err
 perror (CantConvert _ env l r)
     = pure $ "Mismatch between:\n\t" ++ !(pshow env l) ++ "\nand\n\t" ++ !(pshow env r)
 perror (CantSolveEq _ env l r)
-    = pure $ "Can't solve constraint between:\n\t" ++ !(pshow env l) ++ 
+    = pure $ "Can't solve constraint between:\n\t" ++ !(pshow env l) ++
       "\nand\n\t" ++ !(pshow env r)
 perror (PatternVariableUnifies _ env n tm)
-    = pure $ "Pattern variable " ++ showPVar n ++ 
+    = pure $ "Pattern variable " ++ showPVar n ++
       " unifies with:\n\t" ++ !(pshow env tm)
   where
     showPVar : Name -> String
@@ -72,7 +72,7 @@ perror (NotCovering fc n (MissingCases cs))
              showSep "\n\t" !(traverse (pshow []) cs)
 perror (NotCovering fc n (NonCoveringCall ns))
     = pure $ show n ++ " is not covering:\n\t" ++
-                "Calls non covering function" 
+                "Calls non covering function"
                    ++ case ns of
                            [fn] => " " ++ show fn
                            _ => "s: " ++ showSep ", " (map show ns)
@@ -94,11 +94,11 @@ perror (LinearMisuse fc n exp ctx)
     showRel Rig1 = "relevant"
     showRel RigW = "non-linear"
 perror (BorrowPartial fc env tm arg)
-    = pure $ !(pshow env tm) ++ 
-             " borrows argument " ++ !(pshow env arg) ++ 
+    = pure $ !(pshow env tm) ++
+             " borrows argument " ++ !(pshow env arg) ++
              " so must be fully applied"
 perror (BorrowPartialType fc env tm)
-    = pure $ !(pshow env tm) ++ 
+    = pure $ !(pshow env tm) ++
              " borrows, so must return a concrete type"
 perror (AmbiguousName fc ns) = pure $ "Ambiguous name " ++ show ns
 perror (AmbiguousElab fc env ts)
@@ -137,12 +137,12 @@ perror (NotRecordField fc fld (Just ty))
 perror (NotRecordType fc ty)
     = pure $ show ty ++ " is not a record type"
 perror (IncompatibleFieldUpdate fc flds)
-    = pure $ "Field update " ++ showSep "->" flds ++ 
+    = pure $ "Field update " ++ showSep "->" flds ++
              " not compatible with other updates"
 perror (InvalidImplicits _ env [Just n] tm)
     = pure $ show n ++ " is not a valid implicit argument in " ++ !(pshow env tm)
 perror (InvalidImplicits _ env ns tm)
-    = pure $ showSep ", " (map show ns) ++ 
+    = pure $ showSep ", " (map show ns) ++
              " are not valid implicit arguments in " ++ !(pshow env tm)
 perror (TryWithImplicits _ env imps)
     = pure $ "Need to bind implicits "
@@ -159,19 +159,19 @@ perror (CantSolveGoal _ env g)
   where
     -- For display, we don't want to see the full top level type; just the
     -- return type
-    dropPis : Env Term vars -> Term vars -> 
+    dropPis : Env Term vars -> Term vars ->
               (ns ** (Env Term ns, Term ns))
-    dropPis env (Bind _ n b@(Pi _ _ _) sc) = dropPis (b :: env) sc 
+    dropPis env (Bind _ n b@(Pi _ _ _) sc) = dropPis (b :: env) sc
     dropPis env tm = (_ ** (env, tm))
 
 perror (DeterminingArg _ n i env g)
     = pure $ "Can't find an implementation for " ++ !(pshow env g) ++ "\n" ++
              "since I can't infer a value for argument " ++ show n
-perror (UnsolvedHoles hs) 
+perror (UnsolvedHoles hs)
     = pure $ "Unsolved holes:\n" ++ showHoles hs
   where
     showHoles [] = ""
-    showHoles ((fc, n) :: hs) = show n ++ " introduced at " ++ show fc ++ "\n" 
+    showHoles ((fc, n) :: hs) = show n ++ " introduced at " ++ show fc ++ "\n"
                                        ++ showHoles hs
 perror (CantInferArgType _ env n h ty)
     = pure $ "Can't infer type for argument " ++ show n ++ "\n" ++
@@ -180,7 +180,7 @@ perror (SolvedNamedHole _ env h tm)
     = pure $ "Named hole " ++ show h ++ " has been solved by unification\n"
               ++ "Result: " ++ !(pshow env tm)
 perror (VisibilityError fc vx x vy y)
-    = pure $ show vx ++ " " ++ sugarName x ++ 
+    = pure $ show vx ++ " " ++ sugarName x ++
              " cannot refer to " ++ show vy ++ " " ++ sugarName y
 perror (NonLinearPattern _ n) = pure $ "Non linear pattern " ++ sugarName n
 perror (BadPattern _ n) = pure $ "Pattern not allowed here: " ++ show n
@@ -189,7 +189,7 @@ perror (AlreadyDefined _ n) = pure $ show n ++ " is already defined"
 perror (NotFunctionType _ env tm)
     = pure $ !(pshow env tm) ++ " is not a function type"
 perror (RewriteNoChange _ env rule ty)
-    = pure $ "Rewriting by " ++ !(pshow env rule) ++ 
+    = pure $ "Rewriting by " ++ !(pshow env rule) ++
              " did not change type " ++ !(pshow env ty)
 perror (NotRewriteRule fc env rule)
     = pure $ !(pshow env rule) ++ " is not a rewrite rule type"
@@ -199,24 +199,24 @@ perror (CaseCompile _ n DifferingTypes)
     = pure $ "Patterns for " ++ show n ++ " require matching on different types"
 perror (CaseCompile _ n UnknownType)
     = pure $ "Can't infer type to match in " ++ show n
-perror (CaseCompile fc n (MatchErased (_ ** (env, tm)))) 
-    = pure $ "Attempt to match on erased argument " ++ !(pshow env tm) ++ 
+perror (CaseCompile fc n (MatchErased (_ ** (env, tm))))
+    = pure $ "Attempt to match on erased argument " ++ !(pshow env tm) ++
              " in " ++ show n
 perror (BadDotPattern _ env reason x y)
     = pure $ "Can't match on " ++ !(pshow env x) ++
            (if reason /= "" then " (" ++ reason ++ ")" else "") ++ "\n" ++
            "It elaborates to: " ++ !(pshow env y)
 perror (MatchTooSpecific _ env tm)
-    = pure $ "Can't match on " ++ !(pshow env tm) ++ 
+    = pure $ "Can't match on " ++ !(pshow env tm) ++
              " as it has a polymorphic type"
-perror (BadImplicit _ str) 
+perror (BadImplicit _ str)
     = pure $ "Can't infer type for unbound implicit name " ++ str ++ "\n" ++
              "Try making it a bound implicit."
 perror (BadRunElab _ env script)
     = pure $ "Bad elaborator script " ++ !(pshow env script)
 perror (GenericMsg _ str) = pure str
 perror (TTCError msg) = pure $ "Error in TTC file: " ++ show msg
-perror (FileErr fname err) 
+perror (FileErr fname err)
     = pure $ "File error in " ++ fname ++ ": " ++ show err
 perror (ParseFail _ err)
     = pure $ show err
@@ -231,22 +231,22 @@ perror ForceNeeded = pure "Internal error when resolving implicit laziness"
 perror (InternalError str) = pure $ "INTERNAL ERROR: " ++ str
 
 perror (InType fc n err)
-    = pure $ "While processing type of " ++ sugarName !(getFullName n) ++ 
+    = pure $ "While processing type of " ++ sugarName !(getFullName n) ++
              " at " ++ show fc ++ ":\n" ++ !(perror err)
 perror (InCon fc n err)
-    = pure $ "While processing constructor " ++ sugarName !(getFullName n) ++ 
+    = pure $ "While processing constructor " ++ sugarName !(getFullName n) ++
              " at " ++ show fc ++ ":\n" ++ !(perror err)
 perror (InLHS fc n err)
-    = pure $ "While processing left hand side of " ++ sugarName !(getFullName n) ++ 
+    = pure $ "While processing left hand side of " ++ sugarName !(getFullName n) ++
              " at " ++ show fc ++ ":\n" ++ !(perror err)
 perror (InRHS fc n err)
-    = pure $ "While processing right hand side of " ++ sugarName !(getFullName n) ++ 
+    = pure $ "While processing right hand side of " ++ sugarName !(getFullName n) ++
              " at " ++ show fc ++ ":\n" ++ !(perror err)
 
 export
 display : {auto c : Ref Ctxt Defs} ->
           {auto s : Ref Syn SyntaxInfo} ->
           Error -> Core String
-display err 
+display err
     = pure $ maybe "" (\f => show f ++ ":") (getErrorLoc err) ++
                    !(perror err)

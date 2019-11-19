@@ -1,7 +1,7 @@
 parameters (eq : a -> a -> Bool)
   lookup : a -> List (a, b) -> Maybe b
   lookup x [] = Nothing
-  lookup x ((k, v) :: ys) 
+  lookup x ((k, v) :: ys)
       = if eq x k
            then Just v
            else lookup x ys

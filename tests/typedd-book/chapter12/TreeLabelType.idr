@@ -2,7 +2,7 @@ data Tree a = Empty
             | Node (Tree a) a (Tree a)
 
 testTree : Tree String
-testTree = Node (Node (Node Empty "Jim" Empty) "Fred" 
+testTree = Node (Node (Node Empty "Jim" Empty) "Fred"
                       (Node Empty "Sheila" Empty)) "Alice"
                 (Node Empty "Bob" (Node Empty "Eve" Empty))
 
@@ -15,11 +15,11 @@ data State : (stateType : Type) -> Type -> Type where
      Put : stateType -> State stateType ()
 
      Pure : ty -> State stateType ty
-     Bind : State stateType a -> (a -> State stateType b) -> 
+     Bind : State stateType a -> (a -> State stateType b) ->
              State stateType b
 
 {-
-(>>=) : State stateType a -> (a -> State stateType b) -> 
+(>>=) : State stateType a -> (a -> State stateType b) ->
         State stateType b
 (>>=) = Bind
 -}
@@ -48,7 +48,7 @@ runState (Bind cmd prog) st = let (val, nextState) = runState cmd st in
 
 treeLabelWith : Tree a -> State (Stream labelType) (Tree (labelType, a))
 treeLabelWith Empty = Pure Empty
-treeLabelWith (Node left val right) 
+treeLabelWith (Node left val right)
      = do left_labelled <- treeLabelWith left
           (this :: rest) <- Get
           Put rest

@@ -23,7 +23,7 @@ findPLetRenames (Bind fc n (PLet c (Local {name = x@(MN _ _)} _ _ _ p) ty) sc)
 findPLetRenames (Bind fc n _ sc) = findPLetRenames sc
 findPLetRenames tm = []
 
-doPLetRenames : List (Name, (RigCount, Name)) -> 
+doPLetRenames : List (Name, (RigCount, Name)) ->
                 List Name -> Term vars -> Term vars
 doPLetRenames ns drops (Bind fc n b@(PLet _ _ _) sc)
     = if n `elem` drops
@@ -31,7 +31,7 @@ doPLetRenames ns drops (Bind fc n b@(PLet _ _ _) sc)
          else Bind fc n b (doPLetRenames ns drops sc)
 doPLetRenames ns drops (Bind fc n b sc)
     = case lookup n ns of
-           Just (c, n') => 
+           Just (c, n') =>
               Bind fc n' (setMultiplicity b (max c (multiplicity b)))
                    (doPLetRenames ns (n' :: drops) (renameTop n' sc))
            Nothing => Bind fc n b (doPLetRenames ns drops sc)
@@ -46,7 +46,7 @@ getRigNeeded _ = Rig1
 -- away (since solved holes don't get written to .tti)
 export
 normaliseHoleTypes : {auto c : Ref Ctxt Defs} ->
-                     {auto u : Ref UST UState} -> 
+                     {auto u : Ref UST UState} ->
                      Core ()
 normaliseHoleTypes
     = do ust <- get UST
@@ -145,7 +145,7 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
                           -- need to check here.
                       else pure chktm
          normaliseHoleTypes
-         -- Put the current hole state back to what it was (minus anything 
+         -- Put the current hole state back to what it was (minus anything
          -- which has been solved in the meantime)
          when (not incase) $
            do hs <- getHoles
@@ -155,15 +155,15 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
          -- were of the form x@_, where the _ is inferred to be a variable,
          -- to just x)
          case mode of
-              InLHS _ => 
+              InLHS _ =>
                  do let vs = findPLetRenames chktm
                     let ret = doPLetRenames vs [] chktm
                     pure (ret, gnf env (doPLetRenames vs [] !(getTerm chkty)))
               _ => do dumpConstraints 2 False
                       pure (chktm, chkty)
   where
-    addHoles : (acc : IntMap (FC, Name)) -> 
-               (allHoles : IntMap (FC, Name)) -> 
+    addHoles : (acc : IntMap (FC, Name)) ->
+               (allHoles : IntMap (FC, Name)) ->
                List (Int, (FC, Name)) ->
                IntMap (FC, Name)
     addHoles acc allhs [] = acc
@@ -189,8 +189,8 @@ checkTermSub : {vars : _} ->
                {auto c : Ref Ctxt Defs} ->
                {auto m : Ref MD Metadata} ->
                {auto u : Ref UST UState} ->
-               Int -> ElabMode -> List ElabOpt -> 
-               NestedNames vars -> Env Term vars -> 
+               Int -> ElabMode -> List ElabOpt ->
+               NestedNames vars -> Env Term vars ->
                Env Term inner -> SubVars inner vars ->
                RawImp -> Glued vars ->
                Core (Term vars)
@@ -201,9 +201,9 @@ checkTermSub defining mode opts nest env env' sub tm ty
                       _ => get Ctxt
          ust <- get UST
          mv <- get MD
-         res <- 
+         res <-
             catch {t = Error}
-                  (elabTermSub defining mode opts nest 
+                  (elabTermSub defining mode opts nest
                                env env' sub tm (Just ty))
                   (\err => case err of
                               TryWithImplicits loc benv ns
@@ -217,7 +217,7 @@ checkTermSub defining mode opts nest env env' sub tm ty
                               _ => throw err)
          pure (fst res)
   where
-    bindImps : FC -> Env Term vs -> List (Name, Term vs) -> RawImp -> 
+    bindImps : FC -> Env Term vs -> List (Name, Term vs) -> RawImp ->
                Core RawImp
     bindImps loc env [] ty = pure ty
     bindImps loc env ((n, ty) :: ntys) sc
@@ -229,8 +229,8 @@ checkTerm : {vars : _} ->
             {auto c : Ref Ctxt Defs} ->
             {auto m : Ref MD Metadata} ->
             {auto u : Ref UST UState} ->
-            Int -> ElabMode -> List ElabOpt -> 
-            NestedNames vars -> Env Term vars -> 
+            Int -> ElabMode -> List ElabOpt ->
+            NestedNames vars -> Env Term vars ->
             RawImp -> Glued vars ->
             Core (Term vars)
 checkTerm defining mode opts nest env tm ty

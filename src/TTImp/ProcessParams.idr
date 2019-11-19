@@ -13,7 +13,7 @@ import TTImp.Elab.Check
 import TTImp.TTImp
 
 %default covering
-  
+
 extend : Env Term extvs -> SubVars vs extvs ->
          NestedNames extvs ->
          Term extvs ->
@@ -28,7 +28,7 @@ processParams : {vars : _} ->
                 {auto m : Ref MD Metadata} ->
                 {auto u : Ref UST UState} ->
                 NestedNames vars ->
-                Env Term vars -> 
+                Env Term vars ->
                 FC -> List (Name, RawImp) -> List ImpDecl ->
                 Core ()
 processParams {vars} {c} {m} {u} nest env fc ps ds
@@ -38,7 +38,7 @@ processParams {vars} {c} {m} {u} nest env fc ps ds
          let pty_raw = mkParamTy ps
          pty_imp <- bindTypeNames vars (IBindHere fc (PI Rig0) pty_raw)
          log 10 $ "Checking " ++ show pty_imp
-         pty <- checkTerm (-1) InType [] 
+         pty <- checkTerm (-1) InType []
                           nest env pty_imp (gType fc)
          let (vs ** (prf, env', nest')) = extend env SubRefl nest pty
 
@@ -53,13 +53,13 @@ processParams {vars} {c} {m} {u} nest env fc ps ds
   where
     mkParamTy : List (Name, RawImp) -> RawImp
     mkParamTy [] = IType fc
-    mkParamTy ((n, ty) :: ps) 
+    mkParamTy ((n, ty) :: ps)
        = IPi fc RigW Explicit (Just n) ty (mkParamTy ps)
 
-    applyEnv : Env Term vs -> Name -> 
+    applyEnv : Env Term vs -> Name ->
                Core (Name, (Maybe Name, FC -> NameType -> Term vs))
     applyEnv env n
           = do n' <- resolveName n -- it'll be Resolved by expandAmbigName
-               pure (Resolved n', (Nothing, 
-                        \fc, nt => applyTo fc 
+               pure (Resolved n', (Nothing,
+                        \fc, nt => applyTo fc
                                (Ref fc nt (Resolved n')) env))
