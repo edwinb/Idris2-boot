@@ -14,5 +14,5 @@ isOdd Z = False
 isOdd (S k) = not (isOdd k)
 
 testZ : Nat -> String
-testZ x = if isZero x then "Zero" else 
+testZ x = if isZero x then "Zero" else
              if isOdd x then "Odd" else "Even"

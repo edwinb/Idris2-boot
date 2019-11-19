@@ -21,7 +21,7 @@ data NameType : Type where
      TyCon   : (tag : Int) -> (arity : Nat) -> NameType
 
 public export
-data Constant 
+data Constant
     = I Int
     | BI Integer
     | Str String
@@ -58,14 +58,14 @@ data LazyReason = LInf | LLazy | LUnknown
 -- Type checked terms in the core TT
 public export
 data TT : List Name -> Type where
-     Local : FC -> (idx : Nat) -> (n : Name) -> 
+     Local : FC -> (idx : Nat) -> (n : Name) ->
              (0 prf : IsVar name idx vars) -> TT vars
      Ref : FC -> NameType -> Name -> TT vars
-     Pi : FC -> Count -> PiInfo -> 
-          (x : Name) -> (argTy : TT vars) -> (retTy : TT (x :: vars)) -> 
+     Pi : FC -> Count -> PiInfo ->
+          (x : Name) -> (argTy : TT vars) -> (retTy : TT (x :: vars)) ->
           TT vars
-     Lam : FC -> Count -> PiInfo -> 
-           (x : Name) -> (argTy : TT vars) -> (scope : TT (x :: vars)) -> 
+     Lam : FC -> Count -> PiInfo ->
+           (x : Name) -> (argTy : TT vars) -> (scope : TT (x :: vars)) ->
            TT vars
      App : FC -> TT vars -> TT vars -> TT vars
      TDelayed : FC -> LazyReason -> TT vars -> TT vars

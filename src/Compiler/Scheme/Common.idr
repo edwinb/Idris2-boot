@@ -49,7 +49,7 @@ data SVars : List Name -> Type where
 
 extendSVars : (xs : List Name) -> SVars ns -> SVars (xs ++ ns)
 extendSVars {ns} xs vs = extSVars' (cast (length ns)) xs vs
-  where 
+  where
     extSVars' : Int -> (xs : List Name) -> SVars ns -> SVars (xs ++ ns)
     extSVars' i [] vs = vs
     extSVars' i (x :: xs) vs = schName (MN "v" i) :: extSVars' (i + 1) xs vs
@@ -74,7 +74,7 @@ op o args = "(" ++ o ++ " " ++ showSep " " args ++ ")"
 boolop : String -> List String -> String
 boolop o args = "(or (and " ++ op o args ++ " 1) 0)"
 
-||| Generate scheme for a primitive function. 
+||| Generate scheme for a primitive function.
 schOp : PrimFn arity -> Vect arity String -> String
 schOp (Add IntType) [x, y] = op "b+" [x, y, "63"]
 schOp (Sub IntType) [x, y] = op "b-" [x, y, "63"]
@@ -152,7 +152,7 @@ schOp BelieveMe [_,_,x] = x
 
 ||| Extended primitives for the scheme backend, outside the standard set of primFn
 public export
-data ExtPrim = CCall | SchemeCall | PutStr | GetStr 
+data ExtPrim = CCall | SchemeCall | PutStr | GetStr
              | FileOpen | FileClose | FileReadLine | FileWriteLine | FileEOF
              | NewIORef | ReadIORef | WriteIORef
              | Stdin | Stdout | Stderr
@@ -180,7 +180,7 @@ Show ExtPrim where
 
 ||| Match on a user given name to get the scheme primitive
 toPrim : Name -> ExtPrim
-toPrim pn@(NS _ n) 
+toPrim pn@(NS _ n)
     = cond [(n == UN "prim__schemeCall", SchemeCall),
             (n == UN "prim__cCall", CCall),
             (n == UN "prim__putStr", PutStr),
@@ -222,7 +222,7 @@ schConstant _ WorldType = "#t"
 schCaseDef : Maybe String -> String
 schCaseDef Nothing = ""
 schCaseDef (Just tm) = "(else " ++ tm ++ ")"
-  
+
 export
 schArglist : SVars ns -> String
 schArglist [] = ""
@@ -240,14 +240,14 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
       where
         bindArgs : Int -> (ns : List Name) -> SVars (ns ++ vars) -> String -> String
         bindArgs i [] vs body = body
-        bindArgs i (n :: ns) (v :: vs) body 
+        bindArgs i (n :: ns) (v :: vs) body
             = "(let ((" ++ v ++ " " ++ "(vector-ref " ++ target ++ " " ++ show i ++ "))) "
                     ++ bindArgs (i + 1) ns vs body ++ ")"
 
     schConstAlt : Int -> SVars vars -> String -> CConstAlt vars -> Core String
     schConstAlt i vs target (MkConstAlt c exp)
         = pure $ "((equal? " ++ target ++ " " ++ schConstant schString c ++ ") " ++ !(schExp i vs exp) ++ ")"
-      
+
     -- oops, no traverse for Vect in Core
     schArgs : Int -> SVars vars -> Vect n (CExp vars) -> Core (Vect n String)
     schArgs i vs [] = pure []
@@ -257,35 +257,35 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
     schExp : Int -> SVars vars -> CExp vars -> Core String
     schExp i vs (CLocal fc el) = pure $ lookupSVar el vs
     schExp i vs (CRef fc n) = pure $ schName n
-    schExp i vs (CLam fc x sc) 
-       = do let vs' = extendSVars [x] vs 
+    schExp i vs (CLam fc x sc)
+       = do let vs' = extendSVars [x] vs
             sc' <- schExp i vs' sc
             pure $ "(lambda (" ++ lookupSVar First vs' ++ ") " ++ sc' ++ ")"
-    schExp i vs (CLet fc x val sc) 
+    schExp i vs (CLet fc x val sc)
        = do let vs' = extendSVars [x] vs
             val' <- schExp i vs val
             sc' <- schExp i vs' sc
             pure $ "(let ((" ++ lookupSVar First vs' ++ " " ++ val' ++ ")) " ++ sc' ++ ")"
-    schExp i vs (CApp fc x []) 
+    schExp i vs (CApp fc x [])
         = pure $ "(" ++ !(schExp i vs x) ++ ")"
-    schExp i vs (CApp fc x args) 
+    schExp i vs (CApp fc x args)
         = pure $ "(" ++ !(schExp i vs x) ++ " " ++ showSep " " !(traverse (schExp i vs) args) ++ ")"
-    schExp i vs (CCon fc x tag args) 
+    schExp i vs (CCon fc x tag args)
         = pure $ schConstructor tag !(traverse (schExp i vs) args)
-    schExp i vs (COp fc op args) 
+    schExp i vs (COp fc op args)
         = pure $ schOp op !(schArgs i vs args)
-    schExp i vs (CExtPrim fc p args) 
+    schExp i vs (CExtPrim fc p args)
         = schExtPrim i vs (toPrim p) args
     schExp i vs (CForce fc t) = pure $ "(force " ++ !(schExp i vs t) ++ ")"
     schExp i vs (CDelay fc t) = pure $ "(delay " ++ !(schExp i vs t) ++ ")"
-    schExp i vs (CConCase fc sc alts def) 
+    schExp i vs (CConCase fc sc alts def)
         = do tcode <- schExp (i+1) vs sc
              defc <- maybe (pure Nothing) (\v => pure (Just !(schExp i vs v))) def
              let n = "sc" ++ show i
              pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) (case (get-tag " ++ n ++ ") "
                      ++ showSep " " !(traverse (schConAlt (i+1) vs n) alts)
                      ++ schCaseDef defc ++ "))"
-    schExp i vs (CConstCase fc sc alts def) 
+    schExp i vs (CConstCase fc sc alts def)
         = do defc <- maybe (pure Nothing) (\v => pure (Just !(schExp i vs v))) def
              tcode <- schExp (i+1) vs sc
              let n = "sc" ++ show i
@@ -314,12 +314,12 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
   schExtCommon i vs SchemeCall [ret, fn, args, world]
        = pure $ mkWorld ("(apply (eval (string->symbol " ++ !(schExp i vs fn) ++")) "
                     ++ !(readArgs i vs args) ++ ")")
-  schExtCommon i vs PutStr [arg, world] 
+  schExtCommon i vs PutStr [arg, world]
       = pure $ "(display " ++ !(schExp i vs arg) ++ ") " ++ mkWorld (schConstructor 0 []) -- code for MkUnit
-  schExtCommon i vs GetStr [world] 
+  schExtCommon i vs GetStr [world]
       = pure $ mkWorld "(blodwen-get-line (current-input-port))"
   schExtCommon i vs FileOpen [file, mode, bin, world]
-      = pure $ mkWorld $ fileOp $ "(blodwen-open " 
+      = pure $ mkWorld $ fileOp $ "(blodwen-open "
                                       ++ !(schExp i vs file) ++ " "
                                       ++ !(schExp i vs mode) ++ " "
                                       ++ !(schExp i vs bin) ++ ")"
@@ -328,7 +328,7 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
   schExtCommon i vs FileReadLine [file, world]
       = pure $ mkWorld $ fileOp $ "(blodwen-get-line " ++ !(schExp i vs file) ++ ")"
   schExtCommon i vs FileWriteLine [file, str, world]
-      = pure $ mkWorld $ fileOp $ "(blodwen-putstring " 
+      = pure $ mkWorld $ fileOp $ "(blodwen-putstring "
                                         ++ !(schExp i vs file) ++ " "
                                         ++ !(schExp i vs str) ++ ")"
   schExtCommon i vs FileEOF [file, world]
@@ -338,17 +338,17 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
   schExtCommon i vs ReadIORef [_, ref, world]
       = pure $ mkWorld $ "(unbox " ++ !(schExp i vs ref) ++ ")"
   schExtCommon i vs WriteIORef [_, ref, val, world]
-      = pure $ mkWorld $ "(set-box! " 
-                           ++ !(schExp i vs ref) ++ " " 
+      = pure $ mkWorld $ "(set-box! "
+                           ++ !(schExp i vs ref) ++ " "
                            ++ !(schExp i vs val) ++ ")"
   schExtCommon i vs VoidElim [_, _]
       = pure "(display \"Error: Executed 'void'\")"
-  schExtCommon i vs (Unknown n) args 
+  schExtCommon i vs (Unknown n) args
       = throw (InternalError ("Can't compile unknown external primitive " ++ show n))
   schExtCommon i vs Stdin [] = pure "(current-input-port)"
   schExtCommon i vs Stdout [] = pure "(current-output-port)"
   schExtCommon i vs Stderr [] = pure "(current-error-port)"
-  schExtCommon i vs prim args 
+  schExtCommon i vs prim args
       = throw (InternalError ("Badly formed external primitive " ++ show prim
                                 ++ " " ++ show args))
 
@@ -362,7 +362,7 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
      = pure $ "(define (" ++ schName !(getFullName n) ++ " . any-args) " ++ !(schExp 0 [] exp) ++ ")\n"
   schDef n (MkForeign _ _ _) = pure "" -- compiled by specific back end
   schDef n (MkCon t a) = pure "" -- Nothing to compile here
-  
+
 -- Convert the name to scheme code
 -- (There may be no code generated, for example if it's a constructor)
 export

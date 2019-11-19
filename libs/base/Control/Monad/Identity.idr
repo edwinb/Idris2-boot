@@ -1,6 +1,6 @@
 module Control.Monad.Identity
 
-public export 
+public export
 record Identity (a : Type) where
   constructor Id
   runIdentity : a

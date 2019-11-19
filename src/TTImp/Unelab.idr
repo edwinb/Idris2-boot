@@ -70,7 +70,7 @@ mutual
           = case getFnArgs tm of
                  (f, as) => idxOrDefault n f as
 
-      nthArg : FC -> Nat -> Term vars -> Term vars 
+      nthArg : FC -> Nat -> Term vars -> Term vars
       nthArg fc drop (App afc f a) = getNth drop (App afc f a)
       nthArg fc drop tm = Erased fc
 
@@ -97,7 +97,7 @@ mutual
                 Core (RawImp, Glued vars)
   unelabSugar NoSugar res = pure res
   unelabSugar ImplicitHoles res = pure res
-  unelabSugar _ (tm, ty) 
+  unelabSugar _ (tm, ty)
       = let (f, args) = getFnArgs tm [] in
             case f of
              IVar fc (NS ns (CaseBlock n i))
@@ -110,22 +110,22 @@ mutual
       getFnArgs tm args = (tm, args)
 
   -- Turn a term back into an unannotated TTImp. Returns the type of the
-  -- unelaborated term so that we can work out where to put the implicit 
+  -- unelaborated term so that we can work out where to put the implicit
   -- applications
   -- NOTE: There is *no guarantee* that this will elaborate back successfully!
   -- It's only intended for display
   unelabTy : {auto c : Ref Ctxt Defs} ->
              (umode : UnelabMode) ->
-             Env Term vars -> Term vars -> 
+             Env Term vars -> Term vars ->
              Core (RawImp, Glued vars)
-  unelabTy umode env tm 
+  unelabTy umode env tm
       = unelabSugar umode !(unelabTy' umode env tm)
 
   unelabTy' : {auto c : Ref Ctxt Defs} ->
               (umode : UnelabMode) ->
-              Env Term vars -> Term vars -> 
+              Env Term vars -> Term vars ->
               Core (RawImp, Glued vars)
-  unelabTy' umode env (Local {name} fc _ idx p) 
+  unelabTy' umode env (Local {name} fc _ idx p)
       = pure (IVar fc name, gnf env (binderType (getBinder p env)))
   unelabTy' umode env (Ref fc nt n)
       = do defs <- get Ctxt
@@ -152,7 +152,7 @@ mutual
            case fnty of
                 NBind _ x (Pi rig Explicit ty) sc
                   => do sc' <- sc defs (toClosure defaultOpts env arg)
-                        pure (IApp fc fn' arg', 
+                        pure (IApp fc fn' arg',
                                 glueBack defs env sc')
                 NBind _ x (Pi rig p ty) sc
                   => do sc' <- sc defs (toClosure defaultOpts env arg)
@@ -160,10 +160,10 @@ mutual
                                 glueBack defs env sc')
                 _ => pure (IApp fc fn' arg', gErased fc)
   unelabTy' umode env (As fc p tm)
-      = do (p', _) <- unelabTy' umode env p 
+      = do (p', _) <- unelabTy' umode env p
            (tm', ty) <- unelabTy' umode env tm
            case p' of
-                IVar _ n => 
+                IVar _ n =>
                     case umode of
                          NoSugar => pure (IAs fc UseRight n tm', ty)
                          _ => pure (tm', ty)
@@ -183,26 +183,26 @@ mutual
   unelabTy' umode env (PrimVal fc c) = pure (IPrimVal fc c, gErased fc)
   unelabTy' umode env (Erased fc) = pure (Implicit fc False, gErased fc)
   unelabTy' umode env (TType fc) = pure (IType fc, gType fc)
-  unelabTy' umode _ tm 
-      = let fc = getLoc tm in 
+  unelabTy' umode _ tm
+      = let fc = getLoc tm in
             pure (Implicit fc False, gErased fc)
 
   unelabBinder : {auto c : Ref Ctxt Defs} ->
                  (umode : UnelabMode) ->
                  FC -> Env Term vars -> (x : Name) ->
                  Binder (Term vars) -> Term (x :: vars) ->
-                 RawImp -> Term (x :: vars) -> 
+                 RawImp -> Term (x :: vars) ->
                  Core (RawImp, Glued vars)
   unelabBinder umode fc env x (Lam rig p ty) sctm sc scty
       = do (ty', _) <- unelabTy umode env ty
-           pure (ILam fc rig p (Just x) ty' sc, 
+           pure (ILam fc rig p (Just x) ty' sc,
                     gnf env (Bind fc x (Pi rig p ty) scty))
   unelabBinder umode fc env x (Let rig val ty) sctm sc scty
       = do (val', vty) <- unelabTy umode env val
            (ty', _) <- unelabTy umode env ty
-           pure (ILet fc rig x ty' val' sc, 
+           pure (ILet fc rig x ty' val' sc,
                     gnf env (Bind fc x (Let rig val ty) scty))
-  unelabBinder umode fc env x (Pi rig p ty) sctm sc scty 
+  unelabBinder umode fc env x (Pi rig p ty) sctm sc scty
       = do (ty', _) <- unelabTy umode env ty
            let nm = if used 0 sctm || rig /= RigW
                        then Just x else Nothing
@@ -213,7 +213,7 @@ mutual
   unelabBinder umode fc env x (PLet rig val ty) sctm sc scty
       = do (val', vty) <- unelabTy umode env val
            (ty', _) <- unelabTy umode env ty
-           pure (ILet fc rig x ty' val' sc, 
+           pure (ILet fc rig x ty' val' sc,
                     gnf env (Bind fc x (PLet rig val ty) scty))
   unelabBinder umode fc env x (PVTy rig ty) sctm sc scty
       = do (ty', _) <- unelabTy umode env ty

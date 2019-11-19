@@ -191,13 +191,13 @@ tokenise pred line col acc tmap str
 ||| string where there are no recognised tokens.
 export
 lex : TokenMap a -> String -> (List (TokenData a), (Int, Int, String))
-lex tmap str 
+lex tmap str
    = let (ts, (l, c, str')) = tokenise (const False) 0 0 [] tmap (mkStr str) in
          (ts, (l, c, getString str'))
 
 export
 lexTo : (TokenData a -> Bool) ->
         TokenMap a -> String -> (List (TokenData a), (Int, Int, String))
-lexTo pred tmap str 
+lexTo pred tmap str
    = let (ts, (l, c, str')) = tokenise pred 0 0 [] tmap (mkStr str) in
          (ts, (l, c, getString str'))

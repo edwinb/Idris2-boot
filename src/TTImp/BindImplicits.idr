@@ -13,13 +13,13 @@ import Control.Monad.State
 -- Rename the IBindVars in a term. Anything which appears in the list 'renames'
 -- should be renamed, to something which is *not* in the list 'used'
 export
-renameIBinds : (renames : List String) -> 
-               (used : List String) -> 
+renameIBinds : (renames : List String) ->
+               (used : List String) ->
                RawImp -> State (List (String, String)) RawImp
 renameIBinds rs us (IPi fc c p (Just (UN n)) ty sc)
-    = if n `elem` rs 
+    = if n `elem` rs
          then let n' = getUnique (rs ++ us) n
-                  sc' = substNames (map UN (filter (/= n) us)) 
+                  sc' = substNames (map UN (filter (/= n) us))
                                    [(UN n, IVar fc (UN n'))] sc in
               do scr <- renameIBinds rs (n' :: us) sc'
                  ty' <- renameIBinds rs us ty
@@ -141,6 +141,6 @@ piBindNames loc env tm
   where
     piBind : List String -> RawImp -> RawImp
     piBind [] ty = ty
-    piBind (n :: ns) ty 
+    piBind (n :: ns) ty
        = IPi loc Rig0 Implicit (Just (UN n)) (Implicit loc False) (piBind ns ty)
 

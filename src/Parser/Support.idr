@@ -26,15 +26,15 @@ export
 Show ParseError where
   show (ParseFail err loc toks)
       = "Parse error: " ++ err ++ " (next tokens: "
-            ++ show (take 10 toks) ++ ")" 
-  show (LexFail (c, l, str)) 
+            ++ show (take 10 toks) ++ ")"
+  show (LexFail (c, l, str))
       = "Lex error at " ++ show (c, l) ++ " input: " ++ str
   show (FileFail err)
       = "File error: " ++ show err
 
 export
 eoi : EmptyRule ()
-eoi 
+eoi
     = do nextIs "Expected end of input" (isEOI . tok)
          pure ()
   where
@@ -45,14 +45,14 @@ eoi
 export
 runParserTo : (TokenData Token -> Bool) ->
               String -> Grammar (TokenData Token) e ty -> Either ParseError ty
-runParserTo pred str p 
+runParserTo pred str p
     = case lexTo pred str of
            Left err => Left $ LexFail err
-           Right toks => 
+           Right toks =>
               case parse p toks of
-                   Left (Error err []) => 
+                   Left (Error err []) =>
                           Left $ ParseFail err Nothing []
-                   Left (Error err (t :: ts)) => 
+                   Left (Error err (t :: ts)) =>
                           Left $ ParseFail err (Just (line t, col t))
                                                (map tok (t :: ts))
                    Right (val, _) => Right val
@@ -73,7 +73,7 @@ parseFile fn p
 
 export
 location : EmptyRule (Int, Int)
-location 
+location
     = do tok <- peek
          pure (line tok, col tok)
 
@@ -176,29 +176,29 @@ escape' ('\\' :: 't' :: xs) = pure $ '\t' :: !(escape' xs)
 escape' ('\\' :: 'v' :: xs) = pure $ '\v' :: !(escape' xs)
 escape' ('\\' :: '\'' :: xs) = pure $ '\'' :: !(escape' xs)
 escape' ('\\' :: '\"' :: xs) = pure $ '\"' :: !(escape' xs)
-escape' ('\\' :: 'x' :: xs) 
+escape' ('\\' :: 'x' :: xs)
     = case span isHexDigit xs of
            ([], rest) => assert_total (escape' rest)
-           (ds, rest) => pure $ cast !(toHex 1 (reverse ds)) :: 
+           (ds, rest) => pure $ cast !(toHex 1 (reverse ds)) ::
                                  !(assert_total (escape' rest))
-  where 
+  where
     toHex : Int -> List Char -> Maybe Int
     toHex _ [] = Just 0
-    toHex m (d :: ds) 
+    toHex m (d :: ds)
         = pure $ !(hex (toLower d)) * m + !(toHex (m*16) ds)
-escape' ('\\' :: 'o' :: xs) 
+escape' ('\\' :: 'o' :: xs)
     = case span isOctDigit xs of
            ([], rest) => assert_total (escape' rest)
-           (ds, rest) => pure $ cast !(toOct 1 (reverse ds)) :: 
+           (ds, rest) => pure $ cast !(toOct 1 (reverse ds)) ::
                                  !(assert_total (escape' rest))
-  where 
+  where
     toOct : Int -> List Char -> Maybe Int
     toOct _ [] = Just 0
-    toOct m (d :: ds) 
+    toOct m (d :: ds)
         = pure $ !(oct (toLower d)) * m + !(toOct (m*8) ds)
-escape' ('\\' :: xs) 
+escape' ('\\' :: xs)
     = case span isDigit xs of
-           ([], (a :: b :: c :: rest)) => 
+           ([], (a :: b :: c :: rest)) =>
                case getEsc (pack (the (List _) [a, b, c])) of
                    Just v => Just (v :: !(assert_total (escape' rest)))
                    Nothing => case getEsc (pack (the (List _) [a, b])) of
@@ -209,7 +209,7 @@ escape' ('\\' :: xs)
                    Just v => Just (v :: [])
                    Nothing => escape' xs
            ([], rest) => assert_total (escape' rest)
-           (ds, rest) => Just $ cast (cast {to=Int} (pack ds)) :: 
+           (ds, rest) => Just $ cast (cast {to=Int} (pack ds)) ::
                                  !(assert_total (escape' rest))
 escape' (x :: xs) = Just $ x :: !(escape' xs)
 
@@ -227,7 +227,7 @@ getCharLit str
 
 export
 constant : Rule Constant
-constant 
+constant
     = terminal "Expected constant"
                (\x => case tok x of
                            Literal i => Just (BI i)
@@ -247,7 +247,7 @@ constant
 
 export
 intLit : Rule Integer
-intLit 
+intLit
     = terminal "Expected integer literal"
                (\x => case tok x of
                            Literal i => Just i
@@ -255,7 +255,7 @@ intLit
 
 export
 strLit : Rule String
-strLit 
+strLit
     = terminal "Expected string literal"
                (\x => case tok x of
                            StrLit s => Just s
@@ -293,14 +293,14 @@ operator : Rule String
 operator
     = terminal "Expected operator"
                (\x => case tok x of
-                           Symbol s => 
-                                if s `elem` reservedSymbols 
+                           Symbol s =>
+                                if s `elem` reservedSymbols
                                    then Nothing
                                    else Just s
                            _ => Nothing)
 
 identPart : Rule String
-identPart 
+identPart
     = terminal "Expected name"
                (\x => case tok x of
                            Ident str => Just str
@@ -308,13 +308,13 @@ identPart
 
 export
 namespace_ : Rule (List String)
-namespace_ 
+namespace_
     = do ns <- sepBy1 (do col <- column
                           symbol "."
                           col' <- column
                           if (col' - col == 1)
                              then pure ()
-                             else fail "No whitepace allowed after namespace separator") 
+                             else fail "No whitepace allowed after namespace separator")
                     identPart
          pure (reverse ns) -- innermost first, so reverse
 
@@ -324,7 +324,7 @@ unqualifiedName = identPart
 
 export
 holeName : Rule String
-holeName 
+holeName
     = terminal "Expected hole name"
                (\x => case tok x of
                            HoleIdent str => Just str
@@ -332,8 +332,8 @@ holeName
 
 export
 name : Rule Name
-name 
-    = do ns <- namespace_ 
+name
+    = do ns <- namespace_
          (do symbol ".("
              op <- operator
              symbol ")"
@@ -374,12 +374,12 @@ continue = continueF (fail "Unexpected end of expression")
 -- As 'continue' but failing is fatal (i.e. entire parse fails)
 export
 mustContinue : (indent : IndentInfo) -> Maybe String -> EmptyRule ()
-mustContinue indent Nothing 
+mustContinue indent Nothing
    = continueF (fatalError "Unexpected end of expression") indent
-mustContinue indent (Just req) 
+mustContinue indent (Just req)
    = continueF (fatalError ("Expected '" ++ req ++ "'")) indent
 
-data ValidIndent 
+data ValidIndent
      = AnyIndent -- In {}, entries can begin in any column
      | AtPos Int -- Entry must begin in a specific column
      | AfterPos Int -- Entry can begin in this column or later
@@ -416,7 +416,7 @@ isTerminator _ = False
 
 -- Check we're at the end of a block entry, given the start column
 -- of the block.
--- It's the end if we have a terminating token, or the next token starts 
+-- It's the end if we have a terminating token, or the next token starts
 -- in or before indent. Works by looking ahead but not consuming.
 export
 atEnd : (indent : IndentInfo) -> EmptyRule ()
@@ -452,8 +452,8 @@ terminator valid laststart
          afterDedent valid col
   <|> pure EndOfBlock
  where
-   -- Expected indentation for the next token can either be anything (if 
-   -- we're inside a brace delimited block) or anywhere after the initial 
+   -- Expected indentation for the next token can either be anything (if
+   -- we're inside a brace delimited block) or anywhere after the initial
    -- column (if we're inside an indentation delimited block)
    afterSemi : ValidIndent -> ValidIndent
    afterSemi AnyIndent = AnyIndent -- in braces, anything goes
@@ -461,8 +461,8 @@ terminator valid laststart
    afterSemi (AfterPos c) = AfterPos c
    afterSemi EndOfBlock = EndOfBlock
 
-   -- Expected indentation for the next token can either be anything (if 
-   -- we're inside a brace delimited block) or in exactly the initial column 
+   -- Expected indentation for the next token can either be anything (if
+   -- we're inside a brace delimited block) or in exactly the initial column
    -- (if we're inside an indentation delimited block)
    afterDedent : ValidIndent -> Int -> EmptyRule ValidIndent
    afterDedent AnyIndent col
@@ -480,7 +480,7 @@ terminator valid laststart
    afterDedent EndOfBlock col = pure EndOfBlock
 
 -- Parse an entry in a block
-blockEntry : ValidIndent -> (IndentInfo -> Rule ty) -> 
+blockEntry : ValidIndent -> (IndentInfo -> Rule ty) ->
              Rule (ty, ValidIndent)
 blockEntry valid rule
     = do col <- column
@@ -535,7 +535,7 @@ blockWithOptHeaderAfter {ty} mincol header item
            else do hidt <- optional $ blockEntry (AtPos col) header
                    ps <- blockEntries (AtPos col) item
                    pure (map fst hidt, ps)
-  where 
+  where
   restOfBlock : Maybe (hd, ValidIndent) -> Rule (Maybe hd, List ty)
   restOfBlock (Just (h, idt)) = do ps <- blockEntries idt item
                                    symbol "}"

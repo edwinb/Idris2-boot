@@ -7,7 +7,7 @@ func1 fn g (ma, mb) = MkPair <$> fn ma <*> ?gmb
 
 -- %logging 10
 mfunc : (a -> Maybe c) -> (b -> Maybe d) -> (a, b) -> Maybe (c, d)
-mfunc fn g (ma, mb) 
+mfunc fn g (ma, mb)
    = let pairapp = MkPair <$> fn ma in
          pairapp <*> g mb
 %logging 0

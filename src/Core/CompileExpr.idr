@@ -74,8 +74,8 @@ data CDef : Type where
      -- Constructor
      MkCon : (tag : Int) -> (arity : Nat) -> CDef
      -- Foreign definition
-     MkForeign : (ccs : List String) -> 
-                 (fargs : List CFType) -> 
+     MkForeign : (ccs : List String) ->
+                 (fargs : List CFType) ->
                  CFType ->
                  CDef
      -- A function which will fail at runtime (usually due to being a hole) so needs
@@ -135,15 +135,15 @@ export
 Show CDef where
   show (MkFun args exp) = show args ++ ": " ++ show exp
   show (MkCon tag arity) = "Constructor tag " ++ show tag ++ " arity " ++ show arity
-  show (MkForeign ccs args ret) 
-      = "Foreign call " ++ show ccs ++ " " ++ 
+  show (MkForeign ccs args ret)
+      = "Foreign call " ++ show ccs ++ " " ++
         show args ++ " -> " ++ show ret
   show (MkError exp) = "Error: " ++ show exp
 
 mutual
   export
   thin : (n : Name) -> CExp (outer ++ inner) -> CExp (outer ++ n :: inner)
-  thin n (CLocal fc prf) 
+  thin n (CLocal fc prf)
       = let MkVar var' = insertVar {n} _ prf in
             CLocal fc var'
   thin _ (CRef fc x) = CRef fc x
@@ -219,15 +219,15 @@ mutual
   -- in the remaining set with Erased
   export
   shrinkCExp : SubVars newvars vars -> CExp vars -> CExp newvars
-  shrinkCExp sub (CLocal fc prf) 
+  shrinkCExp sub (CLocal fc prf)
       = case subElem prf sub of
              Nothing => CErased fc
              Just (MkVar prf') => CLocal fc prf'
   shrinkCExp _ (CRef fc x) = CRef fc x
-  shrinkCExp sub (CLam fc x sc) 
+  shrinkCExp sub (CLam fc x sc)
       = let sc' = shrinkCExp (KeepCons sub) sc in
             CLam fc x sc'
-  shrinkCExp sub (CLet fc x val sc) 
+  shrinkCExp sub (CLet fc x val sc)
       = let sc' = shrinkCExp (KeepCons sub) sc in
             CLet fc x (shrinkCExp sub val) sc'
   shrinkCExp sub (CApp fc x xs)
@@ -241,11 +241,11 @@ mutual
   shrinkCExp sub (CForce fc x) = CForce fc (shrinkCExp sub x)
   shrinkCExp sub (CDelay fc x) = CDelay fc (shrinkCExp sub x)
   shrinkCExp sub (CConCase fc sc xs def)
-      = CConCase fc (shrinkCExp sub sc) 
+      = CConCase fc (shrinkCExp sub sc)
                  (assert_total (map (shrinkConAlt sub) xs))
                  (assert_total (map (shrinkCExp sub) def))
   shrinkCExp sub (CConstCase fc sc xs def)
-      = CConstCase fc (shrinkCExp sub sc) 
+      = CConstCase fc (shrinkCExp sub sc)
                    (assert_total (map (shrinkConstAlt sub) xs))
                    (assert_total (map (shrinkCExp sub) def))
   shrinkCExp _ (CPrimVal fc x) = CPrimVal fc x

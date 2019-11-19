@@ -38,7 +38,7 @@ bindableArg p (Bind _ _ (Pi _ _ ty) sc)
 bindableArg p _ = False
 
 getArgs : {auto c : Ref Ctxt Defs} ->
-          Env Term vars -> Nat -> Term vars -> 
+          Env Term vars -> Nat -> Term vars ->
           Core (List (Name, Maybe Name, PiInfo, RigCount, RawImp), RawImp)
 getArgs {vars} env (S k) (Bind _ x (Pi c p ty) sc)
     = do ty' <- unelab env ty
@@ -59,8 +59,8 @@ getArgs env k ty
       = do ty' <- unelab env ty
            pure ([], ty')
 
-mkType : FC -> List (Name, Maybe Name, PiInfo, RigCount, RawImp) -> 
-         RawImp -> RawImp 
+mkType : FC -> List (Name, Maybe Name, PiInfo, RigCount, RawImp) ->
+         RawImp -> RawImp
 mkType loc [] ret = ret
 mkType loc ((_, n, p, c, ty) :: rest) ret
     = IPi loc c p n ty (mkType loc rest ret)
@@ -70,7 +70,7 @@ mkApp : FC -> Name ->
 mkApp loc n args
     = apply (IVar loc n) (mapMaybe getArg args)
   where
-    getArg : (Name, Maybe Name, PiInfo, RigCount, RawImp) -> 
+    getArg : (Name, Maybe Name, PiInfo, RigCount, RawImp) ->
              Maybe RawImp
     getArg (x, _, Explicit, _, _) = Just (IVar loc x)
     getArg _ = Nothing
@@ -80,7 +80,7 @@ mkApp loc n args
 export
 makeLemma : {auto m : Ref MD Metadata} ->
             {auto c : Ref Ctxt Defs} ->
-            FC -> Name -> Nat -> ClosedTerm -> 
+            FC -> Name -> Nat -> ClosedTerm ->
             Core (RawImp, RawImp)
 makeLemma loc n nlocs ty
     = do (args, ret) <- getArgs [] nlocs ty

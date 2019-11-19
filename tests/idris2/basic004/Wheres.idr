@@ -3,7 +3,7 @@ module Wheres
 import Stuff
 
 reverse : List a -> List a
-reverse xs = rev' Nil xs 
+reverse xs = rev' Nil xs
   where
     rev' : List a -> List a -> List a
     rev' acc Nil = acc

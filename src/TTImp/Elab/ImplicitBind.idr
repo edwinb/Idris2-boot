@@ -19,11 +19,11 @@ import Data.NameMap
 
 %default covering
 
-varEmbedSub : SubVars small vars -> 
-              {idx : Nat} -> .(IsVar n idx small) -> 
+varEmbedSub : SubVars small vars ->
+              {idx : Nat} -> .(IsVar n idx small) ->
               Var vars
 varEmbedSub SubRefl y = MkVar y
-varEmbedSub (DropCons prf) y 
+varEmbedSub (DropCons prf) y
     = let MkVar y' = varEmbedSub prf y in
           MkVar (Later y')
 varEmbedSub (KeepCons prf) First = MkVar First
@@ -33,19 +33,19 @@ varEmbedSub (KeepCons prf) (Later p)
 
 mutual
   embedSub : SubVars small vars -> Term small -> Term vars
-  embedSub sub (Local fc x idx y) 
+  embedSub sub (Local fc x idx y)
       = let MkVar y' = varEmbedSub sub y in Local fc x _ y'
   embedSub sub (Ref fc x name) = Ref fc x name
-  embedSub sub (Meta fc x y xs) 
+  embedSub sub (Meta fc x y xs)
       = Meta fc x y (map (embedSub sub) xs)
-  embedSub sub (Bind fc x b scope) 
+  embedSub sub (Bind fc x b scope)
       = Bind fc x (map (embedSub sub) b) (embedSub (KeepCons sub) scope)
-  embedSub sub (App fc fn arg) 
+  embedSub sub (App fc fn arg)
       = App fc (embedSub sub fn) (embedSub sub arg)
-  embedSub sub (As fc nm pat) 
+  embedSub sub (As fc nm pat)
       = As fc (embedSub sub nm) (embedSub sub pat)
   embedSub sub (TDelayed fc x y) = TDelayed fc x (embedSub sub y)
-  embedSub sub (TDelay fc x t y) 
+  embedSub sub (TDelay fc x t y)
       = TDelay fc x (embedSub sub t) (embedSub sub y)
   embedSub sub (TForce fc r x) = TForce fc r (embedSub sub x)
   embedSub sub (PrimVal fc c) = PrimVal fc c
@@ -67,7 +67,7 @@ mkOuterHole loc rig n topenv (Just expty_in)
          case shrinkTerm expected sub of
               -- Can't shrink so rely on unification with expected type later
               Nothing => mkOuterHole loc rig n topenv Nothing
-              Just exp' => 
+              Just exp' =>
                   do let env = outerEnv est
                      tm <- implBindVar loc rig env n exp'
                      pure (embedSub sub tm, embedSub sub exp')
@@ -106,7 +106,7 @@ mkPatternHole {vars} loc rig n topenv imode (Just expty_in)
               Nothing => mkPatternHole loc rig n topenv imode Nothing
               Just exp' =>
                   do tm <- implBindVar loc rig env n exp'
-                     pure (apply loc (embedSub sub tm) (mkArgs sub), 
+                     pure (apply loc (embedSub sub tm) (mkArgs sub),
                            expected,
                            embedSub sub exp')
   where
@@ -118,7 +118,7 @@ mkPatternHole {vars} loc rig n topenv imode (Just expty_in)
     -- This is for the specific situation where we're pattern matching on
     -- function types, which is realistically the only time we'll legitimately
     -- encounter a type variable under a binder
-    bindInner : Env Term vs -> Term vs -> SubVars newvars vs -> 
+    bindInner : Env Term vs -> Term vs -> SubVars newvars vs ->
                 Maybe (Term newvars)
     bindInner env ty SubRefl = Just ty
     bindInner {vs = x :: _} (b :: env) ty (DropCons p)
@@ -136,7 +136,7 @@ bindUnsolved : {auto c : Ref Ctxt Defs} -> {auto e : Ref EST (EState vars)} ->
                {auto u : Ref UST UState} ->
                FC -> ElabMode -> BindMode -> Core ()
 bindUnsolved fc elabmode NONE = pure ()
-bindUnsolved {vars} fc elabmode _ 
+bindUnsolved {vars} fc elabmode _
     = do est <- get EST
          defs <- get Ctxt
          let bifs = bindIfUnsolved est
@@ -150,7 +150,7 @@ bindUnsolved {vars} fc elabmode _
         = case shrinkTerm expected sub of
                Nothing => do tmn <- toFullNames expected
                              throw (GenericMsg fc ("Can't bind implicit " ++ show n ++ " of type " ++ show tmn))
-               Just exp' => 
+               Just exp' =>
                     do impn <- genVarName (nameRoot n)
                        tm <- metaVar fc rig env impn exp'
                        est <- get EST
@@ -160,8 +160,8 @@ bindUnsolved {vars} fc elabmode _
                        pure (embedSub sub tm)
 
     mkImplicit : Defs -> Env Term outer -> SubVars outer vars ->
-                 (Name, RigCount, PiInfo, (vars' ** 
-                     (Env Term vars', Term vars', Term vars', SubVars outer vars'))) -> 
+                 (Name, RigCount, PiInfo, (vars' **
+                     (Env Term vars', Term vars', Term vars', SubVars outer vars'))) ->
                  Core ()
     mkImplicit defs outerEnv subEnv (n, rig, p, (vs ** (env, tm, exp, sub)))
         = do Just (Hole _ _) <- lookupDefExact n (gamma defs)
@@ -176,27 +176,27 @@ bindUnsolved {vars} fc elabmode _
                    fc env tm bindtm
              pure ()
 
-swapIsVarH : {idx : Nat} -> .(IsVar name idx (x :: y :: xs)) -> 
+swapIsVarH : {idx : Nat} -> .(IsVar name idx (x :: y :: xs)) ->
              Var (y :: x :: xs)
 swapIsVarH First = MkVar (Later First)
 swapIsVarH (Later First) = MkVar First
 swapIsVarH (Later (Later x)) = MkVar (Later (Later x))
 
 swapIsVar : (vs : List Name) ->
-            {idx : Nat} -> .(IsVar name idx (vs ++ x :: y :: xs)) -> 
+            {idx : Nat} -> .(IsVar name idx (vs ++ x :: y :: xs)) ->
             Var (vs ++ y :: x :: xs)
 swapIsVar [] prf = swapIsVarH prf
 swapIsVar (x :: xs) First = MkVar First
-swapIsVar (x :: xs) (Later p) 
+swapIsVar (x :: xs) (Later p)
     = let MkVar p' = swapIsVar xs p in MkVar (Later p')
 
 swapVars : {vs : List Name} ->
            Term (vs ++ x :: y :: ys) -> Term (vs ++ y :: x :: ys)
-swapVars (Local fc x idx p) 
+swapVars (Local fc x idx p)
     = let MkVar p' = swapIsVar _ p in Local fc x _ p'
 swapVars (Ref fc x name) = Ref fc x name
 swapVars (Meta fc n i xs) = Meta fc n i (map swapVars xs)
-swapVars {vs} (Bind fc x b scope) 
+swapVars {vs} (Bind fc x b scope)
     = Bind fc x (map swapVars b) (swapVars {vs = x :: vs} scope)
 swapVars (App fc fn arg) = App fc (swapVars fn) (swapVars arg)
 swapVars (As fc nm pat) = As fc (swapVars nm) (swapVars pat)
@@ -215,7 +215,7 @@ push ofc n b tm@(Bind fc (PV x i) (Pi c Implicit ty) sc) -- only push past 'PV's
     = case shrinkTerm ty (DropCons SubRefl) of
            Nothing => -- needs explicit pi, do nothing
                       Bind ofc n b tm
-           Just ty' => Bind fc (PV x i) (Pi c Implicit ty') 
+           Just ty' => Bind fc (PV x i) (Pi c Implicit ty')
                             (push ofc n (map weaken b) (swapVars {vs = []} sc))
 push ofc n b tm = Bind ofc n b tm
 
@@ -227,7 +227,7 @@ liftImps : BindMode -> (Term vars, Term vars) -> (Term vars, Term vars)
 liftImps (PI _) (tm, TType) = (liftImps' tm, TType)
   where
     liftImps' : Term vars -> Term vars
-    liftImps' (Bind fc (PV n i) (Pi c Implicit ty) sc) 
+    liftImps' (Bind fc (PV n i) (Pi c Implicit ty) sc)
         = Bind fc (PV n i) (Pi c Implicit ty) (liftImps' sc)
     liftImps' (Bind fc n (Pi c p ty) sc)
         = push fc n (Pi c p ty) (liftImps' sc)
@@ -241,7 +241,7 @@ bindImplVars : FC -> BindMode ->
                List (Name, ImplBinding vars) ->
                Term vars -> Term vars -> (Term vars, Term vars)
 bindImplVars fc NONE gam env imps_in scope scty = (scope, scty)
-bindImplVars {vars} fc mode gam env imps_in scope scty 
+bindImplVars {vars} fc mode gam env imps_in scope scty
     = let imps = map (\ (x, bind) => (tidyName x, x, bind)) imps_in in
           getBinds imps None scope scty
   where
@@ -253,31 +253,31 @@ bindImplVars {vars} fc mode gam env imps_in scope scty
     tidyName (Nested n inner) = tidyName inner
     tidyName n = n
 
-    getBinds : (imps : List (Name, Name, ImplBinding vs)) -> 
+    getBinds : (imps : List (Name, Name, ImplBinding vs)) ->
                Bounds new -> (tm : Term vs) -> (ty : Term vs) ->
                (Term (new ++ vs), Term (new ++ vs))
     getBinds [] bs tm ty = (refsToLocals bs tm, refsToLocals bs ty)
     getBinds ((n, metan, NameBinding c p _ bty) :: imps) bs tm ty
-        = let (tm', ty') = getBinds imps (Add n metan bs) tm ty 
+        = let (tm', ty') = getBinds imps (Add n metan bs) tm ty
               bty' = refsToLocals bs bty in
               case mode of
                    PI c =>
-                      (Bind fc _ (Pi c Implicit bty') tm', 
+                      (Bind fc _ (Pi c Implicit bty') tm',
                        TType fc)
                    _ =>
-                      (Bind fc _ (PVar c p bty') tm', 
+                      (Bind fc _ (PVar c p bty') tm',
                        Bind fc _ (PVTy c bty') ty')
     getBinds ((n, metan, AsBinding c _ _ bty bpat) :: imps) bs tm ty
-        = let (tm', ty') = getBinds imps (Add n metan bs) tm ty 
+        = let (tm', ty') = getBinds imps (Add n metan bs) tm ty
               bty' = refsToLocals bs bty
               bpat' = refsToLocals bs bpat in
-              (Bind fc _ (PLet c bpat' bty') tm', 
+              (Bind fc _ (PLet c bpat' bty') tm',
                Bind fc _ (PLet c bpat' bty') ty')
 
 normaliseHolesScope : Defs -> Env Term vars -> Term vars -> Core (Term vars)
-normaliseHolesScope defs env (Bind fc n b sc) 
-    = pure $ Bind fc n b 
-                  !(normaliseHolesScope defs 
+normaliseHolesScope defs env (Bind fc n b sc)
+    = pure $ Bind fc n b
+                  !(normaliseHolesScope defs
                    -- use Lam because we don't want it reducing in the scope
                    (Lam (multiplicity b) Explicit (binderType b) :: env) sc)
 normaliseHolesScope defs env tm = normaliseHoles defs env tm
@@ -288,7 +288,7 @@ bindImplicits : FC -> BindMode ->
                 List (Name, ImplBinding vars) ->
                 Term vars -> Term vars -> Core (Term vars, Term vars)
 bindImplicits fc NONE defs env hs tm ty = pure (tm, ty)
-bindImplicits {vars} fc mode defs env hs tm ty 
+bindImplicits {vars} fc mode defs env hs tm ty
    = do hs' <- traverse nHoles hs
         pure $ liftImps mode $ bindImplVars fc mode defs env hs' tm ty
   where
@@ -302,7 +302,7 @@ export
 implicitBind : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
                Name -> Core ()
-implicitBind n 
+implicitBind n
     = do defs <- get Ctxt
          Just (Hole _ _) <- lookupDefExact n (gamma defs)
              | _ => pure ()
@@ -320,9 +320,9 @@ getToBind : {auto c : Ref Ctxt Defs} -> {auto e : Ref EST (EState vars)} ->
             FC -> ElabMode -> BindMode ->
             Env Term vars -> (excepts : List Name) ->
             Core (List (Name, ImplBinding vars))
-getToBind fc elabmode NONE env excepts 
+getToBind fc elabmode NONE env excepts
     = pure [] -- We should probably never get here, but for completeness...
-getToBind {vars} fc elabmode impmode env excepts 
+getToBind {vars} fc elabmode impmode env excepts
     = do solveConstraints (case elabmode of
                                 InLHS _ => InLHS
                                 _ => InTerm) Normal
@@ -337,7 +337,7 @@ getToBind {vars} fc elabmode impmode env excepts
          -- Make sure all the hole names are normalised in the implicitly
          -- bound types, because otherwise we'll bind them too
          res <- normImps defs [] tob
-         let hnames = map fst res 
+         let hnames = map fst res
          -- Return then in dependency order
          let res' = depSort hnames res
          log 10 $ "Bound names: " ++ show res
@@ -348,14 +348,14 @@ getToBind {vars} fc elabmode impmode env excepts
     normBindingTy defs (NameBinding c p tm ty)
         = pure $ NameBinding c p tm !(normaliseHoles defs env ty)
     normBindingTy defs (AsBinding c p tm ty pat)
-        = pure $ AsBinding c p tm !(normaliseHoles defs env ty) 
+        = pure $ AsBinding c p tm !(normaliseHoles defs env ty)
                                   !(normaliseHoles defs env pat)
 
-    normImps : Defs -> List Name -> List (Name, ImplBinding vars) -> 
+    normImps : Defs -> List Name -> List (Name, ImplBinding vars) ->
                Core (List (Name, ImplBinding vars))
     normImps defs ns [] = pure []
-    normImps defs ns ((PV n i, bty) :: ts) 
-        = do logTermNF 10 ("Implicit pattern var " ++ show (PV n i)) env 
+    normImps defs ns ((PV n i, bty) :: ts)
+        = do logTermNF 10 ("Implicit pattern var " ++ show (PV n i)) env
                        (bindingType bty)
              if PV n i `elem` ns
                 then normImps defs ns ts
@@ -379,8 +379,8 @@ getToBind {vars} fc elabmode impmode env excepts
 
     -- Insert the hole/binding pair into the list before the first thing
     -- which refers to it
-    insert : (Name, ImplBinding vars) -> List Name -> List Name -> 
-             List (Name, ImplBinding vars) -> 
+    insert : (Name, ImplBinding vars) -> List Name -> List Name ->
+             List (Name, ImplBinding vars) ->
              List (Name, ImplBinding vars)
     insert h ns sofar [] = [h]
     insert (hn, bty) ns sofar ((hn', bty') :: rest)
@@ -389,14 +389,14 @@ getToBind {vars} fc elabmode impmode env excepts
               -- introduced in *this* expression (there may be others unresolved
               -- from elsewhere, for type inference purposes)
               if hn `elem` used
-                 then (hn, bty) :: 
+                 then (hn, bty) ::
                       (hn', bty') :: rest
-                 else (hn', bty') :: 
+                 else (hn', bty') ::
                           insert (hn, bty) ns (hn' :: sofar) rest
-    
+
     -- Sort the list of implicits so that each binding is inserted *after*
     -- all the things it depends on (assumes no cycles)
-    depSort : List Name -> List (Name, ImplBinding vars) -> 
+    depSort : List Name -> List (Name, ImplBinding vars) ->
               List (Name, ImplBinding vars)
     depSort hnames [] = []
     depSort hnames (h :: hs) = insert h hnames [] (depSort hnames hs)
@@ -407,9 +407,9 @@ checkBindVar : {vars : _} ->
                {auto m : Ref MD Metadata} ->
                {auto u : Ref UST UState} ->
                {auto e : Ref EST (EState vars)} ->
-               RigCount -> ElabInfo -> 
-               NestedNames vars -> Env Term vars -> 
-               FC -> String -> -- string is base of the pattern name 
+               RigCount -> ElabInfo ->
+               NestedNames vars -> Env Term vars ->
+               FC -> String -> -- string is base of the pattern name
                Maybe (Glued vars) ->
                Core (Term vars, Glued vars)
 checkBindVar rig elabinfo nest env fc str topexp
@@ -426,7 +426,7 @@ checkBindVar rig elabinfo nest env fc str topexp
          notePatVar n
          est <- get EST
          case lookup n (boundNames est) of
-              Nothing => 
+              Nothing =>
                 do (tm, exp, bty) <- mkPatternHole fc rig n env
                                               (implicitMode elabinfo)
                                               topexp
@@ -451,7 +451,7 @@ checkBindVar rig elabinfo nest env fc str topexp
                    addNameType fc (UN str) env ty
                    checkExp rig elabinfo env fc tm (gnf env ty) topexp
   where
-    updateRig : Name -> RigCount -> List (Name, ImplBinding vars) -> 
+    updateRig : Name -> RigCount -> List (Name, ImplBinding vars) ->
                 List (Name, ImplBinding vars)
     updateRig n c [] = []
     updateRig n c ((bn, r) :: bs)
@@ -467,7 +467,7 @@ checkBindVar rig elabinfo nest env fc str topexp
     combine n RigW Rig1 = throw (LinearUsed fc 2 n)
     combine n RigW RigW = pure ()
     combine n Rig0 c = pure ()
-    combine n c Rig0 
+    combine n c Rig0
        -- It was 0, make it c
        = do est <- get EST
             put EST (record { boundNames $= updateRig n c,
@@ -479,8 +479,8 @@ checkBindHere : {vars : _} ->
                 {auto m : Ref MD Metadata} ->
                 {auto u : Ref UST UState} ->
                 {auto e : Ref EST (EState vars)} ->
-                RigCount -> ElabInfo -> 
-                NestedNames vars -> Env Term vars -> 
+                RigCount -> ElabInfo ->
+                NestedNames vars -> Env Term vars ->
                 FC -> BindMode -> RawImp ->
                 Maybe (Glued vars) ->
                 Core (Term vars, Glued vars)
@@ -518,12 +518,12 @@ checkBindHere rig elabinfo nest env fc bindmode tm exp
                               bindmode env dontbind
          clearToBind dontbind
          est <- get EST
-         put EST (updateEnv oldenv oldsub oldbif 
+         put EST (updateEnv oldenv oldsub oldbif
                      (record { boundNames = [] } est))
          ty <- getTerm tmt
          defs <- get Ctxt
          (bv, bt) <- bindImplicits fc bindmode
-                                   defs env argImps 
+                                   defs env argImps
                                    !(normaliseHoles defs env tmv)
                                    !(normaliseHoles defs env ty)
          traverse_ implicitBind (map fst argImps)

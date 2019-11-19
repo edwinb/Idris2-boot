@@ -17,7 +17,7 @@ replWith acc prompt fn
           then pure ()
           else do x <- getLine
                   case fn acc x of
-                       Just (out, acc') => 
+                       Just (out, acc') =>
                            do putStr out
                               replWith acc' prompt fn
                        Nothing => pure ()

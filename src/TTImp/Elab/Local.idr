@@ -20,16 +20,16 @@ checkLocal : {vars : _} ->
              {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
              {auto e : Ref EST (EState vars)} ->
-             RigCount -> ElabInfo -> 
-             NestedNames vars -> Env Term vars -> 
+             RigCount -> ElabInfo ->
+             NestedNames vars -> Env Term vars ->
              FC -> List ImpDecl -> (scope : RawImp) ->
              (expTy : Maybe (Glued vars)) ->
              Core (Term vars, Glued vars)
 checkLocal {vars} rig elabinfo nest env fc nestdecls scope expty
     = do let defNames = definedInBlock [] nestdecls
-         est <- get EST                            
-         let f = defining est                      
-         names' <- traverse (applyEnv f) 
+         est <- get EST
+         let f = defining est
+         names' <- traverse (applyEnv f)
                             (nub defNames) -- binding names must be unique
                                            -- fixes bug #115
          let nest' = record { names $= (names' ++) } nest
@@ -43,31 +43,31 @@ checkLocal {vars} rig elabinfo nest env fc nestdecls scope expty
     -- ensuring the nested definition is used exactly once
     dropLinear : Env Term vs -> Env Term vs
     dropLinear [] = []
-    dropLinear (b :: bs) 
+    dropLinear (b :: bs)
         = if isLinear (multiplicity b)
              then setMultiplicity b Rig0 :: dropLinear bs
              else b :: dropLinear bs
 
-    applyEnv : {auto c : Ref Ctxt Defs} -> Int -> Name -> 
+    applyEnv : {auto c : Ref Ctxt Defs} -> Int -> Name ->
                Core (Name, (Maybe Name, FC -> NameType -> Term vars))
-    applyEnv outer inner 
+    applyEnv outer inner
           = do let nestedName = Nested outer inner
                n' <- addName nestedName
-               pure (inner, (Just nestedName, 
-                        \fc, nt => applyTo fc 
+               pure (inner, (Just nestedName,
+                        \fc, nt => applyTo fc
                                (Ref fc nt (Resolved n')) env))
 
     -- Update the names in the declarations to the new 'nested' names.
     -- When we encounter the names in elaboration, we'll update to an
     -- application of the nested name.
     newName : NestedNames vars -> Name -> Name
-    newName nest n 
+    newName nest n
         = case lookup n (names nest) of
                Just (Just n', _) => n'
                _ => n
 
     updateTyName : NestedNames vars -> ImpTy -> ImpTy
-    updateTyName nest (MkImpTy loc' n ty) 
+    updateTyName nest (MkImpTy loc' n ty)
         = MkImpTy loc' (newName nest n) ty
 
     updateDataName : NestedNames vars -> ImpData -> ImpData
@@ -78,11 +78,11 @@ checkLocal {vars} rig elabinfo nest env fc nestdecls scope expty
         = MkImpLater loc' (newName nest n) tycons
 
     updateName : NestedNames vars -> ImpDecl -> ImpDecl
-    updateName nest (IClaim loc' r vis fnopts ty) 
+    updateName nest (IClaim loc' r vis fnopts ty)
          = IClaim loc' r vis fnopts (updateTyName nest ty)
-    updateName nest (IDef loc' n cs) 
+    updateName nest (IDef loc' n cs)
          = IDef loc' (newName nest n) cs
-    updateName nest (IData loc' vis d) 
+    updateName nest (IData loc' vis d)
          = IData loc' vis (updateDataName nest d)
     updateName nest i = i
 

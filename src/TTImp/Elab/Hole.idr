@@ -21,7 +21,7 @@ checkHole : {vars : _} ->
             {auto u : Ref UST UState} ->
             {auto e : Ref EST (EState vars)} ->
             RigCount -> ElabInfo ->
-            NestedNames vars -> Env Term vars -> 
+            NestedNames vars -> Env Term vars ->
             FC -> String -> Maybe (Glued vars) ->
             Core (Term vars, Glued vars)
 checkHole rig elabinfo nest env fc n_in (Just gexpty)

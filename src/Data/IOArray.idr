@@ -24,7 +24,7 @@ newRawArray size default
                           vm size (MkRaw default)
          pure (MkIORawArray p)
 
-||| Write an element at a location in an array. 
+||| Write an element at a location in an array.
 ||| There is *no* bounds checking, hence this is unsafe. Safe interfaces can
 ||| be implemented on top of this, either with a run time or compile time
 ||| check.
@@ -35,7 +35,7 @@ unsafeWriteArray (MkIORawArray p) i val
                     (Raw (ArrayData elem) -> Int -> Raw elem -> IO ())
                     (MkRaw p) i (MkRaw val)
 
-||| Read the element at a location in an array. 
+||| Read the element at a location in an array.
 ||| There is *no* bounds checking, hence this is unsafe. Safe interfaces can
 ||| be implemented on top of this, either with a run time or compile time
 ||| check.
@@ -114,7 +114,7 @@ fromList ns
   where
     addToArray : Int -> List (Maybe elem) -> IOArray elem -> IO ()
     addToArray loc [] arr = pure ()
-    addToArray loc (Nothing :: ns) arr 
+    addToArray loc (Nothing :: ns) arr
         = assert_total (addToArray (loc + 1) ns arr)
     addToArray loc (Just el :: ns) arr
         = do unsafeWriteArray (content arr) loc (Just el)

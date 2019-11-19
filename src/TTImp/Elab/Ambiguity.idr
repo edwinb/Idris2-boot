@@ -18,8 +18,8 @@ import TTImp.TTImp
 export
 expandAmbigName : {auto c : Ref Ctxt Defs} ->
                   {auto e : Ref EST (EState vars)} ->
-                  ElabMode -> NestedNames vars -> Env Term vars -> RawImp -> 
-                  List (FC, Maybe (Maybe Name), RawImp) -> 
+                  ElabMode -> NestedNames vars -> Env Term vars -> RawImp ->
+                  List (FC, Maybe (Maybe Name), RawImp) ->
                   RawImp -> Maybe (Glued vars) -> Core RawImp
 expandAmbigName (InLHS _) nest env orig args (IBindVar fc n) exp
     = do est <- get EST
@@ -32,11 +32,11 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
           Nothing => do
              defs <- get Ctxt
              case defined x env of
-                  Just _ => 
-                    if isNil args || notLHS mode 
+                  Just _ =>
+                    if isNil args || notLHS mode
                        then pure $ orig
                        else pure $ IMustUnify fc "Name applied to arguments" orig
-                  Nothing => 
+                  Nothing =>
                      do est <- get EST
                         fi <- fromIntegerName
                         si <- fromStringName
@@ -51,41 +51,41 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
   where
     -- If there's multiple alternatives and all else fails, resort to using
     -- the primitive directly
-    uniqType : Maybe Name -> Maybe Name -> Maybe Name -> Name -> 
+    uniqType : Maybe Name -> Maybe Name -> Maybe Name -> Name ->
                List (FC, Maybe (Maybe Name), RawImp) -> AltType
-    uniqType (Just fi) _ _ n [(_, _, IPrimVal fc (BI x))] 
+    uniqType (Just fi) _ _ n [(_, _, IPrimVal fc (BI x))]
         = UniqueDefault (IPrimVal fc (BI x))
-    uniqType _ (Just si) _ n [(_, _, IPrimVal fc (Str x))] 
+    uniqType _ (Just si) _ n [(_, _, IPrimVal fc (Str x))]
         = UniqueDefault (IPrimVal fc (Str x))
-    uniqType _ _ (Just ci) n [(_, _, IPrimVal fc (Ch x))] 
+    uniqType _ _ (Just ci) n [(_, _, IPrimVal fc (Ch x))]
         = UniqueDefault (IPrimVal fc (Ch x))
     uniqType _ _ _ _ _ = Unique
 
-    buildAlt : RawImp -> List (FC, Maybe (Maybe Name), RawImp) -> 
+    buildAlt : RawImp -> List (FC, Maybe (Maybe Name), RawImp) ->
                RawImp
     buildAlt f [] = f
-    buildAlt f ((fc', Nothing, a) :: as) 
+    buildAlt f ((fc', Nothing, a) :: as)
         = buildAlt (IApp fc' f a) as
-    buildAlt f ((fc', Just i, a) :: as) 
+    buildAlt f ((fc', Just i, a) :: as)
         = buildAlt (IImplicitApp fc' f i a) as
-     
+
     isPrimName : List Name -> Name -> Bool
     isPrimName [] fn = False
-    isPrimName (p :: ps) fn 
+    isPrimName (p :: ps) fn
         = dropNS fn == p || isPrimName ps fn
 
     -- If it's not a constructor application, dot it
     wrapDot : Bool -> EState vars ->
-              ElabMode -> Name -> List RawImp -> Def -> RawImp -> RawImp 
+              ElabMode -> Name -> List RawImp -> Def -> RawImp -> RawImp
     wrapDot _ _ _ _ _ (DCon _ _) tm = tm
     wrapDot _ _ _ _ _ (TCon _ _ _ _ _ _) tm = tm
     -- Leave primitive applications alone, because they'll be inlined
     -- before compiling the case tree
-    wrapDot prim est (InLHS _) n' [arg] _ tm 
+    wrapDot prim est (InLHS _) n' [arg] _ tm
        = if n' == Resolved (defining est) || prim
             then tm
             else IMustUnify fc "Not a constructor application or primitive" tm
-    wrapDot prim est (InLHS _) n' _ _ tm 
+    wrapDot prim est (InLHS _) n' _ _ tm
        = if n' == Resolved (defining est)
             then tm
             else IMustUnify fc "Not a constructor application or primitive" tm
@@ -93,12 +93,12 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
 
 
     mkTerm : Bool -> EState vars -> Name -> GlobalDef -> RawImp
-    mkTerm prim est n def 
+    mkTerm prim est n def
         = wrapDot prim est mode n (map (snd . snd) args)
                   (definition def) (buildAlt (IVar fc n) args)
 
     mkAlt : Bool -> EState vars -> (Name, Int, GlobalDef) -> RawImp
-    mkAlt prim est (fullname, i, gdef) 
+    mkAlt prim est (fullname, i, gdef)
         = mkTerm prim est (Resolved i) gdef
 
     notLHS : ElabMode -> Bool
@@ -106,10 +106,10 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
     notLHS _ = True
 
 expandAmbigName mode nest env orig args (IApp fc f a) exp
-    = expandAmbigName mode nest env orig 
+    = expandAmbigName mode nest env orig
                       ((fc, Nothing, a) :: args) f exp
 expandAmbigName mode nest env orig args (IImplicitApp fc f n a) exp
-    = expandAmbigName mode nest env orig 
+    = expandAmbigName mode nest env orig
                       ((fc, Just n, a) :: args) f exp
 expandAmbigName elabmode nest env orig args tm exp = pure orig
 
@@ -126,11 +126,11 @@ Show TypeMatch where
 
 mutual
   mightMatchD : Defs -> NF vars -> NF [] -> Core TypeMatch
-  mightMatchD defs l r 
+  mightMatchD defs l r
       = mightMatch defs (stripDelay l) (stripDelay r)
 
-  mightMatchArg : Defs -> 
-                  Closure vars -> Closure [] -> 
+  mightMatchArg : Defs ->
+                  Closure vars -> Closure [] ->
                   Core Bool
   mightMatchArg defs l r
       = case !(mightMatchD defs !(evalClosure defs l) !(evalClosure defs r)) of
@@ -152,16 +152,16 @@ mutual
   mightMatch defs target (NBind fc n (Pi _ _ _) sc)
       = mightMatchD defs target !(sc defs (toClosure defaultOpts [] (Erased fc)))
   mightMatch defs (NTCon _ n t a args) (NTCon _ n' t' a' args')
-      = if n == n' 
+      = if n == n'
            then do amatch <- mightMatchArgs defs args args'
                    if amatch then pure Concrete else pure NoMatch
            else pure NoMatch
   mightMatch defs (NDCon _ n t a args) (NDCon _ n' t' a' args')
-      = if t == t' 
+      = if t == t'
            then do amatch <- mightMatchArgs defs args args'
                    if amatch then pure Concrete else pure NoMatch
            else pure NoMatch
-  mightMatch defs (NPrimVal _ x) (NPrimVal _ y) 
+  mightMatch defs (NPrimVal _ x) (NPrimVal _ y)
       = if x == y then pure Concrete else pure NoMatch
   mightMatch defs (NType _) (NType _) = pure Concrete
   mightMatch defs (NApp _ _ _) _ = pure Poly
@@ -187,17 +187,17 @@ couldBeFn defs ty _ = pure Poly
 -- Just (True, app) if it's a match on concrete return type
 -- Just (False, app) if it might be a match due to being polymorphic
 couldBe : Defs -> NF vars -> RawImp -> Core (Maybe (Bool, RawImp))
-couldBe {vars} defs ty@(NTCon _ n _ _ _) app 
+couldBe {vars} defs ty@(NTCon _ n _ _ _) app
    = case !(couldBeFn {vars} defs ty (getFn app)) of
           Concrete => pure $ Just (True, app)
           Poly => pure $ Just (False, app)
           NoMatch => pure Nothing
-couldBe {vars} defs ty@(NPrimVal _ _) app 
+couldBe {vars} defs ty@(NPrimVal _ _) app
    = case !(couldBeFn {vars} defs ty (getFn app)) of
           Concrete => pure $ Just (True, app)
           Poly => pure $ Just (False, app)
           NoMatch => pure Nothing
-couldBe {vars} defs ty@(NType _) app 
+couldBe {vars} defs ty@(NType _) app
    = case !(couldBeFn {vars} defs ty (getFn app)) of
           Concrete => pure $ Just (True, app)
           Poly => pure $ Just (False, app)
@@ -230,7 +230,7 @@ filterCore f (x :: xs)
 
 pruneByType : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
-              Env Term vars -> NF vars -> List RawImp -> 
+              Env Term vars -> NF vars -> List RawImp ->
               Core (List RawImp)
 pruneByType env target alts
     = do defs <- get Ctxt
@@ -273,8 +273,8 @@ checkAlternative : {vars : _} ->
                    {auto m : Ref MD Metadata} ->
                    {auto u : Ref UST UState} ->
                    {auto e : Ref EST (EState vars)} ->
-                   RigCount -> ElabInfo -> 
-                   NestedNames vars -> Env Term vars -> 
+                   RigCount -> ElabInfo ->
+                   NestedNames vars -> Env Term vars ->
                    FC -> AltType -> List RawImp -> Maybe (Glued vars) ->
                    Core (Term vars, Glued vars)
 checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
@@ -285,35 +285,35 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
          let solvemode = case elabMode elabinfo of
                               InLHS c => InLHS
                               _ => InTerm
-         delayOnFailure fc rig env expected ambiguous $ 
+         delayOnFailure fc rig env expected ambiguous $
              \delayed =>
                do solveConstraints solvemode Normal
                   defs <- get Ctxt
                   exp <- getTerm expected
 
-                  -- We can't just use the old NF on the second attempt, 
+                  -- We can't just use the old NF on the second attempt,
                   -- because we might know more now, so recalculate it
-                  let exp' = if delayed 
+                  let exp' = if delayed
                                 then gnf env exp
                                 else expected
 
                   alts' <- pruneByType env !(getNF exp') alts
 
-                  logGlueNF 5 ("Ambiguous elaboration " ++ show alts' ++ 
+                  logGlueNF 5 ("Ambiguous elaboration " ++ show alts' ++
                                " at " ++ show fc ++
                                "\nWith default. Target type ") env exp'
                   if delayed -- use the default if there's still ambiguity
-                     then try 
-                            (exactlyOne fc env 
-                                (map (\t => 
-                                   (getName t, 
-                                    checkImp rig elabinfo nest env t 
+                     then try
+                            (exactlyOne fc env
+                                (map (\t =>
+                                   (getName t,
+                                    checkImp rig elabinfo nest env t
                                              (Just exp'))) alts'))
                             (do log 5 "All failed, running default"
                                 checkImp rig elabinfo nest env def (Just exp'))
                      else exactlyOne fc env
-                           (map (\t => 
-                             (getName t, 
+                           (map (\t =>
+                             (getName t,
                               checkImp rig elabinfo nest env t (Just exp')))
                               alts')
 checkAlternative rig elabinfo nest env fc uniq alts mexpected
@@ -329,28 +329,28 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
                 let solvemode = case elabMode elabinfo of
                                       InLHS c => InLHS
                                       _ => InTerm
-                delayOnFailure fc rig env expected ambiguous $ 
+                delayOnFailure fc rig env expected ambiguous $
                      \delayed =>
                        do solveConstraints solvemode Normal
                           defs <- get Ctxt
                           exp <- getTerm expected
 
-                          -- We can't just use the old NF on the second attempt, 
+                          -- We can't just use the old NF on the second attempt,
                           -- because we might know more now, so recalculate it
-                          let exp' = if delayed 
+                          let exp' = if delayed
                                         then gnf env exp
                                         else expected
 
                           alts' <- pruneByType env !(getNF exp') alts
 
-                          logGlueNF 5 ("Ambiguous elaboration " ++ show alts' ++ 
+                          logGlueNF 5 ("Ambiguous elaboration " ++ show alts' ++
                                        " at " ++ show fc ++
                                        "\nTarget type ") env exp'
                           let tryall = case uniq of
                                             FirstSuccess => anyOne fc
                                             _ => exactlyOne fc env
-                          tryall (map (\t => 
-                              (getName t, 
+                          tryall (map (\t =>
+                              (getName t,
                                do res <- checkImp rig elabinfo nest env t (Just exp')
                                   -- Do it twice for interface resolution;
                                   -- first pass gets the determining argument

@@ -11,7 +11,7 @@ import Core.Value
 
 -- Get the type of an already typechecked thing.
 -- We need this (occasionally) because we don't store types in subterms (e.g. on
--- applications) and we don't keep the type of suterms up to date throughout 
+-- applications) and we don't keep the type of suterms up to date throughout
 -- unification. Perhaps we should? There's a trade off here, and recalculating on
 -- the rare occasions it's necessary doesn't seem to cost too much, but keep an
 -- eye on it...
@@ -19,26 +19,26 @@ import Core.Value
 mutual
   chk : {auto c : Ref Ctxt Defs} ->
         Env Term vars -> Term vars -> Core (Glued vars)
-  chk env (Local fc r idx p) 
+  chk env (Local fc r idx p)
       = pure $ gnf env (binderType (getBinder p env))
   chk env (Ref fc nt n)
       = do defs <- get Ctxt
            Just ty <- lookupTyExact n (gamma defs)
                | Nothing => throw (UndefinedName fc n)
            pure $ gnf env (embed ty)
-  chk env (Meta fc n i args) 
+  chk env (Meta fc n i args)
       = do defs <- get Ctxt
            Just mty <- lookupTyExact (Resolved i) (gamma defs)
                | Nothing => throw (UndefinedName fc n)
            chkMeta fc env !(nf defs env (embed mty)) args
-  chk env (Bind fc nm b sc) 
+  chk env (Bind fc nm b sc)
       = do bt <- chkBinder env b
            sct <- chk {vars = nm :: _} (b :: env) sc
            pure $ gnf env (discharge fc nm b !(getTerm bt) !(getTerm sct))
-  chk env (App fc f a) 
+  chk env (App fc f a)
       = do fty <- chk env f
            case !(getNF fty) of
-                NBind _ _ (Pi _ _ ty) scdone => 
+                NBind _ _ (Pi _ _ ty) scdone =>
                       do defs <- get Ctxt
                          aty <- chk env a
                          sc' <- scdone defs (toClosure defaultOpts env a)
@@ -47,15 +47,15 @@ mutual
                         throw (NotFunctionType fc env fty')
   chk env (As fc n p) = chk env p
   chk env (TDelayed fc r tm) = pure (gType fc)
-  chk env (TDelay fc r dty tm) 
+  chk env (TDelay fc r dty tm)
       = do gtm <- chk env tm
            tm' <- getNF gtm
            defs <- get Ctxt
            pure $ glueBack defs env (NDelayed fc r tm')
-  chk env (TForce fc r tm) 
+  chk env (TForce fc r tm)
       = do tm' <- chk env tm
            case !(getNF tm') of
-                NDelayed fc _ fty => 
+                NDelayed fc _ fty =>
                     do defs <- get Ctxt
                        pure $ glueBack defs env fty
   chk env (PrimVal fc x) = pure $ gnf env (chkConstant fc x)
@@ -65,7 +65,7 @@ mutual
   chkMeta : {auto c : Ref Ctxt Defs} ->
             FC -> Env Term vars -> NF vars -> List (Term vars) ->
             Core (Glued vars)
-  chkMeta fc env ty [] 
+  chkMeta fc env ty []
       = do defs <- get Ctxt
            pure $ glueBack defs env ty
   chkMeta fc env (NBind _ _ (Pi _ _ ty) scdone) (a :: args)
@@ -88,9 +88,9 @@ mutual
       = Bind fc n (Pi c x ty) scopety
   discharge fc n (Let c val ty) bindty scopety
       = Bind fc n (Let c val ty) scopety
-  discharge fc n (Pi c x ty) bindty scopety 
+  discharge fc n (Pi c x ty) bindty scopety
       = bindty
-  discharge fc n (PVar c p ty) bindty scopety 
+  discharge fc n (PVar c p ty) bindty scopety
       = Bind fc n (PVTy c ty) scopety
   discharge fc n (PLet c val ty) bindty scopety
       = Bind fc n (PLet c val ty) scopety
