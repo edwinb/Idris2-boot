@@ -342,19 +342,20 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
     canBindName _ vs = Nothing
 
     addEnv : Env Term vs -> SubVars vs' vs -> List Name ->
-             (List (Maybe RawImp), List Name)
-    addEnv [] sub used = ([], used)
+             List (Maybe RawImp)
+    addEnv [] sub used = []
     addEnv {vs = v :: vs} (b :: bs) SubRefl used
-        = let (rest, used') = addEnv bs SubRefl used in
-              (Nothing :: rest, used')
+        = let rest = addEnv bs SubRefl used in
+              Nothing :: rest
     addEnv (b :: bs) (KeepCons p) used
-        = let (rest, used') = addEnv bs p used in
-              (Nothing :: rest, used')
+        = let rest = addEnv bs p used in
+              Nothing :: rest
     addEnv {vs = v :: vs} (b :: bs) (DropCons p) used
-        = let (rest, used') = addEnv bs p used in
-              case canBindName v used' of
-                   Just n => (Just (IAs fc UseLeft n (Implicit fc True)) :: rest, n :: used')
-                   _ => (Just (Implicit fc True) :: rest, used')
+        = case canBindName v used of
+               Just n => let rest = addEnv bs p (n :: used) in
+                             Just (IAs fc UseLeft n (Implicit fc True)) :: rest
+               _ => let rest = addEnv bs p used in
+                        Just (Implicit fc True) :: rest
 
     -- Replace a variable in the argument list; if the reference is to
     -- a variable kept in the outer environment (therefore not an argument
@@ -393,16 +394,16 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
                    Env Term vars -> SubVars vs' vars ->
                    ImpClause -> ImpClause
     updateClause casen splitOn env sub (PatClause loc' lhs rhs)
-        = let args = fst (addEnv env sub (usedIn lhs))
+        = let args = addEnv env sub (usedIn lhs)
               args' = mkSplit splitOn lhs args in
               PatClause loc' (apply (IVar loc' casen) args') rhs
     -- With isn't allowed in a case block but include for completeness
     updateClause casen splitOn env sub (WithClause loc' lhs wval cs)
-        = let args = fst (addEnv env sub (usedIn lhs))
+        = let args = addEnv env sub (usedIn lhs)
               args' = mkSplit splitOn lhs args in
               WithClause loc' (apply (IVar loc' casen) args') wval cs
     updateClause casen splitOn env sub (ImpossibleClause loc' lhs)
-        = let args = fst (addEnv env sub (usedIn lhs))
+        = let args = addEnv env sub (usedIn lhs)
               args' = mkSplit splitOn lhs args in
               ImpossibleClause loc' (apply (IVar loc' casen) args')
 
