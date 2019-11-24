@@ -420,7 +420,9 @@ process (Eval itm)
                  defs <- get Ctxt
                  opts <- get ROpts
                  let norm = nfun (evalMode opts)
-                 itm <- resugar [] !(norm defs [] tm)
+                 ntm <- norm defs [] tm
+                 itm <- resugar [] ntm
+                 logTermNF 5 "Normalised" [] ntm
                  if showTypes opts
                     then do ty <- getTerm gty
                             ity <- resugar [] !(norm defs [] ty)

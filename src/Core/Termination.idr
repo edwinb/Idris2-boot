@@ -278,7 +278,7 @@ mutual
           rhs <- normaliseOpts tcOnly defs env tm
           findSC defs env g pats rhs
 
--- Remove all force and delay annotations which are nothing to do with 
+-- Remove all force and delay annotations which are nothing to do with
 -- coinduction meaning that all Delays left guard coinductive calls.
 delazy : Defs -> Term vars -> Term vars
 delazy defs (TDelayed fc r tm)
@@ -292,7 +292,7 @@ delazy defs (TDelay fc r ty tm)
           case r of
                LInf => TDelay fc r ty' tm'
                _ => tm'
-delazy defs (TForce fc r t) 
+delazy defs (TForce fc r t)
     = case r of
            LInf => TForce fc r (delazy defs t)
            _ => delazy defs t

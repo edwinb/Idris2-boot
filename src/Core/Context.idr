@@ -696,7 +696,7 @@ HasNames Transform where
       = pure $ MkTransform !(full gam env) !(full gam lhs) !(full gam rhs)
 
   resolved gam (MkTransform env lhs rhs)
-      = pure $ MkTransform !(resolved gam env) 
+      = pure $ MkTransform !(resolved gam env)
                            !(resolved gam lhs) !(resolved gam rhs)
 
 public export
@@ -1334,7 +1334,7 @@ addTransform : {auto c : Ref Ctxt Defs} ->
 addTransform fc t
     = do defs <- get Ctxt
          let Just fn = getFnName t
-             | Nothing => 
+             | Nothing =>
                   throw (GenericMsg fc "LHS of a transformation must be a function application")
          put Ctxt (record { transforms $= insert fn t,
                             saveTransforms $= ((fn, t) ::) } defs)

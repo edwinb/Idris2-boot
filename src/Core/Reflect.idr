@@ -3,8 +3,8 @@ module Core.Reflect
 import Core.Context
 import Core.Env
 import Core.Normalise
-import Core.Value
 import Core.TT
+import Core.Value
 
 %default covering
 
@@ -154,6 +154,23 @@ Reflect a => Reflect (List a) where
       = do x' <- reflect fc defs env x
            xs' <- reflect fc defs env xs
            appCon fc defs (prelude "::") [Erased fc, x', xs']
+
+export
+Reify a => Reify (Maybe a) where
+  reify defs (NDCon _ (NS _ (UN "Nothing")) _ _ _)
+      = pure Nothing
+  reify defs (NDCon _ (NS _ (UN "Just")) _ _ [_, x])
+      = do x' <- reify defs !(evalClosure defs x)
+           pure (Just x')
+  reify defs val = cantReify val "Maybe"
+
+export
+Reflect a => Reflect (Maybe a) where
+  reflect fc defs env Nothing = appCon fc defs (prelude "Nothing") [Erased fc]
+  reflect fc defs env (Just x)
+      = do x' <- reflect fc defs env x
+           appCon fc defs (prelude "Just") [Erased fc, x']
+
 
 export
 (Reify a, Reify b) => Reify (a, b) where
@@ -443,11 +460,12 @@ Reflect (Term vs) where
            tm' <- reflect fc defs env tm
            appCon fc defs (reflection "TDelay")
                   [Erased fc, dfc', r', ty', tm']
-  reflect fc defs env (TForce dfc tm)
+  reflect fc defs env (TForce dfc r tm)
       = do dfc' <- reflect fc defs env dfc
+           r' <- reflect fc defs env r
            tm' <- reflect fc defs env tm
            appCon fc defs (reflection "TForce")
-                  [Erased fc, dfc', tm']
+                  [Erased fc, r', dfc', tm']
   reflect fc defs env (PrimVal pfc c)
       = do pfc' <- reflect fc defs env pfc
            c' <- reflect fc defs env c

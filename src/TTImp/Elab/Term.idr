@@ -5,6 +5,7 @@ import Core.Core
 import Core.Env
 import Core.Metadata
 import Core.Normalise
+import Core.Reflect
 import Core.Unify
 import Core.TT
 import Core.Value
@@ -23,6 +24,7 @@ import TTImp.Elab.Local
 import TTImp.Elab.Prim
 import TTImp.Elab.Record
 import TTImp.Elab.Rewrite
+import TTImp.Reflect
 import TTImp.TTImp
 
 %default covering
