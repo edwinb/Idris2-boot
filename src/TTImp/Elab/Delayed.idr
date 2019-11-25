@@ -18,15 +18,15 @@ import Data.IntMap
 %default covering
 
 -- We run the elaborator in the given environment, but need to end up with a
--- closed term. 
-mkClosedElab : FC -> Env Term vars -> 
+-- closed term.
+mkClosedElab : FC -> Env Term vars ->
                (Core (Term vars, Glued vars)) ->
                Core ClosedTerm
-mkClosedElab fc [] elab 
+mkClosedElab fc [] elab
     = do (tm, _) <- elab
          pure tm
 mkClosedElab {vars = x :: vars} fc (b :: env) elab
-    = mkClosedElab fc env 
+    = mkClosedElab fc env
           (do (sc', _) <- elab
               let b' = newBinder b
               pure (Bind fc x b' sc', gErased fc))
@@ -42,50 +42,50 @@ mkClosedElab {vars = x :: vars} fc (b :: env) elab
 -- predicate, make a hole and try it again later when more holes might
 -- have been resolved
 export
-delayOnFailure : {auto c : Ref Ctxt Defs} -> 
+delayOnFailure : {auto c : Ref Ctxt Defs} ->
                  {auto m : Ref MD Metadata} ->
                  {auto u : Ref UST UState} ->
-                 {auto e : Ref EST (EState vars)} -> 
+                 {auto e : Ref EST (EState vars)} ->
                  FC -> RigCount -> Env Term vars ->
                  (expected : Glued vars) ->
                  (Error -> Bool) ->
                  (Bool -> Core (Term vars, Glued vars)) ->
                  Core (Term vars, Glued vars)
-delayOnFailure fc rig env expected pred elab 
+delayOnFailure fc rig env expected pred elab
     = handle (elab False)
-        (\err => 
+        (\err =>
             do est <- get EST
                if pred err && allowDelay est
-                  then 
+                  then
                     do nm <- genName "delayed"
                        (ci, dtm) <- newDelayed fc Rig1 env nm !(getTerm expected)
-                       logGlueNF 5 ("Postponing elaborator " ++ show nm ++ 
+                       logGlueNF 5 ("Postponing elaborator " ++ show nm ++
                                     " at " ++ show fc ++
                                     " for") env expected
                        log 10 ("Due to error " ++ show err)
                        ust <- get UST
-                       put UST (record { delayedElab $= 
-                               ((ci, mkClosedElab fc env 
+                       put UST (record { delayedElab $=
+                               ((ci, mkClosedElab fc env
                                          (do est <- get EST
                                              put EST (record { allowDelay = False } est)
                                              tm <- elab True
                                              est <- get EST
                                              put EST (record { allowDelay = True } est)
-                                             pure tm)) :: ) } 
+                                             pure tm)) :: ) }
                                        ust)
                        pure (dtm, expected)
                   else throw err)
 
 export
-delayElab : {auto c : Ref Ctxt Defs} -> 
+delayElab : {auto c : Ref Ctxt Defs} ->
             {auto m : Ref MD Metadata} ->
             {auto u : Ref UST UState} ->
-            {auto e : Ref EST (EState vars)} -> 
+            {auto e : Ref EST (EState vars)} ->
             FC -> RigCount -> Env Term vars ->
             (expected : Maybe (Glued vars)) ->
             Core (Term vars, Glued vars) ->
             Core (Term vars, Glued vars)
-delayElab {vars} fc rig env exp elab 
+delayElab {vars} fc rig env exp elab
     = do est <- get EST
          if not (allowDelay est)
             then elab
@@ -93,17 +93,17 @@ delayElab {vars} fc rig env exp elab
              nm <- genName "delayed"
              expected <- mkExpected exp
              (ci, dtm) <- newDelayed fc Rig1 env nm !(getTerm expected)
-             logGlueNF 5 ("Postponing elaborator " ++ show nm ++ 
+             logGlueNF 5 ("Postponing elaborator " ++ show nm ++
                           " for") env expected
              ust <- get UST
-             put UST (record { delayedElab $= 
-                     ((ci, mkClosedElab fc env 
+             put UST (record { delayedElab $=
+                     ((ci, mkClosedElab fc env
                                (do est <- get EST
                                    put EST (record { allowDelay = False } est)
                                    tm <- elab
                                    est <- get EST
                                    put EST (record { allowDelay = True } est)
-                                   pure tm)) :: ) } 
+                                   pure tm)) :: ) }
                              ust)
              pure (dtm, expected)
   where
@@ -115,9 +115,9 @@ delayElab {vars} fc rig env exp elab
              pure (gnf env ty)
 
 export
-retryDelayed : {auto c : Ref Ctxt Defs} -> 
+retryDelayed : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
-               {auto e : Ref EST (EState vars)} -> 
+               {auto e : Ref EST (EState vars)} ->
                List (Int, Core ClosedTerm) ->
                Core ()
 retryDelayed [] = pure ()
@@ -127,7 +127,7 @@ retryDelayed ((i, elab) :: ds)
               | _ => retryDelayed ds
          log 5 ("Retrying delayed hole " ++ show !(getFullName (Resolved i)))
          tm <- elab
-         updateDef (Resolved i) (const (Just 
+         updateDef (Resolved i) (const (Just
               (PMDef True [] (STerm tm) (STerm tm) [])))
          logTerm 5 ("Resolved delayed hole " ++ show i) tm
          logTermNF 5 ("Resolved delayed hole NF " ++ show i) [] tm

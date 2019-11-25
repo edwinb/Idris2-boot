@@ -103,7 +103,7 @@ last : {n : _} -> Fin (S n)
 last {n=Z} = FZ
 last {n=S _} = FS last
 
-export total 
+export total
 FSinjective : {f : Fin n} -> {f' : Fin n} -> (FS f = FS f') -> f = f'
 FSinjective Refl = Refl
 
@@ -119,7 +119,7 @@ implementation Ord (Fin n) where
 public export
 natToFin : Nat -> (n : Nat) -> Maybe (Fin n)
 natToFin Z     (S j) = Just FZ
-natToFin (S k) (S j) 
+natToFin (S k) (S j)
     = case natToFin k j of
            Just k' => Just (FS k')
            Nothing => Nothing
@@ -157,7 +157,7 @@ restrict n val = let val' = assert_total (abs (mod val (cast (S n)))) in
 -- DecEq
 --------------------------------------------------------------------------------
 
-export total 
+export total
 FZNotFS : {f : Fin n} -> FZ {k = n} = FS f -> Void
 FZNotFS Refl impossible
 

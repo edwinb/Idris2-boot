@@ -28,8 +28,8 @@ import Control.Catchable
 %default covering
 
 showInfo : (Name, Int, GlobalDef) -> Core ()
-showInfo (n, _, d) 
-    = coreLift $ putStrLn (show n ++ " ==>\n" ++ 
+showInfo (n, _, d)
+    = coreLift $ putStrLn (show n ++ " ==>\n" ++
                    "\t" ++ show (definition d) ++ "\n" ++
                    "\t" ++ show (sizeChange d) ++ "\n")
 
@@ -51,10 +51,10 @@ process (Check (IVar _ n))
          pure True
   where
     printName : (Name, Int, ClosedTerm) -> Core ()
-    printName (n, _, tyh) 
+    printName (n, _, tyh)
         = do defs <- get Ctxt
              ty <- normaliseHoles defs [] tyh
-             coreLift $ putStrLn $ show n ++ " : " ++ 
+             coreLift $ putStrLn $ show n ++ " : " ++
                                    show !(unelab [] ty)
 process (Check ttimp)
     = do (tm, gty) <- elabTerm 0 InExpr [] (MkNested []) [] ttimp Nothing
@@ -90,8 +90,8 @@ process (GenerateDef line name)
                               pure True
          case !(lookupDefExact n' (gamma defs)) of
               Just None =>
-                  catch 
-                    (do Just (fc, cs) <- logTime "Generation" $ 
+                  catch
+                    (do Just (fc, cs) <- logTime "Generation" $
                                 makeDef (\p, n => onLine line p) n'
                            | Nothing => coreLift (putStrLn "Failed")
                         coreLift $ putStrLn (show cs))
@@ -99,23 +99,23 @@ process (GenerateDef line name)
               Just _ => coreLift $ putStrLn "Already defined"
               Nothing => coreLift $ putStrLn $ "Can't find declaration for " ++ show name
          pure True
-process (Missing n_in) 
+process (Missing n_in)
     = do defs <- get Ctxt
          case !(lookupCtxtName n_in (gamma defs)) of
               [] => throw (UndefinedName emptyFC n_in)
-              ts => do traverse_ (\fn => 
+              ts => do traverse_ (\fn =>
                           do tot <- getTotality emptyFC fn
                              the (Core ()) $ case isCovering tot of
-                                  MissingCases cs => 
+                                  MissingCases cs =>
                                      coreLift (putStrLn (show fn ++ ":\n" ++
                                                  showSep "\n" (map show cs)))
                                   NonCoveringCall ns =>
-                                     coreLift (putStrLn 
-                                         (show fn ++ ": Calls non covering function" 
+                                     coreLift (putStrLn
+                                         (show fn ++ ": Calls non covering function"
                                            ++ case ns of
                                                    [fn] => " " ++ show fn
                                                    _ => "s: " ++ showSep ", " (map show ns)))
-                                  _ => coreLift $ putStrLn (show fn ++ ": All cases covered")) 
+                                  _ => coreLift $ putStrLn (show fn ++ ": All cases covered"))
                         (map fst ts)
                        pure True
 process (CheckTotal n)
@@ -132,7 +132,7 @@ process (DebugInfo n)
     = do defs <- get Ctxt
          traverse showInfo !(lookupCtxtName n (gamma defs))
          pure True
-process Quit 
+process Quit
     = do coreLift $ putStrLn "Bye for now!"
          pure False
 
@@ -141,7 +141,7 @@ processCatch : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
                ImpREPL -> Core Bool
 processCatch cmd
-    = catch (process cmd) 
+    = catch (process cmd)
             (\err => do coreLift (putStrLn (show err))
                         pure True)
 

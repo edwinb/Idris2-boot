@@ -51,7 +51,7 @@ mutual
   public export
   data Closure : List Name -> Type where
        MkClosure : (opts : EvalOpts) ->
-                   LocalEnv free vars -> 
+                   LocalEnv free vars ->
                    Env Term free ->
                    Term (vars ++ free) -> Closure free
        MkNFClosure : NF free -> Closure free
@@ -64,21 +64,21 @@ mutual
        NRef   : NameType -> Name -> NHead vars
        NMeta  : Name -> Int -> List (Closure vars) -> NHead vars
 
-  -- Values themselves. 'Closure' is an unevaluated thunk, which means 
+  -- Values themselves. 'Closure' is an unevaluated thunk, which means
   -- we can wait until necessary to reduce constructor arguments
   public export
   data NF : List Name -> Type where
        NBind    : FC -> (x : Name) -> Binder (NF vars) ->
                   (Defs -> Closure vars -> Core (NF vars)) -> NF vars
        NApp     : FC -> NHead vars -> List (Closure vars) -> NF vars
-       NDCon    : FC -> Name -> (tag : Int) -> (arity : Nat) -> 
+       NDCon    : FC -> Name -> (tag : Int) -> (arity : Nat) ->
                   List (Closure vars) -> NF vars
-       NTCon    : FC -> Name -> (tag : Int) -> (arity : Nat) -> 
+       NTCon    : FC -> Name -> (tag : Int) -> (arity : Nat) ->
                   List (Closure vars) -> NF vars
        NAs      : FC -> NF vars -> NF vars -> NF vars
        NDelayed : FC -> LazyReason -> NF vars -> NF vars
        NDelay   : FC -> LazyReason -> Closure vars -> Closure vars -> NF vars
-       NForce   : FC -> NF vars -> List (Closure vars) -> NF vars
+       NForce   : FC -> LazyReason -> NF vars -> List (Closure vars) -> NF vars
        NPrimVal : FC -> Constant -> NF vars
        NErased  : FC -> NF vars
        NType    : FC -> NF vars
@@ -92,7 +92,7 @@ getLoc (NTCon fc _ _ _ _) = fc
 getLoc (NAs fc _ _) = fc
 getLoc (NDelayed fc _ _) = fc
 getLoc (NDelay fc _ _ _) = fc
-getLoc (NForce fc _ _) = fc
+getLoc (NForce fc _ _ _) = fc
 getLoc (NPrimVal fc _) = fc
 getLoc (NErased fc) = fc
 getLoc (NType fc) = fc

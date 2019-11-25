@@ -110,6 +110,7 @@ modules =
     TTImp.ProcessParams,
     TTImp.ProcessRecord,
     TTImp.ProcessType,
+    TTImp.Reflect,
     TTImp.TTImp,
     TTImp.Unelab,
     TTImp.Utils,

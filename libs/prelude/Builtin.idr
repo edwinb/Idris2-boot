@@ -69,7 +69,7 @@ public export
 
 %inline
 public export
-rewrite__impl : {0 x, y : a} -> (0 p : _) -> 
+rewrite__impl : {0 x, y : a} -> (0 p : _) ->
                 (0 rule : x = y) -> (1 val : p y) -> p x
 rewrite__impl p Refl prf = prf
 

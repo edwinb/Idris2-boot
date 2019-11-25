@@ -13,4 +13,4 @@ foom = ?thurlingdrome
 public export
 Monad m => Do (m a) where
   Next x = {b : Type} -> (a -> m b) -> m b
-  bind = ?oops -- (>>=) 
+  bind = ?oops -- (>>=)

@@ -19,13 +19,13 @@ import Data.NameMap
 
 processDataOpt : {auto c : Ref Ctxt Defs} ->
                  FC -> Name -> DataOpt -> Core ()
-processDataOpt fc n NoHints 
+processDataOpt fc n NoHints
     = pure ()
-processDataOpt fc ndef (SearchBy dets) 
+processDataOpt fc ndef (SearchBy dets)
     = setDetermining fc ndef dets
 
 checkRetType : {auto c : Ref Ctxt Defs} ->
-               Env Term vars -> NF vars -> 
+               Env Term vars -> NF vars ->
                (NF vars -> Core ()) -> Core ()
 checkRetType env (NBind fc x (Pi _ _ ty) sc) chk
     = do defs <- get Ctxt
@@ -35,18 +35,18 @@ checkRetType env nf chk = chk nf
 checkIsType : {auto c : Ref Ctxt Defs} ->
               FC -> Name -> Env Term vars -> NF vars -> Core ()
 checkIsType loc n env nf
-    = checkRetType env nf 
-         (\nf => case nf of 
+    = checkRetType env nf
+         (\nf => case nf of
                       NType _ => pure ()
                       _ => throw (BadTypeConType loc n))
 
 checkFamily : {auto c : Ref Ctxt Defs} ->
               FC -> Name -> Name -> Env Term vars -> NF vars -> Core ()
 checkFamily loc cn tn env nf
-    = checkRetType env nf 
-         (\nf => case nf of 
+    = checkRetType env nf
+         (\nf => case nf of
                       NType _ => throw (BadDataConType loc cn tn)
-                      NTCon _ n' _ _ _ => 
+                      NTCon _ n' _ _ _ =>
                             if tn == n'
                                then pure ()
                                else throw (BadDataConType loc cn tn)
@@ -56,7 +56,7 @@ checkCon : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
            {auto m : Ref MD Metadata} ->
            {auto u : Ref UST UState} ->
-           List ElabOpt -> NestedNames vars -> 
+           List ElabOpt -> NestedNames vars ->
            Env Term vars -> Visibility -> Name ->
            ImpTy -> Core Constructor
 checkCon {vars} opts nest env vis tn (MkImpTy fc cn_in ty_raw)
@@ -67,9 +67,9 @@ checkCon {vars} opts nest env vis tn (MkImpTy fc cn_in ty_raw)
          -- Check 'cn' is undefined
          Nothing <- lookupCtxtExact cn (gamma defs)
              | Just gdef => throw (AlreadyDefined fc cn)
-         ty <- 
+         ty <-
              wrapError (InCon fc cn) $
-                   checkTerm !(resolveName cn) InType opts nest env 
+                   checkTerm !(resolveName cn) InType opts nest env
                               (IBindHere fc (PI Rig0) ty_raw)
                               (gType fc)
 
@@ -96,10 +96,10 @@ processData : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
               {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
-              List ElabOpt -> NestedNames vars -> 
+              List ElabOpt -> NestedNames vars ->
               Env Term vars -> FC -> Visibility ->
               ImpData -> Core ()
-processData {vars} eopts nest env fc vis (MkImpLater dfc n_in ty_raw) 
+processData {vars} eopts nest env fc vis (MkImpLater dfc n_in ty_raw)
     = do n <- inCurrentNS n_in
          ty_raw <- bindTypeNames vars ty_raw
 
@@ -107,10 +107,10 @@ processData {vars} eopts nest env fc vis (MkImpLater dfc n_in ty_raw)
          -- Check 'n' is undefined
          Nothing <- lookupCtxtExact n (gamma defs)
              | Just gdef => throw (AlreadyDefined fc n)
-         
-         (ty, _) <- 
+
+         (ty, _) <-
              wrapError (InCon fc n) $
-                    elabTerm !(resolveName n) InType eopts nest env 
+                    elabTerm !(resolveName n) InType eopts nest env
                               (IBindHere fc (PI Rig0) ty_raw)
                               (Just (gType dfc))
          let fullty = abstractEnvType dfc env ty
@@ -144,7 +144,7 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
          defs <- get Ctxt
          (ty, _) <-
              wrapError (InCon fc n) $
-                    elabTerm !(resolveName n) InType eopts nest env 
+                    elabTerm !(resolveName n) InType eopts nest env
                               (IBindHere fc (PI Rig0) ty_raw)
                               (Just (gType dfc))
          let fullty = abstractEnvType dfc env ty

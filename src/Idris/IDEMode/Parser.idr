@@ -30,7 +30,7 @@ ident = pred startIdent <+> many (pred validIdent)
     validIdent x = isAlphaNum x
 
 ideTokens : TokenMap Token
-ideTokens = 
+ideTokens =
     map (\x => (exact x, Symbol)) symbols ++
     [(digits, \x => Literal (cast x)),
      (stringLit, \x => StrLit (stripQuotes x)),
@@ -42,11 +42,11 @@ ideTokens =
     stripQuotes = assert_total (strTail . reverse . strTail . reverse)
 
 idelex : String -> Either (Int, Int, String) (List (TokenData Token))
-idelex str 
+idelex str
     = case lex ideTokens str of
            -- Add the EndInput token so that we'll have a line and column
            -- number to read when storing spans in the file
-           (tok, (l, c, "")) => Right (filter notComment tok ++ 
+           (tok, (l, c, "")) => Right (filter notComment tok ++
                                       [MkToken l c EndInput])
            (_, fail) => Left fail
     where
@@ -65,7 +65,7 @@ sexp
          pure (IntegerAtom i)
   <|> do str <- strLit
          pure (StringAtom str)
-  <|> do symbol ":"; x <- unqualifiedName 
+  <|> do symbol ":"; x <- unqualifiedName
          pure (SymbolAtom x)
   <|> do symbol "("
          xs <- many sexp
@@ -73,14 +73,14 @@ sexp
          pure (SExpList xs)
 
 ideParser : String -> Grammar (TokenData Token) e ty -> Either ParseError ty
-ideParser str p 
+ideParser str p
     = case idelex str of
            Left err => Left $ LexFail err
-           Right toks => 
+           Right toks =>
               case parse p toks of
-                   Left (Error err []) => 
+                   Left (Error err []) =>
                           Left $ ParseFail err Nothing []
-                   Left (Error err (t :: ts)) => 
+                   Left (Error err (t :: ts)) =>
                           Left $ ParseFail err (Just (line t, col t))
                                                (map tok (t :: ts))
                    Right (val, _) => Right val

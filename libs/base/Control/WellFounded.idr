@@ -66,7 +66,7 @@ sizeInd : Sized a => {0 P : a -> Type} ->
 sizeInd step z = accInd step z (sizeAccessible z)
 
 export
-sizeRec : Sized a => 
+sizeRec : Sized a =>
           (step : (x : a) -> ((y : a) -> Smaller y x -> b) -> b) ->
           (z : a) -> b
 sizeRec step z = accRec step z (sizeAccessible z)

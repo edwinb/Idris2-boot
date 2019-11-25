@@ -2,8 +2,8 @@ import Data.Vect
 
 test : Vect 33 Int -> IO Int
 test bytes_list = do
-  let int1 = (index 0 bytes_list * 8) + 
-             (index 1 bytes_list * 4) + 
+  let int1 = (index 0 bytes_list * 8) +
+             (index 1 bytes_list * 4) +
              (index 2 bytes_list * 2) + (index 3 bytes_list)
   let int2 = (index 4 bytes_list * 8) + (index 5 bytes_list * 4) + (index 6 bytes_list * 2) + (index 7 bytes_list)
   let int3 = (index 8 bytes_list * 8) + (index 9 bytes_list * 4) + (index 10 bytes_list * 2) + (index 11 bytes_list)

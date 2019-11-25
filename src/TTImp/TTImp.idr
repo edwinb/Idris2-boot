@@ -31,7 +31,7 @@ Weaken NestedNames where
 -- Unchecked terms, with implicit arguments
 -- This is the raw, elaboratable form.
 -- Higher level expressions (e.g. case, pattern matching let, where blocks,
--- do notation, etc, should elaborate via this, perhaps in some local 
+-- do notation, etc, should elaborate via this, perhaps in some local
 -- context).
 mutual
   public export
@@ -49,9 +49,9 @@ mutual
              (argTy : RawImp) -> (retTy : RawImp) -> RawImp
        ILam : FC -> RigCount -> PiInfo -> Maybe Name ->
               (argTy : RawImp) -> (lamTy : RawImp) -> RawImp
-       ILet : FC -> RigCount -> Name -> 
-              (nTy : RawImp) -> (nVal : RawImp) -> 
-              (scope : RawImp) -> RawImp 
+       ILet : FC -> RigCount -> Name ->
+              (nTy : RawImp) -> (nVal : RawImp) ->
+              (scope : RawImp) -> RawImp
        ICase : FC -> RawImp -> (ty : RawImp) ->
                List ImpClause -> RawImp
        ILocal : FC -> List ImpDecl -> RawImp -> RawImp
@@ -64,7 +64,7 @@ mutual
        ISearch : FC -> (depth : Nat) -> RawImp
        IAlternative : FC -> AltType -> List RawImp -> RawImp
        IRewrite : FC -> RawImp -> RawImp -> RawImp
-       ICoerced : FC -> RawImp -> RawImp 
+       ICoerced : FC -> RawImp -> RawImp
 
        -- Any implicit bindings in the scope should be bound here, using
        -- the given binder
@@ -81,14 +81,14 @@ mutual
        IDelayed : FC -> LazyReason -> RawImp -> RawImp -- the type
        IDelay : FC -> RawImp -> RawImp -- delay constructor
        IForce : FC -> RawImp -> RawImp
-       
+
        IPrimVal : FC -> (c : Constant) -> RawImp
        IType : FC -> RawImp
        IHole : FC -> String -> RawImp
 
        -- An implicit value, solved by unification, but which will also be
        -- bound (either as a pattern variable or a type variable) if unsolved
-       -- at the end of elaborator                                                                     
+       -- at the end of elaborator
        Implicit : FC -> (bindIfUnsolved : Bool) -> RawImp
 
   public export
@@ -112,7 +112,7 @@ mutual
          = "(%lam " ++ show c ++ " " ++ show p ++
            " " ++ show n ++ " " ++ show arg ++ " " ++ show sc ++ ")"
       show (ILet fc c n ty val sc)
-         = "(%let " ++ show c ++ " " ++ " " ++ show n ++ " " ++ show ty ++ 
+         = "(%let " ++ show c ++ " " ++ " " ++ show n ++ " " ++ show ty ++
            " " ++ show val ++ " " ++ show sc ++ ")"
       show (ICase _ scr scrty alts)
          = "(%case (" ++ show scr ++ ") " ++ show alts ++ ")"
@@ -164,7 +164,7 @@ mutual
        GlobalHint : Bool -> FnOpt
        ExternFn : FnOpt
        -- Defined externally, list calling conventions
-       ForeignFn : List String -> FnOpt 
+       ForeignFn : List String -> FnOpt
        -- assume safe to cancel arguments in unification
        Invertible : FnOpt
        Total : FnOpt
@@ -218,7 +218,7 @@ mutual
   public export
   data ImpData : Type where
        MkImpData : FC -> (n : Name) -> (tycon : RawImp) ->
-                   (opts : List DataOpt) -> 
+                   (opts : List DataOpt) ->
                    (datacons : List ImpTy) -> ImpData
        MkImpLater : FC -> (n : Name) -> (tycon : RawImp) -> ImpData
 
@@ -251,17 +251,17 @@ mutual
   export
   Show ImpRecord where
     show (MkImpRecord _ n params con fields)
-        = "record " ++ show n ++ " " ++ show params ++ 
-          " " ++ show con ++ "\n\t" ++ 
+        = "record " ++ show n ++ " " ++ show params ++
+          " " ++ show con ++ "\n\t" ++
           showSep "\n\t" (map show fields) ++ "\n"
 
   public export
   data ImpClause : Type where
-       PatClause : FC -> (lhs : RawImp) -> (rhs : RawImp) -> ImpClause 
+       PatClause : FC -> (lhs : RawImp) -> (rhs : RawImp) -> ImpClause
        WithClause : FC -> (lhs : RawImp) -> (wval : RawImp) ->
                     List ImpClause -> ImpClause
        ImpossibleClause : FC -> (lhs : RawImp) -> ImpClause
-  
+
   export
   Show ImpClause where
     show (PatClause fc lhs rhs)
@@ -278,15 +278,16 @@ mutual
        IData : FC -> Visibility -> ImpData -> ImpDecl
        IDef : FC -> Name -> List ImpClause -> ImpDecl
        IParameters : FC -> List (Name, RawImp) ->
-                     List ImpDecl -> ImpDecl 
+                     List ImpDecl -> ImpDecl
        IRecord : FC -> Visibility -> ImpRecord -> ImpDecl
-       INamespace : FC -> 
-                    (nested : Bool) -> 
-                      -- ^ if True, parent namespaces in the same file can also 
+       INamespace : FC ->
+                    (nested : Bool) ->
+                      -- ^ if True, parent namespaces in the same file can also
                       -- look inside and see private/export names in full
-                    List String -> List ImpDecl -> ImpDecl 
-       IPragma : ({vars : _} -> Ref Ctxt Defs -> 
-                  NestedNames vars -> Env Term vars -> Core ()) -> 
+                    List String -> List ImpDecl -> ImpDecl
+       ITransform : FC -> RawImp -> RawImp -> ImpDecl
+       IPragma : ({vars : _} -> Ref Ctxt Defs ->
+                  NestedNames vars -> Env Term vars -> Core ()) ->
                  ImpDecl
        ILog : Nat -> ImpDecl
 
@@ -295,13 +296,15 @@ mutual
     show (IClaim _ _ _ _ ty) = show ty
     show (IData _ _ d) = show d
     show (IDef _ n cs) = "(%def " ++ show n ++ " " ++ show cs ++ ")"
-    show (IParameters _ ps ds) 
+    show (IParameters _ ps ds)
         = "parameters " ++ show ps ++ "\n\t" ++
           showSep "\n\t" (assert_total $ map show ds)
     show (IRecord _ _ d) = show d
-    show (INamespace _ nest ns decls) 
-        = "namespace " ++ if nest then "[nested] " else "" ++ show ns ++ 
+    show (INamespace _ nest ns decls)
+        = "namespace " ++ if nest then "[nested] " else "" ++ show ns ++
           showSep "\n" (assert_total $ map show decls)
+    show (ITransform _ lhs rhs)
+        = "%transform " ++ show lhs ++ " ==> " ++ show rhs
     show (IPragma _) = "[externally defined pragma]"
     show (ILog lvl) = "%logging " ++ show lvl
 
@@ -394,7 +397,7 @@ findImplicits (IDelay fc tm) = findImplicits tm
 findImplicits (IForce fc tm) = findImplicits tm
 findImplicits (IBindVar _ n) = [n]
 findImplicits tm = []
-        
+
 -- Update the lhs of a clause so that any implicits named in the type are
 -- bound as @-patterns (unless they're already explicitly bound or appear as
 -- IBindVar anywhere else in the pattern) so that they will be available on the
@@ -432,15 +435,15 @@ implicitsAs defs ns tm = setAs (map Just (ns ++ map UN (findIBinds tm))) tm
         updateNs n [] = Nothing
 
         findImps : List (Maybe Name) -> NF [] -> Core (List (Name, PiInfo))
-        findImps ns (NBind fc x (Pi _ Explicit _) sc) 
+        findImps ns (NBind fc x (Pi _ Explicit _) sc)
             = findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc)))
         -- if the implicit was given, skip it
-        findImps ns (NBind fc x (Pi _ AutoImplicit _) sc) 
+        findImps ns (NBind fc x (Pi _ AutoImplicit _) sc)
             = case updateNs x ns of
                    Nothing => -- didn't find explicit call
                       pure $ (x, AutoImplicit) :: !(findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc))))
                    Just ns' => findImps ns' !(sc defs (toClosure defaultOpts [] (Erased fc)))
-        findImps ns (NBind fc x (Pi _ p _) sc) 
+        findImps ns (NBind fc x (Pi _ p _) sc)
             = if Just x `elem` ns
                  then findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc)))
                  else pure $ (x, p) :: !(findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc))))
@@ -448,12 +451,12 @@ implicitsAs defs ns tm = setAs (map Just (ns ++ map UN (findIBinds tm))) tm
 
         impAs : FC -> List (Name, PiInfo) -> RawImp -> RawImp
         impAs loc' [] tm = tm
-        impAs loc' ((UN n, AutoImplicit) :: ns) tm 
+        impAs loc' ((UN n, AutoImplicit) :: ns) tm
             = impAs loc' ns $
                  IImplicitApp loc' tm (Just (UN n)) (IBindVar loc' n)
-        impAs loc' ((n, Implicit) :: ns) tm 
+        impAs loc' ((n, Implicit) :: ns) tm
             = impAs loc' ns $
-                 IImplicitApp loc' tm (Just n) 
+                 IImplicitApp loc' tm (Just n)
                      (IAs loc' UseLeft n (Implicit loc' True))
         impAs loc' (_ :: ns) tm = impAs loc' ns tm
     setAs is tm = pure tm
@@ -529,34 +532,34 @@ mutual
   export
   TTC RawImp where
     toBuf b (IVar fc n) = do tag 0; toBuf b fc; toBuf b n
-    toBuf b (IPi fc r p n argTy retTy) 
+    toBuf b (IPi fc r p n argTy retTy)
         = do tag 1; toBuf b fc; toBuf b r; toBuf b p; toBuf b n
              toBuf b argTy; toBuf b retTy
-    toBuf b (ILam fc r p n argTy scope) 
+    toBuf b (ILam fc r p n argTy scope)
         = do tag 2; toBuf b fc; toBuf b r; toBuf b p; toBuf b n;
              toBuf b argTy; toBuf b scope
-    toBuf b (ILet fc r n nTy nVal scope) 
-        = do tag 3; toBuf b fc; toBuf b r; toBuf b n; 
+    toBuf b (ILet fc r n nTy nVal scope)
+        = do tag 3; toBuf b fc; toBuf b r; toBuf b n;
              toBuf b nTy; toBuf b nVal; toBuf b scope
-    toBuf b (ICase fc y ty xs) 
+    toBuf b (ICase fc y ty xs)
         = do tag 4; toBuf b fc; toBuf b y; toBuf b ty; toBuf b xs
-    toBuf b (ILocal fc xs sc) 
+    toBuf b (ILocal fc xs sc)
         = do tag 5; toBuf b fc; toBuf b xs; toBuf b sc
-    toBuf b (IUpdate fc fs rec) 
+    toBuf b (IUpdate fc fs rec)
         = do tag 6; toBuf b fc; toBuf b fs; toBuf b rec
-    toBuf b (IApp fc fn arg) 
+    toBuf b (IApp fc fn arg)
         = do tag 7; toBuf b fc; toBuf b fn; toBuf b arg
-    toBuf b (IImplicitApp fc fn y arg) 
+    toBuf b (IImplicitApp fc fn y arg)
         = do tag 8; toBuf b fc; toBuf b fn; toBuf b y; toBuf b arg
-    toBuf b (IWithApp fc fn arg) 
+    toBuf b (IWithApp fc fn arg)
         = do tag 9; toBuf b fc; toBuf b fn; toBuf b arg
-    toBuf b (ISearch fc depth) 
+    toBuf b (ISearch fc depth)
         = do tag 10; toBuf b fc; toBuf b depth
-    toBuf b (IAlternative fc y xs) 
+    toBuf b (IAlternative fc y xs)
         = do tag 11; toBuf b fc; toBuf b y; toBuf b xs
-    toBuf b (IRewrite fc x y) 
+    toBuf b (IRewrite fc x y)
         = do tag 12; toBuf b fc; toBuf b x; toBuf b y
-    toBuf b (ICoerced fc y) 
+    toBuf b (ICoerced fc y)
         = do tag 13; toBuf b fc; toBuf b y
 
     toBuf b (IBindHere fc m y)
@@ -591,7 +594,7 @@ mutual
                0 => do fc <- fromBuf b; n <- fromBuf b;
                        pure (IVar fc n)
                1 => do fc <- fromBuf b;
-                       r <- fromBuf b; p <- fromBuf b; 
+                       r <- fromBuf b; p <- fromBuf b;
                        n <- fromBuf b
                        argTy <- fromBuf b; retTy <- fromBuf b
                        pure (IPi fc r p n argTy retTy)
@@ -661,7 +664,7 @@ mutual
                         i <- fromBuf b
                         pure (Implicit fc i)
                _ => corrupt "RawImp"
-  
+
   export
   TTC IFieldUpdate where
     toBuf b (ISetField p val)
@@ -715,10 +718,10 @@ mutual
                2 => do x <- fromBuf b
                        pure (UniqueDefault x)
                _ => corrupt "AltType"
-  
+
   export
   TTC ImpTy where
-    toBuf b (MkImpTy fc n ty) 
+    toBuf b (MkImpTy fc n ty)
         = do toBuf b fc; toBuf b n; toBuf b ty
     fromBuf b
         = do fc <- fromBuf b; n <- fromBuf b; ty <- fromBuf b
@@ -726,28 +729,28 @@ mutual
 
   export
   TTC ImpClause where
-    toBuf b (PatClause fc lhs rhs) 
+    toBuf b (PatClause fc lhs rhs)
         = do tag 0; toBuf b fc; toBuf b lhs; toBuf b rhs
-    toBuf b (ImpossibleClause fc lhs) 
+    toBuf b (ImpossibleClause fc lhs)
         = do tag 1; toBuf b fc; toBuf b lhs
-    toBuf b (WithClause fc lhs wval cs) 
+    toBuf b (WithClause fc lhs wval cs)
         = do tag 2; toBuf b fc; toBuf b lhs; toBuf b wval; toBuf b cs
 
     fromBuf b
         = case !getTag of
-               0 => do fc <- fromBuf b; lhs <- fromBuf b; 
+               0 => do fc <- fromBuf b; lhs <- fromBuf b;
                        rhs <- fromBuf b
                        pure (PatClause fc lhs rhs)
-               1 => do fc <- fromBuf b; lhs <- fromBuf b; 
+               1 => do fc <- fromBuf b; lhs <- fromBuf b;
                        pure (ImpossibleClause fc lhs)
-               2 => do fc <- fromBuf b; lhs <- fromBuf b; 
+               2 => do fc <- fromBuf b; lhs <- fromBuf b;
                        wval <- fromBuf b; cs <- fromBuf b
                        pure (WithClause fc lhs wval cs)
                _ => corrupt "ImpClause"
 
   export
   TTC DataOpt where
-    toBuf b (SearchBy ns) 
+    toBuf b (SearchBy ns)
         = do tag 0; toBuf b ns
     toBuf b NoHints = tag 1
 
@@ -760,10 +763,10 @@ mutual
 
   export
   TTC ImpData where
-    toBuf b (MkImpData fc n tycon opts cons) 
+    toBuf b (MkImpData fc n tycon opts cons)
         = do tag 0; toBuf b fc; toBuf b n; toBuf b tycon; toBuf b opts
              toBuf b cons
-    toBuf b (MkImpLater fc n tycon) 
+    toBuf b (MkImpLater fc n tycon)
         = do tag 1; toBuf b fc; toBuf b n; toBuf b tycon
 
     fromBuf b
@@ -824,21 +827,23 @@ mutual
 
   export
   TTC ImpDecl where
-    toBuf b (IClaim fc c vis xs d) 
+    toBuf b (IClaim fc c vis xs d)
         = do tag 0; toBuf b fc; toBuf b c; toBuf b vis; toBuf b xs; toBuf b d
-    toBuf b (IData fc vis d) 
+    toBuf b (IData fc vis d)
         = do tag 1; toBuf b fc; toBuf b vis; toBuf b d
-    toBuf b (IDef fc n xs) 
+    toBuf b (IDef fc n xs)
         = do tag 2; toBuf b fc; toBuf b n; toBuf b xs
-    toBuf b (IParameters fc vis d) 
+    toBuf b (IParameters fc vis d)
         = do tag 3; toBuf b fc; toBuf b vis; toBuf b d
-    toBuf b (IRecord fc vis r) 
+    toBuf b (IRecord fc vis r)
         = do tag 4; toBuf b fc; toBuf b vis; toBuf b r
-    toBuf b (INamespace fc n xs ds) 
+    toBuf b (INamespace fc n xs ds)
         = do tag 5; toBuf b fc; toBuf b n; toBuf b xs; toBuf b ds
+    toBuf b (ITransform fc lhs rhs)
+        = do tag 6; toBuf b fc; toBuf b lhs; toBuf b rhs
     toBuf b (IPragma f) = throw (InternalError "Can't write Pragma")
-    toBuf b (ILog n) 
-        = do tag 6; toBuf b n
+    toBuf b (ILog n)
+        = do tag 7; toBuf b n
 
     fromBuf b
         = case !getTag of
@@ -861,7 +866,9 @@ mutual
                5 => do fc <- fromBuf b; n <- fromBuf b; xs <- fromBuf b
                        ds <- fromBuf b
                        pure (INamespace fc n xs ds)
-               6 => do n <- fromBuf b
+               6 => do fc <- fromBuf b; lhs <- fromBuf b; rhs <- fromBuf b
+                       pure (ITransform fc lhs rhs)
+               7 => do n <- fromBuf b
                        pure (ILog n)
                _ => corrupt "ImpDecl"
 

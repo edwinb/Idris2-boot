@@ -1,4 +1,4 @@
-data Maybe a = Nothing 
+data Maybe a = Nothing
              | Just a
 
 infixl 1 >>=

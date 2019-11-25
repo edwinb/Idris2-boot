@@ -429,6 +429,23 @@ newDef fc n rig vars ty vis def
     = MkGlobalDef fc n ty [] rig vars vis unchecked [] empty False False False def
                   Nothing []
 
+-- Rewrite rules, applied after type checking, for runtime code only
+-- LHS and RHS must have the same type, but we don't (currently) require that
+-- the result still type checks (which might happen e.g. if transforming to a
+-- faster implementation with different behaviour)
+-- (Q: Do we need the 'Env' here? Usually we end up needing an 'Env' with a
+-- 'NF but we're working with terms rather than values...)
+public export
+data Transform : Type where
+     MkTransform : Env Term vars -> Term vars -> Term vars -> Transform
+
+export
+getFnName : Transform -> Maybe Name
+getFnName (MkTransform _ app _)
+    = case getFn app of
+           Ref _ _ fn => Just fn
+           _ => Nothing
+
 public export
 interface HasNames a where
   full : Context -> a -> Core a
@@ -469,8 +486,8 @@ HasNames (Term vars) where
       = pure (TDelayed fc x !(full gam y))
   full gam (TDelay fc x t y)
       = pure (TDelay fc x !(full gam t) !(full gam y))
-  full gam (TForce fc y)
-      = pure (TForce fc !(full gam y))
+  full gam (TForce fc r y)
+      = pure (TForce fc r !(full gam y))
   full gam tm = pure tm
 
   resolved gam (Ref fc x n)
@@ -492,8 +509,8 @@ HasNames (Term vars) where
       = pure (TDelayed fc x !(resolved gam y))
   resolved gam (TDelay fc x t y)
       = pure (TDelay fc x !(resolved gam t) !(resolved gam y))
-  resolved gam (TForce fc y)
-      = pure (TForce fc !(resolved gam y))
+  resolved gam (TForce fc r y)
+      = pure (TForce fc r !(resolved gam y))
   resolved gam tm = pure tm
 
 mutual
@@ -673,6 +690,15 @@ HasNames GlobalDef where
                         sizeChange = !(traverse (resolved gam) (sizeChange def))
                       } def
 
+export
+HasNames Transform where
+  full gam (MkTransform env lhs rhs)
+      = pure $ MkTransform !(full gam env) !(full gam lhs) !(full gam rhs)
+
+  resolved gam (MkTransform env lhs rhs)
+      = pure $ MkTransform !(resolved gam env)
+                           !(resolved gam lhs) !(resolved gam rhs)
+
 public export
 record Defs where
   constructor MkDefs
@@ -701,6 +727,10 @@ record Defs where
      -- We don't look up anything in here, it's merely for saving out to TTC.
      -- We save the hints in the 'GlobalDef' itself for faster lookup.
   saveAutoHints : List (Name, Bool)
+  transforms : NameMap Transform
+     -- ^ A mapping from names to transformation rules which update applications
+     -- of that name
+  saveTransforms : List (Name, Transform)
   namedirectives : List (Name, List String)
   ifaceHash : Int
   importHashes : List (List String, Int)
@@ -737,9 +767,9 @@ initDefs : Core Defs
 initDefs
     = do gam <- initCtxt
          pure (MkDefs gam [] ["Main"] [] defaults empty 100
-                      empty empty empty [] [] [] 5381 [] [] [] [] [] empty
-                      empty)
-      
+                      empty empty empty [] [] empty []
+                      [] 5381 [] [] [] [] [] empty empty)
+
 -- Reset the context, except for the options
 export
 clearCtxt : {auto c : Ref Ctxt Defs} ->
@@ -1297,6 +1327,17 @@ setOpenHints : {auto c : Ref Ctxt Defs} -> NameMap () -> Core ()
 setOpenHints hs
     = do d <- get Ctxt
          put Ctxt (record { openHints = hs } d)
+
+export
+addTransform : {auto c : Ref Ctxt Defs} ->
+               FC -> Transform -> Core ()
+addTransform fc t
+    = do defs <- get Ctxt
+         let Just fn = getFnName t
+             | Nothing =>
+                  throw (GenericMsg fc "LHS of a transformation must be a function application")
+         put Ctxt (record { transforms $= insert fn t,
+                            saveTransforms $= ((fn, t) ::) } defs)
 
 export
 clearSavedHints : {auto c : Ref Ctxt Defs} -> Core ()
@@ -1898,7 +1939,7 @@ logTimeOver nsecs str act
            assert_total $ -- We're not dividing by 0
               do str' <- str
                  coreLift $ putStrLn $ "TIMING " ++ str' ++ ": " ++
-                          show (time `div` nano) ++ "." ++ 
+                          show (time `div` nano) ++ "." ++
                           addZeros (unpack (show ((time `mod` nano) `div` 1000000))) ++
                           "s"
          pure res
@@ -1973,7 +2014,7 @@ showTimeRecord
         = do coreLift $ putStr (key ++ ": ")
              let nano = 1000000000
              assert_total $ -- We're not dividing by 0
-                    coreLift $ putStrLn $ show (time `div` nano) ++ "." ++ 
+                    coreLift $ putStrLn $ show (time `div` nano) ++ "." ++
                                addZeros (unpack (show ((time `mod` nano) `div` 1000000))) ++
                                "s"
 

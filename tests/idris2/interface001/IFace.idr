@@ -26,7 +26,7 @@ Eq a => Eq (List a) where
    (==) [] [] = True
    (==) (x :: xs) (y :: ys) = x == y && xs == ys
    (==) _ _ = False
-   
+
    (/=) x y = not (x == y)
 
 (Eq a, Eq b) => Eq (a, b) where
@@ -36,7 +36,7 @@ Eq a => Eq (List a) where
    (==) [] [] = False
    (==) (x :: xs) (y :: ys) = x == y && xs == ys
    (==) _ _ = True
-   
+
    (/=) x y = not (x == y)
 
 test : ((Eq b, Eq b, Eq a), Eq b) => a -> a -> Bool
@@ -73,7 +73,7 @@ v2 : DPair Nat (\n => Vect n Nat)
 v2 = MkDPair _ [Z, Z]
 
 (DecEq a, {t : a} -> Eq (p t)) => Eq (DPair a p) where
-   (==) (MkDPair l r) (MkDPair l' r') 
+   (==) (MkDPair l r) (MkDPair l' r')
        = case decEq l l' of
               Yes Refl => r == r'
               No _ => False

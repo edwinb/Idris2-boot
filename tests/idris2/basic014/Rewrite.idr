@@ -1,6 +1,6 @@
 plusnZ : (n : Nat) -> n + 0 = n
 plusnZ 0 = Refl
-plusnZ (S k) = rewrite plusnZ k in Refl 
+plusnZ (S k) = rewrite plusnZ k in Refl
 
 plusnSm : (n, m : Nat) -> n + (S m) = S (n + m)
 plusnSm Z m = Refl

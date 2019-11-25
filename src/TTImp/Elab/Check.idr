@@ -50,7 +50,7 @@ Show (ImplBinding vars) where
 export
 bindingMetas : ImplBinding vars -> NameMap Bool
 bindingMetas (NameBinding c p tm ty) = getMetas ty
-bindingMetas (AsBinding c p tm ty pat) 
+bindingMetas (AsBinding c p tm ty pat)
     = insertAll (toList (getMetas ty)) (getMetas pat)
   where
     insertAll : List (Name, Bool) -> NameMap Bool -> NameMap Bool
@@ -92,7 +92,7 @@ record EState (vars : List Name) where
   outerEnv : Env Term outer
   subEnv : SubVars outer vars
   boundNames : List (Name, ImplBinding vars)
-                  -- implicit pattern/type variable bindings and the 
+                  -- implicit pattern/type variable bindings and the
                   -- term/type they elaborated to
   toBind : List (Name, ImplBinding vars)
                   -- implicit pattern/type variables which haven't been
@@ -100,8 +100,8 @@ record EState (vars : List Name) where
                   -- pattern vars need to be dealt with in with-application on
                   -- the RHS)
   bindIfUnsolved : List (Name, RigCount, PiInfo,
-                          (vars' ** (Env Term vars', Term vars', Term vars', 
-                                          SubVars outer vars'))) 
+                          (vars' ** (Env Term vars', Term vars', Term vars',
+                                          SubVars outer vars')))
                   -- names to add as unbound implicits if they are still holes
                   -- when unbound implicits are added
   lhsPatVars : List String
@@ -129,20 +129,20 @@ weakenedEState : {auto e : Ref EST (EState vars)} ->
                  Core (Ref EST (EState (n :: vars)))
 weakenedEState {e}
     = do est <- get EST
-         eref <- newRef EST 
-                    (MkEState (defining est) 
+         eref <- newRef EST
+                    (MkEState (defining est)
                               (outerEnv est)
                               (DropCons (subEnv est))
                               (map wknTms (boundNames est))
                               (map wknTms (toBind est))
-                              (bindIfUnsolved est) 
+                              (bindIfUnsolved est)
                               (lhsPatVars est)
                               (allPatVars est)
                               (allowDelay est)
                               (map weaken (linearUsed est)))
          pure eref
   where
-    wknTms : (Name, ImplBinding vs) -> 
+    wknTms : (Name, ImplBinding vs) ->
              (Name, ImplBinding (n :: vs))
     wknTms (f, NameBinding c p x y) = (f, NameBinding c p (weaken x) (weaken y))
     wknTms (f, AsBinding c p x y z)
@@ -158,13 +158,13 @@ strengthenedEState {n} {vars} c e fc env
          svs <- dropSub (subEnv est)
          bns <- traverse (strTms defs) (boundNames est)
          todo <- traverse (strTms defs) (toBind est)
-         
-         pure (MkEState (defining est) 
+
+         pure (MkEState (defining est)
                         (outerEnv est)
                         svs
-                        bns 
+                        bns
                         todo
-                        (bindIfUnsolved est) 
+                        (bindIfUnsolved est)
                         (lhsPatVars est)
                         (allPatVars est)
                         (allowDelay est)
@@ -183,10 +183,10 @@ strengthenedEState {n} {vars} c e fc env
     -- in scope.
     removeArgVars : List (Term (n :: vs)) -> Maybe (List (Term vs))
     removeArgVars [] = pure []
-    removeArgVars (Local fc r _ (Later p) :: args) 
+    removeArgVars (Local fc r _ (Later p) :: args)
         = do args' <- removeArgVars args
              pure (Local fc r _ p :: args')
-    removeArgVars (Local fc r _ First :: args) 
+    removeArgVars (Local fc r _ First :: args)
         = removeArgVars args
     removeArgVars (a :: args)
         = do a' <- shrinkTerm a (DropCons SubRefl)
@@ -201,12 +201,12 @@ strengthenedEState {n} {vars} c e fc env
                       f' <- shrinkTerm f (DropCons SubRefl)
                       pure (apply (getLoc f) f' args')
 
-    strTms : Defs -> (Name, ImplBinding (n :: vars)) -> 
+    strTms : Defs -> (Name, ImplBinding (n :: vars)) ->
              Core (Name, ImplBinding vars)
     strTms defs (f, NameBinding c p x y)
         = do xnf <- normaliseHoles defs env x
              ynf <- normaliseHoles defs env y
-             case (removeArg xnf, 
+             case (removeArg xnf,
                    shrinkTerm ynf (DropCons SubRefl)) of
                (Just x', Just y') => pure (f, NameBinding c p x' y')
                _ => throw (BadUnboundImplicit fc env f y)
@@ -214,7 +214,7 @@ strengthenedEState {n} {vars} c e fc env
         = do xnf <- normaliseHoles defs env x
              ynf <- normaliseHoles defs env y
              znf <- normaliseHoles defs env z
-             case (shrinkTerm xnf (DropCons SubRefl), 
+             case (shrinkTerm xnf (DropCons SubRefl),
                    shrinkTerm ynf (DropCons SubRefl),
                    shrinkTerm znf (DropCons SubRefl)) of
                (Just x', Just y', Just z') => pure (f, AsBinding c p x' y' z')
@@ -227,8 +227,8 @@ strengthenedEState {n} {vars} c e fc env
 export
 inScope : {auto c : Ref Ctxt Defs} ->
           {auto e : Ref EST (EState vars)} ->
-          FC -> Env Term (n :: vars) -> 
-          (Ref EST (EState (n :: vars)) -> Core a) -> 
+          FC -> Env Term (n :: vars) ->
+          (Ref EST (EState (n :: vars)) -> Core a) ->
           Core a
 inScope {c} {e} fc env elab
     = do e' <- weakenedEState
@@ -238,7 +238,7 @@ inScope {c} {e} fc env elab
          pure res
 
 export
-updateEnv : Env Term new -> SubVars new vars -> 
+updateEnv : Env Term new -> SubVars new vars ->
             List (Name, RigCount, PiInfo, (vars' ** (Env Term vars', Term vars', Term vars', SubVars new vars'))) ->
             EState vars -> EState vars
 updateEnv env sub bif st
@@ -256,7 +256,7 @@ addBindIfUnsolved : Name -> RigCount -> PiInfo ->
 addBindIfUnsolved hn r p env tm ty st
     = MkEState (defining st)
                (outerEnv st) (subEnv st)
-               (boundNames st) (toBind st) 
+               (boundNames st) (toBind st)
                ((hn, r, p, (_ ** (env, tm, ty, subEnv st))) :: bindIfUnsolved st)
                (lhsPatVars st)
                (allPatVars st)
@@ -279,7 +279,7 @@ clearToBind : {auto e : Ref EST (EState vars)} ->
               (excepts : List Name) -> Core ()
 clearToBind excepts
     = do est <- get EST
-         put EST (record { toBind $= filter (\x => fst x `elem` excepts) } 
+         put EST (record { toBind $= filter (\x => fst x `elem` excepts) }
                          (clearBindIfUnsolved est))
 
 export
@@ -403,7 +403,7 @@ successful : {vars : _} ->
              {auto u : Ref UST UState} ->
              {auto e : Ref EST (EState vars)} ->
              List (Maybe Name, Core a) ->
-             Core (List (Either (Maybe Name, Error) 
+             Core (List (Either (Maybe Name, Error)
                                 (a, Defs, UState, EState vars)))
 successful [] = pure []
 successful ((tm, elab) :: elabs)
@@ -411,7 +411,7 @@ successful ((tm, elab) :: elabs)
          est <- get EST
          md <- get MD
          defs <- branch
-         catch (do -- Run the elaborator 
+         catch (do -- Run the elaborator
                    log 5 $ "Running " ++ show tm
                    res <- elab
                    -- Record post-elaborator state
@@ -440,14 +440,14 @@ exactlyOne : {vars : _} ->
              {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
              {auto e : Ref EST (EState vars)} ->
-             FC -> Env Term vars -> 
+             FC -> Env Term vars ->
              List (Maybe Name, Core (Term vars, Glued vars)) ->
              Core (Term vars, Glued vars)
 exactlyOne fc env [(tm, elab)] = elab
 exactlyOne {vars} fc env all
     = do elabs <- successful all
          case rights elabs of
-              [(res, defs, ust, est)] => 
+              [(res, defs, ust, est)] =>
                     do put UST ust
                        put EST est
                        put Ctxt defs
@@ -460,7 +460,7 @@ exactlyOne {vars} fc env all
 
     -- If they've all failed, collect all the errors
     -- If more than one succeeded, report the ambiguity
-    altError : List (Maybe Name, Error) -> 
+    altError : List (Maybe Name, Error) ->
                List ((Term vars, Glued vars), st) ->
                Error
     altError ls [] = AllFailed ls
@@ -474,7 +474,7 @@ anyOne : {vars : _} ->
          {auto e : Ref EST (EState vars)} ->
          FC -> List (Maybe Name, Core (Term vars, Glued vars)) ->
          Core (Term vars, Glued vars)
-anyOne fc [] = throw (GenericMsg fc "No elaborators provided") 
+anyOne fc [] = throw (GenericMsg fc "No elaborators provided")
 anyOne fc [(tm, elab)] = elab
 anyOne fc ((tm, elab) :: es) = try elab (anyOne fc es)
 
@@ -486,8 +486,8 @@ check : {vars : _} ->
         {auto m : Ref MD Metadata} ->
         {auto u : Ref UST UState} ->
         {auto e : Ref EST (EState vars)} ->
-        RigCount -> ElabInfo -> 
-        NestedNames vars -> Env Term vars -> RawImp -> 
+        RigCount -> ElabInfo ->
+        NestedNames vars -> Env Term vars -> RawImp ->
         Maybe (Glued vars) ->
         Core (Term vars, Glued vars)
 
@@ -498,7 +498,7 @@ checkImp : {vars : _} ->
            {auto m : Ref MD Metadata} ->
            {auto u : Ref UST UState} ->
            {auto e : Ref EST (EState vars)} ->
-           RigCount -> ElabInfo -> 
+           RigCount -> ElabInfo ->
            NestedNames vars -> Env Term vars -> RawImp -> Maybe (Glued vars) ->
            Core (Term vars, Glued vars)
 
@@ -508,9 +508,9 @@ processDecl : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
               {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
-              List ElabOpt -> NestedNames vars -> 
+              List ElabOpt -> NestedNames vars ->
               Env Term vars -> ImpDecl -> Core ()
-              
+
 -- Check whether two terms are convertible. May solve metavariables (in Ctxt)
 -- in doing so.
 -- Returns a list of constraints which need to be solved for the conversion
@@ -528,7 +528,7 @@ convertWithLazy withLazy fc elabinfo env x y
                 = case elabMode elabinfo of
                        InLHS _ => InLHS
                        _ => InTerm in
-          catch 
+          catch
             (do logGlueNF 5 "Unifying" env x
                 logGlueNF 5 "....with" env y
                 vs <- if isFromTerm x && isFromTerm y
@@ -545,7 +545,7 @@ convertWithLazy withLazy fc elabinfo env x y
                 when (holesSolved vs) $
                     solveConstraints umode Normal
                 pure vs)
-            (\err => 
+            (\err =>
                do defs <- get Ctxt
                   xtm <- getTerm x
                   ytm <- getTerm y
@@ -579,19 +579,19 @@ checkExp : {vars : _} ->
            {auto u : Ref UST UState} ->
            {auto e : Ref EST (EState vars)} ->
            RigCount -> ElabInfo -> Env Term vars -> FC ->
-           (term : Term vars) -> 
-           (got : Glued vars) -> (expected : Maybe (Glued vars)) -> 
+           (term : Term vars) ->
+           (got : Glued vars) -> (expected : Maybe (Glued vars)) ->
            Core (Term vars, Glued vars)
-checkExp rig elabinfo env fc tm got (Just exp) 
+checkExp rig elabinfo env fc tm got (Just exp)
     = do vs <- convertWithLazy True fc elabinfo env got exp
          case (constraints vs) of
               [] => case addLazy vs of
                          NoLazy => do logTerm 5 "Solved" tm
                                       pure (tm, got)
-                         AddForce => do logTerm 5 "Force" tm
-                                        logGlue 5 "Got" env got
-                                        logGlue 5 "Exp" env exp
-                                        pure (TForce fc tm, exp)
+                         AddForce r => do logTerm 5 "Force" tm
+                                          logGlue 5 "Got" env got
+                                          logGlue 5 "Exp" env exp
+                                          pure (TForce fc r tm, exp)
                          AddDelay r => do ty <- getTerm got
                                           logTerm 5 "Delay" tm
                                           pure (TDelay fc r ty tm, exp)
@@ -603,7 +603,7 @@ checkExp rig elabinfo env fc tm got (Just exp)
                        dumpConstraints 5 False
                        case addLazy vs of
                             NoLazy => pure (ctm, got)
-                            AddForce => pure (TForce fc tm, got)
+                            AddForce r => pure (TForce fc r tm, got)
                             AddDelay r => do ty <- getTerm got
                                              pure (TDelay fc r ty tm, got)
 checkExp rig elabinfo env fc tm got Nothing = pure (tm, got)

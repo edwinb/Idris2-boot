@@ -22,7 +22,7 @@ checkDelayed : {vars : _} ->
                {auto u : Ref UST UState} ->
                {auto e : Ref EST (EState vars)} ->
                RigCount -> ElabInfo ->
-               NestedNames vars -> Env Term vars -> 
+               NestedNames vars -> Env Term vars ->
                FC -> LazyReason -> RawImp -> Maybe (Glued vars) ->
                Core (Term vars, Glued vars)
 checkDelayed rig elabinfo nest env fc r tm exp
@@ -36,7 +36,7 @@ checkDelay : {vars : _} ->
              {auto u : Ref UST UState} ->
              {auto e : Ref EST (EState vars)} ->
              RigCount -> ElabInfo ->
-             NestedNames vars -> Env Term vars -> 
+             NestedNames vars -> Env Term vars ->
              FC -> RawImp -> Maybe (Glued vars) ->
              Core (Term vars, Glued vars)
 checkDelay rig elabinfo nest env fc tm mexpected
@@ -59,7 +59,7 @@ checkDelay rig elabinfo nest env fc tm mexpected
                                                 (Just (glueBack defs env expnf))
                             tynf <- getNF gty
                             ty <- getTerm gty
-                            pure (TDelay fc r ty tm', 
+                            pure (TDelay fc r ty tm',
                                   glueBack defs env (NDelayed fc r tynf))
                       _ => throw (GenericMsg fc ("Can't infer delay type")))
   where
@@ -74,19 +74,19 @@ checkForce : {vars : _} ->
              {auto u : Ref UST UState} ->
              {auto e : Ref EST (EState vars)} ->
              RigCount -> ElabInfo ->
-             NestedNames vars -> Env Term vars -> 
+             NestedNames vars -> Env Term vars ->
              FC -> RawImp -> Maybe (Glued vars) ->
              Core (Term vars, Glued vars)
 checkForce rig elabinfo nest env fc tm exp
     = do defs <- get Ctxt
          expf <- maybe (pure Nothing)
                        (\gty => do tynf <- getNF gty
-                                   pure (Just (glueBack defs env 
+                                   pure (Just (glueBack defs env
                                          (NDelayed fc LUnknown tynf))))
                        exp
          (tm', gty) <- check rig elabinfo nest env tm expf
          tynf <- getNF gty
          case tynf of
-              NDelayed _ _ expnf =>
-                 pure (TForce fc tm', glueBack defs env expnf)
+              NDelayed _ r expnf =>
+                 pure (TForce fc r tm', glueBack defs env expnf)
               _ => throw (GenericMsg fc "Forcing a non-delayed type")

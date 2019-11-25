@@ -5,6 +5,7 @@ import Core.Core
 import Core.Env
 import Core.Metadata
 import Core.Normalise
+import Core.Reflect
 import Core.Unify
 import Core.TT
 import Core.Value
@@ -23,12 +24,13 @@ import TTImp.Elab.Local
 import TTImp.Elab.Prim
 import TTImp.Elab.Record
 import TTImp.Elab.Rewrite
+import TTImp.Reflect
 import TTImp.TTImp
 
 %default covering
 
 -- If the expected type has an implicit pi, elaborate with leading
--- implicit lambdas if they aren't there already. 
+-- implicit lambdas if they aren't there already.
 insertImpLam : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
                Env Term vars ->
@@ -49,7 +51,7 @@ insertImpLam {vars} env tm (Just ty) = bindLam tm ty
     bindLamTm tm exp
         = case getFn exp of
                Ref _ Func _ => pure Nothing -- might still be implicit
-               TForce _ _ => pure Nothing
+               TForce _ _ _ => pure Nothing
                Bind _ _ (Lam _ _ _) _ => pure Nothing
                _ => pure $ Just tm
 
@@ -84,22 +86,22 @@ checkTerm : {vars : _} ->
             RigCount -> ElabInfo ->
             NestedNames vars -> Env Term vars -> RawImp -> Maybe (Glued vars) ->
             Core (Term vars, Glued vars)
-checkTerm rig elabinfo nest env (IVar fc n) exp 
+checkTerm rig elabinfo nest env (IVar fc n) exp
     = -- It may actually turn out to be an application, if the expected
       -- type is expecting an implicit argument, so check it as an
       -- application with no arguments
       checkApp rig elabinfo nest env fc (IVar fc n) [] [] exp
-checkTerm rig elabinfo nest env (IPi fc r p (Just n) argTy retTy) exp 
+checkTerm rig elabinfo nest env (IPi fc r p (Just n) argTy retTy) exp
     = checkPi rig elabinfo nest env fc r p n argTy retTy exp
-checkTerm rig elabinfo nest env (IPi fc r p Nothing argTy retTy) exp 
+checkTerm rig elabinfo nest env (IPi fc r p Nothing argTy retTy) exp
     = do n <- case p of
                    Explicit => genVarName "arg"
                    Implicit => genVarName "impArg"
                    AutoImplicit => genVarName "conArg"
          checkPi rig elabinfo nest env fc r p n argTy retTy exp
-checkTerm rig elabinfo nest env (ILam fc r p (Just n) argTy scope) exp 
+checkTerm rig elabinfo nest env (ILam fc r p (Just n) argTy scope) exp
     = checkLambda rig elabinfo nest env fc r p n argTy scope exp
-checkTerm rig elabinfo nest env (ILam fc r p Nothing argTy scope) exp 
+checkTerm rig elabinfo nest env (ILam fc r p Nothing argTy scope) exp
     = do n <- genVarName "_"
          checkLambda rig elabinfo nest env fc r p n argTy scope exp
 checkTerm rig elabinfo nest env (ILet fc r n nTy nVal scope) exp
@@ -110,9 +112,9 @@ checkTerm rig elabinfo nest env (ILocal fc nested scope) exp
     = checkLocal rig elabinfo nest env fc nested scope exp
 checkTerm rig elabinfo nest env (IUpdate fc upds rec) exp
     = checkUpdate rig elabinfo nest env fc upds rec exp
-checkTerm rig elabinfo nest env (IApp fc fn arg) exp 
+checkTerm rig elabinfo nest env (IApp fc fn arg) exp
     = checkApp rig elabinfo nest env fc fn [arg] [] exp
-checkTerm rig elabinfo nest env (IWithApp fc fn arg) exp 
+checkTerm rig elabinfo nest env (IWithApp fc fn arg) exp
     = throw (GenericMsg fc "with application not implemented yet")
 checkTerm rig elabinfo nest env (IImplicitApp fc fn nm arg) exp
     = checkApp rig elabinfo nest env fc fn [] [(nm, arg)] exp
@@ -149,10 +151,10 @@ checkTerm rig elabinfo nest env (IDelay fc tm) exp
     = checkDelay rig elabinfo nest env fc tm exp
 checkTerm rig elabinfo nest env (IForce fc tm) exp
     = checkForce rig elabinfo nest env fc tm exp
-checkTerm {vars} rig elabinfo nest env (IPrimVal fc c) exp 
+checkTerm {vars} rig elabinfo nest env (IPrimVal fc c) exp
     = do let (cval, cty) = checkPrim {vars} fc c
          checkExp rig elabinfo env fc cval (gnf env cty) exp
-checkTerm rig elabinfo nest env (IType fc) exp 
+checkTerm rig elabinfo nest env (IType fc) exp
     = checkExp rig elabinfo env fc (TType fc) (gType fc) exp
 
 checkTerm rig elabinfo nest env (IHole fc str) exp
@@ -185,7 +187,7 @@ checkTerm rig elabinfo nest env (Implicit fc b) Nothing
 --         {auto m : Ref MD Metadata} ->
 --         {auto u : Ref UST UState} ->
 --         {auto e : Ref EST (EState vars)} ->
---         RigCount -> ElabInfo -> Env Term vars -> RawImp -> 
+--         RigCount -> ElabInfo -> Env Term vars -> RawImp ->
 --         Maybe (Glued vars) ->
 --         Core (Term vars, Glued vars)
 -- If we've just inserted an implicit coercion (in practice, that's either
@@ -199,7 +201,7 @@ TTImp.Elab.Check.check rigc elabinfo nest env tm@(ILocal fc ds sc) exp
     = checkImp rigc elabinfo nest env tm exp
 TTImp.Elab.Check.check rigc elabinfo nest env tm@(IUpdate fc fs rec) exp
     = checkImp rigc elabinfo nest env tm exp
-TTImp.Elab.Check.check rigc elabinfo nest env tm_in exp 
+TTImp.Elab.Check.check rigc elabinfo nest env tm_in exp
     = do defs <- get Ctxt
          est <- get EST
          tm <- expandAmbigName (elabMode elabinfo) nest env tm_in [] tm_in exp
