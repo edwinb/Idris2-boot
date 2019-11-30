@@ -155,9 +155,9 @@ checkTerm rig elabinfo nest env (IForce fc tm) exp
 checkTerm rig elabinfo nest env (IQuote fc tm) exp
     = checkQuote rig elabinfo nest env fc tm exp
 checkTerm rig elabinfo nest env (IQuoteDecl fc tm) exp
-    = throw (GenericMsg fc "Reflection not implemented yet")
+    = throw (GenericMsg fc "Declaration reflection not implemented yet")
 checkTerm rig elabinfo nest env (IUnquote fc tm) exp
-    = throw (InternalError "Unquote should have been resolved")
+    = throw (GenericMsg fc "Can't escape outside a quoted term")
 checkTerm {vars} rig elabinfo nest env (IPrimVal fc c) exp
     = do let (cval, cty) = checkPrim {vars} fc c
          checkExp rig elabinfo env fc cval (gnf env cty) exp

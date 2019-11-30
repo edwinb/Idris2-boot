@@ -475,10 +475,10 @@ mutual
         = do fc' <- reflect fc defs env tfc
              t' <- reflect fc defs env t
              appCon fc defs (reflectionttimp "IQuoteDecl") [fc', t']
+    reflect fc defs env (IUnquote tfc (IVar _ t))
+        = pure (Ref tfc Bound t)
     reflect fc defs env (IUnquote tfc t)
-        = do fc' <- reflect fc defs env tfc
-             t' <- reflect fc defs env t
-             appCon fc defs (reflectionttimp "IUnquote") [fc', t']
+        = throw (InternalError "Can't reflect an unquote: escapes should be lifted out")
     reflect fc defs env (IPrimVal tfc t)
         = do fc' <- reflect fc defs env tfc
              t' <- reflect fc defs env t
