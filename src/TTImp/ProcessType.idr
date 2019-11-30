@@ -52,6 +52,8 @@ processFnOpt fc ndef Covering
     = setFlag fc ndef (SetTotal CoveringOnly)
 processFnOpt fc ndef PartialOK
     = setFlag fc ndef (SetTotal PartialOK)
+processFnOpt fc ndef Macro
+    = setFlag fc ndef Macro
 
 -- If it's declared as externally defined, set the definition to
 -- ExternFn <arity>, where the arity is assumed to be fixed (i.e.

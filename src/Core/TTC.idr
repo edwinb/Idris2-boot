@@ -805,6 +805,7 @@ TTC DefFlag where
   toBuf b TCInline = tag 5
   toBuf b (SetTotal x) = do tag 6; toBuf b x
   toBuf b BlockedHint = tag 7
+  toBuf b Macro = tag 8
 
   fromBuf b
       = case !getTag of
@@ -814,6 +815,7 @@ TTC DefFlag where
              5 => pure TCInline
              6 => do x <- fromBuf b; pure (SetTotal x)
              7 => pure BlockedHint
+             8 => pure Macro
              _ => corrupt "DefFlag"
 
 export

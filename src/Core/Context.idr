@@ -118,6 +118,7 @@ data DefFlag
          -- care!
     | SetTotal TotalReq
     | BlockedHint -- a hint, but blocked for the moment (so don't use)
+    | Macro
 
 export
 Eq TotalReq where
@@ -134,6 +135,7 @@ Eq DefFlag where
     (==) TCInline TCInline = True
     (==) (SetTotal x) (SetTotal y) = x == y
     (==) BlockedHint BlockedHint = True
+    (==) Macro Macro = True
     (==) _ _ = False
 
 public export

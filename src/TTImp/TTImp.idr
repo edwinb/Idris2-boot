@@ -170,6 +170,7 @@ mutual
        Total : FnOpt
        Covering : FnOpt
        PartialOK : FnOpt
+       Macro : FnOpt
 
   export
   Show FnOpt where
@@ -182,6 +183,7 @@ mutual
     show Total = "total"
     show Covering = "covering"
     show PartialOK = "partial"
+    show Macro = "%macro"
 
   export
   Eq FnOpt where
@@ -194,6 +196,7 @@ mutual
     Total == Total = True
     Covering == Covering = True
     PartialOK == PartialOK = True
+    Macro == Macro = True
     _ == _ = False
 
   public export
@@ -811,6 +814,7 @@ mutual
     toBuf b Total = tag 6
     toBuf b Covering = tag 7
     toBuf b PartialOK = tag 8
+    toBuf b Macro = tag 9
 
     fromBuf b
         = case !getTag of
@@ -823,6 +827,7 @@ mutual
                6 => pure Total
                7 => pure Covering
                8 => pure PartialOK
+               9 => pure Macro
                _ => corrupt "FnOpt"
 
   export
