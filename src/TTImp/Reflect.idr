@@ -157,6 +157,18 @@ mutual
         = do fc' <- reify defs !(evalClosure defs fc)
              t' <- reify defs !(evalClosure defs t)
              pure (IForce fc' t')
+    reify defs (NDCon _ (NS _ (UN "IQuote")) _ _ [fc, t])
+        = do fc' <- reify defs !(evalClosure defs fc)
+             t' <- reify defs !(evalClosure defs t)
+             pure (IQuote fc' t')
+    reify defs (NDCon _ (NS _ (UN "IQuoteDecl")) _ _ [fc, t])
+        = do fc' <- reify defs !(evalClosure defs fc)
+             t' <- reify defs !(evalClosure defs t)
+             pure (IQuoteDecl fc' t')
+    reify defs (NDCon _ (NS _ (UN "IUnquote")) _ _ [fc, t])
+        = do fc' <- reify defs !(evalClosure defs fc)
+             t' <- reify defs !(evalClosure defs t)
+             pure (IUnquote fc' t')
     reify defs (NDCon _ (NS _ (UN "IPrimVal")) _ _ [fc, t])
         = do fc' <- reify defs !(evalClosure defs fc)
              t' <- reify defs !(evalClosure defs t)
@@ -455,6 +467,18 @@ mutual
         = do fc' <- reflect fc defs env tfc
              t' <- reflect fc defs env t
              appCon fc defs (reflectionttimp "IForce") [fc', t']
+    reflect fc defs env (IQuote tfc t)
+        = do fc' <- reflect fc defs env tfc
+             t' <- reflect fc defs env t
+             appCon fc defs (reflectionttimp "IQuote") [fc', t']
+    reflect fc defs env (IQuoteDecl tfc t)
+        = do fc' <- reflect fc defs env tfc
+             t' <- reflect fc defs env t
+             appCon fc defs (reflectionttimp "IQuoteDecl") [fc', t']
+    reflect fc defs env (IUnquote tfc t)
+        = do fc' <- reflect fc defs env tfc
+             t' <- reflect fc defs env t
+             appCon fc defs (reflectionttimp "IUnquote") [fc', t']
     reflect fc defs env (IPrimVal tfc t)
         = do fc' <- reflect fc defs env tfc
              t' <- reflect fc defs env t

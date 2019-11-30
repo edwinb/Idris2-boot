@@ -214,6 +214,13 @@ mutual
   toPTerm p (IDelayed fc r ty) = pure (PDelayed fc r !(toPTerm argPrec ty))
   toPTerm p (IDelay fc tm) = pure (PDelay fc !(toPTerm argPrec tm))
   toPTerm p (IForce fc tm) = pure (PForce fc !(toPTerm argPrec tm))
+  toPTerm p (IQuote fc tm) = pure (PQuote fc !(toPTerm argPrec tm))
+  toPTerm p (IQuoteDecl fc d)
+      = do md <- toPDecl d
+           case md of
+                Nothing => throw (InternalError "Can't resugar log or pragma")
+                Just d' => pure (PQuoteDecl fc d')
+  toPTerm p (IUnquote fc tm) = pure (PUnquote fc !(toPTerm argPrec tm))
 
   toPTerm p (Implicit fc True) = pure (PImplicit fc)
   toPTerm p (Implicit fc False) = pure (PInfer fc)

@@ -203,12 +203,14 @@ mutual
              Just f => pure $ IApp fc (IVar fc f)
                                       (IPrimVal fc (Ch x))
   desugar side ps (PPrimVal fc x) = pure $ IPrimVal fc x
-  desugar side ps (PQuote fc x)
-      = throw (GenericMsg fc "Reflection not implemeted yet")
---       = pure $ IQuote fc !(desugar side ps x)
-  desugar side ps (PUnquote fc x)
-      = throw (GenericMsg fc "Reflection not implemeted yet")
---       = pure $ IUnquote fc !(desugar side ps x)
+  desugar side ps (PQuote fc tm)
+      = pure $ IQuote fc !(desugar side ps tm)
+  desugar side ps (PQuoteDecl fc x)
+      = do [x'] <- desugarDecl ps x
+              | _ => throw (GenericMsg fc "Can't quote this declaration")
+           pure $ IQuoteDecl fc x'
+  desugar side ps (PUnquote fc tm)
+      = pure $ IUnquote fc !(desugar side ps tm)
   desugar side ps (PHole fc br holename)
       = do when br $
               do syn <- get Syn

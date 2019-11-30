@@ -51,6 +51,11 @@ mutual
        IDelay : FC -> TTImp -> TTImp -- delay constructor
        IForce : FC -> TTImp -> TTImp
 
+       -- Quasiquotation
+       IQuote : FC -> TTImp -> TTImp
+       IQuoteDecl : FC -> TTImp -> TTImp
+       IUnquote : FC -> TTImp -> TTImp
+
        IPrimVal : FC -> (c : Constant) -> TTImp
        IType : FC -> TTImp
        IHole : FC -> String -> TTImp
