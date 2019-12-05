@@ -86,6 +86,7 @@ mutual
        IQuote : FC -> RawImp -> RawImp
        IQuoteDecl : FC -> ImpDecl -> RawImp
        IUnquote : FC -> RawImp -> RawImp
+       IRunElab : FC -> RawImp -> RawImp
 
        IPrimVal : FC -> (c : Constant) -> RawImp
        IType : FC -> RawImp
@@ -151,6 +152,7 @@ mutual
       show (IQuote fc tm) = "(%quote " ++ show tm ++ ")"
       show (IQuoteDecl fc tm) = "(%quotedecl " ++ show tm ++ ")"
       show (IUnquote fc tm) = "(%unquote " ++ show tm ++ ")"
+      show (IRunElab fc tm) = "(%runelab " ++ show tm ++ ")"
       show (IPrimVal fc c) = show c
       show (IHole _ x) = "?" ++ x
       show (IType fc) = "%type"
@@ -379,6 +381,7 @@ findIBinds (IDelay fc tm) = findIBinds tm
 findIBinds (IForce fc tm) = findIBinds tm
 findIBinds (IQuote fc tm) = findIBinds tm
 findIBinds (IUnquote fc tm) = findIBinds tm
+findIBinds (IRunElab fc tm) = findIBinds tm
 findIBinds (IBindHere _ _ tm) = findIBinds tm
 findIBinds (IBindVar _ n) = [n]
 -- We've skipped lambda, case, let and local - rather than guess where the
@@ -410,6 +413,7 @@ findImplicits (IDelay fc tm) = findImplicits tm
 findImplicits (IForce fc tm) = findImplicits tm
 findImplicits (IQuote fc tm) = findImplicits tm
 findImplicits (IUnquote fc tm) = findImplicits tm
+findImplicits (IRunElab fc tm) = findImplicits tm
 findImplicits (IBindVar _ n) = [n]
 findImplicits tm = []
 
@@ -529,6 +533,7 @@ getFC (IForce x _) = x
 getFC (IQuote x _) = x
 getFC (IQuoteDecl x _) = x
 getFC (IUnquote x _) = x
+getFC (IRunElab x _) = x
 getFC (IAs x _ _ _) = x
 getFC (Implicit x _) = x
 
@@ -603,16 +608,18 @@ mutual
         = do tag 22; toBuf b fc; toBuf b t
     toBuf b (IUnquote fc t)
         = do tag 23; toBuf b fc; toBuf b t
+    toBuf b (IRunElab fc t)
+        = do tag 24; toBuf b fc; toBuf b t
 
     toBuf b (IPrimVal fc y)
-        = do tag 24; toBuf b fc; toBuf b y
+        = do tag 25; toBuf b fc; toBuf b y
     toBuf b (IType fc)
-        = do tag 25; toBuf b fc
+        = do tag 26; toBuf b fc
     toBuf b (IHole fc y)
-        = do tag 26; toBuf b fc; toBuf b y
+        = do tag 27; toBuf b fc; toBuf b y
 
     toBuf b (Implicit fc i)
-        = do tag 27; toBuf b fc; toBuf b i
+        = do tag 28; toBuf b fc; toBuf b i
 
     fromBuf b
         = case !getTag of
@@ -685,14 +692,16 @@ mutual
                         pure (IQuoteDecl fc y)
                23 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IUnquote fc y)
-
                24 => do fc <- fromBuf b; y <- fromBuf b
+                        pure (IRunElab fc y)
+
+               25 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IPrimVal fc y)
-               25 => do fc <- fromBuf b
+               26 => do fc <- fromBuf b
                         pure (IType fc)
-               26 => do fc <- fromBuf b; y <- fromBuf b
+               27 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IHole fc y)
-               27 => do fc <- fromBuf b
+               28 => do fc <- fromBuf b
                         i <- fromBuf b
                         pure (Implicit fc i)
                _ => corrupt "RawImp"

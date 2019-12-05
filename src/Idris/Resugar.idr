@@ -221,6 +221,7 @@ mutual
                 Nothing => throw (InternalError "Can't resugar log or pragma")
                 Just d' => pure (PQuoteDecl fc d')
   toPTerm p (IUnquote fc tm) = pure (PUnquote fc !(toPTerm argPrec tm))
+  toPTerm p (IRunElab fc tm) = pure (PRunElab fc !(toPTerm argPrec tm))
 
   toPTerm p (Implicit fc True) = pure (PImplicit fc)
   toPTerm p (Implicit fc False) = pure (PInfer fc)

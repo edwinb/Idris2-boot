@@ -57,6 +57,7 @@ mutual
        PQuote : FC -> PTerm -> PTerm
        PQuoteDecl : FC -> PDecl -> PTerm
        PUnquote : FC -> PTerm -> PTerm
+       PRunElab : FC -> PTerm -> PTerm
        PHole : FC -> (bracket : Bool) -> (holename : String) -> PTerm
        PType : FC -> PTerm
        PAs : FC -> Name -> (pattern : PTerm) -> PTerm
@@ -397,6 +398,7 @@ mutual
     showPrec d (PQuote _ tm) = "`(" ++ showPrec d tm ++ ")"
     showPrec d (PQuoteDecl _ tm) = "`( <<declaration>> )"
     showPrec d (PUnquote _ tm) = "~(" ++ showPrec d tm ++ ")"
+    showPrec d (PRunElab _ tm) = "%runElab " ++ showPrec d tm
     showPrec d (PPrimVal _ c) = showPrec d c
     showPrec _ (PHole _ _ n) = "?" ++ n
     showPrec _ (PType _) = "Type"

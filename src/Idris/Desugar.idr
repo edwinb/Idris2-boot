@@ -211,6 +211,8 @@ mutual
            pure $ IQuoteDecl fc x'
   desugar side ps (PUnquote fc tm)
       = pure $ IUnquote fc !(desugar side ps tm)
+  desugar side ps (PRunElab fc tm)
+      = pure $ IRunElab fc !(desugar side ps tm)
   desugar side ps (PHole fc br holename)
       = do when br $
               do syn <- get Syn

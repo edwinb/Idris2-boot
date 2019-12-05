@@ -479,6 +479,8 @@ mutual
         = pure (Ref tfc Bound t)
     reflect fc defs env (IUnquote tfc t)
         = throw (InternalError "Can't reflect an unquote: escapes should be lifted out")
+    reflect fc defs env (IRunElab tfc t)
+        = throw (InternalError "Can't reflect a %runelab")
     reflect fc defs env (IPrimVal tfc t)
         = do fc' <- reflect fc defs env tfc
              t' <- reflect fc defs env t
