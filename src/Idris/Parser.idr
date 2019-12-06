@@ -1025,6 +1025,8 @@ fnDirectOpt
          pure Inline
   <|> do exactIdent "extern"
          pure ExternFn
+  <|> do exactIdent "macro"
+         pure Macro
   <|> do exactIdent "foreign"
          cs <- many strLit
          pure (ForeignFn cs)

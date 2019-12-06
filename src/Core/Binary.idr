@@ -27,7 +27,7 @@ import Data.Buffer
 -- TTC files can only be compatible if the version number is the same
 export
 ttcVersion : Int
-ttcVersion = 9
+ttcVersion = 12
 
 export
 checkTTCVersion : Int -> Int -> Core ()
@@ -109,7 +109,7 @@ HasNames e => HasNames (TTCFile e) where
                          !(fullRW gam rewritenames)
                          !(fullPrim gam primnames)
                          !(full gam namedirectives)
-                         cgdirectives 
+                         cgdirectives
                          !(full gam extra)
     where
       fullPair : Context -> Maybe PairNames -> Core (Maybe PairNames)
@@ -169,15 +169,15 @@ HasNames e => HasNames (TTCFile e) where
 
 
 asName : List String -> Maybe (List String) -> Name -> Name
-asName mod (Just ns) (NS oldns n) 
-    = if mod == oldns 
+asName mod (Just ns) (NS oldns n)
+    = if mod == oldns
          then NS ns n -- TODO: What about if there are nested namespaces in a module?
          else NS oldns n
 asName _ _ n = n
 
 -- NOTE: TTC files are only compatible if the version number is the same,
 -- *and* the 'annot/extra' type are the same, or there are no holes/constraints
-writeTTCFile : (HasNames extra, TTC extra) => 
+writeTTCFile : (HasNames extra, TTC extra) =>
                {auto c : Ref Ctxt Defs} ->
                Ref Bin Binary -> TTCFile extra -> Core ()
 writeTTCFile b file_in
@@ -204,7 +204,7 @@ writeTTCFile b file_in
            toBuf b (cgdirectives file)
            toBuf b (extraData file)
 
-readTTCFile : TTC extra => 
+readTTCFile : TTC extra =>
               {auto c : Ref Ctxt Defs} ->
               List String -> Maybe (List String) ->
               Ref Bin Binary -> Core (TTCFile extra)
@@ -238,12 +238,12 @@ readTTCFile modns as b
            cgds <- fromBuf b
            ex <- fromBuf b
            pure (MkTTCFile ver ifaceHash importHashes
-                           [] [] [] defs uholes -- holes guesses constraints defs 
+                           [] [] [] defs uholes -- holes guesses constraints defs
                            autohs typehs imp nextv cns nns
                            pns rws prims nds cgds ex)
 
 -- Pull out the list of GlobalDefs that we want to save
-getSaveDefs : List Name -> List (Name, Binary) -> Defs -> 
+getSaveDefs : List Name -> List (Name, Binary) -> Defs ->
               Core (List (Name, Binary))
 getSaveDefs [] acc _ = pure acc
 getSaveDefs (n :: ns) acc defs
@@ -269,10 +269,10 @@ writeToTTC extradata fname
          ust <- get UST
          gdefs <- getSaveDefs (keys (toSave defs)) [] defs
          log 5 $ "Writing " ++ fname ++ " with hash " ++ show (ifaceHash defs)
-         writeTTCFile buf 
+         writeTTCFile buf
                    (MkTTCFile ttcVersion (ifaceHash defs) (importHashes defs)
-                              (toList (holes ust)) 
-                              (toList (guesses ust)) 
+                              (toList (holes ust))
+                              (toList (guesses ust))
                               (toList (constraints ust))
                               gdefs
                               (keys (userHoles defs))
@@ -282,10 +282,10 @@ writeToTTC extradata fname
                               (nextName ust)
                               (currentNS defs)
                               (nestedNS defs)
-                              (pairnames (options defs)) 
-                              (rewritenames (options defs)) 
-                              (primnames (options defs)) 
-                              (namedirectives defs) 
+                              (pairnames (options defs))
+                              (rewritenames (options defs))
+                              (primnames (options defs))
+                              (namedirectives defs)
                               (cgdirectives defs)
                               extradata)
          Right ok <- coreLift $ writeToFile fname !(get Bin)
@@ -316,8 +316,8 @@ addGlobalDef modns as (n, def)
 
 addTypeHint : {auto c : Ref Ctxt Defs} ->
               FC -> (Name, Name, Bool) -> Core ()
-addTypeHint fc (tyn, hintn, d) 
-   = do logC 10 (pure (show !(getFullName hintn) ++ " for " ++ 
+addTypeHint fc (tyn, hintn, d)
+   = do logC 10 (pure (show !(getFullName hintn) ++ " for " ++
                        show !(getFullName tyn)))
         addHintFor fc tyn hintn d True
 
@@ -326,14 +326,14 @@ addAutoHint : {auto c : Ref Ctxt Defs} ->
 addAutoHint (hintn, d) = addGlobalHint hintn d
 
 export
-updatePair : {auto c : Ref Ctxt Defs} -> 
+updatePair : {auto c : Ref Ctxt Defs} ->
              Maybe PairNames -> Core ()
 updatePair p
     = do defs <- get Ctxt
          put Ctxt (record { options->pairnames $= (p <+>) } defs)
 
 export
-updateRewrite : {auto c : Ref Ctxt Defs} -> 
+updateRewrite : {auto c : Ref Ctxt Defs} ->
                 Maybe RewriteNames -> Core ()
 updateRewrite r
     = do defs <- get Ctxt
@@ -344,17 +344,17 @@ updatePrimNames : PrimNames -> PrimNames -> PrimNames
 updatePrimNames p
     = record { fromIntegerName $= ((fromIntegerName p) <+>),
                fromStringName $= ((fromStringName p) <+>),
-               fromCharName $= ((fromCharName p) <+>) } 
+               fromCharName $= ((fromCharName p) <+>) }
 
 export
-updatePrims : {auto c : Ref Ctxt Defs} -> 
+updatePrims : {auto c : Ref Ctxt Defs} ->
               PrimNames -> Core ()
 updatePrims p
     = do defs <- get Ctxt
          put Ctxt (record { options->primnames $= updatePrimNames p } defs)
 
 export
-updateNameDirectives : {auto c : Ref Ctxt Defs} -> 
+updateNameDirectives : {auto c : Ref Ctxt Defs} ->
                        List (Name, List String) -> Core ()
 updateNameDirectives [] = pure ()
 updateNameDirectives ((t, ns) :: nds)
@@ -363,7 +363,7 @@ updateNameDirectives ((t, ns) :: nds)
          updateNameDirectives nds
 
 export
-updateCGDirectives : {auto c : Ref Ctxt Defs} -> 
+updateCGDirectives : {auto c : Ref Ctxt Defs} ->
                      List (CG, String) -> Core ()
 updateCGDirectives cgs
     = do defs <- get Ctxt
@@ -382,7 +382,7 @@ readFromTTC : TTC extra =>
               (fname : String) -> -- file containing the module
               (modNS : List String) -> -- module namespace
               (importAs : List String) -> -- namespace to import as
-              Core (Maybe (extra, Int, 
+              Core (Maybe (extra, Int,
                            List (List String, Bool, List String)))
 readFromTTC loc reexp fname modNS importAs
     = do defs <- get Ctxt
@@ -394,8 +394,8 @@ readFromTTC loc reexp fname modNS importAs
          Right buf <- coreLift $ readFromFile fname
                | Left err => throw (InternalError (fname ++ ": " ++ show err))
          bin <- newRef Bin buf -- for reading the file into
-         let as = if importAs == modNS 
-                     then Nothing 
+         let as = if importAs == modNS
+                     then Nothing
                      else Just importAs
          ttc <- readTTCFile modNS as bin
          logTime "Adding defs" $ traverse (addGlobalDef modNS as) (context ttc)

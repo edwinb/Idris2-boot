@@ -25,6 +25,8 @@ modules = Control.Monad.Identity,
           Decidable.Equality,
 
           Language.Reflection,
+          Language.Reflection.TT,
+          Language.Reflection.TTImp,
 
           System,
           System.Concurrency.Raw,

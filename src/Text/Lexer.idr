@@ -145,7 +145,7 @@ count (Qty (S min) (Just (S max))) l = l <+> count (between min max) l
 digit : Lexer
 digit = pred isDigit
 
-||| Recognise one or more digits 
+||| Recognise one or more digits
 ||| /[0-9]+/
 digits : Lexer
 digits = some digit

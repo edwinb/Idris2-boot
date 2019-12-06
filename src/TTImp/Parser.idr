@@ -99,7 +99,7 @@ visOpt
          opt <- fnDirectOpt
          pure (Right opt)
 
-getVisibility : Maybe Visibility -> List (Either Visibility FnOpt) -> 
+getVisibility : Maybe Visibility -> List (Either Visibility FnOpt) ->
                 EmptyRule Visibility
 getVisibility Nothing [] = pure Private
 getVisibility (Just vis) [] = pure vis
@@ -136,10 +136,10 @@ mutual
       applyExpImp start end f [] = f
       applyExpImp start end f (Left exp :: args)
           = applyExpImp start end (IApp (MkFC fname start end) f exp) args
-      applyExpImp start end f (Right (n, imp) :: args) 
+      applyExpImp start end f (Right (n, imp) :: args)
           = applyExpImp start end (IImplicitApp (MkFC fname start end) f n imp) args
 
-  argExpr : FileName -> IndentInfo -> 
+  argExpr : FileName -> IndentInfo ->
             Rule (Either RawImp (Maybe Name, RawImp))
   argExpr fname indents
       = do continue indents
@@ -201,20 +201,20 @@ mutual
   getMult Nothing = pure RigW
   getMult _ = fatalError "Invalid multiplicity (must be 0 or 1)"
 
-  pibindAll : FC -> PiInfo -> List (RigCount, Maybe Name, RawImp) -> 
+  pibindAll : FC -> PiInfo -> List (RigCount, Maybe Name, RawImp) ->
               RawImp -> RawImp
   pibindAll fc p [] scope = scope
   pibindAll fc p ((rig, n, ty) :: rest) scope
            = IPi fc rig p n ty (pibindAll fc p rest scope)
 
-  bindList : FileName -> FilePos -> IndentInfo -> 
+  bindList : FileName -> FilePos -> IndentInfo ->
              Rule (List (RigCount, Name, RawImp))
   bindList fname start indents
       = sepBy1 (symbol ",")
                (do rigc <- multiplicity
                    n <- unqualifiedName
                    end <- location
-                   ty <- option 
+                   ty <- option
                             (Implicit (MkFC fname start end) False)
                             (do symbol ":"
                                 appExpr fname indents)
@@ -222,7 +222,7 @@ mutual
                    pure (rig, UN n, ty))
 
 
-  pibindList : FileName -> FilePos -> IndentInfo -> 
+  pibindList : FileName -> FilePos -> IndentInfo ->
                Rule (List (RigCount, Maybe Name, RawImp))
   pibindList fname start indents
        = do rigc <- multiplicity
@@ -239,7 +239,7 @@ mutual
                     ty <- expr fname indents
                     rig <- getMult rigc
                     pure (rig, Just n, ty))
-      
+
   autoImplicitPi : FileName -> IndentInfo -> Rule RawImp
   autoImplicitPi fname indents
       = do start <- location
@@ -347,8 +347,8 @@ mutual
       = do start <- location
            lhs <- appExpr fname indents
            caseRHS fname indents start lhs
-          
-  caseRHS : FileName -> IndentInfo -> (Int, Int) -> RawImp -> 
+
+  caseRHS : FileName -> IndentInfo -> (Int, Int) -> RawImp ->
             Rule ImpClause
   caseRHS fname indents start lhs
       = do symbol "=>"
@@ -392,7 +392,7 @@ mutual
            tm <- expr fname indents
            end <- location
            pure (IRewrite (MkFC fname start end) rule tm)
-  
+
   lazy : FileName -> IndentInfo -> Rule RawImp
   lazy fname indents
       = do start <- location
@@ -440,8 +440,8 @@ mutual
     where
       mkPi : FilePos -> FilePos -> RawImp -> List (PiInfo, RawImp) -> RawImp
       mkPi start end arg [] = arg
-      mkPi start end arg ((exp, a) :: as) 
-            = IPi (MkFC fname start end) RigW exp Nothing arg 
+      mkPi start end arg ((exp, a) :: as)
+            = IPi (MkFC fname start end) RigW exp Nothing arg
                   (mkPi start end a as)
 
   export
@@ -490,7 +490,7 @@ mutual
       getFn (IVar _ n) = pure n
       getFn (IApp _ f a) = getFn f
       getFn (IImplicitApp _ f _ a) = getFn f
-      getFn _ = fail "Not a function application" 
+      getFn _ = fail "Not a function application"
 
   clause : Nat -> FileName -> IndentInfo -> Rule (Name, ImpClause)
   clause withArgs fname indents
@@ -506,13 +506,13 @@ mutual
       applyArgs f ((fc, a) :: args) = applyArgs (IApp fc f a) args
 
       parseWithArg : Rule (FC, RawImp)
-      parseWithArg 
+      parseWithArg
           = do symbol "|"
                start <- location
                tm <- expr fname indents
                end <- location
                pure (MkFC fname start end, tm)
-  
+
 definition : FileName -> IndentInfo -> Rule ImpDecl
 definition fname indents
     = do start <- location
@@ -666,7 +666,7 @@ collectDefs (IDef loc fn cs :: ds)
                                               (ys, zs) => (y ++ ys, zs)
 
     isClause : Name -> ImpDecl -> Maybe (List ImpClause)
-    isClause n (IDef _ n' cs) 
+    isClause n (IDef _ n' cs)
         = if n == n' then Just cs else Nothing
     isClause n _ = Nothing
 collectDefs (INamespace loc nest ns nds :: ds)

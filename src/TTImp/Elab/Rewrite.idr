@@ -18,7 +18,7 @@ import TTImp.TTImp
 
 -- TODO: Later, we'll get the name of the lemma from the type, if it's one
 -- that's generated for a dependent type. For now, always return the default
-findRewriteLemma : {auto c : Ref Ctxt Defs} -> 
+findRewriteLemma : {auto c : Ref Ctxt Defs} ->
                    FC -> (rulety : Term vars) ->
                    Core Name
 findRewriteLemma loc rulety
@@ -33,7 +33,7 @@ getRewriteTerms loc defs (NTCon nfc eq t a args) err
     = if !(isEqualTy eq)
          then case reverse args of
                    (rhs :: lhs :: rhsty :: lhsty :: _) =>
-                        pure (!(evalClosure defs lhs), 
+                        pure (!(evalClosure defs lhs),
                               !(evalClosure defs rhs),
                               !(evalClosure defs lhsty))
                    _ => throw err
@@ -56,9 +56,9 @@ rewriteErr _ = False
 export
 elabRewrite : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
-              {auto u : Ref UST UState} -> 
+              {auto u : Ref UST UState} ->
               FC -> Env Term vars ->
-              (expected : Term vars) -> 
+              (expected : Term vars) ->
               (rulety : Term vars) ->
               Core (Name, Term vars, Term vars)
 elabRewrite loc env expected rulety
@@ -72,13 +72,13 @@ elabRewrite loc env expected rulety
          -- the metavariables might have been updated
          expnf <- nf defs env expected
 
-         logNF 5 "Rewriting" env lt 
+         logNF 5 "Rewriting" env lt
          logNF 5 "Rewriting in" env expnf
          rwexp_sc <- replace defs env lt (Ref loc Bound parg) expnf
          logTerm 5 "Rewritten to" rwexp_sc
 
          empty <- clearDefs defs
-         let pred = Bind loc parg (Lam RigW Explicit 
+         let pred = Bind loc parg (Lam RigW Explicit
                           !(quote empty env lty))
                           (refsToLocals (Add parg parg None) rwexp_sc)
          gpredty <- getType env pred
@@ -97,8 +97,8 @@ checkRewrite : {vars : _} ->
                {auto m : Ref MD Metadata} ->
                {auto u : Ref UST UState} ->
                {auto e : Ref EST (EState vars)} ->
-               RigCount -> ElabInfo -> 
-               NestedNames vars -> Env Term vars -> 
+               RigCount -> ElabInfo ->
+               NestedNames vars -> Env Term vars ->
                FC -> RawImp -> RawImp -> Maybe (Glued vars) ->
                Core (Term vars, Glued vars)
 checkRewrite rigc elabinfo nest env fc rule tm Nothing
@@ -129,12 +129,12 @@ checkRewrite {vars} rigc elabinfo nest env fc rule tm (Just expected)
                  (\e'' => check {e = e''} {vars = rname :: pname :: vars}
                                 rigc elabinfo (weaken (weaken nest)) env'
                                 (apply (IVar fc lemma) [IVar fc pname,
-                                                        IVar fc rname, 
-                                                        tm]) 
+                                                        IVar fc rname,
+                                                        tm])
                                 (Just (gnf env'
                                          (weakenNs [rname, pname] expTy)))
                          ))
            rwty <- getTerm grwty
-           pure (Bind fc pname pbind (Bind fc rname rbind rwtm), 
+           pure (Bind fc pname pbind (Bind fc rname rbind rwtm),
                  gnf env (Bind fc pname pbind (Bind fc rname rbind rwty))))
 

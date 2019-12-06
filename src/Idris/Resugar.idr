@@ -131,7 +131,7 @@ mutual
       = pure (sugarApp (PRef fc (UN n)))
   toPTerm p (IVar loc (Nested _ n))
       = toPTerm p (IVar loc n)
-  toPTerm p (IVar fc n) 
+  toPTerm p (IVar fc n)
       = do ns <- fullNamespace
            pure (sugarApp (PRef fc (if ns then n else dropNS n)))
   toPTerm p (IPi fc rig Implicit n arg ret)
@@ -168,7 +168,7 @@ mutual
            bracket p startPrec (mkIf (PCase fc sc' alts'))
     where
       mkIf : PTerm -> PTerm
-      mkIf tm@(PCase loc sc [MkPatClause _ (PRef _ tval) t [], 
+      mkIf tm@(PCase loc sc [MkPatClause _ (PRef _ tval) t [],
                              MkPatClause _ (PRef _ fval) f []])
          = if dropNS tval == UN "True" && dropNS fval == UN "False"
               then PIfThenElse loc sc t f
@@ -190,7 +190,7 @@ mutual
       = do arg' <- toPTerm startPrec arg
            fn' <- toPTerm startPrec fn
            bracket p appPrec (PWithApp fc fn' arg')
-  toPTerm p (IImplicitApp fc fn n arg) 
+  toPTerm p (IImplicitApp fc fn n arg)
       = do arg' <- toPTerm startPrec arg
            app <- toPTermApp fn [(fc, Just n, arg')]
            imp <- showImplicits
@@ -199,7 +199,7 @@ mutual
               else mkOp app
   toPTerm p (ISearch fc d) = pure (PSearch fc d)
   toPTerm p (IAlternative fc _ _) = pure (PImplicit fc)
-  toPTerm p (IRewrite fc rule tm) 
+  toPTerm p (IRewrite fc rule tm)
       = pure (PRewrite fc !(toPTerm startPrec rule)
                                !(toPTerm startPrec tm))
   toPTerm p (ICoerced fc tm) = toPTerm p tm
@@ -214,6 +214,14 @@ mutual
   toPTerm p (IDelayed fc r ty) = pure (PDelayed fc r !(toPTerm argPrec ty))
   toPTerm p (IDelay fc tm) = pure (PDelay fc !(toPTerm argPrec tm))
   toPTerm p (IForce fc tm) = pure (PForce fc !(toPTerm argPrec tm))
+  toPTerm p (IQuote fc tm) = pure (PQuote fc !(toPTerm argPrec tm))
+  toPTerm p (IQuoteDecl fc d)
+      = do md <- toPDecl d
+           case md of
+                Nothing => throw (InternalError "Can't resugar log or pragma")
+                Just d' => pure (PQuoteDecl fc d')
+  toPTerm p (IUnquote fc tm) = pure (PUnquote fc !(toPTerm argPrec tm))
+  toPTerm p (IRunElab fc tm) = pure (PRunElab fc !(toPTerm argPrec tm))
 
   toPTerm p (Implicit fc True) = pure (PImplicit fc)
   toPTerm p (Implicit fc False) = pure (PInfer fc)
@@ -221,7 +229,7 @@ mutual
   mkApp : {auto c : Ref Ctxt Defs} ->
           {auto s : Ref Syn SyntaxInfo} ->
           PTerm -> List (FC, Maybe (Maybe Name), PTerm) -> Core PTerm
-  mkApp fn [] = pure fn 
+  mkApp fn [] = pure fn
   mkApp fn ((fc, Nothing, arg) :: rest)
       = do let ap = sugarApp (PApp fc fn arg)
            mkApp ap rest
@@ -236,10 +244,10 @@ mutual
                {auto s : Ref Syn SyntaxInfo} ->
                RawImp -> List (FC, Maybe (Maybe Name), PTerm) ->
                Core PTerm
-  toPTermApp (IApp fc f a) args 
+  toPTermApp (IApp fc f a) args
       = do a' <- toPTerm argPrec a
            toPTermApp f ((fc, Nothing, a') :: args)
-  toPTermApp (IImplicitApp fc f n a) args 
+  toPTermApp (IImplicitApp fc f n a) args
       = do a' <- toPTerm startPrec a
            toPTermApp f ((fc, Just n, a') :: args)
   toPTermApp fn@(IVar fc n) args
@@ -249,12 +257,12 @@ mutual
                               mkApp fn' args
                 Just def => do fn' <- toPTerm appPrec fn
                                fenv <- showFullEnv
-                               let args' 
-                                     = if fenv 
+                               let args'
+                                     = if fenv
                                           then args
                                           else drop (length (vars def)) args
                                mkApp fn' args'
-  toPTermApp fn args 
+  toPTermApp fn args
       = do fn' <- toPTerm appPrec fn
            mkApp fn' args
 
@@ -306,10 +314,10 @@ mutual
 
   toPRecord : {auto c : Ref Ctxt Defs} ->
               {auto s : Ref Syn SyntaxInfo} ->
-              ImpRecord -> 
+              ImpRecord ->
               Core (Name, List (Name, PTerm), Maybe Name, List PField)
   toPRecord (MkImpRecord fc n ps con fs)
-      = do ps' <- traverse (\ (n, ty) => 
+      = do ps' <- traverse (\ (n, ty) =>
                                    do ty' <- toPTerm startPrec ty
                                       pure (n, ty')) ps
            fs' <- traverse toPField fs
@@ -319,7 +327,7 @@ mutual
   toPDecl : {auto c : Ref Ctxt Defs} ->
             {auto s : Ref Syn SyntaxInfo} ->
             ImpDecl -> Core (Maybe PDecl)
-  toPDecl (IClaim fc rig vis opts ty) 
+  toPDecl (IClaim fc rig vis opts ty)
       = pure (Just (PClaim fc rig vis opts !(toPTypeDecl ty)))
   toPDecl (IData fc vis d)
       = pure (Just (PData fc vis !(toPData d)))
@@ -327,7 +335,7 @@ mutual
       = pure (Just (PDef fc !(traverse toPClause cs)))
   toPDecl (IParameters fc ps ds)
       = do ds' <- traverse toPDecl ds
-           pure (Just (PParameters fc 
+           pure (Just (PParameters fc
                 !(traverse (\ntm => do tm' <- toPTerm startPrec (snd ntm)
                                        pure (fst ntm, tm')) ps)
                 (mapMaybe id ds')))
@@ -337,6 +345,9 @@ mutual
   toPDecl (INamespace fc _ ns ds)
       = do ds' <- traverse toPDecl ds
            pure (Just (PNamespace fc ns (mapMaybe id ds')))
+  toPDecl (ITransform fc lhs rhs)
+      = pure (Just (PTransform fc !(toPTerm startPrec lhs)
+                                  !(toPTerm startPrec rhs)))
   toPDecl (IPragma _) = pure Nothing
   toPDecl (ILog _) = pure Nothing
 
@@ -347,7 +358,7 @@ resugar : {auto c : Ref Ctxt Defs} ->
 resugar env tm
     = do tti <- unelab env tm
          toPTerm startPrec tti
-        
+
 export
 resugarNoPatvars : {auto c : Ref Ctxt Defs} ->
                    {auto s : Ref Syn SyntaxInfo} ->
@@ -355,7 +366,7 @@ resugarNoPatvars : {auto c : Ref Ctxt Defs} ->
 resugarNoPatvars env tm
     = do tti <- unelabNoPatvars env tm
          toPTerm startPrec tti
-        
+
 export
 pterm : {auto c : Ref Ctxt Defs} ->
         {auto s : Ref Syn SyntaxInfo} ->

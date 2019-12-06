@@ -89,7 +89,7 @@ export
 isLTE : (m, n : Nat) -> Dec (LTE m n)
 isLTE Z n = Yes LTEZero
 isLTE (S k) Z = No succNotLTEzero
-isLTE (S k) (S j) 
+isLTE (S k) (S j)
     = case isLTE k j of
            No contra => No (contra . fromLteSucc)
            Yes prf => Yes (LTESucc prf)
@@ -245,7 +245,7 @@ cmp (S x) (S y) with (cmp x y)
   cmp (S x) (S x)           | CmpEQ   = CmpEQ
   cmp (S (y + (S k))) (S y) | CmpGT k = CmpGT k
 
--- Proofs on +
+-- Proofs on
 
 export
 plusZeroLeftNeutral : (right : Nat) -> 0 + right = right

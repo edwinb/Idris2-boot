@@ -23,7 +23,7 @@ findErasedFrom defs pos tm = pure []
 export
 findErased : {auto c : Ref Ctxt Defs} ->
              ClosedTerm -> Core (List Nat)
-findErased tm 
+findErased tm
     = do defs <- get Ctxt
          tmnf <- nf defs [] tm
          findErasedFrom defs 0 tmnf

@@ -16,7 +16,7 @@ import Data.Vect
 %default covering
 
 -- A label for binary states
-export 
+export
 data Bin : Type where
 
 -- A label for storing resolved name ids
@@ -41,7 +41,7 @@ avail : Binary -> Int
 avail c = (size c - loc c) - 1
 
 toRead : Binary -> Int
-toRead c = used c - loc c 
+toRead c = used c - loc c
 
 appended : Int -> Binary -> Binary
 appended i (MkBin b loc s used) = MkBin b (loc+i) s (used + i)
@@ -114,7 +114,7 @@ initBinaryS s
 extendBinary : Int -> Binary -> Core Binary
 extendBinary need (MkBin buf l s u)
     = do let newsize = s * 2
-         let s' = if newsize < need 
+         let s' = if newsize < need
                      then newsize + need
                      else newsize
          Just buf' <- coreLift $ resizeBuffer buf s'
@@ -130,7 +130,7 @@ corrupt ty = throw (TTCError (Corrupt ty))
 
 export
 TTC Bits8 where
-  toBuf b val 
+  toBuf b val
     = do chunk <- get Bin
          if avail chunk >= 1
             then
@@ -164,14 +164,14 @@ TTC Int where
   toBuf b val
     = do chunk <- get Bin
          if avail chunk >= 4
-            then 
+            then
               do coreLift $ setInt (buf chunk) (loc chunk) val
                  put Bin (appended 4 chunk)
             else do chunk' <- extendBinary 4 chunk
                     coreLift $ setInt (buf chunk') (loc chunk') val
                     put Bin (appended 4 chunk')
 
-  fromBuf b 
+  fromBuf b
     = do chunk <- get Bin
          if toRead chunk >= 4
             then
@@ -199,7 +199,7 @@ TTC String where
                       coreLift $ setString (buf chunk') (loc chunk') val
                       put Bin (appended req chunk')
 
-  fromBuf b 
+  fromBuf b
       = do len <- fromBuf {a = Int} b
            chunk <- get Bin
            if toRead chunk >= len
@@ -207,7 +207,7 @@ TTC String where
                 do val <- coreLift $ getString (buf chunk) (loc chunk) len
                    put Bin (incLoc len chunk)
                    pure val
-              else throw (TTCError (EndOfBuffer ("String length " ++ show len ++ 
+              else throw (TTCError (EndOfBuffer ("String length " ++ show len ++
                                                  " at " ++ show (loc chunk))))
 
 export
@@ -261,14 +261,14 @@ TTC Double where
   toBuf b val
     = do chunk <- get Bin
          if avail chunk >= 8
-            then 
+            then
               do coreLift $ setDouble (buf chunk) (loc chunk) val
                  put Bin (appended 8 chunk)
             else do chunk' <- extendBinary 8 chunk
                     coreLift $ setDouble (buf chunk') (loc chunk') val
                     put Bin (appended 8 chunk')
 
-  fromBuf b 
+  fromBuf b
     = do chunk <- get Bin
          if toRead chunk >= 8
             then
@@ -351,7 +351,7 @@ TTC a => TTC (List a) where
       TailRec_length : List a -> Int
       TailRec_length xs = length_aux xs 0
 
-  fromBuf b 
+  fromBuf b
       = do len <- fromBuf b {a = Int}
            readElems [] (cast len)
     where
@@ -372,7 +372,7 @@ TTC a => TTC (Vect n a) where
   fromBuf {n} b = rewrite sym (plusZeroRightNeutral n) in readElems [] n
     where
       readElems : Vect done a -> (todo : Nat) -> Core (Vect (todo + done) a)
-      readElems {done} xs Z 
+      readElems {done} xs Z
           = pure (reverse xs)
       readElems {done} xs (S k)
           = do val <- fromBuf b
@@ -385,7 +385,7 @@ count (There p) = 1 + count p
 
 toLimbs : Integer -> List Int
 toLimbs x
-    = if x == 0 
+    = if x == 0
          then []
          else if x == -1 then [-1]
               else fromInteger (prim__andBigInt x 0xffffffff) ::
@@ -403,7 +403,7 @@ TTC Integer where
                  toBuf b (toLimbs (-val))
          else do toBuf b (the Bits8 1)
                  toBuf b (toLimbs val)
-  fromBuf b 
+  fromBuf b
     = do val <- fromBuf b {a = Bits8}
          case val of
               0 => do val <- fromBuf b
@@ -415,6 +415,6 @@ TTC Integer where
 export
 TTC Nat where
   toBuf b val = toBuf b (cast {to=Integer} val)
-  fromBuf b 
+  fromBuf b
      = do val <- fromBuf b
           pure (fromInteger val)

@@ -307,15 +307,15 @@ appendAssociative (x::xs) c r =
 
 revOnto : (xs, vs : _) -> reverseOnto xs vs = reverse vs ++ xs
 revOnto xs [] = Refl
-revOnto xs (v :: vs) 
-    = rewrite revOnto (v :: xs) vs in 
+revOnto xs (v :: vs)
+    = rewrite revOnto (v :: xs) vs in
         rewrite appendAssociative (reverse vs) [v] xs in
 				  rewrite revOnto [v] vs in Refl
 
 export
 revAppend : (vs, ns : List a) -> reverse ns ++ reverse vs = reverse (vs ++ ns)
 revAppend [] ns = rewrite appendNilRightNeutral (reverse ns) in Refl
-revAppend (v :: vs) ns 
+revAppend (v :: vs) ns
     = rewrite revOnto [v] vs in
         rewrite revOnto [v] (vs ++ ns) in
           rewrite sym (revAppend vs ns) in

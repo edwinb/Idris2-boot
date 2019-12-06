@@ -26,12 +26,12 @@ data Box : Type -> Type where
 
 mutual
   Functor Box where
-    map f b 
+    map f b
         = do b' <- b
              pure (f b')
 
   Applicative Box where
-    (<*>) f a 
+    (<*>) f a
         = do f' <- f
              a' <- a
              pure (f' a')
