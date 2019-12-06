@@ -82,25 +82,31 @@ fail err
 runTest : String -> String -> IO Bool
 runTest prog testPath
     = do chdir testPath
-         putStr $ testPath ++ ": "
-         system $ "sh ./run " ++ prog ++ " | tr -d '\\r' > output"
-         Right out <- readFile "output"
-               | Left err => do print err
-                                pure False
-         Right exp <- readFile "expected"
-               | Left err => do print err
-                                pure False
-
-         if (out == exp)
-            then putStrLn "success"
-            else do
-              putStrLn "FAILURE"
-              putStrLn "Expected:"
-              printLn exp
-              putStrLn "Given:"
-              printLn out
+         isSuccess <- runTest'
          chdir "../.."
-         pure (out == exp)
+         pure isSuccess
+    where
+        runTest' : IO Bool
+        runTest'
+            = do putStr $ testPath ++ ": "
+                 system $ "sh ./run " ++ prog ++ " | tr -d '\\r' > output"
+                 Right out <- readFile "output"
+                     | Left err => do print err
+                                      pure False
+                 Right exp <- readFile "expected"
+                     | Left err => do print err
+                                      pure False
+
+                 if (out == exp)
+                    then putStrLn "success"
+                    else do
+                      putStrLn "FAILURE"
+                      putStrLn "Expected:"
+                      printLn exp
+                      putStrLn "Given:"
+                      printLn out
+
+                 pure (out == exp)
 
 exists : String -> IO Bool
 exists f
