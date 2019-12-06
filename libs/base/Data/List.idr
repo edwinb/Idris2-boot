@@ -132,6 +132,39 @@ export
 intersect : Eq a => List a -> List a -> List a
 intersect = intersectBy (==)
 
+||| Combine two lists elementwise using some function.
+|||
+||| If the lists are different lengths, the result is truncated to the
+||| length of the shortest list.
+export
+zipWith : (a -> b -> c) -> List a -> List b -> List c
+zipWith _ [] _ = []
+zipWith _ _ [] = []
+zipWith f (x::xs) (y::ys) = f x y :: zipWith f xs ys
+
+||| Combine two lists elementwise into pairs.
+|||
+||| If the lists are different lengths, the result is truncated to the
+||| length of the shortest list.
+export
+zip : List a -> List b -> List (a, b)
+zip = zipWith \x, y => (x, y)
+
+export
+zipWith3 : (a -> b -> c -> d) -> List a -> List b -> List c -> List d
+zipWith3 _ [] _ _ = []
+zipWith3 _ _ [] _ = []
+zipWith3 _ _ _ [] = []
+zipWith3 f (x::xs) (y::ys) (z::zs) = f x y z :: zipWith3 f xs ys zs
+
+||| Combine three lists elementwise into tuples.
+|||
+||| If the lists are different lengths, the result is truncated to the
+||| length of the shortest list.
+export
+zip3 : List a -> List b -> List c -> List (a, b, c)
+zip3 = zipWith3 \x, y, z => (x, y, z)
+
 public export
 data NonEmpty : (xs : List a) -> Type where
     IsNonEmpty : NonEmpty (x :: xs)
