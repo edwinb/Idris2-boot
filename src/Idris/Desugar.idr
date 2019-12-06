@@ -87,7 +87,7 @@ toTokList (POp fc opn l r)
                       pure (Expr l :: Op fc opn (mkPrec fix prec) :: rtoks)
   where
     backtickPrec : OpPrec
-    backtickPrec = NonAssoc 10
+    backtickPrec = NonAssoc 1
 toTokList (PPrefixOp fc opn arg)
     = do syn <- get Syn
          let op = nameRoot opn
