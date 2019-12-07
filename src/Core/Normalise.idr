@@ -372,7 +372,7 @@ parameters (defs : Defs, topopts : EvalOpts)
        --         (that's the default mode)
        --   + It's a metavariable and not in Rig0
        --   + It's a metavariable and we're not in 'argHolesOnly'
-       --   + It's inlinable and and we're in 'tcInline'
+       --   + It's inlinable and we're in 'tcInline'
         = if r
              || (not (holesOnly opts) && not (argHolesOnly opts) && not (tcInline opts))
              || (meta && rigd /= Rig0)
