@@ -743,9 +743,9 @@ TTC Def where
   toBuf b (Builtin a)
       = throw (InternalError "Trying to serialise a Builtin")
   toBuf b (DCon t arity) = do tag 4; toBuf b t; toBuf b arity
-  toBuf b (TCon t arity parampos detpos ms datacons)
+  toBuf b (TCon t arity parampos detpos u ms datacons)
       = do tag 5; toBuf b t; toBuf b arity; toBuf b parampos
-           toBuf b detpos; toBuf b ms; toBuf b datacons
+           toBuf b detpos; toBuf b u; toBuf b ms; toBuf b datacons
   toBuf b (Hole locs p)
       = do tag 6; toBuf b locs; toBuf b p
   toBuf b (BySearch c depth def)
@@ -772,8 +772,9 @@ TTC Def where
                      pure (DCon t a)
              5 => do t <- fromBuf b; a <- fromBuf b
                      ps <- fromBuf b; dets <- fromBuf b;
+                     u <- fromBuf b
                      ms <- fromBuf b; cs <- fromBuf b
-                     pure (TCon t a ps dets ms cs)
+                     pure (TCon t a ps dets u ms cs)
              6 => do l <- fromBuf b
                      p <- fromBuf b
                      pure (Hole l p)

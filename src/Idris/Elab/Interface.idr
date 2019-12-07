@@ -36,8 +36,8 @@ mkIfaceData : {auto c : Ref Ctxt Defs} ->
               List Name -> List (Name, RigCount, RawImp) -> Core ImpDecl
 mkIfaceData {vars} fc vis env constraints n conName ps dets meths
     = let opts = if isNil dets
-                    then [NoHints]
-                    else [NoHints, SearchBy dets]
+                    then [NoHints, UniqueSearch]
+                    else [NoHints, UniqueSearch, SearchBy dets]
           retty = apply (IVar fc n) (map (IVar fc) (map fst ps))
           conty = mkTy Implicit (map jname ps) $
                   mkTy Explicit (map bhere constraints ++ map bname meths) retty

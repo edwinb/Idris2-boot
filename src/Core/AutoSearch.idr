@@ -113,6 +113,11 @@ anyOne : {vars : _} ->
          List (Core (Term vars)) ->
          Core (Term vars)
 anyOne fc env top [] = throw (CantSolveGoal fc [] top)
+anyOne fc env top [elab]
+    = catch elab
+         (\err => case err of
+                       CantSolveGoal _ _ _ => throw err
+                       _ => throw (CantSolveGoal fc [] top))
 anyOne fc env top (elab :: elabs)
     = tryUnify elab (anyOne fc env top elabs)
 
@@ -335,7 +340,7 @@ searchName fc rigc defaults trying depth def top env target (n, ndef)
          let namety : NameType
                  = case definition ndef of
                         DCon tag arity => DataCon tag arity
-                        TCon tag arity _ _ _ _ => TyCon tag arity
+                        TCon tag arity _ _ _ _ _ => TyCon tag arity
                         _ => Func
          nty <- nf defs env (embed ty)
          logNF 10 ("Searching Name " ++ show n) env nty

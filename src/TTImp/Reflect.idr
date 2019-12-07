@@ -252,6 +252,8 @@ mutual
              pure (SearchBy x')
     reify defs (NDCon _ (NS _ (UN "NoHints")) _ _ _)
         = pure NoHints
+    reify defs (NDCon _ (NS _ (UN "UniqueSearch")) _ _ _)
+        = pure UniqueSearch
     reify defs val = cantReify val "DataOpt"
 
   export
@@ -549,6 +551,7 @@ mutual
         = do x' <- reflect fc defs env x
              appCon fc defs (reflectionttimp "SearchBy") [x']
     reflect fc defs env NoHints = getCon fc defs (reflectionttimp "NoHints")
+    reflect fc defs env UniqueSearch = getCon fc defs (reflectionttimp "UniqueSearch")
 
   export
   Reflect ImpData where

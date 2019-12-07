@@ -102,6 +102,7 @@ mutual
   data DataOpt : Type where
        SearchBy : List Name -> DataOpt -- determining arguments
        NoHints : DataOpt -- Don't generate search hints for constructors
+       UniqueSearch : DataOpt
 
   public export
   data Data : Type where

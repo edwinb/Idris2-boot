@@ -78,7 +78,7 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
     wrapDot : Bool -> EState vars ->
               ElabMode -> Name -> List RawImp -> Def -> RawImp -> RawImp
     wrapDot _ _ _ _ _ (DCon _ _) tm = tm
-    wrapDot _ _ _ _ _ (TCon _ _ _ _ _ _) tm = tm
+    wrapDot _ _ _ _ _ (TCon _ _ _ _ _ _ _) tm = tm
     -- Leave primitive applications alone, because they'll be inlined
     -- before compiling the case tree
     wrapDot prim est (InLHS _) n' [arg] _ tm

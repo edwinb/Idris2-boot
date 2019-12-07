@@ -221,11 +221,13 @@ mutual
   data DataOpt : Type where
        SearchBy : List Name -> DataOpt -- determining arguments
        NoHints : DataOpt -- Don't generate search hints for constructors
+       UniqueSearch : DataOpt -- auto implicit search must check result is unique
 
   export
   Eq DataOpt where
     (==) (SearchBy xs) (SearchBy ys) = xs == ys
     (==) NoHints NoHints = True
+    (==) UniqueSearch UniqueSearch = True
     (==) _ _ = False
 
   public export
@@ -794,12 +796,14 @@ mutual
     toBuf b (SearchBy ns)
         = do tag 0; toBuf b ns
     toBuf b NoHints = tag 1
+    toBuf b UniqueSearch = tag 2
 
     fromBuf b
         = case !getTag of
                0 => do ns <- fromBuf b
                        pure (SearchBy ns)
                1 => pure NoHints
+               2 => pure UniqueSearch
                _ => corrupt "DataOpt"
 
   export

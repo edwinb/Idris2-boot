@@ -61,7 +61,7 @@ mkNameTags : Defs -> NameTags -> Int -> List Name -> Core NameTags
 mkNameTags defs tags t [] = pure tags
 mkNameTags defs tags t (n :: ns)
     = case !(lookupDefExact n (gamma defs)) of
-           Just (TCon _ _ _ _ _ _)
+           Just (TCon _ _ _ _ _ _ _)
               => mkNameTags defs (insert n t tags) (t + 1) ns
            _ => mkNameTags defs tags t ns
 
