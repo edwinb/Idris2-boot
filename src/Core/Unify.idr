@@ -578,8 +578,12 @@ mutual
                    (soln : NF vars) ->
                    Core UnifyResult
   postponePatVar swap mode loc env mname mref margs margs' tm
-      = postponeS swap loc "Not in pattern fragment" env
-                 (NApp loc (NMeta mname mref margs) margs') tm
+      = do let x = NApp loc (NMeta mname mref margs) margs'
+           defs <- get Ctxt
+           if !(convert defs env x tm)
+              then pure success
+              else postponeS swap loc "Not in pattern fragment" env
+                             x tm
 
   solveHole : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
