@@ -9,7 +9,7 @@ export
 record ANameMap a where
      constructor MkANameMap
      -- for looking up by exact (completely qualified) names
-     exactNames : NameMap a 
+     exactNames : NameMap a
      -- for looking up by name root or partially qualified (so possibly
      -- ambiguous) names. This doesn't store machine generated names.
      hierarchy : StringMap (List (Name, a))
@@ -62,10 +62,10 @@ addToHier n val hier
 
 export
 addName : Name -> a -> ANameMap a -> ANameMap a
-addName n val (MkANameMap dict hier) 
+addName n val (MkANameMap dict hier)
      = let dict' = insert n val dict
            hier' = addToHier n val hier in
-           MkANameMap dict' hier' 
+           MkANameMap dict' hier'
 
 export
 toList : ANameMap a -> List (Name, a)

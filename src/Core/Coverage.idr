@@ -66,7 +66,7 @@ freeEnv fc (n :: ns) = PVar RigW Explicit (Erased fc) :: freeEnv fc ns
 getCons : Defs -> NF vars -> Core (List (NF [], Name, Int, Nat))
 getCons defs (NTCon _ tn _ _ _)
     = case !(lookupDefExact tn (gamma defs)) of
-           Just (TCon _ _ _ _ _ cons) => 
+           Just (TCon _ _ _ _ _ cons) =>
                 do cs' <- traverse addTy cons
                    pure (mapMaybe id cs')
            _ => pure []
@@ -76,7 +76,7 @@ getCons defs (NTCon _ tn _ _ _)
         = do Just gdef <- lookupCtxtExact cn (gamma defs)
                   | _ => pure Nothing
              case (definition gdef, type gdef) of
-                  (DCon t arity, ty) => 
+                  (DCon t arity, ty) =>
                         pure (Just (!(nf defs [] ty), cn, t, arity))
                   _ => pure Nothing
 getCons defs _ = pure []
@@ -94,7 +94,7 @@ emptyRHS fc sc = sc
 
 mkAlt : FC -> CaseTree vars -> (Name, Int, Nat) -> CaseAlt vars
 mkAlt fc sc (cn, t, ar)
-    = ConCase cn t (map (MN "m") (take ar [0..])) 
+    = ConCase cn t (map (MN "m") (take ar [0..]))
               (weakenNs _ (emptyRHS fc sc))
 
 altMatch : CaseAlt vars -> CaseAlt vars -> Bool
@@ -106,9 +106,9 @@ altMatch _ _ = False
 
 -- Given a type and a list of case alternatives, return the
 -- well-typed alternatives which were *not* in the list
-getMissingAlts : FC -> Defs -> NF vars -> List (CaseAlt vars) -> 
+getMissingAlts : FC -> Defs -> NF vars -> List (CaseAlt vars) ->
                  Core (List (CaseAlt vars))
--- If it's a primitive, there's too many to reasonably check, so require a 
+-- If it's a primitive, there's too many to reasonably check, so require a
 -- catch all
 getMissingAlts fc defs (NPrimVal _ c) alts
     = if any isDefault alts
@@ -128,13 +128,13 @@ getMissingAlts fc defs (NType _) alts
     isDefault (DefaultCase _) = True
     isDefault _ = False
 getMissingAlts fc defs nfty alts
-    = do allCons <- getCons defs nfty 
-         pure (filter (noneOf alts) 
+    = do allCons <- getCons defs nfty
+         pure (filter (noneOf alts)
                  (map (mkAlt fc (Unmatched "Coverage check") . snd) allCons))
   where
     -- Return whether the alternative c matches none of the given cases in alts
     noneOf : List (CaseAlt vars) -> CaseAlt vars -> Bool
-    noneOf alts c = not $ any (altMatch c) alts 
+    noneOf alts c = not $ any (altMatch c) alts
 
 -- Mapping of variable to constructor tag already matched for it
 KnownVars : List Name -> Type -> Type
@@ -152,8 +152,8 @@ showK {a} xs = show (map aString xs)
 
 weakenNs : (args : List Name) -> KnownVars vars a -> KnownVars (args ++ vars) a
 weakenNs args [] = []
-weakenNs {vars} args ((MkVar p, t) :: xs) 
-  = (insertVarNames _ {outer = []} {ns=args} {inner=vars} p, t) 
+weakenNs {vars} args ((MkVar p, t) :: xs)
+  = (insertVarNames _ {outer = []} {ns=args} {inner=vars} p, t)
          :: weakenNs args xs
 
 findTag : IsVar n idx vars -> KnownVars vars a -> Maybe a
@@ -186,13 +186,13 @@ tagIsNot ts (DefaultCase _) = False
 -- Replace a default case with explicit branches for the constructors.
 -- This is easier than checking whether a default is needed when traversing
 -- the tree (just one constructor lookup up front).
-replaceDefaults : FC -> Defs -> NF vars -> List (CaseAlt vars) -> 
+replaceDefaults : FC -> Defs -> NF vars -> List (CaseAlt vars) ->
                   Core (List (CaseAlt vars))
 -- Leave it alone if it's a primitive type though, since we need the catch
 -- all case there
 replaceDefaults fc defs (NPrimVal _ _) cs = pure cs
 replaceDefaults fc defs (NType _) cs = pure cs
-replaceDefaults fc defs nfty cs 
+replaceDefaults fc defs nfty cs
     = do cs' <- traverse rep cs
          pure (dropRep (concat cs'))
   where
@@ -226,50 +226,50 @@ buildArgs fc defs known not ps cs@(Case {name = var} idx el ty altsIn)
   -- the ones it can't possibly be (the 'not') because a previous case
   -- has matched.
     = do let fenv = freeEnv fc _
-         nfty <- nf defs fenv ty 
+         nfty <- nf defs fenv ty
          alts <- replaceDefaults fc defs nfty altsIn
          let alts' = alts ++ !(getMissingAlts fc defs nfty alts)
          let altsK = maybe alts' (\t => filter (tagIs t) alts')
-                              (findTag el known) 
+                              (findTag el known)
          let altsN = maybe altsK (\ts => filter (tagIsNot ts) altsK)
                               (findTag el not)
          buildArgsAlt not altsN
   where
     buildArgAlt : KnownVars vars (List Int) ->
                   CaseAlt vars -> Core (List (List ClosedTerm))
-    buildArgAlt not' (ConCase n t args sc) 
+    buildArgAlt not' (ConCase n t args sc)
         = do let con = Ref fc (DataCon t (length args)) n
-             let ps' = map (substName var 
+             let ps' = map (substName var
                              (apply fc
                                     con (map (Ref fc Bound) args))) ps
-             buildArgs fc defs (weakenNs args ((MkVar el, t) :: known)) 
+             buildArgs fc defs (weakenNs args ((MkVar el, t) :: known))
                                (weakenNs args not') ps' sc
     buildArgAlt not' (DelayCase t a sc)
-        = let ps' = map (substName var (TDelay fc LUnknown 
+        = let ps' = map (substName var (TDelay fc LUnknown
                                              (Ref fc Bound t)
                                              (Ref fc Bound a))) ps in
               buildArgs fc defs (weakenNs [t,a] known) (weakenNs [t,a] not')
                                 ps' sc
-    buildArgAlt not' (ConstCase c sc) 
+    buildArgAlt not' (ConstCase c sc)
         = do let ps' = map (substName var (PrimVal fc c)) ps
              buildArgs fc defs known not' ps' sc
-    buildArgAlt not' (DefaultCase sc) 
+    buildArgAlt not' (DefaultCase sc)
         = buildArgs fc defs known not' ps sc
 
     buildArgsAlt : KnownVars vars (List Int) -> List (CaseAlt vars) ->
                    Core (List (List ClosedTerm))
     buildArgsAlt not' [] = pure []
     buildArgsAlt not' (c@(ConCase _ t _ _) :: cs)
-        = pure $ !(buildArgAlt not' c) ++ 
+        = pure $ !(buildArgAlt not' c) ++
                  !(buildArgsAlt (addNot el t not') cs)
     buildArgsAlt not' (c :: cs)
         = pure $ !(buildArgAlt not' c) ++ !(buildArgsAlt not' cs)
 
-buildArgs fc defs known not ps (STerm vs) 
+buildArgs fc defs known not ps (STerm vs)
     = pure [] -- matched, so return nothing
-buildArgs fc defs known not ps (Unmatched msg) 
+buildArgs fc defs known not ps (Unmatched msg)
     = pure [ps] -- unmatched, so return it
-buildArgs fc defs known not ps Impossible 
+buildArgs fc defs known not ps Impossible
     = pure [] -- not a possible match, so return nothing
 
 -- Traverse a case tree and return pattern clauses which are not
@@ -278,7 +278,7 @@ buildArgs fc defs known not ps Impossible
 -- checked
 export
 getMissing : {auto c : Ref Ctxt Defs} ->
-             FC -> Name -> CaseTree vars -> 
+             FC -> Name -> CaseTree vars ->
              Core (List ClosedTerm)
 getMissing fc n ctree
    = do defs <- get Ctxt

@@ -64,8 +64,8 @@ addLHS : {auto c : Ref Ctxt Defs} ->
 addLHS loc outerenvlen env tm
     = do meta <- get MD
          tm' <- toFullNames (bindEnv loc (toPat env) tm)
-         put MD (record { 
-                      lhsApps $= ((loc, outerenvlen, tm') ::) 
+         put MD (record {
+                      lhsApps $= ((loc, outerenvlen, tm') ::)
                     } meta)
   where
     toPat : Env Term vs -> Env Term vs
@@ -84,7 +84,7 @@ addLHS loc outerenvlen env tm
 substEnv : {vars : _} ->
            FC -> Env Term vars -> (tm : Term vars) -> ClosedTerm
 substEnv loc [] tm = tm
-substEnv {vars = x :: _} loc (b :: env) tm 
+substEnv {vars = x :: _} loc (b :: env) tm
     = substEnv loc env (subst (Ref loc Bound x) tm)
 
 export
@@ -94,8 +94,8 @@ addNameType : {auto c : Ref Ctxt Defs} ->
 addNameType loc n env tm
     = do meta <- get MD
          n' <- getFullName n
-         put MD (record { 
-                      names $= ((loc, (n', 0, substEnv loc env tm)) ::) 
+         put MD (record {
+                      names $= ((loc, (n', 0, substEnv loc env tm)) ::)
                     } meta)
 
 export
@@ -105,8 +105,8 @@ addTyDecl : {auto c : Ref Ctxt Defs} ->
 addTyDecl loc n env tm
     = do meta <- get MD
          n' <- getFullName n
-         put MD (record { 
-                      tydecls $= ((loc, (n', length env, bindEnv loc env tm)) ::) 
+         put MD (record {
+                      tydecls $= ((loc, (n', length env, bindEnv loc env tm)) ::)
                     } meta)
 
 export
@@ -143,15 +143,15 @@ findEntryWith p ((l, x) :: xs)
 
 export
 findLHSAt : {auto m : Ref MD Metadata} ->
-            (FC -> ClosedTerm -> Bool) -> 
+            (FC -> ClosedTerm -> Bool) ->
             Core (Maybe (FC, Nat, ClosedTerm))
-findLHSAt p 
+findLHSAt p
     = do meta <- get MD
          pure (findEntryWith (\ loc, tm => p loc (snd tm)) (lhsApps meta))
 
 export
 findTypeAt : {auto m : Ref MD Metadata} ->
-             (FC -> (Name, Nat, ClosedTerm) -> Bool) -> 
+             (FC -> (Name, Nat, ClosedTerm) -> Bool) ->
              Core (Maybe (Name, Nat, ClosedTerm))
 findTypeAt p
     = do meta <- get MD
@@ -159,7 +159,7 @@ findTypeAt p
 
 export
 findTyDeclAt : {auto m : Ref MD Metadata} ->
-               (FC -> (Name, Nat, ClosedTerm) -> Bool) -> 
+               (FC -> (Name, Nat, ClosedTerm) -> Bool) ->
                Core (Maybe (FC, Name, Nat, ClosedTerm))
 findTyDeclAt p
     = do meta <- get MD
@@ -183,9 +183,9 @@ normaliseTypes
          ns' <- traverse (nfType defs) (names meta)
          put MD (record { names = ns' } meta)
   where
-    nfType : Defs -> (FC, (Name, Nat, ClosedTerm)) -> 
+    nfType : Defs -> (FC, (Name, Nat, ClosedTerm)) ->
              Core (FC, (Name, Nat, ClosedTerm))
-    nfType defs (loc, (n, len, ty)) 
+    nfType defs (loc, (n, len, ty))
        = pure (loc, (n, len, !(normaliseArgHoles defs [] ty)))
 
 record TTMFile where

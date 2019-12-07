@@ -9,19 +9,19 @@ lengthSuc : (xs : List a) -> (y : a) -> (ys : List a) ->
 lengthSuc [] _ _ = Refl
 lengthSuc (x :: xs) y ys = cong S (lengthSuc xs y ys)
 
-lengthLT : (xs : List a) -> (ys : List a) -> 
+lengthLT : (xs : List a) -> (ys : List a) ->
            LTE (length xs) (length (ys ++ xs))
 lengthLT xs [] = lteRefl
 lengthLT xs (x :: ys) = lteSuccRight (lengthLT _ _)
 
-smallerLeft : (ys : List a) -> (y : a) -> (zs : List a) -> 
+smallerLeft : (ys : List a) -> (y : a) -> (zs : List a) ->
               LTE (S (S (length ys))) (S (length (ys ++ (y :: zs))))
 smallerLeft [] y zs = LTESucc (LTESucc LTEZero)
 smallerLeft (z :: ys) y zs = LTESucc (smallerLeft ys _ _)
 
-smallerRight : (ys : List a) -> (zs : List a) -> 
+smallerRight : (ys : List a) -> (zs : List a) ->
                LTE (S (S (length zs))) (S (length (ys ++ (y :: zs))))
-smallerRight {y} ys zs = rewrite lengthSuc ys y zs in 
+smallerRight {y} ys zs = rewrite lengthSuc ys y zs in
                                  (LTESucc (LTESucc (lengthLT _ _)))
 
 ||| View for splitting a list in half, non-recursively
@@ -29,17 +29,17 @@ public export
 data Split : List a -> Type where
      SplitNil : Split []
      SplitOne : (x : a) -> Split [x]
-     SplitPair : (x : a) -> (xs : List a) -> 
-                 (y : a) -> (ys : List a) -> 
+     SplitPair : (x : a) -> (xs : List a) ->
+                 (y : a) -> (ys : List a) ->
                  Split (x :: xs ++ y :: ys)
 
 splitHelp : (head : a) ->
-            (xs : List a) -> 
+            (xs : List a) ->
             (counter : List a) -> Split (head :: xs)
 splitHelp head [] counter = SplitOne _
 splitHelp head (x :: xs) [] = SplitPair head [] x xs
 splitHelp head (x :: xs) [y] = SplitPair head [] x xs
-splitHelp head (x :: xs) (_ :: _ :: ys) 
+splitHelp head (x :: xs) (_ :: _ :: ys)
     = case splitHelp head xs ys of
            SplitOne x => SplitPair x [] _ []
            SplitPair x' xs y' ys => SplitPair x' (x :: xs) y' ys
@@ -79,11 +79,11 @@ data SnocList : List a -> Type where
      Snoc : (x : a) -> (xs : List a) ->
             (rec : SnocList xs) -> SnocList (xs ++ [x])
 
-snocListHelp : {input : _} -> 
+snocListHelp : {input : _} ->
                SnocList input -> (rest : List a) -> SnocList (input ++ rest)
 snocListHelp snoc [] = rewrite appendNilRightNeutral input in snoc
-snocListHelp snoc (x :: xs) 
-   = rewrite appendAssociative input [x] xs in 
+snocListHelp snoc (x :: xs)
+   = rewrite appendAssociative input [x] xs in
              snocListHelp (Snoc x input snoc) xs
 
 ||| Covering function for the `SnocList` view

@@ -40,7 +40,7 @@ Stack vars = List (Closure vars)
 
 evalWithOpts : {vars : _} ->
                Defs -> EvalOpts ->
-               Env Term free -> LocalEnv free vars -> 
+               Env Term free -> LocalEnv free vars ->
                Term (vars ++ free) -> Stack free -> Core (NF free)
 
 export
@@ -67,11 +67,11 @@ useMeta fc n defs opts
 parameters (defs : Defs, topopts : EvalOpts)
   mutual
     eval : {vars : _} ->
-           Env Term free -> LocalEnv free vars -> 
+           Env Term free -> LocalEnv free vars ->
            Term (vars ++ free) -> Stack free -> Core (NF free)
-    eval env locs (Local fc mrig idx prf) stk 
-        = evalLocal env fc mrig idx prf stk locs 
-    eval env locs (Ref fc nt fn) stk 
+    eval env locs (Local fc mrig idx prf) stk
+        = evalLocal env fc mrig idx prf stk locs
+    eval env locs (Ref fc nt fn) stk
         = evalRef env locs False fc nt fn stk (NApp fc (NRef nt fn) stk)
     eval {vars} {free} env locs (Meta fc name idx args) stk
         = evalMeta env locs fc name idx (closeArgs args) stk
@@ -88,46 +88,46 @@ parameters (defs : Defs, topopts : EvalOpts)
         = if holesOnly topopts || argHolesOnly topopts
              then do b' <- traverse (\tm => eval env locs tm []) b
                      pure $ NBind fc x b'
-                        (\defs', arg => evalWithOpts defs' topopts 
+                        (\defs', arg => evalWithOpts defs' topopts
                                                 env (arg :: locs) scope stk)
              else eval env (MkClosure topopts locs env val :: locs) scope stk
-    eval env locs (Bind fc x b scope) stk 
+    eval env locs (Bind fc x b scope) stk
         = do b' <- traverse (\tm => eval env locs tm []) b
              pure $ NBind fc x b'
-                      (\defs', arg => evalWithOpts defs' topopts 
+                      (\defs', arg => evalWithOpts defs' topopts
                                               env (arg :: locs) scope stk)
-    eval env locs (App fc fn arg) stk 
+    eval env locs (App fc fn arg) stk
         = eval env locs fn (MkClosure topopts locs env arg :: stk)
-    eval env locs (As fc n tm) stk 
+    eval env locs (As fc n tm) stk
         = if removeAs topopts
              then eval env locs tm stk
              else do n' <- eval env locs n stk
-                     tm' <- eval env locs tm stk 
+                     tm' <- eval env locs tm stk
                      pure (NAs fc n' tm')
-    eval env locs (TDelayed fc r ty) stk 
+    eval env locs (TDelayed fc r ty) stk
         = do ty' <- eval env locs ty stk
              pure (NDelayed fc r ty')
-    eval env locs (TDelay fc r ty tm) stk 
+    eval env locs (TDelay fc r ty tm) stk
         = pure (NDelay fc r (MkClosure topopts locs env ty)
                             (MkClosure topopts locs env tm))
-    eval env locs (TForce fc tm) stk 
+    eval env locs (TForce fc r tm) stk
         = do tm' <- eval env locs tm []
              case tm' of
-                  NDelay fc r _ arg => 
+                  NDelay fc r _ arg =>
                       eval env (arg :: locs) (Local {name = UN "fvar"} fc Nothing _ First) stk
-                  _ => pure (NForce fc tm' stk)
+                  _ => pure (NForce fc r tm' stk)
     eval env locs (PrimVal fc c) stk = pure $ NPrimVal fc c
     eval env locs (Erased fc) stk = pure $ NErased fc
     eval env locs (TType fc) stk = pure $ NType fc
-    
+
     evalLocal : {vars : _} ->
-                Env Term free -> 
-                FC -> Maybe Bool -> 
+                Env Term free ->
+                FC -> Maybe Bool ->
                 (idx : Nat) -> .(IsVar name idx (vars ++ free)) ->
                 Stack free ->
-                LocalEnv free vars -> 
+                LocalEnv free vars ->
                 Core (NF free)
-    evalLocal {vars = []} env fc mrig idx prf stk locs 
+    evalLocal {vars = []} env fc mrig idx prf stk locs
         = if not (holesOnly topopts || argHolesOnly topopts) && isLet mrig idx env
              then
                case getBinder prf env of
@@ -146,7 +146,7 @@ parameters (defs : Defs, topopts : EvalOpts)
         isLet _ n env = isLet' n env
     evalLocal env fc mrig Z First stk (MkClosure opts locs' env' tm' :: locs)
         = evalWithOpts defs opts env' locs' tm' stk
-    evalLocal {free} {vars = x :: xs} 
+    evalLocal {free} {vars = x :: xs}
               env fc mrig Z First stk (MkNFClosure nf :: locs)
         = applyToStack nf stk
       where
@@ -159,19 +159,19 @@ parameters (defs : Defs, topopts : EvalOpts)
                       (NApp fc (NRef nt fn) args)
         applyToStack (NApp fc (NLocal mrig idx p) args) stk
           = let MkVar p' = insertVarNames {outer=[]} {ns = xs} idx p in
-               evalLocal env fc mrig _ p' (args ++ stk) locs 
-        applyToStack (NDCon fc n t a args) stk 
+               evalLocal env fc mrig _ p' (args ++ stk) locs
+        applyToStack (NDCon fc n t a args) stk
             = pure $ NDCon fc n t a (args ++ stk)
-        applyToStack (NTCon fc n t a args) stk 
+        applyToStack (NTCon fc n t a args) stk
             = pure $ NTCon fc n t a (args ++ stk)
         applyToStack nf _ = pure nf
 
     evalLocal {vars = x :: xs} {free}
               env fc mrig (S idx) (Later p) stk (_ :: locs)
-        = evalLocal {vars = xs} env fc mrig idx p stk locs 
-    
+        = evalLocal {vars = xs} env fc mrig idx p stk locs
+
     evalMeta : {vars : _} ->
-               Env Term free -> LocalEnv free vars -> 
+               Env Term free -> LocalEnv free vars ->
                FC -> Name -> Int -> List (Closure free) ->
                Stack free -> Core (NF free)
     evalMeta {vars} env locs fc nm i args stk
@@ -179,7 +179,7 @@ parameters (defs : Defs, topopts : EvalOpts)
                   (NApp fc (NMeta nm i args) stk)
 
     evalRef : {vars : _} ->
-              Env Term free -> LocalEnv free vars -> 
+              Env Term free -> LocalEnv free vars ->
               (isMeta : Bool) ->
               FC -> NameType -> Name -> Stack free -> (def : Lazy (NF free)) ->
               Core (NF free)
@@ -189,19 +189,19 @@ parameters (defs : Defs, topopts : EvalOpts)
         = pure $ NTCon fc fn tag arity stk
     evalRef env locs meta fc Bound fn stk def
         = pure def
-    evalRef env locs meta fc nt n stk def 
+    evalRef env locs meta fc nt n stk def
         = do Just res <- lookupCtxtExact n (gamma defs)
-                  | Nothing => pure def 
+                  | Nothing => pure def
              let redok = evalAll topopts ||
-                         reducibleInAny (currentNS defs :: nestedNS defs) 
-                                        (fullname res) 
+                         reducibleInAny (currentNS defs :: nestedNS defs)
+                                        (fullname res)
                                         (visibility res)
              if redok
                 then do
                    opts' <- if noCycles res
                                then useMeta fc n defs topopts
                                else pure topopts
-                   evalDef env locs opts' meta fc 
+                   evalDef env locs opts' meta fc
                            (multiplicity res) (definition res) (flags res) stk def
                 else pure def
 
@@ -212,28 +212,28 @@ parameters (defs : Defs, topopts : EvalOpts)
     getCaseBound [] [] loc = Just loc
     getCaseBound [] (x :: xs) loc = Nothing -- mismatched arg length
     getCaseBound (arg :: args) [] loc = Nothing -- mismatched arg length
-    getCaseBound (arg :: args) (n :: ns) loc 
+    getCaseBound (arg :: args) (n :: ns) loc
          = do loc' <- getCaseBound args ns loc
               pure (arg :: loc')
 
-    evalConAlt : Env Term free -> 
+    evalConAlt : Env Term free ->
                  LocalEnv free (more ++ vars) -> EvalOpts -> FC ->
-                 Stack free -> 
-                 (args : List Name) -> 
-                 List (Closure free) -> 
+                 Stack free ->
+                 (args : List Name) ->
+                 List (Closure free) ->
                  CaseTree (args ++ more) ->
-                 (default : Core (NF free)) -> 
+                 (default : Core (NF free)) ->
                  Core (NF free)
     evalConAlt {more} {vars} env loc opts fc stk args args' sc def
-         = maybe def (\bound => 
-                            let loc' : LocalEnv _ ((args ++ more) ++ vars) 
+         = maybe def (\bound =>
+                            let loc' : LocalEnv _ ((args ++ more) ++ vars)
                                 = rewrite sym (appendAssociative args more vars) in
                                           bound in
                                 evalTree env loc' opts fc stk sc def)
                      (getCaseBound args' args loc)
 
     tryAlt : Env Term free ->
-             LocalEnv free (more ++ vars) -> EvalOpts -> FC -> 
+             LocalEnv free (more ++ vars) -> EvalOpts -> FC ->
              Stack free -> NF free -> CaseAlt more ->
              (default : Core (NF free)) -> Core (NF free)
     -- Ordinary constructor matching
@@ -255,10 +255,10 @@ parameters (defs : Defs, topopts : EvalOpts)
     tryAlt env loc opts fc stk (NType _) (ConCase (UN "Type") tag [] sc) def
          = evalTree env loc opts fc stk sc def
     -- Arrow matching, in typecase
-    tryAlt {more} {vars}  
+    tryAlt {more} {vars}
            env loc opts fc stk (NBind pfc x (Pi r e aty) scty) (ConCase (UN "->") tag [s,t] sc) def
        = evalConAlt {more} {vars} env loc opts fc stk [s,t]
-                  [MkNFClosure aty, 
+                  [MkNFClosure aty,
                    MkNFClosure (NBind pfc x (Lam r e aty) scty)]
                   sc def
     -- Delay matching
@@ -270,7 +270,7 @@ parameters (defs : Defs, topopts : EvalOpts)
                       else def
     -- Default case matches against any *concrete* value
     tryAlt env loc opts fc stk val (DefaultCase sc) def
-         = if concrete val 
+         = if concrete val
               then evalTree env loc opts fc stk sc def
               else def
       where
@@ -292,24 +292,24 @@ parameters (defs : Defs, topopts : EvalOpts)
          = tryAlt env loc opts fc stk val x (findAlt env loc opts fc stk val xs def)
 
     evalTree : {vars : _} ->
-               Env Term free -> LocalEnv free (args ++ vars) -> 
+               Env Term free -> LocalEnv free (args ++ vars) ->
                EvalOpts -> FC ->
                Stack free -> CaseTree args ->
                (default : Core (NF free)) -> Core (NF free)
     evalTree {args} {vars} {free} env loc opts fc stk (Case idx x _ alts) def
-      = do let x' : IsVar _ _ ((args ++ vars) ++ free) 
+      = do let x' : IsVar _ _ ((args ++ vars) ++ free)
                = rewrite sym (appendAssociative args vars free) in
                          varExtend x
-           xval <- evalLocal env fc Nothing idx x' [] loc 
+           xval <- evalLocal env fc Nothing idx x' [] loc
            findAlt env loc opts fc stk xval alts def
     evalTree {args} {vars} {free} env loc opts fc stk (STerm tm) def
-          = do let tm' : Term ((args ++ vars) ++ free) 
+          = do let tm' : Term ((args ++ vars) ++ free)
                     = rewrite sym (appendAssociative args vars free) in
-                              embed tm 
+                              embed tm
                case fuel opts of
                     Nothing => evalWithOpts defs opts env loc tm' stk
                     Just Z => def
-                    Just (S k) => 
+                    Just (S k) =>
                          do let opts' = record { fuel = Just k } opts
                             evalWithOpts defs opts' env loc tm' stk
     evalTree env loc opts fc stk _ def = def
@@ -320,22 +320,22 @@ parameters (defs : Defs, topopts : EvalOpts)
                     Maybe (Vect arity (Closure free), Stack free)
     takeFromStack arity stk = takeStk arity stk []
       where
-        takeStk : (remain : Nat) -> Stack free -> 
-                  Vect got (Closure free) -> 
+        takeStk : (remain : Nat) -> Stack free ->
+                  Vect got (Closure free) ->
                   Maybe (Vect (got + remain) (Closure free), Stack free)
         takeStk {got} Z stk acc = Just (rewrite plusZeroRightNeutral got in
                                     reverse acc, stk)
         takeStk (S k) [] acc = Nothing
-        takeStk {got} (S k) (arg :: stk) acc 
+        takeStk {got} (S k) (arg :: stk) acc
            = rewrite sym (plusSuccRightSucc got k) in
                      takeStk k stk (arg :: acc)
 
-    extendFromStack : (args : List Name) -> 
+    extendFromStack : (args : List Name) ->
                       LocalEnv free vars -> Stack free ->
                       Maybe (LocalEnv free (args ++ vars), Stack free)
     extendFromStack [] loc stk = Just (loc, stk)
     extendFromStack (n :: ns) loc [] = Nothing
-    extendFromStack (n :: ns) loc (arg :: args) 
+    extendFromStack (n :: ns) loc (arg :: args)
          = do (loc', stk') <- extendFromStack ns loc args
               pure (arg :: loc', stk')
 
@@ -345,7 +345,7 @@ parameters (defs : Defs, topopts : EvalOpts)
     evalOp {arity} fn stk def
         = case takeFromStack arity stk of
                -- Stack must be exactly the right height
-               Just (args, []) => 
+               Just (args, []) =>
                   do argsnf <- evalAll args
                      case fn argsnf of
                           Nothing => pure def
@@ -356,11 +356,11 @@ parameters (defs : Defs, topopts : EvalOpts)
         evalAll : Vect n (Closure free) -> Core (Vect n (NF free))
         evalAll [] = pure []
         evalAll (c :: cs) = pure $ !(evalClosure defs c) :: !(evalAll cs)
-                   
+
     evalDef : {vars : _} ->
               Env Term free -> LocalEnv free vars -> EvalOpts ->
               (isMeta : Bool) -> FC ->
-              RigCount -> Def -> List DefFlag -> 
+              RigCount -> Def -> List DefFlag ->
               Stack free -> (def : Lazy (NF free)) ->
               Core (NF free)
     evalDef {vars} env locs opts meta fc rigd (PMDef r args tree _ _) flags stk def
@@ -373,14 +373,14 @@ parameters (defs : Defs, topopts : EvalOpts)
        --   + It's a metavariable and not in Rig0
        --   + It's a metavariable and we're not in 'argHolesOnly'
        --   + It's inlinable and we're in 'tcInline'
-        = if r 
+        = if r
              || (not (holesOnly opts) && not (argHolesOnly opts) && not (tcInline opts))
              || (meta && rigd /= Rig0)
              || (meta && holesOnly opts)
              || (tcInline opts && elem TCInline flags)
              then case extendFromStack args locs stk of
                        Nothing => pure def
-                       Just (locs', stk') => 
+                       Just (locs', stk') =>
                             evalTree env locs' opts fc stk' tree (pure def)
              else pure def
     evalDef {vars} env locs opts meta fc rigd (Builtin op) flags stk def
@@ -407,17 +407,17 @@ nfOpts opts defs env tm = eval defs opts env [] tm []
 
 export
 gnf : Env Term vars -> Term vars -> Glued vars
-gnf env tm 
+gnf env tm
     = MkGlue True
-             (pure tm) 
+             (pure tm)
              (\c => do defs <- get Ctxt
                        nf defs env tm)
 
 export
 gnfOpts : EvalOpts -> Env Term vars -> Term vars -> Glued vars
-gnfOpts opts env tm 
+gnfOpts opts env tm
     = MkGlue True
-             (pure tm) 
+             (pure tm)
              (\c => do defs <- get Ctxt
                        nfOpts opts defs env tm)
 
@@ -450,7 +450,7 @@ genName n
 mutual
   quoteArgs : {bound : _} ->
               Ref QVar Int -> Defs -> Bounds bound ->
-              Env Term free -> List (Closure free) -> 
+              Env Term free -> List (Closure free) ->
               Core (List (Term (bound ++ free)))
   quoteArgs q defs bounds env [] = pure []
   quoteArgs q defs bounds env (a :: args)
@@ -458,27 +458,27 @@ mutual
                 !(quoteArgs q defs bounds env args))
 
   quoteHead : {bound : _} ->
-              Ref QVar Int -> Defs -> 
-              FC -> Bounds bound -> Env Term free -> NHead free -> 
+              Ref QVar Int -> Defs ->
+              FC -> Bounds bound -> Env Term free -> NHead free ->
               Core (Term (bound ++ free))
-  quoteHead {bound} q defs fc bounds env (NLocal mrig _ prf) 
+  quoteHead {bound} q defs fc bounds env (NLocal mrig _ prf)
       = let MkVar prf' = addLater bound prf in
             pure $ Local fc mrig _ prf'
     where
-      addLater : (ys : List Name) -> IsVar n idx xs -> 
+      addLater : (ys : List Name) -> IsVar n idx xs ->
                  Var (ys ++ xs)
       addLater [] isv = MkVar isv
-      addLater (x :: xs) isv 
+      addLater (x :: xs) isv
           = let MkVar isv' = addLater xs isv in
                 MkVar (Later isv')
-  quoteHead q defs fc bounds env (NRef Bound (MN n i)) 
+  quoteHead q defs fc bounds env (NRef Bound (MN n i))
       = case findName bounds of
              Just (MkVar p) => pure $ Local fc Nothing _ (varExtend p)
              Nothing => pure $ Ref fc Bound (MN n i)
     where
       findName : Bounds bound' -> Maybe (Var bound')
       findName None = Nothing
-      findName (Add x (MN n' i') ns) 
+      findName (Add x (MN n' i') ns)
           = if i == i' -- this uniquely identifies it, given how we
                        -- generated the names, and is a faster test!
                then Just (MkVar First)
@@ -494,9 +494,9 @@ mutual
 
   quoteBinder : {bound : _} ->
                 Ref QVar Int -> Defs -> Bounds bound ->
-                Env Term free -> Binder (NF free) -> 
+                Env Term free -> Binder (NF free) ->
                 Core (Binder (Term (bound ++ free)))
-  quoteBinder q defs bounds env (Lam r p ty) 
+  quoteBinder q defs bounds env (Lam r p ty)
       = do ty' <- quoteGenNF q defs bounds env ty
            pure (Lam r p ty')
   quoteBinder q defs bounds env (Let r val ty)
@@ -519,11 +519,11 @@ mutual
 
   quoteGenNF : {bound : _} ->
                Ref QVar Int ->
-               Defs -> Bounds bound -> 
+               Defs -> Bounds bound ->
                Env Term vars -> NF vars -> Core (Term (bound ++ vars))
   quoteGenNF q defs bound env (NBind fc n b sc)
       = do var <- genName "qv"
-           sc' <- quoteGenNF q defs (Add n var bound) env 
+           sc' <- quoteGenNF q defs (Add n var bound) env
                        !(sc defs (toClosure defaultOpts env (Ref fc Bound var)))
            b' <- quoteBinder q defs bound env b
            pure (Bind fc n b' sc')
@@ -531,10 +531,10 @@ mutual
       = do f' <- quoteHead q defs fc bound env f
            args' <- quoteArgs q defs bound env args
            pure $ apply fc f' args'
-  quoteGenNF q defs bound env (NDCon fc n t ar args) 
+  quoteGenNF q defs bound env (NDCon fc n t ar args)
       = do args' <- quoteArgs q defs bound env args
            pure $ apply fc (Ref fc (DataCon t ar) n) args'
-  quoteGenNF q defs bound env (NTCon fc n t ar args) 
+  quoteGenNF q defs bound env (NTCon fc n t ar args)
       = do args' <- quoteArgs q defs bound env args
            pure $ apply fc (Ref fc (TyCon t ar) n) args'
   quoteGenNF q defs bound env (NAs fc n pat)
@@ -552,17 +552,17 @@ mutual
            pure (TDelay fc r tyQ argQ)
     where
       toHolesOnly : Closure vs -> Closure vs
-      toHolesOnly (MkClosure _ locs env tm) 
+      toHolesOnly (MkClosure _ locs env tm)
           = MkClosure withHoles locs env tm
       toHolesOnly c = c
-  quoteGenNF q defs bound env (NForce fc arg args) 
-      = do args' <- quoteArgs q defs bound env args 
+  quoteGenNF q defs bound env (NForce fc r arg args)
+      = do args' <- quoteArgs q defs bound env args
            case arg of
                 NDelay fc _ _ arg =>
                    do argNF <- evalClosure defs arg
                       pure $ apply fc !(quoteGenNF q defs bound env argNF) args'
                 t => do arg' <- quoteGenNF q defs bound env arg
-                        pure $ apply fc (TForce fc arg') args'
+                        pure $ apply fc (TForce fc r arg') args'
   quoteGenNF q defs bound env (NPrimVal fc c) = pure $ PrimVal fc c
   quoteGenNF q defs bound env (NErased fc) = pure $ Erased fc
   quoteGenNF q defs bound env (NType fc) = pure $ TType fc
@@ -581,10 +581,10 @@ Quote Closure where
 
 export
 glueBack : Defs -> Env Term vars -> NF vars -> Glued vars
-glueBack defs env nf 
+glueBack defs env nf
     = MkGlue False
              (do empty <- clearDefs defs
-                 quote empty env nf) 
+                 quote empty env nf)
              (const (pure nf))
 
 export
@@ -593,27 +593,27 @@ normalise defs env tm = quote defs env !(nf defs env tm)
 
 export
 normaliseOpts : EvalOpts -> Defs -> Env Term free -> Term free -> Core (Term free)
-normaliseOpts opts defs env tm 
+normaliseOpts opts defs env tm
     = quote defs env !(nfOpts opts defs env tm)
 
 export
 normaliseHoles : Defs -> Env Term free -> Term free -> Core (Term free)
-normaliseHoles defs env tm 
+normaliseHoles defs env tm
     = quote defs env !(nfOpts withHoles defs env tm)
 
 export
 normaliseLHS : Defs -> Env Term free -> Term free -> Core (Term free)
-normaliseLHS defs env tm 
+normaliseLHS defs env tm
     = quote defs env !(nfOpts onLHS defs env tm)
 
 export
 normaliseArgHoles : Defs -> Env Term free -> Term free -> Core (Term free)
-normaliseArgHoles defs env tm 
+normaliseArgHoles defs env tm
     = quote defs env !(nfOpts withArgHoles defs env tm)
 
 export
 normaliseAll : Defs -> Env Term free -> Term free -> Core (Term free)
-normaliseAll defs env tm 
+normaliseAll defs env tm
     = quote defs env !(nfOpts withAll defs env tm)
 
 -- Normalise, but without normalising the types of binders. Dealing with
@@ -621,19 +621,19 @@ normaliseAll defs env tm
 -- a big win
 export
 normaliseScope : Defs -> Env Term vars -> Term vars -> Core (Term vars)
-normaliseScope defs env (Bind fc n b sc) 
+normaliseScope defs env (Bind fc n b sc)
     = pure $ Bind fc n b !(normaliseScope defs (b :: env) sc)
 normaliseScope defs env tm = normalise defs env tm
 
 public export
 interface Convert (tm : List Name -> Type) where
-  convert : Defs -> Env Term vars -> 
+  convert : Defs -> Env Term vars ->
             tm vars -> tm vars -> Core Bool
   convGen : Ref QVar Int ->
-            Defs -> Env Term vars -> 
+            Defs -> Env Term vars ->
             tm vars -> tm vars -> Core Bool
 
-  convert defs env tm tm' 
+  convert defs env tm tm'
       = do q <- newRef QVar 0
            convGen q defs env tm tm'
 
@@ -646,10 +646,10 @@ mutual
   allConv q defs env _ _ = pure False
 
   chkConvHead : Ref QVar Int -> Defs -> Env Term vars ->
-                NHead vars -> NHead vars -> Core Bool 
+                NHead vars -> NHead vars -> Core Bool
   chkConvHead q defs env (NLocal _ idx _) (NLocal _ idx' _) = pure $ idx == idx'
   chkConvHead q defs env (NRef _ n) (NRef _ n') = pure $ n == n'
-  chkConvHead q defs env (NMeta n i args) (NMeta n' i' args') 
+  chkConvHead q defs env (NMeta n i args) (NMeta n' i' args')
      = if i == i'
           then allConv q defs env args args'
           else pure False
@@ -678,7 +678,7 @@ mutual
 
   export
   Convert NF where
-    convGen q defs env (NBind fc x b sc) (NBind _ x' b' sc') 
+    convGen q defs env (NBind fc x b sc) (NBind _ x' b' sc')
         = do var <- genName "conv"
              let c = MkClosure defaultOpts [] env (Ref fc Bound var)
              bok <- convBinders q defs env b b'
@@ -688,16 +688,16 @@ mutual
                         convGen q defs env bsc bsc'
                 else pure False
 
-    convGen q defs env tmx@(NBind fc x (Lam c ix tx) scx) tmy 
+    convGen q defs env tmx@(NBind fc x (Lam c ix tx) scx) tmy
         = do empty <- clearDefs defs
-             etay <- nf defs env 
+             etay <- nf defs env
                         (Bind fc x (Lam c ix !(quote empty env tx))
                            (App fc (weaken !(quote empty env tmy))
                                 (Local fc Nothing _ First)))
              convGen q defs env tmx etay
     convGen q defs env tmx tmy@(NBind fc y (Lam c iy ty) scy)
         = do empty <- clearDefs defs
-             etax <- nf defs env 
+             etax <- nf defs env
                         (Bind fc y (Lam c iy !(quote empty env ty))
                            (App fc (weaken !(quote empty env tmx))
                                 (Local fc Nothing _ First)))
@@ -727,9 +727,11 @@ mutual
         = if compatible r r'
              then convGen q defs env arg arg'
              else pure False
-    convGen q defs env (NForce _ arg args) (NForce _ arg' args')
-        = if !(convGen q defs env arg arg')
-             then allConv q defs env args args'
+    convGen q defs env (NForce _ r arg args) (NForce _ r' arg' args')
+        = if compatible r r'
+             then if !(convGen q defs env arg arg')
+                     then allConv q defs env args args'
+                     else pure False
              else pure False
 
     convGen q defs env (NPrimVal _ c) (NPrimVal _ c') = pure (c == c')
@@ -750,7 +752,7 @@ mutual
 
 export
 getValArity : Defs -> Env Term vars -> NF vars -> Core Nat
-getValArity defs env (NBind fc x (Pi _ _ _) sc) 
+getValArity defs env (NBind fc x (Pi _ _ _) sc)
     = pure (S !(getValArity defs env !(sc defs (toClosure defaultOpts env (Erased fc)))))
 getValArity defs env val = pure 0
 
@@ -768,7 +770,7 @@ logNF lvl msg env tmnf
             then do defs <- get Ctxt
                     tm <- quote defs env tmnf
                     tm' <- toFullNames tm
-                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg 
+                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg
                                           ++ ": " ++ show tm'
             else pure ()
 
@@ -783,7 +785,7 @@ logTermNF lvl msg env tm
             then do defs <- get Ctxt
                     tmnf <- normaliseHoles defs env tm
                     tm' <- toFullNames tmnf
-                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg 
+                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg
                                           ++ ": " ++ show tm'
             else pure ()
 
@@ -796,7 +798,7 @@ logGlue lvl msg env gtm
             then do defs <- get Ctxt
                     tm <- getTerm gtm
                     tm' <- toFullNames tm
-                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg 
+                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg
                                           ++ ": " ++ show tm'
             else pure ()
 
@@ -810,7 +812,7 @@ logGlueNF lvl msg env gtm
                     tm <- getTerm gtm
                     tmnf <- normaliseHoles defs env tm
                     tm' <- toFullNames tmnf
-                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg 
+                    coreLift $ putStrLn $ "LOG " ++ show lvl ++ ": " ++ msg
                                           ++ ": " ++ show tm'
             else pure ()
 
@@ -828,11 +830,11 @@ logEnv lvl msg env
     dumpEnv [] = pure ()
     dumpEnv {vs = x :: _} (Let c val ty :: bs)
         = do logTermNF lvl (msg ++ ": let " ++ show x) bs val
-             logTermNF lvl (msg ++ ":" ++ show c ++ " " ++ 
+             logTermNF lvl (msg ++ ":" ++ show c ++ " " ++
                             show x) bs ty
              dumpEnv bs
     dumpEnv {vs = x :: _} (b :: bs)
-        = do logTermNF lvl (msg ++ ":" ++ show (multiplicity b) ++ " " ++ 
+        = do logTermNF lvl (msg ++ ":" ++ show (multiplicity b) ++ " " ++
                             show x) bs (binderType b)
              dumpEnv bs
 
@@ -851,29 +853,29 @@ replace' {vars} tmpi defs env lhs parg tm
 
     repSub : NF vars -> Core (Term vars)
     repSub (NBind fc x b scfn)
-        = do b' <- traverse repSub b 
+        = do b' <- traverse repSub b
              let x' = MN "tmp" tmpi
-             sc' <- replace' (tmpi + 1) defs env lhs parg 
+             sc' <- replace' (tmpi + 1) defs env lhs parg
                              !(scfn defs (toClosure defaultOpts env (Ref fc Bound x')))
              pure (Bind fc x b' (refsToLocals (Add x x' None) sc'))
-    repSub (NApp fc hd []) 
+    repSub (NApp fc hd [])
         = do empty <- clearDefs defs
              quote empty env (NApp fc hd [])
-    repSub (NApp fc hd args) 
+    repSub (NApp fc hd args)
         = do args' <- traverse repArg args
-             pure $ apply fc 
+             pure $ apply fc
                         !(replace' tmpi defs env lhs parg (NApp fc hd []))
                         args'
-    repSub (NDCon fc n t a args) 
+    repSub (NDCon fc n t a args)
         = do args' <- traverse repArg args
              empty <- clearDefs defs
-             pure $ apply fc 
+             pure $ apply fc
                         !(quote empty env (NDCon fc n t a []))
                         args'
-    repSub (NTCon fc n t a args) 
+    repSub (NTCon fc n t a args)
         = do args' <- traverse repArg args
              empty <- clearDefs defs
-             pure $ apply fc 
+             pure $ apply fc
                         !(quote empty env (NTCon fc n t a []))
                         args'
     repSub (NAs fc a p)
@@ -887,10 +889,10 @@ replace' {vars} tmpi defs env lhs parg tm
         = do ty' <- replace' tmpi defs env lhs parg !(evalClosure defs ty)
              tm' <- replace' tmpi defs env lhs parg !(evalClosure defs tm)
              pure (TDelay fc r ty' tm')
-    repSub (NForce fc tm args)
+    repSub (NForce fc r tm args)
         = do args' <- traverse repArg args
              tm' <- repSub tm
-             pure $ apply fc (TForce fc tm') args'
+             pure $ apply fc (TForce fc r tm') args'
     repSub tm = do empty <- clearDefs defs
                    quote empty env tm
 

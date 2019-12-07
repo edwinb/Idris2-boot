@@ -17,7 +17,7 @@ import TTImp.Utils
 
 mkDataTy : FC -> List (Name, RawImp) -> RawImp
 mkDataTy fc [] = IType fc
-mkDataTy fc ((n, ty) :: ps) 
+mkDataTy fc ((n, ty) :: ps)
     = IPi fc RigW Explicit (Just n) ty (mkDataTy fc ps)
 
 mkCon : Name -> Name
@@ -27,14 +27,14 @@ mkCon n = DN (show n) (MN ("__mk" ++ show n) 0)
 elabRecord : {auto c : Ref Ctxt Defs} ->
              {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
-             List ElabOpt -> FC -> Env Term vars -> 
+             List ElabOpt -> FC -> Env Term vars ->
              NestedNames vars -> Visibility ->
              Name ->
              (params : List (Name, RawImp)) ->
              (conName : Maybe Name) ->
              List IField ->
              Core ()
-elabRecord {vars} eopts fc env nest vis tn params rcon fields 
+elabRecord {vars} eopts fc env nest vis tn params rcon fields
     = do let conName_in = maybe (mkCon tn) id rcon
          conName <- inCurrentNS conName_in
          elabAsData conName
@@ -50,18 +50,18 @@ elabRecord {vars} eopts fc env nest vis tn params rcon fields
     fname : IField -> Name
     fname (MkIField fc c p n ty) = n
 
-    farg : IField -> 
+    farg : IField ->
            (Maybe Name, RigCount, PiInfo, RawImp)
     farg (MkIField fc c p n ty) = (Just n, c, p, ty)
-    
-    mkTy : List (Maybe Name, RigCount, PiInfo, RawImp) -> 
+
+    mkTy : List (Maybe Name, RigCount, PiInfo, RawImp) ->
            RawImp -> RawImp
     mkTy [] ret = ret
     mkTy ((n, c, imp, argty) :: args) ret
         = IPi fc c imp n argty (mkTy args ret)
 
     elabAsData : Name -> Core ()
-    elabAsData cname 
+    elabAsData cname
         = do let retty = apply (IVar fc tn) (map (IVar fc) (map fst params))
              let conty = mkTy (map jname params) $
                          mkTy (map farg fields) retty
@@ -79,7 +79,7 @@ elabRecord {vars} eopts fc env nest vis tn params rcon fields
     countExp _ = 0
 
     -- Generate getters from the elaborated record constructor type
-    elabGetters : Name -> RawImp -> 
+    elabGetters : Name -> RawImp ->
                   (done : Nat) -> -- number of explicit fields processed
                   List (Name, RawImp) -> -- names to update in types
                     -- (for dependent records, where a field's type may depend
@@ -89,26 +89,26 @@ elabRecord {vars} eopts fc env nest vis tn params rcon fields
     elabGetters con recTy done upds tyenv (Bind bfc n b@(Pi rc imp ty_chk) sc)
         = if n `elem` map fst params
              then elabGetters con recTy
-                              (if imp == Explicit 
+                              (if imp == Explicit
                                   then S done else done)
                               upds (b :: tyenv) sc
-             else 
+             else
                 do let fldName = n
                    gname <- inCurrentNS fldName
                    ty <- unelab tyenv ty_chk
                    let ty' = substNames vars upds ty
                    let rname = MN "rec" 0
-                   gty <- bindTypeNames 
+                   gty <- bindTypeNames
                                  (map fst params ++ map fname fields ++ vars) $
                                     mkTy (map jname params) $
                                       IPi fc RigW Explicit (Just rname) recTy ty'
                    log 5 $ "Projection " ++ show gname ++ " : " ++ show gty
-                   let lhs_exp 
+                   let lhs_exp
                           = apply (IVar fc con)
                                     (replicate done (Implicit fc True) ++
                                        (if imp == Explicit
                                            then [IBindVar fc (nameRoot fldName)]
-                                           else []) ++ 
+                                           else []) ++
                                     (replicate (countExp sc) (Implicit fc True)))
                    let lhs = IApp fc (IVar fc gname)
                                 (if imp == Explicit
@@ -123,7 +123,7 @@ elabRecord {vars} eopts fc env nest vis tn params rcon fields
                        (IDef fc gname [PatClause fc lhs (IVar fc fldName)])
                    let upds' = (n, IApp fc (IVar fc gname) (IVar fc rname)) :: upds
                    elabGetters con recTy
-                               (if imp == Explicit 
+                               (if imp == Explicit
                                    then S done else done)
                                upds' (b :: tyenv) sc
     elabGetters con recTy done upds _ _ = pure ()
@@ -133,7 +133,7 @@ export
 processRecord : {auto c : Ref Ctxt Defs} ->
                 {auto m : Ref MD Metadata} ->
                 {auto u : Ref UST UState} ->
-                List ElabOpt -> NestedNames vars -> 
+                List ElabOpt -> NestedNames vars ->
                 Env Term vars -> Visibility ->
                 ImpRecord -> Core ()
 processRecord eopts nest env vis (MkImpRecord fc n ps cons fs)

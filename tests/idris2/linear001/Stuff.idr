@@ -35,7 +35,7 @@ data Nat = Z | S Nat
 
 public export
 fromInteger : Integer -> Nat
-fromInteger x = ifThenElse (intToBool (prim__eq_Integer x 0)) 
+fromInteger x = ifThenElse (intToBool (prim__eq_Integer x 0))
                       Z (S (fromInteger (prim__sub_Integer x 1)))
 
 public export

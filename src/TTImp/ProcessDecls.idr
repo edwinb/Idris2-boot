@@ -24,11 +24,11 @@ process : {vars : _} ->
           {auto u : Ref UST UState} ->
           List ElabOpt ->
           NestedNames vars -> Env Term vars -> ImpDecl -> Core ()
-process eopts nest env (IClaim fc rig vis opts ty) 
+process eopts nest env (IClaim fc rig vis opts ty)
     = processType eopts nest env fc rig vis opts ty
-process eopts nest env (IData fc vis ddef) 
+process eopts nest env (IData fc vis ddef)
     = processData eopts nest env fc vis ddef
-process eopts nest env (IDef fc fname def) 
+process eopts nest env (IDef fc fname def)
     = processDef eopts nest env fc fname def
 process eopts nest env (IParameters fc ps decls)
     = processParams nest env fc ps decls
@@ -42,10 +42,12 @@ process eopts nest env (INamespace fc nested ns decls)
          newns <- getNS
          traverse_ (processDecl eopts nest env) decls
          defs <- get Ctxt
-         put Ctxt (record { currentNS = cns, 
+         put Ctxt (record { currentNS = cns,
                             nestedNS = if nested
                                           then newns :: nns
                                           else nns } defs)
+process eopts nest env (ITransform fc lhs rhs)
+    = throw (GenericMsg fc "%transform not yet implemented")
 process {c} eopts nest env (IPragma act)
     = act c nest env
 process eopts nest env (ILog n)

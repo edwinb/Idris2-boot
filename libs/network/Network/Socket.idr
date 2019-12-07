@@ -12,6 +12,7 @@ import Data.List
 
 ||| Creates a UNIX socket with the given family, socket type and protocol
 ||| number. Returns either a socket or an error.
+export
 socket : (fam  : SocketFamily)
       -> (ty   : SocketType)
       -> (pnum : ProtocolNumber)
@@ -24,11 +25,13 @@ socket sf st pn = do
     else pure $ Right (MkSocket socket_res sf st pn)
 
 ||| Close a socket
+export
 close : Socket -> IO ()
 close sock = cCall () "close" [descriptor sock]
 
 ||| Binds a socket to the given socket address and port.
 ||| Returns 0 on success, an error code otherwise.
+export
 bind : (sock : Socket)
     -> (addr : Maybe SocketAddress)
     -> (port : Port)
@@ -48,6 +51,7 @@ bind sock addr port = do
 
 ||| Connects to a given address and port.
 ||| Returns 0 on success, and an error number on error.
+export
 connect : (sock : Socket)
        -> (addr : SocketAddress)
        -> (port : Port)
@@ -63,6 +67,7 @@ connect sock addr port = do
 ||| Listens on a bound socket.
 |||
 ||| @sock The socket to listen on.
+export
 listen : (sock : Socket) -> IO Int
 listen sock = do
   listen_res <- cCall Int "listen" [ descriptor sock, BACKLOG ]
@@ -78,6 +83,7 @@ listen sock = do
 ||| + `SocketAddress` :: The
 |||
 ||| @sock The socket used to establish connection.
+export
 accept : (sock : Socket)
       -> IO (Either SocketError (Socket, SocketAddress))
 accept sock = do
@@ -103,6 +109,7 @@ accept sock = do
 |||
 ||| @sock The socket on which to send the message.
 ||| @msg  The data to send.
+export
 send : (sock : Socket)
     -> (msg  : String)
     -> IO (Either SocketError ResultCode)
@@ -122,6 +129,7 @@ send sock dat = do
 |||
 ||| @sock The socket on which to receive the message.
 ||| @len  How much of the data to receive.
+export
 recv : (sock : Socket)
     -> (len : ByteLength)
     -> IO (Either SocketError (String, ResultCode))
@@ -152,7 +160,7 @@ recv sock len = do
 ||| Returns on success the payload `String`
 |||
 ||| @sock The socket on which to receive the message.
-partial
+export
 recvAll : (sock : Socket) -> IO (Either SocketError String)
 recvAll sock = recvRec sock [] 64
   where
@@ -174,6 +182,7 @@ recvAll sock = recvRec sock [] 64
 ||| @addr Address of the recipient.
 ||| @port The port on which to send the message.
 ||| @msg  The message to send.
+export
 sendTo : (sock : Socket)
       -> (addr : SocketAddress)
       -> (port : Port)
@@ -198,6 +207,7 @@ sendTo sock addr p dat = do
 ||| @sock The channel on which to receive.
 ||| @len  Size of the expected message.
 |||
+export
 recvFrom : (sock : Socket)
         -> (len  : ByteLength)
         -> IO (Either SocketError (UDPAddrInfo, String, ResultCode))

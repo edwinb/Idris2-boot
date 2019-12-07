@@ -36,7 +36,7 @@ Show ClauseUpdate where
   show (Impossible lhs) = "Impossible: " ++ show lhs
   show Invalid = "Invalid"
 
-public export 
+public export
 data SplitError : Type where
      NoValidSplit : SplitError -- None of the splits either type check, or fail
                                -- in a way which is valid as an 'impossible' case
@@ -60,7 +60,7 @@ Show a => Show (SplitResult a) where
   show (OK res) = "OK: " ++ show res
 
 findTyName : {auto c : Ref Ctxt Defs} ->
-             Defs -> Env Term vars -> Name -> Term vars -> 
+             Defs -> Env Term vars -> Name -> Term vars ->
              Core (Maybe Name)
 findTyName defs env n (Bind _ x (PVar c p ty) sc)
       -- Take the first one, which is the most recently bound
@@ -84,19 +84,19 @@ findCons : {auto c : Ref Ctxt Defs} ->
            Name -> Term [] -> Core (SplitResult (Name, Name, List Name))
 findCons n lhs
     = case getDefining lhs of
-           Nothing => pure (SplitFail 
+           Nothing => pure (SplitFail
                             (CantSplitThis n "Can't find function name on LHS"))
            Just fn =>
               do defs <- get Ctxt
                  case !(findTyName defs [] n lhs) of
-                      Nothing => pure (SplitFail (CantSplitThis n 
+                      Nothing => pure (SplitFail (CantSplitThis n
                                          ("Can't find type of " ++ show n ++ " in LHS")))
                       Just tyn =>
                           do Just (TCon _ _ _ _ _ cons) <-
                                       lookupDefExact tyn (gamma defs)
-                                | res => pure (SplitFail 
-                                            (CantSplitThis n 
-                                               ("Not a type constructor " ++ 
+                                | res => pure (SplitFail
+                                            (CantSplitThis n
+                                               ("Not a type constructor " ++
                                                   show res)))
                              pure (OK (fn, tyn, cons))
 
@@ -123,7 +123,7 @@ defaultNames = ["x", "y", "z", "w", "v", "s", "t", "u"]
 export
 getArgName : {auto c : Ref Ctxt Defs} ->
              Defs -> Name -> List Name -> NF vars -> Core String
-getArgName defs x allvars ty 
+getArgName defs x allvars ty
     = do defnames <- findNames ty
          pure $ getName x defnames allvars
   where
@@ -148,9 +148,9 @@ getArgName defs x allvars ty
 
 export
 getArgNames : {auto c : Ref Ctxt Defs} ->
-              Defs -> List Name -> Env Term vars -> NF vars -> 
+              Defs -> List Name -> Env Term vars -> NF vars ->
               Core (List String)
-getArgNames defs allvars env (NBind fc x (Pi _ p ty) sc) 
+getArgNames defs allvars env (NBind fc x (Pi _ p ty) sc)
     = do ns <- case p of
                     Explicit => pure [!(getArgName defs x allvars ty)]
                     _ => pure []
@@ -172,14 +172,14 @@ expandCon fc usedvars con
     = do defs <- get Ctxt
          Just ty <- lookupTyExact con (gamma defs)
               | Nothing => throw (UndefinedName fc con)
-         pure (apply (IVar fc con) 
+         pure (apply (IVar fc con)
                 (map (IBindVar fc)
-                     !(getArgNames defs usedvars [] 
+                     !(getArgNames defs usedvars []
                                    !(nf defs [] ty))))
 
 updateArg : {auto c : Ref Ctxt Defs} ->
             List Name -> -- all the variable names
-            (var : Name) -> (con : Name) -> 
+            (var : Name) -> (con : Name) ->
             RawImp -> Core RawImp
 updateArg allvars var con (IVar fc n)
     = if n `elem` allvars
@@ -188,22 +188,22 @@ updateArg allvars var con (IVar fc n)
                  else pure $ Implicit fc True
          else pure $ IVar fc n
 updateArg allvars var con (IApp fc f a)
-    = pure $ IApp fc !(updateArg allvars var con f) 
+    = pure $ IApp fc !(updateArg allvars var con f)
                      !(updateArg allvars var con a)
 updateArg allvars var con (IImplicitApp fc f n a)
-    = pure $ IImplicitApp fc !(updateArg allvars var con f) n 
+    = pure $ IImplicitApp fc !(updateArg allvars var con f) n
                              !(updateArg allvars var con a)
 updateArg allvars var con (IAs fc s n p)
     = updateArg allvars var con p
 updateArg allvars var con tm = pure $ Implicit (getFC tm) True
 
-data ArgType 
+data ArgType
     = Explicit FC RawImp
     | Implicit FC (Maybe Name) RawImp
 
 update : {auto c : Ref Ctxt Defs} ->
          List Name -> -- all the variable names
-         (var : Name) -> (con : Name) -> 
+         (var : Name) -> (con : Name) ->
          ArgType -> Core ArgType
 update allvars var con (Explicit fc arg)
     = pure $ Explicit fc !(updateArg allvars var con arg)
@@ -226,14 +226,14 @@ apply f [] = f
 -- Also replace any variables with '_' to allow elaboration to
 -- expand them
 newLHS : {auto c : Ref Ctxt Defs} ->
-         FC -> 
+         FC ->
          Nat -> -- previous environment length; leave these alone
          List Name -> -- all the variable names
-         (var : Name) -> (con : Name) -> 
+         (var : Name) -> (con : Name) ->
          RawImp -> Core RawImp
 newLHS fc envlen allvars var con tm
     = do let (f, args) = getFnArgs tm []
-         let keep = map (const (Explicit fc (Implicit fc True))) 
+         let keep = map (const (Explicit fc (Implicit fc True)))
                         (take envlen args)
          let ups = drop envlen args
          ups' <- traverse (update allvars var con) ups
@@ -305,7 +305,7 @@ mkCase {c} {u} fn orig lhs_raw
            (\err => case err of
                          WhenUnifying _ env l r err
                             => do defs <- get Ctxt
-                                  if !(impossibleOK defs !(nf defs env l) 
+                                  if !(impossibleOK defs !(nf defs env l)
                                                          !(nf defs env r))
                                      then pure (Impossible lhs_raw)
                                      else pure Invalid
@@ -328,7 +328,7 @@ export
 getSplitsLHS : {auto m : Ref MD Metadata} ->
                {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
-               FC -> Nat -> ClosedTerm -> Name -> 
+               FC -> Nat -> ClosedTerm -> Name ->
                Core (SplitResult (List ClauseUpdate))
 getSplitsLHS fc envlen lhs_in n
     = do let lhs = substLets lhs_in
@@ -337,7 +337,7 @@ getSplitsLHS fc envlen lhs_in n
          defs <- get Ctxt
          OK (fn, tyn, cons) <- findCons n lhs
             | SplitFail err => pure (SplitFail err)
-        
+
          rawlhs <- unelabNoSugar [] lhs
          trycases <- traverse (\c => newLHS fc envlen usedns n c rawlhs) cons
 
@@ -351,7 +351,7 @@ export
 getSplits : {auto c : Ref Ctxt Defs} ->
             {auto m : Ref MD Metadata} ->
             {auto u : Ref UST UState} ->
-            (FC -> ClosedTerm -> Bool) -> Name -> 
+            (FC -> ClosedTerm -> Bool) -> Name ->
             Core (SplitResult (List ClauseUpdate))
 getSplits p n
     = do Just (loc, envlen, lhs_in) <- findLHSAt p
