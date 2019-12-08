@@ -471,7 +471,7 @@ mutual
            let [] = constraints cres
               | cs => do cty <- getTerm expfnty
                          ctm <- newConstant fc rig env (fst res) cty cs
-                         pure (ctm, expfnty)
+                         pure (ctm, gnf env retTy)
            pure res
 
 export
