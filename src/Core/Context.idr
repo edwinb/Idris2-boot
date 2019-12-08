@@ -43,6 +43,8 @@ data Def : Type where
     TCon : (tag : Int) -> (arity : Nat) ->
            (parampos : List Nat) -> -- parameters
            (detpos : List Nat) -> -- determining arguments
+           (uniqueAuto : Bool) -> -- should 'auto' implicits check
+                                  -- for uniqueness
            (mutwith : List Name) ->
            (datacons : List Name) ->
            Def
@@ -68,7 +70,7 @@ Show Def where
   show (PMDef _ args ct rt pats)
       = show args ++ "; " ++ show ct
   show (DCon t a) = "DataCon " ++ show t ++ " " ++ show a
-  show (TCon t a ps ds ms cons)
+  show (TCon t a ps ds u ms cons)
       = "TyCon " ++ show t ++ " " ++ show a ++ " params: " ++ show ps ++
         " constructors: " ++ show cons ++
         " mutual with: " ++ show ms
@@ -118,6 +120,7 @@ data DefFlag
          -- care!
     | SetTotal TotalReq
     | BlockedHint -- a hint, but blocked for the moment (so don't use)
+    | Macro
 
 export
 Eq TotalReq where
@@ -134,6 +137,7 @@ Eq DefFlag where
     (==) TCInline TCInline = True
     (==) (SetTotal x) (SetTotal y) = x == y
     (==) BlockedHint BlockedHint = True
+    (==) Macro Macro = True
     (==) _ _ = False
 
 public export
@@ -429,6 +433,23 @@ newDef fc n rig vars ty vis def
     = MkGlobalDef fc n ty [] rig vars vis unchecked [] empty False False False def
                   Nothing []
 
+-- Rewrite rules, applied after type checking, for runtime code only
+-- LHS and RHS must have the same type, but we don't (currently) require that
+-- the result still type checks (which might happen e.g. if transforming to a
+-- faster implementation with different behaviour)
+-- (Q: Do we need the 'Env' here? Usually we end up needing an 'Env' with a
+-- 'NF but we're working with terms rather than values...)
+public export
+data Transform : Type where
+     MkTransform : Env Term vars -> Term vars -> Term vars -> Transform
+
+export
+getFnName : Transform -> Maybe Name
+getFnName (MkTransform _ app _)
+    = case getFn app of
+           Ref _ _ fn => Just fn
+           _ => Nothing
+
 public export
 interface HasNames a where
   full : Context -> a -> Core a
@@ -469,8 +490,8 @@ HasNames (Term vars) where
       = pure (TDelayed fc x !(full gam y))
   full gam (TDelay fc x t y)
       = pure (TDelay fc x !(full gam t) !(full gam y))
-  full gam (TForce fc y)
-      = pure (TForce fc !(full gam y))
+  full gam (TForce fc r y)
+      = pure (TForce fc r !(full gam y))
   full gam tm = pure tm
 
   resolved gam (Ref fc x n)
@@ -492,8 +513,8 @@ HasNames (Term vars) where
       = pure (TDelayed fc x !(resolved gam y))
   resolved gam (TDelay fc x t y)
       = pure (TDelay fc x !(resolved gam t) !(resolved gam y))
-  resolved gam (TForce fc y)
-      = pure (TForce fc !(resolved gam y))
+  resolved gam (TForce fc r y)
+      = pure (TForce fc r !(resolved gam y))
   resolved gam tm = pure tm
 
 mutual
@@ -558,9 +579,9 @@ HasNames Def where
       fullNamesPat (_ ** (env, lhs, rhs))
           = pure $ (_ ** (!(full gam env),
                           !(full gam lhs), !(full gam rhs)))
-  full gam (TCon t a ps ds ms cs)
-      = pure $ TCon t a ps ds !(traverse (full gam) ms)
-                              !(traverse (full gam) cs)
+  full gam (TCon t a ps ds u ms cs)
+      = pure $ TCon t a ps ds u !(traverse (full gam) ms)
+                                !(traverse (full gam) cs)
   full gam (BySearch c d def)
       = pure $ BySearch c d !(full gam def)
   full gam (Guess tm b cs)
@@ -576,9 +597,9 @@ HasNames Def where
       resolvedNamesPat (_ ** (env, lhs, rhs))
           = pure $ (_ ** (!(resolved gam env),
                           !(resolved gam lhs), !(resolved gam rhs)))
-  resolved gam (TCon t a ps ds ms cs)
-      = pure $ TCon t a ps ds !(traverse (resolved gam) ms)
-                              !(traverse (resolved gam) cs)
+  resolved gam (TCon t a ps ds u ms cs)
+      = pure $ TCon t a ps ds u !(traverse (resolved gam) ms)
+                                !(traverse (resolved gam) cs)
   resolved gam (BySearch c d def)
       = pure $ BySearch c d !(resolved gam def)
   resolved gam (Guess tm b cs)
@@ -673,6 +694,15 @@ HasNames GlobalDef where
                         sizeChange = !(traverse (resolved gam) (sizeChange def))
                       } def
 
+export
+HasNames Transform where
+  full gam (MkTransform env lhs rhs)
+      = pure $ MkTransform !(full gam env) !(full gam lhs) !(full gam rhs)
+
+  resolved gam (MkTransform env lhs rhs)
+      = pure $ MkTransform !(resolved gam env)
+                           !(resolved gam lhs) !(resolved gam rhs)
+
 public export
 record Defs where
   constructor MkDefs
@@ -701,6 +731,10 @@ record Defs where
      -- We don't look up anything in here, it's merely for saving out to TTC.
      -- We save the hints in the 'GlobalDef' itself for faster lookup.
   saveAutoHints : List (Name, Bool)
+  transforms : NameMap Transform
+     -- ^ A mapping from names to transformation rules which update applications
+     -- of that name
+  saveTransforms : List (Name, Transform)
   namedirectives : List (Name, List String)
   ifaceHash : Int
   importHashes : List (List String, Int)
@@ -737,9 +771,9 @@ initDefs : Core Defs
 initDefs
     = do gam <- initCtxt
          pure (MkDefs gam [] ["Main"] [] defaults empty 100
-                      empty empty empty [] [] [] 5381 [] [] [] [] [] empty
-                      empty)
-      
+                      empty empty empty [] [] empty []
+                      [] 5381 [] [] [] [] [] empty empty)
+
 -- Reset the context, except for the options
 export
 clearCtxt : {auto c : Ref Ctxt Defs} ->
@@ -1169,7 +1203,7 @@ getSearchData : {auto c : Ref Ctxt Defs} ->
                 Core SearchData
 getSearchData fc defaults target
     = do defs <- get Ctxt
-         Just (TCon _ _ _ dets _ _) <- lookupDefExact target (gamma defs)
+         Just (TCon _ _ _ dets u _ _) <- lookupDefExact target (gamma defs)
               | _ => throw (UndefinedName fc target)
          let hs = case lookup !(toFullNames target) (typeHints defs) of
                        Just hs => hs
@@ -1186,7 +1220,7 @@ getSearchData fc defaults target
                      pure (MkSearchData dets (filter (isCons . snd)
                                [(False, opens),
                                 (False, autos),
-                                (False, tyhs),
+                                (not u, tyhs),
                                 (True, chasers)]))
   where
     isDefault : (Name, Bool) -> Bool
@@ -1202,9 +1236,9 @@ setMutWith fc tn tns
     = do defs <- get Ctxt
          Just g <- lookupCtxtExact tn (gamma defs)
               | _ => throw (UndefinedName fc tn)
-         let TCon t a ps dets _ cons = definition g
+         let TCon t a ps dets u _ cons = definition g
               | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setMutWith]"))
-         updateDef tn (const (Just (TCon t a ps dets tns cons)))
+         updateDef tn (const (Just (TCon t a ps dets u tns cons)))
 
 export
 addMutData : {auto c : Ref Ctxt Defs} ->
@@ -1227,10 +1261,10 @@ setDetermining fc tyn args
     = do defs <- get Ctxt
          Just g <- lookupCtxtExact tyn (gamma defs)
               | _ => throw (UndefinedName fc tyn)
-         let TCon t a ps _ cons ms = definition g
+         let TCon t a ps _ u cons ms = definition g
               | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setDetermining]"))
          apos <- getPos 0 args (type g)
-         updateDef tyn (const (Just (TCon t a ps apos cons ms)))
+         updateDef tyn (const (Just (TCon t a ps apos u cons ms)))
   where
     -- Type isn't normalised, but the argument names refer to those given
     -- explicitly in the type, so there's no need.
@@ -1244,6 +1278,16 @@ setDetermining fc tyn args
     getPos _ ns ty = throw (GenericMsg fc ("Unknown determining arguments: "
                            ++ showSep ", " (map show ns)))
 
+export
+setUniqueSearch : {auto c : Ref Ctxt Defs} ->
+                  FC -> Name -> Bool -> Core ()
+setUniqueSearch fc tyn u
+    = do defs <- get Ctxt
+         Just g <- lookupCtxtExact tyn (gamma defs)
+              | _ => throw (UndefinedName fc tyn)
+         let TCon t a ps ds _ cons ms = definition g
+              | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setDetermining]"))
+         updateDef tyn (const (Just (TCon t a ps ds u cons ms)))
 
 export
 addHintFor : {auto c : Ref Ctxt Defs} ->
@@ -1297,6 +1341,17 @@ setOpenHints : {auto c : Ref Ctxt Defs} -> NameMap () -> Core ()
 setOpenHints hs
     = do d <- get Ctxt
          put Ctxt (record { openHints = hs } d)
+
+export
+addTransform : {auto c : Ref Ctxt Defs} ->
+               FC -> Transform -> Core ()
+addTransform fc t
+    = do defs <- get Ctxt
+         let Just fn = getFnName t
+             | Nothing =>
+                  throw (GenericMsg fc "LHS of a transformation must be a function application")
+         put Ctxt (record { transforms $= insert fn t,
+                            saveTransforms $= ((fn, t) ::) } defs)
 
 export
 clearSavedHints : {auto c : Ref Ctxt Defs} -> Core ()
@@ -1466,7 +1521,7 @@ addData vars vis tidx (MkData (MkCon dfc tyn arity tycon) datacons)
                             (TCon tag arity
                                   (paramPos (Resolved tidx) (map type datacons))
                                   (allDet arity)
-                                  [] (map name datacons))
+                                  False [] (map name datacons))
          (idx, gam') <- addCtxt tyn tydef (gamma defs)
          gam'' <- addDataConstructors 0 datacons gam'
          put Ctxt (record { gamma = gam'' } defs)
@@ -1898,7 +1953,7 @@ logTimeOver nsecs str act
            assert_total $ -- We're not dividing by 0
               do str' <- str
                  coreLift $ putStrLn $ "TIMING " ++ str' ++ ": " ++
-                          show (time `div` nano) ++ "." ++ 
+                          show (time `div` nano) ++ "." ++
                           addZeros (unpack (show ((time `mod` nano) `div` 1000000))) ++
                           "s"
          pure res
@@ -1973,7 +2028,7 @@ showTimeRecord
         = do coreLift $ putStr (key ++ ": ")
              let nano = 1000000000
              assert_total $ -- We're not dividing by 0
-                    coreLift $ putStrLn $ show (time `div` nano) ++ "." ++ 
+                    coreLift $ putStrLn $ show (time `div` nano) ++ "." ++
                                addZeros (unpack (show ((time `mod` nano) `div` 1000000))) ++
                                "s"
 

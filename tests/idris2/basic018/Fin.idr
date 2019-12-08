@@ -4,7 +4,7 @@ data Fin : Nat -> Type where
 
 natToFin : Nat -> (n : Nat) -> Maybe (Fin n)
 natToFin Z     (S j) = Just FZ
-natToFin (S k) (S j) 
+natToFin (S k) (S j)
    = case natToFin k j of
           Just k' => Just (FS k')
           Nothing => Nothing
@@ -19,7 +19,7 @@ data IsJust : Maybe a -> Type where
 
 -- Testing that %allow_overloads lets this one through!
 fromInteger : {k : Nat} ->
-              (n : Integer) -> 
+              (n : Integer) ->
               {auto prf : IsJust (integerToFin n k)} ->
               Fin k
 fromInteger {k} n {prf}

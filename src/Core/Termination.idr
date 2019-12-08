@@ -41,15 +41,15 @@ totRefsIn defs ty = totRefs defs (keys (getRefs (Resolved (-1)) ty))
 scEq : Term vars -> Term vars -> Bool
 scEq (Local _ _ idx _) (Local _ _ idx' _) = idx == idx'
 scEq (Ref _ _ n) (Ref _ _ n') = n == n'
-scEq (Meta _ _ i args) _ = True 
-scEq _ (Meta _ _ i args) = True 
+scEq (Meta _ _ i args) _ = True
+scEq _ (Meta _ _ i args) = True
 scEq (Bind _ _ b sc) (Bind _ _ b' sc') = False -- not checkable
 scEq (App _ f a) (App _ f' a') = scEq f f' && scEq a a'
 scEq (As _ a p) p' = scEq p p'
 scEq p (As _ a p') = scEq p p'
 scEq (TDelayed _ _ t) (TDelayed _ _ t') = scEq t t'
 scEq (TDelay _ _ t x) (TDelay _ _ t' x') = scEq t t' && scEq x x'
-scEq (TForce _ t) (TForce _ t') = scEq t t'
+scEq (TForce _ _ t) (TForce _ _ t') = scEq t t'
 scEq (PrimVal _ c) (PrimVal _ c') = c == c'
 scEq (Erased _) (Erased _) = True
 scEq (TType _) (TType _) = True
@@ -69,8 +69,8 @@ mutual
            List (Nat, Term vars) -> -- LHS args and their position
            Term vars -> -- Right hand side
            Core (List SCCall)
-  findSC {vars} defs env g pats (Bind fc n b sc) 
-       = pure $ 
+  findSC {vars} defs env g pats (Bind fc n b sc)
+       = pure $
             !(findSCbinder b) ++
             !(findSC defs (b :: env) g (map (\ (p, tm) => (p, weaken tm)) pats) sc)
     where
@@ -97,7 +97,7 @@ mutual
                     pure (concat scs)
              (_, Ref fc Func fn, args) =>
                  do Just ty <- lookupTyExact fn (gamma defs)
-                         | Nothing => 
+                         | Nothing =>
                               findSCcall defs env Unguarded pats fc fn 0 args
                     arity <- getArity defs [] ty
                     findSCcall defs env Unguarded pats fc fn arity args
@@ -109,7 +109,7 @@ mutual
   -- arity (i.e. the arity of the function we're calling) to ensure that
   -- it's noted that we don't know the size change relationship with the
   -- extra arguments.
-  expandToArity : Nat -> List (Maybe (Nat, SizeChange)) -> 
+  expandToArity : Nat -> List (Maybe (Nat, SizeChange)) ->
                   List (Maybe (Nat, SizeChange))
   expandToArity Z xs = xs
   expandToArity (S k) (x :: xs) = x :: expandToArity k xs
@@ -144,29 +144,29 @@ mutual
       = if assertedSmaller big tm
            then True
            else case getFnArgs tm of
-                     (Ref _ (DataCon t a) cn, args) 
+                     (Ref _ (DataCon t a) cn, args)
                          => any (smaller True defs big s) args
                      _ => case s of
-                               App _ f _ => smaller inc defs big f tm 
+                               App _ f _ => smaller inc defs big f tm
                                             -- Higher order recursive argument
                                _ => False
 
   -- if the argument is an 'assert_smaller', return the thing it's smaller than
   asserted : Name -> Term vars -> Maybe (Term vars)
-  asserted aSmaller tm 
+  asserted aSmaller tm
        = case getFnArgs tm of
-              (Ref _ nt fn, [_, _, b, _]) 
+              (Ref _ nt fn, [_, _, b, _])
                    => if fn == aSmaller
                          then Just b
                          else Nothing
               _ => Nothing
 
   -- Calculate the size change for the given argument.
-  -- i.e., return the size relationship of the given argument with an entry 
+  -- i.e., return the size relationship of the given argument with an entry
   -- in 'pats'; the position in 'pats' and the size change.
   -- Nothing if there is no relation with any of them.
   mkChange : Defs -> Name ->
-             (pats : List (Nat, Term vars)) -> 
+             (pats : List (Nat, Term vars)) ->
              (arg : Term vars) ->
              Maybe (Nat, SizeChange)
   mkChange defs aSmaller [] arg = Nothing
@@ -184,7 +184,7 @@ mutual
   -- rather than treating the definitions separately.
   getCasePats : Defs -> Name -> List (Nat, Term vars) ->
                 List (Term vars) ->
-                Core (Maybe (List (vs ** (Env Term vs, 
+                Core (Maybe (List (vs ** (Env Term vs,
                                          List (Nat, Term vs), Term vs))))
   getCasePats {vars} defs n pats args
       = case !(lookupDefExact n (gamma defs)) of
@@ -216,11 +216,11 @@ mutual
           urhs (App fc f a) = App fc (updateRHS ms f) (updateRHS ms a)
           urhs (As fc a p) = As fc (updateRHS ms a) (updateRHS ms p)
           urhs (TDelayed fc r ty) = TDelayed fc r (updateRHS ms ty)
-          urhs (TDelay fc r ty tm) 
+          urhs (TDelay fc r ty tm)
               = TDelay fc r (updateRHS ms ty) (updateRHS ms tm)
-          urhs (TForce fc tm) = TForce fc (updateRHS ms tm)
+          urhs (TForce fc r tm) = TForce fc r (updateRHS ms tm)
           urhs (Bind fc x b sc)
-              = Bind fc x (map (updateRHS ms) b) 
+              = Bind fc x (map (updateRHS ms) b)
                   (updateRHS (map (\vt => (weaken (fst vt), weaken (snd vt))) ms) sc)
           urhs (PrimVal fc c) = PrimVal fc c
           urhs (Erased fc) = Erased fc
@@ -229,7 +229,7 @@ mutual
       updatePat : List (Term vs, Term vs') -> (Nat, Term vs) -> (Nat, Term vs')
       updatePat ms (n, tm) = (n, updateRHS ms tm)
 
-      matchArgs : (vs ** (Env Term vs, Term vs, Term vs)) -> 
+      matchArgs : (vs ** (Env Term vs, Term vs, Term vs)) ->
                   (vs ** (Env Term vs, List (Nat, Term vs), Term vs))
       matchArgs (_ ** (env', lhs, rhs))
          = let patMatch = reverse (zip args (getArgs lhs)) in
@@ -246,7 +246,7 @@ mutual
                List (Nat, Term vars) ->
                FC -> Name -> Nat -> List (Term vars) ->
                Core (List SCCall)
-  findSCcall defs env g pats fc fn_in arity args 
+  findSCcall defs env g pats fc fn_in arity args
         -- Under 'assert_total' we assume that all calls are fine, so leave
         -- the size change list empty
       = do Just gdef <- lookupCtxtExact fn_in (gamma defs)
@@ -262,45 +262,49 @@ mutual
                           Just ps => do scs <- traverse (findInCase defs g) ps
                                         pure (concat scs))]
               (do scs <- traverse (findSC defs env g pats) args
-                  pure ([MkSCCall fn 
-                           (expandToArity arity 
-                                (map (mkChange defs aSmaller pats) args))] 
+                  pure ([MkSCCall fn
+                           (expandToArity arity
+                                (map (mkChange defs aSmaller pats) args))]
                            ++ concat scs))
 
   findInCase : {auto c : Ref Ctxt Defs} ->
-               Defs -> Guardedness -> 
+               Defs -> Guardedness ->
                (vs ** (Env Term vs, List (Nat, Term vs), Term vs)) ->
                Core (List SCCall)
-  findInCase defs g (_ ** (env, pats, tm)) 
+  findInCase defs g (_ ** (env, pats, tm))
      = do logC 10 (do ps <- traverse toFullNames (map snd pats)
                       pure ("Looking in case args " ++ show ps))
           logTermNF 10 "        =" env tm
           rhs <- normaliseOpts tcOnly defs env tm
           findSC defs env g pats rhs
 
--- Remove all laziness annotations which are nothing to do with coinduction,
--- meaning that all only Force/Delay left is to guard coinductive calls.
+-- Remove all force and delay annotations which are nothing to do with
+-- coinduction meaning that all Delays left guard coinductive calls.
 delazy : Defs -> Term vars -> Term vars
-delazy defs (TDelayed fc r tm) 
+delazy defs (TDelayed fc r tm)
     = let tm' = delazy defs tm in
           case r of
                LInf => TDelayed fc r tm'
                _ => tm'
-delazy defs (TDelay fc r ty tm) 
+delazy defs (TDelay fc r ty tm)
     = let ty' = delazy defs ty
           tm' = delazy defs tm in
           case r of
                LInf => TDelay fc r ty' tm'
                _ => tm'
+delazy defs (TForce fc r t)
+    = case r of
+           LInf => TForce fc r (delazy defs t)
+           _ => delazy defs t
 delazy defs (Meta fc n i args) = Meta fc n i (map (delazy defs) args)
-delazy defs (Bind fc x b sc) 
+delazy defs (Bind fc x b sc)
     = Bind fc x (map (delazy defs) b) (delazy defs sc)
 delazy defs (App fc f a) = App fc (delazy defs f) (delazy defs a)
 delazy defs (As fc a p) = As fc (delazy defs a) (delazy defs p)
 delazy defs tm = tm
 
 findCalls : {auto c : Ref Ctxt Defs} ->
-            Defs -> (vars ** (Env Term vars, Term vars, Term vars)) -> 
+            Defs -> (vars ** (Env Term vars, Term vars, Term vars)) ->
             Core (List SCCall)
 findCalls defs (_ ** (env, lhs, rhs_in))
    = do let pargs = getArgs (delazy defs lhs)
@@ -310,7 +314,7 @@ findCalls defs (_ ** (env, lhs, rhs_in))
 
 getSC : {auto c : Ref Ctxt Defs} ->
         Defs -> Def -> Core (List SCCall)
-getSC defs (PMDef _ args _ _ pats) 
+getSC defs (PMDef _ args _ _ pats)
    = do sc <- traverse (findCalls defs) pats
         pure (concat sc)
 getSC defs _ = pure []
@@ -338,7 +342,7 @@ nextArg x = x + 1
 initArgs : {auto a : Ref APos Arg} ->
            Nat -> Core (List (Maybe (Arg, SizeChange)))
 initArgs Z = pure []
-initArgs (S k) 
+initArgs (S k)
     = do arg <- get APos
          put APos (nextArg arg)
          args' <- initArgs k
@@ -351,7 +355,7 @@ initArgs (S k)
 -- use that rather than continuing to traverse the graph!
 checkSC : {auto a : Ref APos Arg} ->
           {auto c : Ref Ctxt Defs} ->
-          Defs -> 
+          Defs ->
           Name -> -- function we're checking
           List (Maybe (Arg, SizeChange)) -> -- functions arguments and change
           List (Name, List (Maybe Arg)) -> -- calls we've seen so far
@@ -398,7 +402,7 @@ checkSC defs f args path
                 then case term of
                        NotTerminating (RecPath _) =>
                           -- might have lost information while assuming this
-                          -- was mutually recursive, so start again with new 
+                          -- was mutually recursive, so start again with new
                           -- arguments (that is, where we'd start if the
                           -- function was the top level thing we were checking)
                           do args' <- initArgs (length (fnArgs sc))
@@ -419,11 +423,11 @@ checkSC defs f args path
 
 calcTerminating : {auto c : Ref Ctxt Defs} ->
                   FC -> Name -> Core Terminating
-calcTerminating loc n 
+calcTerminating loc n
     = do defs <- get Ctxt
          case !(lookupCtxtExact n (gamma defs)) of
               Nothing => throw (UndefinedName loc n)
-              Just def => 
+              Just def =>
                 case !(totRefs defs (nub !(addCases defs (keys (refersTo def))))) of
                      IsTerminating =>
                         do let ty = type def
@@ -455,7 +459,7 @@ checkTerminating : {auto c : Ref Ctxt Defs} ->
 checkTerminating loc n
     = do tot <- getTotality loc n
          case isTerminating tot of
-              Unchecked => 
+              Unchecked =>
                  do tot' <- calcTerminating loc n
                     setTerminating loc n tot'
                     pure tot'
@@ -468,7 +472,7 @@ nameIn defs tyns (NBind fc x b sc)
          else do sc' <- sc defs (toClosure defaultOpts [] (Erased fc))
                  nameIn defs tyns sc'
 nameIn defs tyns (NApp _ _ args)
-    = anyM (nameIn defs tyns) 
+    = anyM (nameIn defs tyns)
            !(traverse (evalClosure defs) args)
 nameIn defs tyns (NTCon _ n _ _ args)
     = if n `elem` tyns
@@ -476,7 +480,7 @@ nameIn defs tyns (NTCon _ n _ _ args)
          else do args' <- traverse (evalClosure defs) args
                  anyM (nameIn defs tyns) args'
 nameIn defs tyns (NDCon _ n _ _ args)
-    = anyM (nameIn defs tyns) 
+    = anyM (nameIn defs tyns)
            !(traverse (evalClosure defs) args)
 nameIn defs tyns _ = pure False
 
@@ -485,10 +489,10 @@ nameIn defs tyns _ = pure False
 posArg : Defs -> List Name -> NF [] -> Core Terminating
 -- a tyn can only appear in the parameter positions of
 -- tc; report positivity failure if it appears anywhere else
-posArg defs tyns (NTCon _ tc _ _ args) 
+posArg defs tyns (NTCon _ tc _ _ args)
     = let testargs : List (Closure [])
              = case !(lookupDefExact tc (gamma defs)) of
-                    Just (TCon _ _ params _ _ _) => 
+                    Just (TCon _ _ params _ _ _ _) =>
                          dropParams 0 params args
                     _ => args in
           if !(anyM (nameIn defs tyns)
@@ -503,7 +507,7 @@ posArg defs tyns (NTCon _ tc _ _ args)
              then dropParams (S i) ps xs
              else x :: dropParams (S i) ps xs
 -- a tyn can not appear as part of ty
-posArg defs tyns (NBind fc x (Pi c e ty) sc) 
+posArg defs tyns (NBind fc x (Pi c e ty) sc)
     = if !(nameIn defs tyns ty)
          then pure (NotTerminating NotStrictlyPositive)
          else do sc' <- sc defs (toClosure defaultOpts [] (Erased fc))
@@ -511,20 +515,20 @@ posArg defs tyns (NBind fc x (Pi c e ty) sc)
 posArg defs tyn _ = pure IsTerminating
 
 checkPosArgs : Defs -> List Name -> NF [] -> Core Terminating
-checkPosArgs defs tyns (NBind fc x (Pi c e ty) sc) 
+checkPosArgs defs tyns (NBind fc x (Pi c e ty) sc)
     = case !(posArg defs tyns ty) of
-           IsTerminating => 
-                checkPosArgs defs tyns 
+           IsTerminating =>
+                checkPosArgs defs tyns
                        !(sc defs (toClosure defaultOpts [] (Erased fc)))
            bad => pure bad
 checkPosArgs defs tyns _ = pure IsTerminating
 
 checkCon : {auto c : Ref Ctxt Defs} ->
            Defs -> List Name -> Name -> Core Terminating
-checkCon defs tyns cn 
+checkCon defs tyns cn
     = case !(lookupTyExact cn (gamma defs)) of
            Nothing => pure Unchecked
-           Just ty => 
+           Just ty =>
                 case !(totRefsIn defs ty) of
                      IsTerminating => checkPosArgs defs tyns !(nf defs [] ty)
                      bad => pure bad
@@ -541,12 +545,12 @@ checkData defs tyns (c :: cs)
 -- return whether it's terminating, along with its data constructors
 calcPositive : {auto c : Ref Ctxt Defs} ->
                FC -> Name -> Core (Terminating, List Name)
-calcPositive loc n 
+calcPositive loc n
     = do defs <- get Ctxt
          case !(lookupDefTyExact n (gamma defs)) of
-              Just (TCon _ _ _ _ tns dcons, ty) => 
+              Just (TCon _ _ _ _ _ tns dcons, ty) =>
                   case !(totRefsIn defs ty) of
-                       IsTerminating => 
+                       IsTerminating =>
                             do t <- checkData defs (n :: tns) dcons
                                pure (t , dcons)
                        bad => pure (bad, dcons)
@@ -570,7 +574,7 @@ checkPositive loc n_in
               t => pure t
 
 -- Check and record totality of the given name; positivity if it's a data
--- type, termination if it's a function                                                              
+-- type, termination if it's a function
 export
 checkTotal : {auto c : Ref Ctxt Defs} ->
              FC -> Name -> Core Terminating
@@ -584,7 +588,7 @@ checkTotal loc n_in
          case isTerminating tot of
               Unchecked =>
                   case !(lookupDefExact n (gamma defs)) of
-                       Just (TCon _ _ _ _ _ _)
+                       Just (TCon _ _ _ _ _ _ _)
                            => checkPositive loc n
                        _ => checkTerminating loc n
               t => pure t

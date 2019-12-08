@@ -43,30 +43,30 @@ search : {auto c : Ref Ctxt Defs} ->
          {auto m : Ref MD Metadata} ->
          {auto u : Ref UST UState} ->
          FC -> RigCount ->
-         SearchOpts -> Maybe RecData -> 
+         SearchOpts -> Maybe RecData ->
          ClosedTerm ->
          Name -> Core (List ClosedTerm)
 
-getAllEnv : FC -> (done : List Name) -> 
-            Env Term vars -> 
+getAllEnv : FC -> (done : List Name) ->
+            Env Term vars ->
             List (Term (done ++ vars), Term (done ++ vars))
 getAllEnv fc done [] = []
-getAllEnv {vars = v :: vs} fc done (b :: env) 
-   = let rest = getAllEnv fc (done ++ [v]) env 
+getAllEnv {vars = v :: vs} fc done (b :: env)
+   = let rest = getAllEnv fc (done ++ [v]) env
          MkVar p = weakenVar done {inner = v :: vs} First in
          (Local fc Nothing _ p,
-           rewrite appendAssociative done [v] vs in 
-              weakenNs (done ++ [v]) (binderType b)) :: 
+           rewrite appendAssociative done [v] vs in
+              weakenNs (done ++ [v]) (binderType b)) ::
                    rewrite appendAssociative done [v] vs in rest
 
 -- Search recursively, but only if the given name wasn't solved by unification
 searchIfHole : {auto c : Ref Ctxt Defs} ->
                {auto m : Ref MD Metadata} ->
                {auto u : Ref UST UState} ->
-               FC -> SearchOpts -> Maybe RecData -> ClosedTerm -> 
-               Env Term vars -> ArgInfo vars -> 
+               FC -> SearchOpts -> Maybe RecData -> ClosedTerm ->
+               Env Term vars -> ArgInfo vars ->
                Core (List (Term vars))
-searchIfHole fc opts defining topty env arg 
+searchIfHole fc opts defining topty env arg
     = case depth opts of
            Z => pure []
            S k =>
@@ -86,7 +86,7 @@ searchIfHole fc opts defining topty env arg
                  traverse (\tm => pure !(normaliseHoles defs env
                                          (applyTo fc (embed tm) env))) tms
 
-mkCandidates : FC -> Term vars -> List (List (Term vars)) -> 
+mkCandidates : FC -> Term vars -> List (List (Term vars)) ->
                List (Term vars)
 mkCandidates fc f [] = pure f
 mkCandidates fc f (args :: argss)
@@ -102,19 +102,19 @@ explicit ai = plicit ai == Explicit
 searchName : {auto c : Ref Ctxt Defs} ->
              {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
-             FC -> RigCount -> SearchOpts -> 
+             FC -> RigCount -> SearchOpts ->
              Env Term vars -> NF vars -> ClosedTerm ->
              Maybe RecData -> (Name, GlobalDef) -> Core (List (Term vars))
 searchName fc rigc opts env target topty defining (n, ndef)
     = do defs <- get Ctxt
-         let True = visibleInAny (!getNS :: !getNestedNS) 
+         let True = visibleInAny (!getNS :: !getNestedNS)
                                  (fullname ndef) (visibility ndef)
              | _ => pure []
          let ty = type ndef
          let namety : NameType
                  = case definition ndef of
                         DCon tag arity => DataCon tag arity
-                        TCon tag arity _ _ _ _ => TyCon tag arity
+                        TCon tag arity _ _ _ _ _ => TyCon tag arity
                         _ => Func
          log 5 $ "Trying " ++ show (fullname ndef)
          nty <- nf defs env (embed ty)
@@ -149,7 +149,7 @@ successful (elab :: elabs)
     = catch (do res <- elab
                 rest <- successful elabs
                 pure (Right res :: rest))
-            (\err => 
+            (\err =>
                 do rest <- successful elabs
                    pure (Left err :: rest))
 
@@ -171,7 +171,7 @@ getSuccessful {vars} fc rig opts mkHole env ty topty defining all
                                             (\r => nameRoot (recname r) ++ "_rhs")
                                             defining
                            hn <- uniqueName defs (map nameRoot vars) base
-                           (idx, tm) <- newMeta fc rig env (UN hn) ty 
+                           (idx, tm) <- newMeta fc rig env (UN hn) ty
                                                 (Hole (length env) False)
                                                 False
                            pure [tm]
@@ -197,7 +197,7 @@ searchNames fc rig opts env ty topty defining (n :: ns)
          getSuccessful fc rig opts False env ty topty defining
             (map (searchName fc rig opts env nfty topty defining) visns)
   where
-    visible : Context -> List (List String) -> Name -> 
+    visible : Context -> List (List String) -> Name ->
               Core (Maybe (Name, GlobalDef))
     visible gam nspace n
         = do Just def <- lookupCtxtExact n gam
@@ -209,16 +209,16 @@ searchNames fc rig opts env ty topty defining (n :: ns)
 tryRecursive : {auto c : Ref Ctxt Defs} ->
                {auto m : Ref MD Metadata} ->
                {auto u : Ref UST UState} ->
-               FC -> RigCount -> SearchOpts -> 
+               FC -> RigCount -> SearchOpts ->
                Env Term vars -> Term vars -> ClosedTerm ->
                Maybe RecData -> Core (List (Term vars))
 tryRecursive fc rig opts env ty topty Nothing = pure []
-tryRecursive fc rig opts env ty topty (Just rdata) 
+tryRecursive fc rig opts env ty topty (Just rdata)
     = do defs <- get Ctxt
          case !(lookupCtxtExact (recname rdata) (gamma defs)) of
               Nothing => pure []
               Just def =>
-                do tms <- searchName fc rig opts env !(nf defs env ty) 
+                do tms <- searchName fc rig opts env !(nf defs env ty)
                                      topty Nothing
                                      (recname rdata, def)
                    defs <- get Ctxt
@@ -235,7 +235,7 @@ tryRecursive fc rig opts env ty topty (Just rdata)
       argDiff (Ref _ _ fn) (Ref _ _ fn') = fn /= fn'
       argDiff (Bind _ _ _ _) _ = False
       argDiff _ (Bind _ _ _ _) = False
-      argDiff (App _ f a) (App _ f' a') 
+      argDiff (App _ f a) (App _ f' a')
          = structDiff f f' || structDiff a a'
       argDiff (PrimVal _ c) (PrimVal _ c') = c /= c'
       argDiff (Erased _) _ = False
@@ -244,7 +244,7 @@ tryRecursive fc rig opts env ty topty (Just rdata)
       argDiff (As _ _ x) y = argDiff x y
       argDiff x (As _ _ y) = argDiff x y
       argDiff _ _ = True
-      
+
       appsDiff : Term vs -> Term vs' -> List (Term vs) -> List (Term vs') ->
                  Bool
       appsDiff (Ref _ (DataCon _ _) f) (Ref _ (DataCon _ _) f') args args'
@@ -277,9 +277,9 @@ usableLocal loc _ _ = True
 searchLocalWith : {auto c : Ref Ctxt Defs} ->
                   {auto m : Ref MD Metadata} ->
                   {auto u : Ref UST UState} ->
-                  FC -> RigCount -> SearchOpts -> Env Term vars -> 
+                  FC -> RigCount -> SearchOpts -> Env Term vars ->
                   List (Term vars, Term vars) ->
-                  Term vars -> ClosedTerm -> Maybe RecData -> 
+                  Term vars -> ClosedTerm -> Maybe RecData ->
                   Core (List (Term vars))
 searchLocalWith fc rig opts env [] ty topty defining
     = pure []
@@ -291,7 +291,7 @@ searchLocalWith {vars} fc rig opts env ((p, pty) :: rest) ty topty defining
                         searchLocalWith fc rig opts env rest ty
                                         topty defining]
   where
-    findDirect : Defs -> Term vars -> 
+    findDirect : Defs -> Term vars ->
                  (Term vars -> Term vars) ->
                  NF vars -> -- local variable's type
                  NF vars -> -- type we're looking for
@@ -301,7 +301,7 @@ searchLocalWith {vars} fc rig opts env ((p, pty) :: rest) ty topty defining
              -- We can only use a local variable if it's not an unsolved
              -- hole
              if usableLocal fc env nty
-                then 
+                then
                   tryUnify -- try with no arguments first
                     (do ures <- unify InTerm fc env ty nty
                         let [] = constraints ures
@@ -310,12 +310,12 @@ searchLocalWith {vars} fc rig opts env ((p, pty) :: rest) ty topty defining
                     (do ures <- unify InTerm fc env ty appTy
                         let [] = constraints ures
                             | _ => pure []
-                        args' <- traverse (searchIfHole fc opts defining topty env) 
+                        args' <- traverse (searchIfHole fc opts defining topty env)
                                           args
                         pure (mkCandidates fc (f prf) args'))
                 else pure []
 
-    findPos : Defs -> Term vars -> 
+    findPos : Defs -> Term vars ->
               (Term vars -> Term vars) ->
               NF vars -> NF vars -> Core (List (Term vars))
     findPos defs prf f x@(NTCon pfc pn _ _ [xty, yty]) target
@@ -340,7 +340,7 @@ searchLocalWith {vars} fc rig opts env ((p, pty) :: rest) ty topty defining
                                                            f arg])
                                          xtynf target),
                                    (do ytynf <- evalClosure defs yty
-                                       findPos defs prf 
+                                       findPos defs prf
                                            (\arg => apply fc (Ref fc Func sname)
                                                           [xtytm,
                                                            ytytm,
@@ -352,12 +352,12 @@ searchLocalWith {vars} fc rig opts env ((p, pty) :: rest) ty topty defining
 searchLocal : {auto c : Ref Ctxt Defs} ->
               {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
-              FC -> RigCount -> SearchOpts -> 
+              FC -> RigCount -> SearchOpts ->
               Env Term vars -> Term vars -> ClosedTerm ->
               Maybe RecData -> Core (List (Term vars))
-searchLocal fc rig opts env ty topty defining 
+searchLocal fc rig opts env ty topty defining
     = do defs <- get Ctxt
-         searchLocalWith fc rig opts env (getAllEnv fc [] env) 
+         searchLocalWith fc rig opts env (getAllEnv fc [] env)
                          ty topty defining
 
 searchType : {auto c : Ref Ctxt Defs} ->
@@ -399,12 +399,12 @@ searchType fc rig opts env defining topty _ ty
                                   ([searchLocal fc rig opts env ty topty defining,
                                     searchNames fc rig opts env ty topty defining
                                                 allHints]
-                                    ++ if recOK opts 
+                                    ++ if recOK opts
                                          then [tryRecursive fc rig opts env ty topty defining]
                                          else [])
                      else pure []
            _ => do logTerm 10 "Searching locals only at" ty
-                   getSuccessful fc rig opts True env ty topty defining 
+                   getSuccessful fc rig opts True env ty topty defining
                        ([searchLocal fc rig opts env ty topty defining]
                          ++ if recOK opts
                                then [tryRecursive fc rig opts env ty topty defining]
@@ -413,7 +413,7 @@ searchType fc rig opts env defining topty _ ty
 searchHole : {auto c : Ref Ctxt Defs} ->
              {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
-             FC -> RigCount -> SearchOpts -> Maybe RecData -> Name -> 
+             FC -> RigCount -> SearchOpts -> Maybe RecData -> Name ->
              Nat -> ClosedTerm ->
              Defs -> GlobalDef -> Core (List ClosedTerm)
 searchHole fc rig opts defining n locs topty defs glob
@@ -430,15 +430,15 @@ search fc rig opts defining topty n_in
                    -- if it's arising from an auto implicit
                    case definition gdef of
                         Hole locs _ => searchHole fc rig opts defining n locs topty defs gdef
-                        BySearch _ _ _ => searchHole fc rig opts defining n 
-                                                   !(getArity defs [] (type gdef)) 
+                        BySearch _ _ _ => searchHole fc rig opts defining n
+                                                   !(getArity defs [] (type gdef))
                                                    topty defs gdef
                         _ => do log 10 $ show n_in ++ " not a hole"
                                 throw (InternalError $ "Not a hole: " ++ show n ++ " in " ++ show (map recname defining))
               _ => do log 10 $ show n_in ++ " not found"
                       throw (UndefinedName fc n_in)
   where
-    lookupHoleName : Name -> Context -> 
+    lookupHoleName : Name -> Context ->
                      Core (Maybe (Name, Int, GlobalDef))
     lookupHoleName n defs
         = case !(lookupCtxtExactI n defs) of
@@ -454,7 +454,7 @@ getLHSData defs (Just tm) = pure $ getLHS !(normaliseHoles defs [] tm)
     getLHS : Term vars -> Maybe RecData
     getLHS (Bind _ _ (PVar _ _ _) sc) = getLHS sc
     getLHS (Bind _ _ (PLet _ _ _) sc) = getLHS sc
-    getLHS sc 
+    getLHS sc
         = case getFn sc of
                Ref _ _ n => Just (MkRecData n sc)
                _ => Nothing
@@ -465,7 +465,7 @@ dropLinearErrors : {auto c : Ref Ctxt Defs} ->
                    Core (List ClosedTerm)
 dropLinearErrors fc [] = pure []
 dropLinearErrors fc (t :: ts)
-    = tryUnify 
+    = tryUnify
           (do linearCheck fc Rig1 False [] t
               ts' <- dropLinearErrors fc ts
               pure (t :: ts'))

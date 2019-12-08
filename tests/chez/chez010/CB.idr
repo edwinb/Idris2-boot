@@ -24,7 +24,7 @@ cb x y
          pure (x + y)
 
 main : IO ()
-main 
+main
     = do printLn (add 4 5)
          res <- applyIntFn (add 4 5) 6 (\x, y => do putStrLn "In callback"
                                                     pure (x * 2 + y))

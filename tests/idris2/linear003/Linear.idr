@@ -31,7 +31,7 @@ fst : (1 p : Pair a b) -> a
 fst (MkPair x y) = x
 
 wibble : (1 p : Pair a b) -> a
-wibble {a=a} (MkPair x y) 
+wibble {a=a} (MkPair x y)
     = let test : (1 y : a) -> a
           test y = y in
       test x

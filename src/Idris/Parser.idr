@@ -836,6 +836,8 @@ dataOpt : Rule DataOpt
 dataOpt
     = do exactIdent "noHints"
          pure NoHints
+  <|> do exactIdent "uniqueSearch"
+         pure UniqueSearch
   <|> do exactIdent "search"
          ns <- some name
          pure (SearchBy ns)
@@ -1025,6 +1027,8 @@ fnDirectOpt
          pure Inline
   <|> do exactIdent "extern"
          pure ExternFn
+  <|> do exactIdent "macro"
+         pure Macro
   <|> do exactIdent "foreign"
          cs <- many strLit
          pure (ForeignFn cs)

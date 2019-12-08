@@ -17,7 +17,7 @@ Num ty => Num (Expr ty) where
     (+) = Add
     (*) = Mul
     fromInteger = Val . fromInteger
-    
+
 Neg ty => Neg (Expr ty) where
     negate x = 0 - x
     (-) = Sub

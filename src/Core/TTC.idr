@@ -19,13 +19,13 @@ import Utils.Binary
 
 export
 TTC FC where
-  toBuf b (MkFC file startPos endPos) 
+  toBuf b (MkFC file startPos endPos)
       = do tag 0; toBuf b file; toBuf b startPos; toBuf b endPos
   toBuf b EmptyFC = tag 1
 
   fromBuf b
       = case !getTag of
-             0 => do f <- fromBuf b; 
+             0 => do f <- fromBuf b;
                      s <- fromBuf b; e <- fromBuf b
                      pure (MkFC f s e)
              1 => pure EmptyFC
@@ -41,7 +41,7 @@ TTC Name where
   toBuf b (Nested x y) = do tag 5; toBuf b x; toBuf b y
   toBuf b (CaseBlock x y) = do tag 6; toBuf b x; toBuf b y
   toBuf b (WithBlock x y) = do tag 7; toBuf b x; toBuf b y
-  toBuf b (Resolved x) 
+  toBuf b (Resolved x)
       = throw (InternalError ("Can't write resolved name " ++ show x))
 
   fromBuf b
@@ -70,8 +70,8 @@ TTC Name where
                      y <- fromBuf b
                      pure (WithBlock x y)
              _ => corrupt "Name"
-            
-export 
+
+export
 TTC RigCount where
   toBuf b Rig0 = tag 0
   toBuf b Rig1 = tag 1
@@ -104,10 +104,10 @@ TTC Constant where
   toBuf b (Str x) = do tag 2; toBuf b x
   toBuf b (Ch x) = do tag 3; toBuf b x
   toBuf b (Db x) = do tag 4; toBuf b x
-  
+
   toBuf b WorldVal = tag 5
   toBuf b IntType = tag 6
-  toBuf b IntegerType = tag 7 
+  toBuf b IntegerType = tag 7
   toBuf b StringType = tag 8
   toBuf b CharType = tag 9
   toBuf b DoubleType = tag 10
@@ -198,7 +198,7 @@ mutual
 
   export
   TTC (Term vars) where
-    toBuf b (Local {name} fc c idx y) 
+    toBuf b (Local {name} fc c idx y)
         = if idx < 244
              then do toBuf b (prim__truncBigInt_B8 (12 + cast idx))
                      toBuf b c
@@ -207,43 +207,43 @@ mutual
                      toBuf b c
                      toBuf b name
                      toBuf b idx
-    toBuf b (Ref fc nt name) 
+    toBuf b (Ref fc nt name)
         = do tag 1;
              toBuf b nt; toBuf b name
-    toBuf b (Meta fc n i xs) 
+    toBuf b (Meta fc n i xs)
         = do tag 2;
              toBuf b n; toBuf b xs
-    toBuf b (Bind fc x bnd scope) 
+    toBuf b (Bind fc x bnd scope)
         = do tag 3;
-             toBuf b x; 
+             toBuf b x;
              toBuf b bnd; toBuf b scope
-    toBuf b (App fc fn arg) 
+    toBuf b (App fc fn arg)
         = do tag 4;
              toBuf b fn; toBuf b arg
 --              let (fn, args) = getFnArgs (App fc fn arg)
---              toBuf b fn; -- toBuf b p; 
+--              toBuf b fn; -- toBuf b p;
 --              toBuf b args
     toBuf b (As fc as tm)
         = do tag 5;
              toBuf b as; toBuf b tm
-    toBuf b (TDelayed fc r tm) 
+    toBuf b (TDelayed fc r tm)
         = do tag 6;
              toBuf b r; toBuf b tm
     toBuf b (TDelay fc r ty tm)
         = do tag 7;
              toBuf b r; toBuf b ty; toBuf b tm
-    toBuf b (TForce fc tm)
+    toBuf b (TForce fc r tm)
         = do tag 8;
-             toBuf b tm
-    toBuf b (PrimVal fc c) 
+             toBuf b r; toBuf b tm
+    toBuf b (PrimVal fc c)
         = do tag 9;
              toBuf b c
-    toBuf b (Erased fc) 
+    toBuf b (Erased fc)
         = tag 10
     toBuf b (TType fc)
         = tag 11
 
-    fromBuf b 
+    fromBuf b
         = case !getTag of
                0 => do c <- fromBuf b
                        name <- fromBuf b
@@ -264,11 +264,11 @@ mutual
                        pure (As emptyFC as tm)
                6 => do lr <- fromBuf b; tm <- fromBuf b
                        pure (TDelayed emptyFC lr tm)
-               7 => do lr <- fromBuf b; 
+               7 => do lr <- fromBuf b;
                        ty <- fromBuf b; tm <- fromBuf b
                        pure (TDelay emptyFC lr ty tm)
-               8 => do tm <- fromBuf b
-                       pure (TForce emptyFC tm)
+               8 => do lr <- fromBuf b; tm <- fromBuf b
+                       pure (TForce emptyFC lr tm)
                9 => do c <- fromBuf b
                        pure (PrimVal emptyFC c)
                10 => pure (Erased emptyFC)
@@ -280,24 +280,24 @@ mutual
 
 export
 TTC Pat where
-  toBuf b (PAs fc x y) 
+  toBuf b (PAs fc x y)
       = do tag 0; toBuf b fc; toBuf b x; toBuf b y
-  toBuf b (PCon fc x t arity xs) 
+  toBuf b (PCon fc x t arity xs)
       = do tag 1; toBuf b fc; toBuf b x; toBuf b t; toBuf b arity; toBuf b xs
-  toBuf b (PTyCon fc x arity xs) 
+  toBuf b (PTyCon fc x arity xs)
       = do tag 2; toBuf b fc; toBuf b x; toBuf b arity; toBuf b xs
   toBuf b (PConst fc c)
       = do tag 3; toBuf b fc; toBuf b c
   toBuf b (PArrow fc x s t)
       = do tag 4; toBuf b fc; toBuf b x; toBuf b s; toBuf b t
-  toBuf b (PDelay fc x t y) 
+  toBuf b (PDelay fc x t y)
       = do tag 5; toBuf b fc; toBuf b x; toBuf b t; toBuf b y
-  toBuf b (PLoc fc x) 
+  toBuf b (PLoc fc x)
       = do tag 6; toBuf b fc; toBuf b x
-  toBuf b (PUnmatchable fc x) 
+  toBuf b (PUnmatchable fc x)
       = do tag 7; toBuf b fc; toBuf b x
 
-  fromBuf b 
+  fromBuf b
       = case !getTag of
              0 => do fc <- fromBuf b; x <- fromBuf b;
                      y <- fromBuf b
@@ -327,15 +327,15 @@ TTC Pat where
 mutual
   export
   TTC (CaseTree vars) where
-    toBuf b (Case {name} idx x scTy xs) 
+    toBuf b (Case {name} idx x scTy xs)
         = do tag 0; toBuf b name; toBuf b idx; toBuf b xs
-    toBuf b (STerm x) 
+    toBuf b (STerm x)
         = do tag 1; toBuf b x
-    toBuf b (Unmatched msg) 
+    toBuf b (Unmatched msg)
         = do tag 2; toBuf b msg
     toBuf b Impossible = tag 3
 
-    fromBuf b 
+    fromBuf b
         = case !getTag of
                0 => do name <- fromBuf b; idx <- fromBuf b
                        xs <- fromBuf b
@@ -349,16 +349,16 @@ mutual
 
   export
   TTC (CaseAlt vars) where
-    toBuf b (ConCase x t args y) 
+    toBuf b (ConCase x t args y)
         = do tag 0; toBuf b x; toBuf b t; toBuf b args; toBuf b y
-    toBuf b (DelayCase ty arg y) 
+    toBuf b (DelayCase ty arg y)
         = do tag 1; toBuf b ty; toBuf b arg; toBuf b y
     toBuf b (ConstCase x y)
         = do tag 2; toBuf b x; toBuf b y
     toBuf b (DefaultCase x)
         = do tag 3; toBuf b x
 
-    fromBuf b 
+    fromBuf b
         = case !getTag of
                0 => do x <- fromBuf b; t <- fromBuf b
                        args <- fromBuf b; y <- fromBuf b
@@ -374,7 +374,7 @@ mutual
 export
 TTC (Env Term vars) where
   toBuf b [] = pure ()
-  toBuf b ((::) bnd env) 
+  toBuf b ((::) bnd env)
       = do toBuf b bnd; toBuf b env
 
   -- Length has to correspond to length of 'vars'
@@ -390,7 +390,7 @@ TTC Visibility where
   toBuf b Export = tag 1
   toBuf b Public = tag 2
 
-  fromBuf b 
+  fromBuf b
       = case !getTag of
              0 => pure Private
              1 => pure Export
@@ -403,7 +403,7 @@ TTC PartialReason where
   toBuf b (BadCall xs) = do tag 1; toBuf b xs
   toBuf b (RecPath xs) = do tag 2; toBuf b xs
 
-  fromBuf b 
+  fromBuf b
       = case !getTag of
              0 => pure NotStrictlyPositive
              1 => do xs <- fromBuf b
@@ -429,14 +429,14 @@ TTC Terminating where
 export
 TTC Covering where
   toBuf b IsCovering = tag 0
-  toBuf b (MissingCases ms) 
+  toBuf b (MissingCases ms)
       = do tag 1
            toBuf b ms
-  toBuf b (NonCoveringCall ns) 
+  toBuf b (NonCoveringCall ns)
       = do tag 2
            toBuf b ns
 
-  fromBuf b 
+  fromBuf b
       = case !getTag of
              0 => pure IsCovering
              1 => do ms <- fromBuf b
@@ -544,7 +544,7 @@ TTC (PrimFn n) where
                  35 => do ty <- fromBuf b; pure (ShiftL ty)
                  36 => do ty <- fromBuf b; pure (ShiftR ty)
                  _ => corrupt "PrimFn 2"
-      
+
       fromBuf3 : Ref Bin Binary ->
                  Core (PrimFn 3)
       fromBuf3 b
@@ -552,7 +552,7 @@ TTC (PrimFn n) where
                  18 => pure StrSubstr
                  100 => pure BelieveMe
                  _ => corrupt "PrimFn 3"
-             
+
 mutual
   export
   TTC (CExp vars) where
@@ -671,7 +671,7 @@ TTC CDef where
   toBuf b (MkForeign cs args ret) = do tag 2; toBuf b cs; toBuf b args; toBuf b ret
   toBuf b (MkError cexpr) = do tag 3; toBuf b cexpr
 
-  fromBuf b 
+  fromBuf b
       = case !getTag of
              0 => do args <- fromBuf b; cexpr <- fromBuf b
                      pure (MkFun args cexpr)
@@ -734,7 +734,7 @@ TTC PrimNames where
 export
 TTC Def where
   toBuf b None = tag 0
-  toBuf b (PMDef r args ct rt pats) 
+  toBuf b (PMDef r args ct rt pats)
       = do tag 1; toBuf b args; toBuf b ct; toBuf b rt; toBuf b pats
   toBuf b (ExternDef a)
       = do tag 2; toBuf b a
@@ -743,22 +743,22 @@ TTC Def where
   toBuf b (Builtin a)
       = throw (InternalError "Trying to serialise a Builtin")
   toBuf b (DCon t arity) = do tag 4; toBuf b t; toBuf b arity
-  toBuf b (TCon t arity parampos detpos ms datacons) 
+  toBuf b (TCon t arity parampos detpos u ms datacons)
       = do tag 5; toBuf b t; toBuf b arity; toBuf b parampos
-           toBuf b detpos; toBuf b ms; toBuf b datacons
-  toBuf b (Hole locs p) 
+           toBuf b detpos; toBuf b u; toBuf b ms; toBuf b datacons
+  toBuf b (Hole locs p)
       = do tag 6; toBuf b locs; toBuf b p
-  toBuf b (BySearch c depth def) 
+  toBuf b (BySearch c depth def)
       = do tag 7; toBuf b c; toBuf b depth; toBuf b def
-  toBuf b (Guess guess envb constraints) 
+  toBuf b (Guess guess envb constraints)
       = do tag 8; toBuf b guess; toBuf b envb; toBuf b constraints
   toBuf b ImpBind = tag 9
   toBuf b Delayed = tag 10
 
-  fromBuf b 
+  fromBuf b
       = case !getTag of
              0 => pure None
-             1 => do args <- fromBuf b 
+             1 => do args <- fromBuf b
                      ct <- fromBuf b
                      rt <- fromBuf b
                      pats <- fromBuf b
@@ -771,9 +771,10 @@ TTC Def where
              4 => do t <- fromBuf b; a <- fromBuf b
                      pure (DCon t a)
              5 => do t <- fromBuf b; a <- fromBuf b
-                     ps <- fromBuf b; dets <- fromBuf b; 
+                     ps <- fromBuf b; dets <- fromBuf b;
+                     u <- fromBuf b
                      ms <- fromBuf b; cs <- fromBuf b
-                     pure (TCon t a ps dets ms cs)
+                     pure (TCon t a ps dets u ms cs)
              6 => do l <- fromBuf b
                      p <- fromBuf b
                      pure (Hole l p)
@@ -805,6 +806,7 @@ TTC DefFlag where
   toBuf b TCInline = tag 5
   toBuf b (SetTotal x) = do tag 6; toBuf b x
   toBuf b BlockedHint = tag 7
+  toBuf b Macro = tag 8
 
   fromBuf b
       = case !getTag of
@@ -814,6 +816,7 @@ TTC DefFlag where
              5 => pure TCInline
              6 => do x <- fromBuf b; pure (SetTotal x)
              7 => pure BlockedHint
+             8 => pure Macro
              _ => corrupt "DefFlag"
 
 export
@@ -839,7 +842,7 @@ TTC SCCall where
 
 export
 TTC GlobalDef where
-  toBuf b gdef 
+  toBuf b gdef
       = -- Only write full details for user specified names. The others will
         -- be holes where all we will ever need after loading is the definition
         do toBuf b (fullname gdef)
@@ -859,30 +862,44 @@ TTC GlobalDef where
                  toBuf b (noCycles gdef)
                  toBuf b (sizeChange gdef)
 
-  fromBuf b 
+  fromBuf b
       = do name <- fromBuf b
            def <- fromBuf b
            cdef <- fromBuf b
-           refsList <- fromBuf b; 
+           refsList <- fromBuf b;
            let refs = map fromList refsList
            if isUserName name
-              then do loc <- fromBuf b; 
-                      ty <- fromBuf b; eargs <- fromBuf b; 
+              then do loc <- fromBuf b;
+                      ty <- fromBuf b; eargs <- fromBuf b;
                       mul <- fromBuf b; vars <- fromBuf b
                       vis <- fromBuf b; tot <- fromBuf b
                       fl <- fromBuf b
                       inv <- fromBuf b
                       c <- fromBuf b
                       sc <- fromBuf b
-                      pure (MkGlobalDef loc name ty eargs mul vars vis 
+                      pure (MkGlobalDef loc name ty eargs mul vars vis
                                         tot fl refs inv c True def cdef sc)
               else do let fc = emptyFC
                       pure (MkGlobalDef fc name (Erased fc) []
                                         RigW [] Public unchecked [] refs
                                         False False True def cdef [])
 
+TTC Transform where
+  toBuf b (MkTransform {vars} env lhs rhs)
+      = do toBuf b vars
+           toBuf b env
+           toBuf b lhs
+           toBuf b rhs
+
+  fromBuf b
+      = do vars <- fromBuf b
+           env <- fromBuf b
+           lhs <- fromBuf b
+           rhs <- fromBuf b
+           pure (MkTransform {vars} env lhs rhs)
+
 -- decode : Context -> Int -> ContextEntry -> Core GlobalDef
-Core.Context.decode gam idx (Coded bin) 
+Core.Context.decode gam idx (Coded bin)
     = do b <- newRef Bin bin
          def <- fromBuf b
          let a = getContent gam

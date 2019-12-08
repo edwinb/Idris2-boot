@@ -25,12 +25,12 @@ getRetTy defs (NBind fc _ (Pi _ _ _) sc)
     = getRetTy defs !(sc defs (toClosure defaultOpts [] (Erased fc)))
 getRetTy defs (NTCon _ n _ _ _) = pure n
 getRetTy defs ty
-    = throw (GenericMsg (getLoc ty) 
+    = throw (GenericMsg (getLoc ty)
              "Can only add hints for concrete return types")
 
 processFnOpt : {auto c : Ref Ctxt Defs} ->
                FC -> Name -> FnOpt -> Core ()
-processFnOpt fc ndef Inline 
+processFnOpt fc ndef Inline
     = setFlag fc ndef Inline
 processFnOpt fc ndef (Hint d)
     = do defs <- get Ctxt
@@ -52,6 +52,8 @@ processFnOpt fc ndef Covering
     = setFlag fc ndef (SetTotal CoveringOnly)
 processFnOpt fc ndef PartialOK
     = setFlag fc ndef (SetTotal PartialOK)
+processFnOpt fc ndef Macro
+    = setFlag fc ndef Macro
 
 -- If it's declared as externally defined, set the definition to
 -- ExternFn <arity>, where the arity is assumed to be fixed (i.e.
@@ -59,7 +61,7 @@ processFnOpt fc ndef PartialOK
 -- Similarly set foreign definitions. Possibly combine these?
 initDef : {auto c : Ref Ctxt Defs} ->
           Name -> Env Term vars -> Term vars -> List FnOpt -> Core Def
-initDef n env ty [] 
+initDef n env ty []
     = do addUserHole n
          pure None
 initDef n env ty (ExternFn :: opts)
@@ -77,7 +79,7 @@ processType : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
               {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
-              List ElabOpt -> NestedNames vars -> Env Term vars -> 
+              List ElabOpt -> NestedNames vars -> Env Term vars ->
               FC -> RigCount -> Visibility ->
               List FnOpt -> ImpTy -> Core ()
 processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
@@ -86,17 +88,17 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
 
          log 1 $ "Processing " ++ show n
          log 5 $ "Checking type decl " ++ show n ++ " : " ++ show ty_raw
-         idx <- resolveName n 
+         idx <- resolveName n
 
          -- Check 'n' is undefined
          defs <- get Ctxt
          Nothing <- lookupCtxtExact (Resolved idx) (gamma defs)
               | Just _ => throw (AlreadyDefined fc n)
-         
-         ty <- 
+
+         ty <-
              wrapError (InType fc n) $
-                   checkTerm idx InType (HolesOkay :: eopts) nest env 
-                             (IBindHere fc (PI Rig0) ty_raw) 
+                   checkTerm idx InType (HolesOkay :: eopts) nest env
+                             (IBindHere fc (PI Rig0) ty_raw)
                              (gType fc)
          logTermNF 5 ("Type of " ++ show n) [] (abstractEnvType tfc env ty)
          -- TODO: Check name visibility
@@ -105,10 +107,10 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
          let fullty = abstractEnvType tfc env ty
          erased <- findErased fullty
 
-         addDef (Resolved idx) 
+         addDef (Resolved idx)
                 (record { eraseArgs = erased }
                         (newDef fc n rig vars fullty vis def))
-         -- Flag it as checked, because we're going to check the clauses 
+         -- Flag it as checked, because we're going to check the clauses
          -- from the top level.
          -- But, if it's a case block, it'll be checked as part of the top
          -- level check so don't set the flag.

@@ -26,12 +26,12 @@ import Data.NameMap
 %default covering
 
 mkImpl : FC -> Name -> List RawImp -> Name
-mkImpl fc n ps 
+mkImpl fc n ps
     = DN (show n ++ " implementation at " ++ show fc)
          (UN ("__Impl_" ++ show n ++ "_" ++
           showSep "_" (map show ps)))
 
-bindConstraints : FC -> PiInfo -> 
+bindConstraints : FC -> PiInfo ->
                   List (Maybe Name, RawImp) -> RawImp -> RawImp
 bindConstraints fc p [] ty = ty
 bindConstraints fc p ((n, ty) :: rest) sc
@@ -43,7 +43,7 @@ bindImpls fc ((n, r, ty) :: rest) sc
     = IPi fc r Implicit (Just n) ty (bindImpls fc rest sc)
 
 addDefaults : FC -> Name -> List Name -> List (Name, List ImpClause) ->
-              List ImpDecl -> 
+              List ImpDecl ->
               (List ImpDecl, List Name) -- Updated body, list of missing methods
 addDefaults fc impName allms defs body
     = let missing = dropGot allms body in
@@ -51,25 +51,25 @@ addDefaults fc impName allms defs body
   where
     -- Given the list of missing names, if any are among the default definitions,
     -- add them to the body
-    extendBody : List Name -> List Name -> List ImpDecl -> 
+    extendBody : List Name -> List Name -> List ImpDecl ->
                  (List ImpDecl, List Name)
     extendBody ms [] body = (body, ms)
     extendBody ms (n :: ns) body
         = case lookup n defs of
                Nothing => extendBody (n :: ms) ns body
-               Just cs => 
+               Just cs =>
                     -- If any method names appear in the clauses, they should
                     -- be applied to the constraint name __con because they
                     -- are going to be referring to the present implementation.
                     -- That is, default method implementations could depend on
                     -- other methods.
                     -- (See test idris2/interface014 for an example!)
-                    let mupdates 
+                    let mupdates
                             = map (\n => (n, IImplicitApp fc (IVar fc n)
                                                           (Just (UN "__con"))
                                                           (IVar fc impName))) allms
                         cs' = map (substNamesClause [] mupdates) cs in
-                        extendBody ms ns 
+                        extendBody ms ns
                              (IDef fc n (map (substLocClause fc) cs') :: body)
 
     -- Find which names are missing from the body
@@ -119,7 +119,7 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
          Just conty <- lookupTyExact (iconstructor cdata) (gamma defs)
               | Nothing => throw (UndefinedName fc (iconstructor cdata))
 
-         let impsp = nub (concatMap findIBinds ps ++ 
+         let impsp = nub (concatMap findIBinds ps ++
                           concatMap findIBinds (map snd cons))
 
          logTerm 3 ("Found interface " ++ show cn) ity
@@ -138,7 +138,7 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
          -- Don't make it a hint if it's a named implementation
          let opts = maybe [Inline, Hint True] (const [Inline]) impln
 
-         let initTy = bindImpls fc is $ bindConstraints fc AutoImplicit cons 
+         let initTy = bindImpls fc is $ bindConstraints fc AutoImplicit cons
                          (apply (IVar fc iname) ps)
          let paramBinds = findBindableNames True vars [] initTy
          let impTy = doBind paramBinds initTy
@@ -147,7 +147,7 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
          log 5 $ "Implementation type: " ++ show impTy
 
          when (typePass pass) $ processDecl [] nest env impTyDecl
-         
+
          -- If the body is empty, we're done for now (just declaring that
          -- the implementation exists and define it later)
          when (defPass pass) $ maybe (pure ())
@@ -160,7 +160,7 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
 
                -- 1.5. Lookup default definitions and add them to to body
                let (body, missing)
-                     = addDefaults fc impName (map (dropNS . fst) (methods cdata)) 
+                     = addDefaults fc impName (map (dropNS . fst) (methods cdata))
                                       (defaults cdata) body_in
 
                log 5 $ "Added defaults: body is " ++ show body
@@ -169,15 +169,15 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
                -- 2. Elaborate top level function types for this interface
                defs <- get Ctxt
                fns <- topMethTypes [] impName methImps impsp (params cdata)
-                                      (map fst (methods cdata)) 
+                                      (map fst (methods cdata))
                                       (methods cdata)
                traverse (processDecl [] nest env) (map mkTopMethDecl fns)
 
                -- 3. Build the record for the implementation
                let mtops = map (Basics.fst . snd) fns
                let con = iconstructor cdata
-               let ilhs = impsApply (IVar fc impName) 
-                                    (map (\x => (x, IBindVar fc (show x))) 
+               let ilhs = impsApply (IVar fc impName)
+                                    (map (\x => (x, IBindVar fc (show x)))
                                               (map fst methImps))
                -- RHS is the constructor applied to a search for the necessary
                -- parent constraints, then the method implementations
@@ -230,12 +230,12 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
 
     impsApply : RawImp -> List (Name, RawImp) -> RawImp
     impsApply fn [] = fn
-    impsApply fn ((n, arg) :: ns) 
+    impsApply fn ((n, arg) :: ns)
         = impsApply (IImplicitApp fc fn (Just n) arg) ns
 
     mkLam : List (Name, RigCount, PiInfo) -> RawImp -> RawImp
     mkLam [] tm = tm
-    mkLam ((x, c, p) :: xs) tm 
+    mkLam ((x, c, p) :: xs) tm
         = ILam fc c p (Just x) (Implicit fc False) (mkLam xs tm)
 
     applyTo : FC -> RawImp -> List (Name, RigCount, PiInfo) -> RawImp
@@ -248,10 +248,10 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
         = applyTo fc (IImplicitApp fc tm (Just x) (IVar fc x)) xs
 
     -- When applying the method in the field for the record, eta expand
-    -- the expected arguments based on the field type, so that implicits get 
+    -- the expected arguments based on the field type, so that implicits get
     -- inserted in the right place
     mkMethField : List (Name, RigCount, RawImp) ->
-                  List (Name, List (Name, RigCount, PiInfo)) -> 
+                  List (Name, List (Name, RigCount, PiInfo)) ->
                   (Name, Name, List (String, String), RigCount, RawImp) -> RawImp
     mkMethField methImps fldTys (topn, n, upds, c, ty)
         = let argns = map applyUpdate (maybe [] id (lookup (dropNS topn) fldTys))
@@ -264,22 +264,22 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
                          (map (\n => (n, IVar fc (UN (show n)))) imps))
       where
         applyUpdate : (Name, RigCount, PiInfo) -> (Name, RigCount, PiInfo)
-        applyUpdate (UN n, c, p) 
+        applyUpdate (UN n, c, p)
             = maybe (UN n, c, p) (\n' => (UN n', c, p)) (lookup n upds)
         applyUpdate t = t
 
     methName : Name -> Name
     methName (NS _ n) = methName n
-    methName n 
+    methName n
         = DN (show n) (UN (show n ++ "_" ++ show iname ++ "_" ++
                      maybe "" show impln ++ "_" ++
                      showSep "_" (map show ps)))
-    
+
     applyCon : Name -> Name -> Core (Name, RawImp)
-    applyCon impl n 
+    applyCon impl n
         = do mn <- inCurrentNS (methName n)
              pure (dropNS n, IVar fc mn)
-    
+
     bindImps : List (Name, RigCount, RawImp) -> RawImp -> RawImp
     bindImps [] ty = ty
     bindImps ((n, c, t) :: ts) ty
@@ -291,9 +291,9 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
     topMethType : List (Name, RawImp) ->
                   Name -> List (Name, RigCount, RawImp) ->
                   List String -> List Name -> List Name ->
-                  (Name, RigCount, (Bool, RawImp)) -> 
+                  (Name, RigCount, (Bool, RawImp)) ->
                   Core ((Name, Name, List (String, String), RigCount, RawImp),
-                           List (Name, RawImp))   
+                           List (Name, RawImp))
     topMethType methupds impName methImps impsp pnames allmeths (mn, c, (d, mty_in))
         = do -- Get the specialised type by applying the method to the
              -- parameters
@@ -319,20 +319,20 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
              log 3 $ "Method " ++ show mn ++ " ==> " ++
                      show n ++ " : " ++ show mty
              log 5 $ "Updates " ++ show methupds
-             log 5 $ "From " ++ show mbase 
-             log 3 $ "Name updates " ++ show upds 
-             log 3 $ "Param names: " ++ show pnames 
+             log 5 $ "From " ++ show mbase
+             log 3 $ "Name updates " ++ show upds
+             log 3 $ "Param names: " ++ show pnames
              log 10 $ "Used names " ++ show ibound
              let ibinds = map fst methImps
              let methupds' = if isNil ibinds then []
                              else [(n, impsApply (IVar fc n)
                                      (map (\x => (x, IBindVar fc (show x))) ibinds))]
              pure ((mn, n, upds, c, mty), methupds')
-    
+
     topMethTypes : List (Name, RawImp) ->
                    Name -> List (Name, RigCount, RawImp) ->
                    List String -> List Name -> List Name ->
-                   List (Name, RigCount, (Bool, RawImp)) -> 
+                   List (Name, RigCount, (Bool, RawImp)) ->
                    Core (List (Name, Name, List (String, String), RigCount, RawImp))
     topMethTypes upds impName methImps impsp pnames allmeths [] = pure []
     topMethTypes upds impName methImps impsp pnames allmeths (m :: ms)
@@ -341,7 +341,7 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
              pure (m' :: ms')
 
     mkTopMethDecl : (Name, Name, List (String, String), RigCount, RawImp) -> ImpDecl
-    mkTopMethDecl (mn, n, upds, c, mty) 
+    mkTopMethDecl (mn, n, upds, c, mty)
         = IClaim fc c vis [] (MkImpTy fc n mty)
 
     -- Given the method type (result of topMethType) return the mapping from
@@ -352,8 +352,8 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
     findMethName : List (Name, Name) -> FC -> Name -> Core Name
     findMethName ns fc n
         = case lookup n ns of
-               Nothing => throw (GenericMsg fc 
-                                (show n ++ " is not a method of " ++ 
+               Nothing => throw (GenericMsg fc
+                                (show n ++ " is not a method of " ++
                                  show iname))
                Just n' => pure n'
 
@@ -370,9 +370,9 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
     updateApp ns tm
         = throw (GenericMsg (getFC tm) "Invalid method definition")
 
-    updateClause : List (Name, Name) -> ImpClause -> 
+    updateClause : List (Name, Name) -> ImpClause ->
                    Core ImpClause
-    updateClause ns (PatClause fc lhs rhs) 
+    updateClause ns (PatClause fc lhs rhs)
         = do lhs' <- updateApp ns lhs
              pure (PatClause fc lhs' rhs)
     updateClause ns (WithClause fc lhs wval cs)
@@ -384,10 +384,10 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
              pure (ImpossibleClause fc lhs')
 
     updateBody : List (Name, Name) -> ImpDecl -> Core ImpDecl
-    updateBody ns (IDef fc n cs) 
+    updateBody ns (IDef fc n cs)
         = do cs' <- traverse (updateClause ns) cs
              n' <- findMethName ns fc n
              pure (IDef fc n' cs')
-    updateBody ns _ 
-        = throw (GenericMsg fc 
+    updateBody ns _
+        = throw (GenericMsg fc
                    "Implementation body can only contain definitions")

@@ -10,6 +10,6 @@ Monad m => Do (m a) where
 
 foo : Maybe Int -> Maybe Int -> Maybe Int
 foo x y
-   = bind x (\x' => 
+   = bind x (\x' =>
      bind y (\y' => Just (x' + y')))
 

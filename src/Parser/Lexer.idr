@@ -44,8 +44,8 @@ comment = is '-' <+> is '-' <+> many (isNot '\n')
 
 toEndComment : (k : Nat) -> Recognise (k /= 0)
 toEndComment Z = empty
-toEndComment (S k) 
-             = some (pred (\c => c /= '-' && c /= '{')) 
+toEndComment (S k)
+             = some (pred (\c => c /= '-' && c /= '{'))
                       <+> toEndComment (S k)
            <|> is '{' <+> is '-' <+> toEndComment (S (S k))
            <|> is '-' <+> is '}' <+> toEndComment k
@@ -54,7 +54,7 @@ toEndComment (S k)
 
 blockComment : Lexer
 blockComment = is '{' <+> is '-' <+> toEndComment 1
-              
+
 docComment : Lexer
 docComment = is '|' <+> is '|' <+> is '|' <+> many (isNot '\n')
 
@@ -74,7 +74,7 @@ holeIdent : Lexer
 holeIdent = is '?' <+> ident
 
 doubleLit : Lexer
-doubleLit 
+doubleLit
     = digits <+> is '.' <+> digits <+> opt
            (is 'e' <+> opt (is '-' <|> is '+') <+> digits)
 
@@ -82,11 +82,11 @@ doubleLit
 -- a specific back end
 cgDirective : Lexer
 cgDirective
-    = exact "%cg" <+> 
-      ((some space <+> 
+    = exact "%cg" <+>
+      ((some space <+>
            some (pred isAlphaNum) <+> many space <+>
-           is '{' <+> many (isNot '}') <+> 
-           is '}') 
+           is '{' <+> many (isNot '}') <+>
+           is '}')
          <|> many (isNot '\n'))
 
 mkDirective : String -> Token
@@ -113,10 +113,10 @@ special = ["%lam", "%pi", "%imppi", "%let"]
 -- don't match 'validSymbol'
 export
 symbols : List String
-symbols 
+symbols
     = [".(", -- for things such as Foo.Bar.(+)
        "@{",
-       "(", ")", "{", "}", "[", "]", ",", ";", "_", 
+       "(", ")", "{", "}", "[", "]", ",", ";", "_",
        "`(", "`"]
 
 export
@@ -130,14 +130,14 @@ validSymbol = some (oneOf opChars)
 export
 reservedSymbols : List String
 reservedSymbols
-    = symbols ++ 
+    = symbols ++
       ["%", "\\", ":", "=", "|", "|||", "<-", "->", "=>", "?", "&", "**", ".."]
 
 symbolChar : Char -> Bool
 symbolChar c = c `elem` unpack opChars
 
 rawTokens : TokenMap Token
-rawTokens = 
+rawTokens =
     [(comment, Comment),
      (blockComment, Comment),
      (docComment, DocComment),
@@ -160,11 +160,11 @@ rawTokens =
 export
 lexTo : (TokenData Token -> Bool) ->
         String -> Either (Int, Int, String) (List (TokenData Token))
-lexTo pred str 
+lexTo pred str
     = case lexTo pred rawTokens str of
            -- Add the EndInput token so that we'll have a line and column
            -- number to read when storing spans in the file
-           (tok, (l, c, "")) => Right (filter notComment tok ++ 
+           (tok, (l, c, "")) => Right (filter notComment tok ++
                                       [MkToken l c EndInput])
            (_, fail) => Left fail
     where

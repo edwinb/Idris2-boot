@@ -21,10 +21,14 @@ import System.Info
 %default covering
 
 findCSI : IO String
-findCSI = pure "/usr/bin/env csi"
+findCSI =
+  do env <- getEnv "CHICKEN_CSI"
+     pure $ fromMaybe "/usr/bin/env -S csi" env
 
 findCSC : IO String
-findCSC = pure "/usr/bin/env csc"
+findCSC =
+  do env <- getEnv "CHICKEN_CSC"
+     pure $ fromMaybe "/usr/bin/env -S csc" env
 
 schHeader : List String -> String
 schHeader ds
@@ -59,7 +63,7 @@ mutual
   chickenPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String
   chickenPrim i vs CCall [ret, fn, args, world]
       = throw (InternalError ("Can't compile C FFI calls to Chicken Scheme yet"))
-  chickenPrim i vs prim args 
+  chickenPrim i vs prim args
       = schExtCommon chickenPrim chickenString i vs prim args
 
 compileToSCM : Ref Ctxt Defs ->

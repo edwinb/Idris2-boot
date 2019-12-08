@@ -55,7 +55,9 @@ mutual
        PSearch : FC -> (depth : Nat) -> PTerm
        PPrimVal : FC -> Constant -> PTerm
        PQuote : FC -> PTerm -> PTerm
+       PQuoteDecl : FC -> PDecl -> PTerm
        PUnquote : FC -> PTerm -> PTerm
+       PRunElab : FC -> PTerm -> PTerm
        PHole : FC -> (bracket : Bool) -> (holename : String) -> PTerm
        PType : FC -> PTerm
        PAs : FC -> Name -> (pattern : PTerm) -> PTerm
@@ -217,6 +219,7 @@ mutual
        PMutual : FC -> List PDecl -> PDecl
        PFixity : FC -> Fixity -> Nat -> OpStr -> PDecl
        PNamespace : FC -> List String -> List PDecl -> PDecl
+       PTransform : FC -> PTerm -> PTerm -> PDecl
        PDirective : FC -> Directive -> PDecl
 
 definedInData : PDataDecl -> List Name
@@ -410,7 +413,9 @@ mutual
         = showPrec d f ++ " {" ++ showPrec d n ++ " = " ++ showPrec d a ++ "}"
     showPrec _ (PSearch _ _) = "%search"
     showPrec d (PQuote _ tm) = "`(" ++ showPrec d tm ++ ")"
+    showPrec d (PQuoteDecl _ tm) = "`( <<declaration>> )"
     showPrec d (PUnquote _ tm) = "~(" ++ showPrec d tm ++ ")"
+    showPrec d (PRunElab _ tm) = "%runElab " ++ showPrec d tm
     showPrec d (PPrimVal _ c) = showPrec d c
     showPrec _ (PHole _ _ n) = "?" ++ n
     showPrec _ (PType _) = "Type"

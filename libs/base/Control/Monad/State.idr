@@ -27,16 +27,16 @@ public export
 implementation Monad f => Applicative (StateT stateType f) where
     pure x = ST (\st => pure (x, st))
 
-    (ST f) <*> (ST a) 
-        = ST (\st => 
+    (ST f) <*> (ST a)
+        = ST (\st =>
                 do (g, r) <- f st
                    (b, t) <- a r
                    pure (g b, t))
 
 public export
 implementation Monad m => Monad (StateT stateType m) where
-    (ST f) >>= k 
-        = ST (\st => 
+    (ST f) >>= k
+        = ST (\st =>
                 do (v, st') <- f st
                    let ST kv = k v
                    kv st')
@@ -48,8 +48,8 @@ implementation Monad m => MonadState stateType (StateT stateType m) where
 
 public export
 implementation MonadTrans (StateT stateType) where
-    lift x 
-        = ST (\st => 
+    lift x
+        = ST (\st =>
                 do r <- x
                    pure (r, st))
 
@@ -61,14 +61,14 @@ implementation (Monad f, Alternative f) => Alternative (StateT st f) where
 ||| Apply a function to modify the context of this computation
 public export
 modify : MonadState stateType m => (stateType -> stateType) -> m ()
-modify f 
+modify f
     = do s <- get
          put (f s)
 
 ||| Evaluate a function in the context held by this computation
 public export
 gets : MonadState stateType m => (stateType -> a) -> m a
-gets f 
+gets f
     = do s <- get
          pure (f s)
 

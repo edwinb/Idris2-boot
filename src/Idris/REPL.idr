@@ -468,7 +468,9 @@ process (Eval itm)
                  defs <- get Ctxt
                  opts <- get ROpts
                  let norm = nfun (evalMode opts)
-                 itm <- resugar [] !(norm defs [] tm)
+                 ntm <- norm defs [] tm
+                 itm <- resugar [] ntm
+                 logTermNF 5 "Normalised" [] ntm
                  if showTypes opts
                     then do ty <- getTerm gty
                             ity <- resugar [] !(norm defs [] ty)
@@ -668,12 +670,12 @@ mutual
            opts <- get ROpts
            coreLift (putStr (prompt (evalMode opts) ++ showSep "." (reverse ns) ++ "> "))
            inp <- coreLift getLine
+           repeat <- interpret inp
            end <- coreLift $ fEOF stdin
-           if end
-              then do
-                      -- start a new line in REPL mode (not relevant in IDE mode)
-                      coreLift $ putStrLn ""
-                      iputStrLn "Bye for now!"
+           if repeat && not end
+              then repl
+              else do iputStrLn "Bye for now!"
+                      pure ()
               else do res <- interpret inp
                       handleResult res
 

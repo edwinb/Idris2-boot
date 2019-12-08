@@ -23,8 +23,8 @@ dropName n nest = record { names $= drop } nest
   where
     drop : List (Name, a) -> List (Name, a)
     drop [] = []
-    drop ((x, y) :: xs) 
-        = if x == n then drop xs 
+    drop ((x, y) :: xs)
+        = if x == n then drop xs
              else (x, y) :: drop xs
 
 export
@@ -33,21 +33,21 @@ checkPi : {vars : _} ->
           {auto m : Ref MD Metadata} ->
           {auto u : Ref UST UState} ->
           {auto e : Ref EST (EState vars)} ->
-          RigCount -> ElabInfo -> 
-          NestedNames vars -> Env Term vars -> 
-          FC -> 
-          RigCount -> PiInfo -> (n : Name) -> 
+          RigCount -> ElabInfo ->
+          NestedNames vars -> Env Term vars ->
+          FC ->
+          RigCount -> PiInfo -> (n : Name) ->
           (argTy : RawImp) -> (retTy : RawImp) ->
           (expTy : Maybe (Glued vars)) ->
           Core (Term vars, Glued vars)
 checkPi rig elabinfo nest env fc rigf info n argTy retTy expTy
     = do let pirig = getRig (elabMode elabinfo)
-         (tyv, tyt) <- check pirig elabinfo nest env argTy 
+         (tyv, tyt) <- check pirig elabinfo nest env argTy
                              (Just (gType fc))
          let env' : Env Term (n :: _) = Pi rigf info tyv :: env
          let nest' = weaken (dropName n nest)
-         (scopev, scopet) <- 
-            inScope fc env' (\e' => 
+         (scopev, scopet) <-
+            inScope fc env' (\e' =>
               check {e=e'} pirig elabinfo nest' env' retTy (Just (gType fc)))
          checkExp rig elabinfo env fc (Bind fc n (Pi rigf info tyv) scopev) (gType fc) expTy
   where
@@ -71,10 +71,10 @@ inferLambda : {vars : _} ->
               {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
               {auto e : Ref EST (EState vars)} ->
-              RigCount -> ElabInfo -> 
-              NestedNames vars -> Env Term vars -> 
-              FC -> 
-              RigCount -> PiInfo -> (n : Name) -> 
+              RigCount -> ElabInfo ->
+              NestedNames vars -> Env Term vars ->
+              FC ->
+              RigCount -> PiInfo -> (n : Name) ->
               (argTy : RawImp) -> (scope : RawImp) ->
               (expTy : Maybe (Glued vars)) ->
               Core (Term vars, Glued vars)
@@ -85,7 +85,7 @@ inferLambda rig elabinfo nest env fc rigl info n argTy scope expTy
          let env' : Env Term (n :: _) = Lam rigb info tyv :: env
          let nest' = weaken (dropName n nest)
          (scopev, scopet) <- inScope fc env' (\e' =>
-                                check {e=e'} rig elabinfo 
+                                check {e=e'} rig elabinfo
                                       nest' env' scope Nothing)
          let lamty = gnf env (Bind fc n (Pi rigb info tyv) !(getTerm scopet))
          logGlue 5 "Inferred lambda type" env lamty
@@ -110,10 +110,10 @@ checkLambda : {vars : _} ->
               {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
               {auto e : Ref EST (EState vars)} ->
-              RigCount -> ElabInfo -> 
-              NestedNames vars -> Env Term vars -> 
-              FC -> 
-              RigCount -> PiInfo -> (n : Name) -> 
+              RigCount -> ElabInfo ->
+              NestedNames vars -> Env Term vars ->
+              FC ->
+              RigCount -> PiInfo -> (n : Name) ->
               (argTy : RawImp) -> (scope : RawImp) ->
               (expTy : Maybe (Glued vars)) ->
               Core (Term vars, Glued vars)
@@ -127,21 +127,21 @@ checkLambda rig_in elabinfo nest env fc rigl info n argTy scope (Just expty_in)
          defs <- get Ctxt
          case exptynf of
               Bind bfc bn (Pi c _ pty) psc =>
-                 do (tyv, tyt) <- check Rig0 elabinfo nest env 
+                 do (tyv, tyt) <- check Rig0 elabinfo nest env
                                         argTy (Just (gType fc))
                     let rigb = min rigl c
                     let env' : Env Term (n :: _) = Lam rigb info tyv :: env
-                    convert fc elabinfo env (gnf env tyv) (gnf env pty) 
+                    convert fc elabinfo env (gnf env tyv) (gnf env pty)
                     let nest' = weaken (dropName n nest)
                     (scopev, scopet) <-
                        inScope fc env' (\e' =>
-                          check {e=e'} rig elabinfo nest' env' scope 
+                          check {e=e'} rig elabinfo nest' env' scope
                                 (Just (gnf env' (renameTop n psc))))
                     logTermNF 10 "Lambda type" env exptynf
                     logGlueNF 10 "Got scope type" env' scopet
-                    checkExp rig elabinfo env fc 
+                    checkExp rig elabinfo env fc
                              (Bind fc n (Lam rigb info tyv) scopev)
-                             (gnf env 
+                             (gnf env
                                   (Bind fc n (Pi rigb info tyv) !(getTerm scopet)))
                              (Just (gnf env
                                        (Bind fc bn (Pi rigb info pty) psc)))
@@ -160,10 +160,10 @@ checkLet : {vars : _} ->
            {auto m : Ref MD Metadata} ->
            {auto u : Ref UST UState} ->
            {auto e : Ref EST (EState vars)} ->
-           RigCount -> ElabInfo -> 
-           NestedNames vars -> Env Term vars -> 
-           FC -> 
-           RigCount -> (n : Name) -> 
+           RigCount -> ElabInfo ->
+           NestedNames vars -> Env Term vars ->
+           FC ->
+           RigCount -> (n : Name) ->
            (nTy : RawImp) -> (nVal : RawImp) -> (scope : RawImp) ->
            (expTy : Maybe (Glued vars)) ->
            Core (Term vars, Glued vars)
@@ -179,15 +179,15 @@ checkLet rigc_in elabinfo nest env fc rigl n nTy nVal scope expty
                   pure (fst c, snd c, rigMult rigl rigc))
               (\err => case err of
                             LinearMisuse _ _ Rig1 _
-                              => do c <- check Rig1 elabinfo 
+                              => do c <- check Rig1 elabinfo
                                                nest env nVal (Just (gnf env tyv))
                                     pure (fst c, snd c, Rig1)
                             e => throw e)
          let env' : Env Term (n :: _) = Lam rigb Explicit tyv :: env
          let nest' = weaken (dropName n nest)
-         expScope <- weakenExp env' expty 
-         (scopev, gscopet) <- 
-            inScope fc env' (\e' => 
+         expScope <- weakenExp env' expty
+         (scopev, gscopet) <-
+            inScope fc env' (\e' =>
               check {e=e'} rigc elabinfo nest' env' scope expScope)
          scopet <- getTerm gscopet
 

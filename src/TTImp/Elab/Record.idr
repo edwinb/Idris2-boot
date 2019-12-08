@@ -37,7 +37,7 @@ toRHS loc (Constr con args)
 findConName : Defs -> Name -> Core (Maybe Name)
 findConName defs tyn
     = case !(lookupDefExact tyn (gamma defs)) of
-           Just (TCon _ _ _ _ _ [con]) => pure (Just con)
+           Just (TCon _ _ _ _ _ _ [con]) => pure (Just con)
            _ => pure Nothing
 
 findFields : Defs -> Name -> Core (Maybe (List (String, Maybe Name)))
@@ -63,25 +63,25 @@ genFieldName root
 
 -- There's probably a generic version of this in the prelude isn't
 -- there?
-replace : String -> Rec -> 
+replace : String -> Rec ->
           List (String, Rec) -> List (String, Rec)
 replace k v [] = []
 replace k v ((k', v') :: vs)
-    = if k == k' 
+    = if k == k'
          then ((k, v) :: vs)
          else ((k', v') :: replace k v vs)
 
 findPath : {auto c : Ref Ctxt Defs} ->
            {auto u : Ref UST UState} ->
-           FC -> List String -> List String -> Maybe Name -> 
+           FC -> List String -> List String -> Maybe Name ->
            (String -> RawImp) ->
            Rec -> Core Rec
 findPath loc [] full tyn val (Field lhs _) = pure (Field lhs (val lhs))
-findPath loc [] full tyn val rec 
+findPath loc [] full tyn val rec
    = throw (IncompatibleFieldUpdate loc full)
-findPath loc (p :: ps) full Nothing val (Field n v) 
+findPath loc (p :: ps) full Nothing val (Field n v)
    = throw (NotRecordField loc p Nothing)
-findPath loc (p :: ps) full (Just tyn) val (Field n v) 
+findPath loc (p :: ps) full (Just tyn) val (Field n v)
    = do defs <- get Ctxt
         Just con <- findConName defs tyn
              | Nothing => throw (NotRecordType loc tyn)
@@ -91,7 +91,7 @@ findPath loc (p :: ps) full (Just tyn) val (Field n v)
         let rec' = Constr con args
         findPath loc (p :: ps) full (Just tyn) val rec'
   where
-    mkArgs : List (String, Maybe Name) -> 
+    mkArgs : List (String, Maybe Name) ->
              Core (List (String, Rec))
     mkArgs [] = pure []
     mkArgs ((p, _) :: ps)
@@ -99,7 +99,7 @@ findPath loc (p :: ps) full (Just tyn) val (Field n v)
              args' <- mkArgs ps
              pure ((p, Field fldn (IVar loc (UN fldn))) :: args')
 
-findPath loc (p :: ps) full tyn val (Constr con args) 
+findPath loc (p :: ps) full tyn val (Constr con args)
    = do let Just prec = lookup p args
                  | Nothing => throw (NotRecordField loc p tyn)
         defs <- get Ctxt
@@ -112,13 +112,13 @@ findPath loc (p :: ps) full tyn val (Constr con args)
 
 getSides : {auto c : Ref Ctxt Defs} ->
            {auto u : Ref UST UState} ->
-           FC -> IFieldUpdate -> Name -> RawImp -> Rec -> 
+           FC -> IFieldUpdate -> Name -> RawImp -> Rec ->
            Core Rec
-getSides loc (ISetField path val) tyn orig rec 
+getSides loc (ISetField path val) tyn orig rec
    -- update 'rec' so that 'path' is accessible on the lhs and rhs,
    -- then set the path on the rhs to 'val'
    = findPath loc path path (Just tyn) (const val) rec
-getSides loc (ISetFieldApp path val) tyn orig rec 
+getSides loc (ISetFieldApp path val) tyn orig rec
    = findPath loc path path (Just tyn) (\n => apply val [IVar loc (UN n)]) rec
  where
    get : List String -> RawImp -> RawImp
@@ -127,23 +127,23 @@ getSides loc (ISetFieldApp path val) tyn orig rec
 
 getAllSides : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
-              FC -> List IFieldUpdate -> Name -> 
-              RawImp -> Rec -> 
+              FC -> List IFieldUpdate -> Name ->
+              RawImp -> Rec ->
               Core Rec
 getAllSides loc [] tyn orig rec = pure rec
-getAllSides loc (u :: upds) tyn orig rec 
+getAllSides loc (u :: upds) tyn orig rec
     = getAllSides loc upds tyn orig !(getSides loc u tyn orig rec)
 
 -- Convert the collection of high level field accesses into a case expression
 -- which does the updates all in one go
 export
 recUpdate : {vars : _} ->
-            {auto c : Ref Ctxt Defs} -> 
+            {auto c : Ref Ctxt Defs} ->
             {auto u : Ref UST UState} ->
             {auto e : Ref EST (EState vars)} ->
-            RigCount -> ElabInfo -> FC -> 
-            NestedNames vars -> Env Term vars -> 
-            List IFieldUpdate -> 
+            RigCount -> ElabInfo -> FC ->
+            NestedNames vars -> Env Term vars ->
+            List IFieldUpdate ->
             (rec : RawImp) -> (grecty : Glued vars) ->
             Core RawImp
 recUpdate rigc elabinfo loc nest env flds rec grecty
@@ -164,14 +164,14 @@ checkUpdate : {vars : _} ->
               {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
               {auto e : Ref EST (EState vars)} ->
-              RigCount -> ElabInfo -> 
-              NestedNames vars -> Env Term vars -> 
+              RigCount -> ElabInfo ->
+              NestedNames vars -> Env Term vars ->
               FC -> List IFieldUpdate -> RawImp -> Maybe (Glued vars) ->
               Core (Term vars, Glued vars)
 checkUpdate rig elabinfo nest env fc upds rec expected
     = do recty <- case expected of
                        Just ret => pure ret
-                       _ => do (_, ty) <- checkImp rig elabinfo 
+                       _ => do (_, ty) <- checkImp rig elabinfo
                                                    nest env rec Nothing
                                pure ty
          rcase <- recUpdate rig elabinfo fc nest env upds rec recty

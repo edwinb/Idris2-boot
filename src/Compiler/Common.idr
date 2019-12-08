@@ -50,7 +50,7 @@ getAllDesc (n :: rest) ns defs
          Nothing =>
             case !(lookupCtxtExact n (gamma defs)) of
                  Nothing => getAllDesc rest ns defs
-                 Just def => 
+                 Just def =>
                    let refs = refersTo def in
                        getAllDesc (rest ++ keys refs) (insert n () ns) defs
 
@@ -61,7 +61,7 @@ mkNameTags : Defs -> NameTags -> Int -> List Name -> Core NameTags
 mkNameTags defs tags t [] = pure tags
 mkNameTags defs tags t (n :: ns)
     = case !(lookupDefExact n (gamma defs)) of
-           Just (TCon _ _ _ _ _ _)
+           Just (TCon _ _ _ _ _ _ _)
               => mkNameTags defs (insert n t tags) (t + 1) ns
            _ => mkNameTags defs tags t ns
 
@@ -76,7 +76,7 @@ natHackNames
 -- Find all the names which need compiling, from a given expression, and compile
 -- them to CExp form (and update that in the Defs)
 export
-findUsedNames : {auto c : Ref Ctxt Defs} -> Term vars -> 
+findUsedNames : {auto c : Ref Ctxt Defs} -> Term vars ->
                 Core (List Name, NameTags)
 findUsedNames tm
     = do defs <- get Ctxt
@@ -89,7 +89,7 @@ findUsedNames tm
          -- Use '1' for '->' constructor
          let tyconInit = insert (UN "->") 1 $
                          insert (UN "Type") 2 $
-                            primTags 3 empty 
+                            primTags 3 empty
                                      [IntType, IntegerType, StringType,
                                       CharType, DoubleType, WorldType]
          tycontags <- mkNameTags defs tyconInit 100 cns
@@ -136,8 +136,8 @@ parseCC "" = Nothing
 parseCC str
     = case span (/= ':') str of
            (target, "") => Just (trim target, [])
-           (target, opts) => Just (trim target, 
-                                   map trim (getOpts 
+           (target, opts) => Just (trim target,
+                                   map trim (getOpts
                                        (assert_total (strTail opts))))
   where
     getOpts : String -> List String
