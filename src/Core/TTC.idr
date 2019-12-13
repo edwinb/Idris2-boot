@@ -178,7 +178,7 @@ TTC (Var vars) where
 mutual
   export
   TTC (Binder (Term vars)) where
-    toBuf b (Lam c x ty) = do tag 0; toBuf b c; toBuf b x; -- toBuf b ty
+    toBuf b (Lam c x ty) = do tag 0; toBuf b c; toBuf b x; toBuf b ty
     toBuf b (Let c val ty) = do tag 1; toBuf b c; toBuf b val -- ; toBuf b ty
     toBuf b (Pi c x ty) = do tag 2; toBuf b c; toBuf b x; toBuf b ty
     toBuf b (PVar c p ty) = do tag 3; toBuf b c; toBuf b p; toBuf b ty
@@ -187,7 +187,7 @@ mutual
 
     fromBuf b
         = case !getTag of
-               0 => do c <- fromBuf b; x <- fromBuf b; pure (Lam c x (Erased emptyFC))
+               0 => do c <- fromBuf b; x <- fromBuf b; ty <- fromBuf b; pure (Lam c x ty)
                1 => do c <- fromBuf b; x <- fromBuf b; pure (Let c x (Erased emptyFC))
                2 => do c <- fromBuf b; x <- fromBuf b; y <- fromBuf b; pure (Pi c x y)
                3 => do c <- fromBuf b; p <- fromBuf b; ty <- fromBuf b; pure (PVar c p ty)
