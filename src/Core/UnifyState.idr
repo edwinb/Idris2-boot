@@ -429,7 +429,7 @@ newSearch : {auto c : Ref Ctxt Defs} ->
 newSearch {vars} fc rig depth def env n ty
     = do let hty = abstractEnvType fc env ty
          let hole = newDef fc n rig [] hty Public (BySearch rig depth def)
-         log 10 $ "Adding new search " ++ show n
+         log 10 $ "Adding new search " ++ show fc ++ " " ++ show n
          idx <- addDef n hole
          addGuessName fc n idx
          pure (idx, Meta fc n idx envArgs)
