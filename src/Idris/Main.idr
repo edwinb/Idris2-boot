@@ -100,7 +100,7 @@ banner : String
 banner = "     ____    __     _         ___                                           \n" ++
          "    /  _/___/ /____(_)____   |__ \\                                          \n" ++
          "    / // __  / ___/ / ___/   __/ /     Version " ++ showVersion version ++ "\n" ++
-         "  _/ // /_/ / /  / (__  )   / __/      http://www.idris-lang.org            \n" ++
+         "  _/ // /_/ / /  / (__  )   / __/      https://www.idris-lang.org           \n" ++
          " /___/\\__,_/_/  /_/____/   /____/                                           \n" ++
          "\n" ++
          "Welcome to Idris 2.  Enjoy yourself!"
