@@ -250,7 +250,9 @@ mutual
       rig : RigCount
       rig = case b of
                  Pi _ _ _ => Rig0
-                 _ => rig_in
+                 _ => case rig_in of
+                           Rig0 => Rig0
+                           _ => Rig1
 
       checkUsageOK : Nat -> RigCount -> Core ()
       checkUsageOK used Rig0 = pure ()
