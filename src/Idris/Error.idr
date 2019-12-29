@@ -80,6 +80,8 @@ perror (NotTotal fc n r)
     = pure $ show n ++ " is not total"
 perror (LinearUsed fc count n)
     = pure $ "There are " ++ show count ++ " uses of linear name " ++ sugarName n
+perror (LinearMisuse fc n Rig0 ctx)
+    = pure $ show n ++ " is not accessible in this context"
 perror (LinearMisuse fc n exp ctx)
     = pure $ "Trying to use " ++ showRig exp ++ " name " ++ sugarName n ++
                  " in " ++ showRel ctx ++ " context"

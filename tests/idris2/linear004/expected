@@ -3,7 +3,7 @@
 Main> S Z
 Main> S (S Z)
 Main> S Z
-Main> (interactive):1:15--1:16:Trying to use irrelevant name x in relevant context
+Main> (interactive):1:15--1:16:x is not accessible in this context
 Main> (interactive):1:5--1:31:When unifying Nat -> Nat -> Nat and (0 x : Nat) -> Nat -> Nat
 Mismatch between:
 	Nat -> Nat -> Nat
@@ -14,7 +14,7 @@ Mismatch between:
 	(1 x : Nat) -> Nat -> Nat
 and
 	(0 x : Nat) -> Nat -> Nat
-Main> (interactive):1:20--1:22:Trying to use irrelevant name x in non-linear context
+Main> (interactive):1:20--1:22:x is not accessible in this context
 Main> S (S Z)
 Main> S (S Z)
 Main> (interactive):1:6--1:31:When unifying (0 x : Nat) -> Nat -> Nat and Nat -> Nat -> Nat
