@@ -243,7 +243,7 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
     applyTo fc tm ((x, c, Explicit) :: xs)
         = applyTo fc (IApp fc tm (IVar fc x)) xs
     applyTo fc tm ((x, c, AutoImplicit) :: xs)
-        = applyTo fc (IImplicitApp fc tm Nothing (IVar fc x)) xs
+        = applyTo fc (IImplicitApp fc tm (Just x) (IVar fc x)) xs
     applyTo fc tm ((x, c, Implicit) :: xs)
         = applyTo fc (IImplicitApp fc tm (Just x) (IVar fc x)) xs
 
@@ -318,6 +318,7 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
 
              log 3 $ "Method " ++ show mn ++ " ==> " ++
                      show n ++ " : " ++ show mty
+             log 3 $ "    (initially " ++ show mty_in ++ ")"
              log 5 $ "Updates " ++ show methupds
              log 5 $ "From " ++ show mbase
              log 3 $ "Name updates " ++ show upds

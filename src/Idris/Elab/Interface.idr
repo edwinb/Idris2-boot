@@ -62,6 +62,18 @@ mkIfaceData {vars} fc vis env constraints n conName ps dets meths
     mkTy imp ((n, c, argty) :: args) ret
         = IPi fc c imp n argty (mkTy imp args ret)
 
+-- Give implicit Pi bindings explicit names, if they don't have one already, 
+-- because we need them to be consistent everywhere we refer to them
+namePis : Int -> RawImp -> RawImp
+namePis i (IPi fc r AutoImplicit Nothing ty sc)
+    = IPi fc r AutoImplicit (Just (MN "i_con" i)) ty (namePis (i + 1) sc)
+namePis i (IPi fc r Implicit Nothing ty sc)
+    = IPi fc r Implicit (Just (MN "i_imp" i)) ty (namePis (i + 1) sc)
+namePis i (IPi fc r p n ty sc)
+    = IPi fc r p n ty (namePis i sc)
+namePis i (IBindHere fc m ty) = IBindHere fc m (namePis i ty)
+namePis i ty = ty
+
 -- Get the implicit arguments for a method declaration or constraint hint
 -- to allow us to build the data declaration
 getMethDecl : {auto c : Ref Ctxt Defs} ->
@@ -184,8 +196,10 @@ getConstraintHint {vars} fc env vis iname cname constraints meths params (cn, co
     constName n = UN (bindName n)
 
 getSig : ImpDecl -> Maybe (FC, RigCount, List FnOpt, Name, (Bool, RawImp))
-getSig (IClaim _ c _ opts (MkImpTy fc n ty)) = Just (fc, c, opts, n, (False, ty))
-getSig (IData _ _ (MkImpLater fc n ty)) = Just (fc, Rig0, [Invertible], n, (True, ty))
+getSig (IClaim _ c _ opts (MkImpTy fc n ty))
+    = Just (fc, c, opts, n, (False, namePis 0 ty))
+getSig (IData _ _ (MkImpLater fc n ty))
+    = Just (fc, Rig0, [Invertible], n, (True, namePis 0 ty))
 getSig _ = Nothing
 
 getDefault : ImpDecl -> Maybe (FC, List FnOpt, Name, List ImpClause)
@@ -227,7 +241,7 @@ elabInterface {vars} fc vis env nest constraints iname params dets mcon body
          -- Machine generated names need to be qualified when looking them up
          conName <- inCurrentNS conName_in
          let meth_sigs = mapMaybe getSig body -- (FC, RigCount, List FnOpt, Name, (Bool, RawImp))
-         let meth_decls = map (\ (f, c, o, n, ty) => (n, c, ty)) meth_sigs
+         let meth_decls = map (\ (f, c, o, n, b, ty) => (n, c, b, ty)) meth_sigs
          let meth_names = map fst meth_decls
          let defaults = mapMaybe getDefault body
 

@@ -139,7 +139,7 @@ mutual
          = "(|" ++ showSep "," (map show alts) ++ "|)"
       show (IRewrite _ rule tm)
          = "(%rewrite (" ++ show rule ++ ") (" ++ show tm ++ "))"
-      show (ICoerced _ tm) = show tm
+      show (ICoerced _ tm) = "(%coerced " ++ show tm ++ ")"
 
       show (IBindHere fc b sc)
          = "(%bindhere " ++ show sc ++ ")"
