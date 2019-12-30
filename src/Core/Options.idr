@@ -4,12 +4,15 @@ import Core.Core
 import Core.Name
 import Utils.Binary
 
+import System.Info
+
 public export
 record Dirs where
   constructor MkDirs
   working_dir : String
   source_dir : Maybe String -- source directory, relative to working directory
   build_dir : String -- build directory, relative to working directory
+  exec_dir : String -- executable directory, relative to working directory
   dir_prefix : String -- installation prefix, for finding data files (e.g. run time support)
   extra_dirs : List String -- places to look for import files
   lib_dirs : List String -- places to look for libraries (for code generation)
@@ -17,10 +20,11 @@ record Dirs where
 
 public export
 toString : Dirs -> String
-toString (MkDirs wdir sdir bdir dfix edirs ldirs ddirs) =
+toString (MkDirs wdir sdir bdir edir dfix edirs ldirs ddirs) =
   unlines [ "+ Working Directory   :: " ++ show wdir
           , "+ Source Directory    :: " ++ show sdir
           , "+ Build Directory     :: " ++ show bdir
+          , "+ Executable Directory     :: " ++ show edir
           , "+ Installation Prefix :: " ++ show dfix
           , "+ Extra Directories :: " ++ show edirs
           , "+ CG Library Directories :: " ++ show ldirs
@@ -110,8 +114,25 @@ record Options where
   primnames : PrimNames
   extensions : List LangExt
 
+isWindows : Bool
+isWindows = os `elem` ["windows", "mingw32", "cygwin32"]
+
+export
+sep : Char
+sep = '/'
+
+export
+dirSep : String
+dirSep = cast sep
+
+export
+pathSep : Char
+pathSep = if isWindows then ';' else ':'
+
 defaultDirs : Dirs
-defaultDirs = MkDirs "." Nothing "build" "/usr/local" ["."] ["."] []
+defaultDirs = MkDirs "." Nothing "build" 
+                     ("build" ++ dirSep ++ "exec") 
+                     "/usr/local" ["."] ["."] []
 
 defaultPPrint : PPrinter
 defaultPPrint = MkPPOpts False True False

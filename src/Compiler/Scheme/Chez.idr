@@ -28,32 +28,6 @@ findChez
                                     x <- ["scheme", "chez", "chezscheme9.5"]]
                           pure $ fromMaybe "/usr/bin/env -S scheme" e
 
-locate : {auto c : Ref Ctxt Defs} ->
-         String -> Core (String, String)
-locate libspec
-    = do -- Attempt to turn libspec into an appropriate filename for the system
-         let fname
-              = case words libspec of
-                     [] => ""
-                     [fn] => if '.' `elem` unpack fn
-                                then fn -- full filename given
-                                else -- add system extension
-                                     fn ++ "." ++ dylib_suffix
-                     (fn :: ver :: _) =>
-                          -- library and version given, build path name as
-                          -- appropriate for the system
-                          cond [(dylib_suffix == "dll",
-                                      fn ++ "-" ++ ver ++ ".dll"),
-                                (dylib_suffix == "dylib",
-                                      fn ++ "." ++ ver ++ ".dylib")]
-                                (fn ++ "." ++ dylib_suffix ++ "." ++ ver)
-
-         fullname <- catch (findLibraryFile fname)
-                           (\err => -- assume a system library so not
-                                    -- in our library path
-                                    pure fname)
-         pure (fname, fullname)
-
 -- Given the chez compiler directives, return a list of pairs of:
 --   - the library file name
 --   - the full absolute path of the library file name, if it's in one

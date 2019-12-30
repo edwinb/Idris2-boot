@@ -1693,6 +1693,12 @@ setBuildDir dir
          put Ctxt (record { options->dirs->build_dir = dir } defs)
 
 export
+setExecDir : {auto c : Ref Ctxt Defs} -> String -> Core ()
+setExecDir dir
+    = do defs <- get Ctxt
+         put Ctxt (record { options->dirs->exec_dir = dir } defs)
+
+export
 setSourceDir : {auto c : Ref Ctxt Defs} -> Maybe String -> Core ()
 setSourceDir mdir
     = do defs <- get Ctxt
