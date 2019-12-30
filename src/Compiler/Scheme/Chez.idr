@@ -150,6 +150,7 @@ cCall fc cfn clib args ret
          lib <- if clib `elem` loaded
                    then pure ""
                    else do (fname, fullname) <- locate clib
+                           copyLib (fname, fullname)
                            put Loaded (clib :: loaded)
                            pure $ "(load-shared-object \""
                                     ++ escapeQuotes fullname
@@ -271,6 +272,7 @@ compileToSS : Ref Ctxt Defs ->
 compileToSS c tm outfile
     = do ds <- getDirectives Chez
          libs <- findLibs ds
+         traverse_ copyLib libs
          (ns, tags) <- findUsedNames tm
          defs <- get Ctxt
          l <- newRef {t = List String} Loaded ["libc", "libc 6"]
