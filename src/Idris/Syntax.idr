@@ -182,8 +182,13 @@ mutual
   defPass p = p == Single || p == AsDef
 
   public export
+  data PFnOpt : Type where
+       IFnOpt : FnOpt -> PFnOpt
+       PForeign : List PTerm -> PFnOpt
+
+  public export
   data PDecl : Type where
-       PClaim : FC -> RigCount -> Visibility -> List FnOpt -> PTypeDecl -> PDecl
+       PClaim : FC -> RigCount -> Visibility -> List PFnOpt -> PTypeDecl -> PDecl
        PDef : FC -> List PClause -> PDecl
        PData : FC -> Visibility -> PDataDecl -> PDecl
        PParameters : FC -> List (Name, PTerm) -> List PDecl -> PDecl

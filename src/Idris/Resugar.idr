@@ -323,12 +323,20 @@ mutual
            fs' <- traverse toPField fs
            pure (n, ps', con, fs')
 
+  toPFnOpt : {auto c : Ref Ctxt Defs} ->
+             {auto s : Ref Syn SyntaxInfo} ->
+             FnOpt -> Core PFnOpt
+  toPFnOpt (ForeignFn cs)
+      = do cs' <- traverse (toPTerm startPrec) cs
+           pure (PForeign cs')
+  toPFnOpt o = pure $ IFnOpt o
 
   toPDecl : {auto c : Ref Ctxt Defs} ->
             {auto s : Ref Syn SyntaxInfo} ->
             ImpDecl -> Core (Maybe PDecl)
   toPDecl (IClaim fc rig vis opts ty)
-      = pure (Just (PClaim fc rig vis opts !(toPTypeDecl ty)))
+      = do opts' <- traverse toPFnOpt opts
+           pure (Just (PClaim fc rig vis opts' !(toPTypeDecl ty)))
   toPDecl (IData fc vis d)
       = pure (Just (PData fc vis !(toPData d)))
   toPDecl (IDef fc n cs)
