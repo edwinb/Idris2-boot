@@ -808,9 +808,9 @@ implementation {n : Nat} -> Traversable (Vect n) where
 
 ||| A proof that some element is found in a vector
 public export
-data Elem : a -> Vect k a -> Type where
-     Here : Elem x (x::xs)
-     There : (later : Elem x xs) -> Elem x (y::xs)
+data Elem : (0 x : a) -> (0 xs : Vect k a) -> Type where
+     Here : {0 x : a} -> Elem x (x::xs)
+     There : {0 x : a} -> (later : Elem x xs) -> Elem x (y::xs)
 
 ||| Nothing can be in an empty Vect
 export

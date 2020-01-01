@@ -48,7 +48,7 @@ data Void : Type where
 -- Equality
 
 public export
-data Equal : forall a, b . a -> b -> Type where
+data Equal : forall a, b . (0 x : a)  -> (0 y : b) -> Type where
      Refl : {0 x : a} -> Equal x x
 
 %name Equal prf
@@ -59,11 +59,11 @@ infix 9 ===, ~=~
 -- equality has the same type, but there's not other evidence available
 -- to help with unification
 public export
-(===) : (x : a) -> (y : a) -> Type
+(===) : (0 x : a) -> (0 y : a) -> Type
 (===) = Equal
 
 public export
-(~=~) : (x : a) -> (y : b) -> Type
+(~=~) : (0 x : a) -> (0 y : b) -> Type
 (~=~) = Equal
 
 
