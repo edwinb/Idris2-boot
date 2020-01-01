@@ -1189,7 +1189,7 @@ record SearchData where
         * If none succeed, move on to the next group
 
        This allows us to prioritise some names (e.g. to declare 'open' hints,
-       which we might us to open an implementation working as a module, or to
+       which we might use to open an implementation working as a module, or to
        declare a named implementation to be used globally), and to have names
        which are only used if all else fails (e.g. as a defaulting mechanism),
        while the proof search mechanism doesn't need to know about any of the
