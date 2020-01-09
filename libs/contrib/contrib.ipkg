@@ -1,0 +1,5 @@
+package contrib
+
+modules = Syntax.WithProof,
+          Syntax.PreorderReasoning,
+          Data.List.TailRec
