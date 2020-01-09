@@ -125,7 +125,7 @@ findChez
          case env of
             Just n => pure $ Just n
             Nothing => firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
-                                    x <- ["scheme", "chez", "chezscheme9.5"]]
+                                    x <- ["chez", "chezscheme9.5", "scheme"]]
 
 runChezTests : String -> List String -> IO (List Bool)
 runChezTests prog tests
