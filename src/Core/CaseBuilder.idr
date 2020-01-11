@@ -525,8 +525,10 @@ groupCons fc fn pvars cs
     -- variable we're doing the case split on
     addGroup (PAs fc n p) pprf pats rhs acc
          = addGroup p pprf pats (substName n (Local fc (Just True) _ pprf) rhs) acc
-    addGroup (PCon _ n t a pargs) pprf pats rhs acc
-         = addConG n t pargs pats rhs acc
+    addGroup (PCon cfc n t a pargs) pprf pats rhs acc
+         = if a == length pargs
+              then addConG n t pargs pats rhs acc
+              else throw (CaseCompile cfc fn (NotFullyApplied n))
     addGroup (PTyCon _ n a pargs) pprf pats rhs acc
          = addConG n 0 pargs pats rhs acc
     addGroup (PArrow _ _ s t) pprf pats rhs acc

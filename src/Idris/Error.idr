@@ -201,6 +201,8 @@ perror (CaseCompile _ n DifferingTypes)
     = pure $ "Patterns for " ++ show n ++ " require matching on different types"
 perror (CaseCompile _ n UnknownType)
     = pure $ "Can't infer type to match in " ++ show n
+perror (CaseCompile fc n (NotFullyApplied cn))
+    = pure $ "Constructor " ++ show !(toFullNames cn) ++ " is not fully applied"
 perror (CaseCompile fc n (MatchErased (_ ** (env, tm))))
     = pure $ "Attempt to match on erased argument " ++ !(pshow env tm) ++
              " in " ++ show n

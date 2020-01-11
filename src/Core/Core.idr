@@ -21,6 +21,7 @@ public export
 data CaseError = DifferingArgNumbers
                | DifferingTypes
                | MatchErased (vars ** (Env Term vars, Term vars))
+               | NotFullyApplied Name
                | UnknownType
 
 -- All possible errors, carrying a location
@@ -210,6 +211,8 @@ Show Error where
   show (CaseCompile fc n (MatchErased (_ ** (env, tm))))
       = show fc ++ ":Attempt to match on erased argument " ++ show tm ++
                    " in " ++ show n
+  show (CaseCompile fc n (NotFullyApplied c))
+      = show fc ++ ":Constructor " ++ show c ++ " is not fully applied"
   show (MatchTooSpecific fc env tm)
       = show fc ++ ":Can't match on " ++ show tm ++ " as it is has a polymorphic type"
   show (BadDotPattern fc env reason x y)
