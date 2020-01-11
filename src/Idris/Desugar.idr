@@ -489,6 +489,17 @@ mutual
 
   getDecl Single d = Just d
 
+  export
+  desugarFnOpt : {auto s : Ref Syn SyntaxInfo} ->
+                 {auto c : Ref Ctxt Defs} ->
+                 {auto u : Ref UST UState} ->
+                 {auto m : Ref MD Metadata} ->
+                 List Name -> PFnOpt -> Core FnOpt
+  desugarFnOpt ps (IFnOpt f) = pure f
+  desugarFnOpt ps (PForeign tms)
+      = do tms' <- traverse (desugar AnyExpr ps) tms
+           pure (ForeignFn tms')
+
   -- Given a high level declaration, return a list of TTImp declarations
   -- which process it, and update any necessary state on the way.
   export
@@ -497,8 +508,9 @@ mutual
                 {auto u : Ref UST UState} ->
                 {auto m : Ref MD Metadata} ->
                 List Name -> PDecl -> Core (List ImpDecl)
-  desugarDecl ps (PClaim fc rig vis opts ty)
-      = pure [IClaim fc rig vis opts !(desugarType ps ty)]
+  desugarDecl ps (PClaim fc rig vis fnopts ty)
+      = do opts <- traverse (desugarFnOpt ps) fnopts
+           pure [IClaim fc rig vis opts !(desugarType ps ty)]
   desugarDecl ps (PDef fc clauses)
   -- The clauses won't necessarily all be from the same function, so split
   -- after desugaring, by function name, using collectDefs from RawImp

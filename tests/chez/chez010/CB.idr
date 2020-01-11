@@ -1,13 +1,16 @@
-%foreign "C:add, libcb.so"
+libcb : String -> String
+libcb f = "C:" ++ f ++", libcb"
+
+%foreign libcb "add"
 add : Int -> Int -> Int
 
-%foreign "C:applyIntFn, libcb.so"
+%foreign libcb "applyIntFn"
 prim_applyIntFn : Int -> Int -> (Int -> Int -> PrimIO Int) -> PrimIO Int
 
-%foreign "C:applyCharFn, libcb.so"
+%foreign libcb "applyCharFn"
 prim_applyCharFn : Char -> Int -> (Char -> Int -> PrimIO Char) -> PrimIO Char
 
-%foreign "C:applyIntFnPure, libcb.so"
+%foreign libcb "applyIntFnPure"
 applyIntFnPure : Int -> Int -> (Int -> Int -> Int) -> Int
 
 applyIntFn : Int -> Int -> (Int -> Int -> IO Int) -> IO Int

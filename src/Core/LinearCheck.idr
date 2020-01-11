@@ -50,11 +50,12 @@ mutual
   updateHoleUsageArgs : {auto c : Ref Ctxt Defs} ->
                         {auto u : Ref UST UState} ->
                         (useInHole : Bool) ->
-                        Var vars -> List (Term vars) -> Core Bool
-  updateHoleUsageArgs useInHole var [] = pure False
-  updateHoleUsageArgs useInHole var (a :: as)
-      = do h <- updateHoleUsage useInHole var a
-           h' <- updateHoleUsageArgs useInHole var as
+                        Var vars -> List (Var vars) ->
+                        List (Term vars) -> Core Bool
+  updateHoleUsageArgs useInHole var zs [] = pure False
+  updateHoleUsageArgs useInHole var zs (a :: as)
+      = do h <- updateHoleUsage useInHole var zs a
+           h' <- updateHoleUsageArgs useInHole var zs as
            pure (h || h')
 
   -- The assumption here is that hole types are abstracted over the entire
@@ -63,24 +64,28 @@ mutual
   updateHoleType : {auto c : Ref Ctxt Defs} ->
                    {auto u : Ref UST UState} ->
                    (useInHole : Bool) ->
-                   Var vars -> Term vs -> List (Term vars) ->
+                   Var vars -> List (Var vars) ->
+                   Term vs -> List (Term vars) ->
                    Core (Term vs)
-  updateHoleType useInHole var (Bind bfc nm (Pi c e ty) sc) (Local _ r v _ :: as)
+  updateHoleType useInHole var zs (Bind bfc nm (Pi c e ty) sc) (Local _ r v _ :: as)
       -- if the argument to the hole type is the variable of interest,
       -- and the variable should be used in the hole, set it to Rig1,
       -- otherwise set it to Rig0
       = if varIdx var == v
-           then do scty <- updateHoleType False var sc as
+           then do scty <- updateHoleType False var zs sc as
                    let c' = if useInHole then c else Rig0
                    pure (Bind bfc nm (Pi c' e ty) scty)
-           else do scty <- updateHoleType useInHole var sc as
-                   pure (Bind bfc nm (Pi c e ty) scty)
-  updateHoleType useInHole var (Bind bfc nm (Pi c e ty) sc) (a :: as)
-      = do updateHoleUsage False var a
-           scty <- updateHoleType useInHole var sc as
+           else if elem v (map varIdx zs)
+                then do scty <- updateHoleType useInHole var zs sc as
+                        pure (Bind bfc nm (Pi Rig0 e ty) scty)
+                else do scty <- updateHoleType useInHole var zs sc as
+                        pure (Bind bfc nm (Pi c e ty) scty)
+  updateHoleType useInHole var zs (Bind bfc nm (Pi c e ty) sc) (a :: as)
+      = do updateHoleUsage False var zs a
+           scty <- updateHoleType useInHole var zs sc as
            pure (Bind bfc nm (Pi c e ty) scty)
-  updateHoleType useInHole var ty as
-      = do updateHoleUsageArgs False var as
+  updateHoleType useInHole var zs ty as
+      = do updateHoleUsageArgs False var zs as
            pure ty
 
   updateHoleUsagePats : {auto c : Ref Ctxt Defs} ->
@@ -95,7 +100,7 @@ mutual
            log 10 $ "At positions " ++ show argpos
            -- Find what it's position is in env by looking at the lhs args
            let vars = mapMaybe (findLocal (getArgs lhs)) argpos
-           hs <- traverse (\vsel => updateHoleUsage useInHole vsel rhs)
+           hs <- traverse (\vsel => updateHoleUsage useInHole vsel [] rhs)
                           vars
            pure (or (map Delay hs))
     where
@@ -115,39 +120,40 @@ mutual
   updateHoleUsage : {auto c : Ref Ctxt Defs} ->
                     {auto u : Ref UST UState} ->
                     (useInHole : Bool) ->
-                    Var vars -> Term vars -> Core Bool
-  updateHoleUsage useInHole (MkVar var) (Bind _ n (Let c val ty) sc)
-      = do h <- updateHoleUsage useInHole (MkVar var) val
-           h' <- updateHoleUsage useInHole (MkVar (Later var)) sc
+                    Var vars -> List (Var vars) ->
+                    Term vars -> Core Bool
+  updateHoleUsage useInHole (MkVar var) zs (Bind _ n (Let c val ty) sc)
+      = do h <- updateHoleUsage useInHole (MkVar var) zs val
+           h' <- updateHoleUsage useInHole (MkVar (Later var)) (map weaken zs) sc
            pure (h || h')
-  updateHoleUsage useInHole (MkVar var) (Bind _ n b sc)
-      = updateHoleUsage useInHole (MkVar (Later var)) sc
-  updateHoleUsage useInHole var (Meta fc n i args)
+  updateHoleUsage useInHole (MkVar var) zs (Bind _ n b sc)
+      = updateHoleUsage useInHole (MkVar (Later var)) (map weaken zs) sc
+  updateHoleUsage useInHole var zs (Meta fc n i args)
       = do defs <- get Ctxt
            Just gdef <- lookupCtxtExact (Resolved i) (gamma defs)
-                | Nothing => updateHoleUsageArgs useInHole var args
+                | Nothing => updateHoleUsageArgs useInHole var zs args
            -- only update for holes with no definition yet
            case definition gdef of
                 Hole _ _ =>
                    do let ty = type gdef
-                      ty' <- updateHoleType useInHole var ty args
+                      ty' <- updateHoleType useInHole var zs ty args
                       updateTy i ty'
                       pure True
-                _ => updateHoleUsageArgs useInHole var args
-  updateHoleUsage useInHole var (As _ a p)
-      = do h <- updateHoleUsage useInHole var a
-           h' <- updateHoleUsage useInHole var a
+                _ => updateHoleUsageArgs useInHole var zs args
+  updateHoleUsage useInHole var zs (As _ a p)
+      = do h <- updateHoleUsage useInHole var zs a
+           h' <- updateHoleUsage useInHole var zs a
            pure (h || h')
-  updateHoleUsage useInHole var (TDelayed _ _ t)
-      = updateHoleUsage useInHole var t
-  updateHoleUsage useInHole var (TDelay _ _ _ t)
-      = updateHoleUsage useInHole var t
-  updateHoleUsage useInHole var (TForce _ _ t)
-      = updateHoleUsage useInHole var t
-  updateHoleUsage useInHole var tm
+  updateHoleUsage useInHole var zs (TDelayed _ _ t)
+      = updateHoleUsage useInHole var zs t
+  updateHoleUsage useInHole var zs (TDelay _ _ _ t)
+      = updateHoleUsage useInHole var zs t
+  updateHoleUsage useInHole var zs (TForce _ _ t)
+      = updateHoleUsage useInHole var zs t
+  updateHoleUsage useInHole var zs tm
       = case getFnArgs tm of
              (Ref _ _ fn, args) =>
-                do aup <- updateHoleUsageArgs useInHole var args
+                do aup <- updateHoleUsageArgs useInHole var zs args
                    defs <- get Ctxt
                    Just (NS _ (CaseBlock _ _), PMDef _ _ _ _ pats) <-
                          lookupExactBy (\d => (fullname d, definition d))
@@ -156,7 +162,7 @@ mutual
                    hs <- traverse (updateHoleUsagePats useInHole var args) pats
                    pure (or (aup :: map Delay hs))
              (f, []) => pure False
-             (f, args) => updateHoleUsageArgs useInHole var (f :: args)
+             (f, args) => updateHoleUsageArgs useInHole var zs (f :: args)
 
 -- Linearity checking of an already checked term. This serves two purposes:
 --  + Checking correct usage of linear bindings
@@ -226,12 +232,20 @@ mutual
 
   lcheck rig_in erase env (Bind fc nm b sc)
       = do (b', bt, usedb) <- lcheckBinder rig erase env b
-           (sc', sct, usedsc) <- lcheck rig erase (b' :: env) sc
+           -- Anything linear can't be used in the scope of a lambda, if we're
+           -- checking in general context
+           let env' = case (rig_in, b) of
+                           (RigW, Lam _ _ _) => eraseLinear env
+                           _ => env
+           (sc', sct, usedsc) <- lcheck rig erase (b' :: env') sc
            defs <- get Ctxt
 
            let used_in = count 0 usedsc
            holeFound <- if not erase && isLinear (multiplicity b)
-                           then updateHoleUsage (used_in == 0) (MkVar First) sc'
+                           then updateHoleUsage (used_in == 0)
+                                         (MkVar First)
+                                         (map weaken (getZeroes env'))
+                                         sc'
                            else pure False
 
            -- if there's a hole, assume it will contain the missing usage
@@ -250,7 +264,23 @@ mutual
       rig : RigCount
       rig = case b of
                  Pi _ _ _ => Rig0
-                 _ => rig_in
+                 _ => case rig_in of
+                           Rig0 => Rig0
+                           _ => Rig1
+
+      getZeroes : Env Term vs -> List (Var vs)
+      getZeroes [] = []
+      getZeroes (b :: bs)
+          = case multiplicity b of
+                 Rig0 => MkVar First :: map weaken (getZeroes bs)
+                 _ => map weaken (getZeroes bs)
+
+      eraseLinear : Env Term vs -> Env Term vs
+      eraseLinear [] = []
+      eraseLinear (b :: bs)
+          = case multiplicity b of
+                 Rig1 => setMultiplicity b Rig0 :: eraseLinear bs
+                 _ => b :: eraseLinear bs
 
       checkUsageOK : Nat -> RigCount -> Core ()
       checkUsageOK used Rig0 = pure ()
@@ -405,7 +435,7 @@ mutual
       getCaseUsage (Bind _ n (Pi Rig1 e ty) sc) env (Local _ _ idx p :: args) used rhs
           = do rest <- getCaseUsage sc env args used rhs
                let used_in = count idx used
-               holeFound <- updateHoleUsage (used_in == 0) (MkVar p) rhs
+               holeFound <- updateHoleUsage (used_in == 0) (MkVar p) [] rhs
                let ause
                    = if holeFound && used_in == 0
                              then UseUnknown
@@ -458,7 +488,7 @@ mutual
                let used_in = count (varIdx pos) usage
 
                holeFound <- if isLinear (multiplicity b)
-                               then updateHoleUsage (used_in == 0) pos tm
+                               then updateHoleUsage (used_in == 0) pos [] tm
                                else pure False
                let used = case rigMult (multiplicity b) rig of
                                Rig1 => if holeFound && used_in == 0
@@ -620,7 +650,7 @@ checkEnvUsage fc rig {done} {vars = nm :: xs} (b :: env) usage tm
          let used_in = count (varIdx pos) usage
 
          holeFound <- if isLinear (multiplicity b)
-                         then updateHoleUsage (used_in == 0) pos tm
+                         then updateHoleUsage (used_in == 0) pos [] tm
                          else pure False
          let used = case rigMult (multiplicity b) rig of
                          Rig1 => if holeFound && used_in == 0

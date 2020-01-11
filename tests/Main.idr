@@ -40,6 +40,7 @@ idrisTests
        "interface005", "interface006", "interface007", "interface008",
        "interface009", "interface010", "interface011", "interface012",
        "interface013", "interface014",
+       "interpreter001",
        "lazy001",
        "linear001", "linear002", "linear003", "linear004", "linear005",
        "linear006", "linear007",
@@ -125,7 +126,7 @@ findChez
          case env of
             Just n => pure $ Just n
             Nothing => firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
-                                    x <- ["scheme", "chez", "chezscheme9.5"]]
+                                    x <- ["chez", "chezscheme9.5", "scheme"]]
 
 runChezTests : String -> List String -> IO (List Bool)
 runChezTests prog tests

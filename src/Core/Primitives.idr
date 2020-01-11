@@ -113,7 +113,7 @@ sub : Constant -> Constant -> Maybe Constant
 sub (BI x) (BI y) = pure $ BI (x - y)
 sub (I x) (I y) = pure $ I (x - y)
 sub (Ch x) (Ch y) = pure $ Ch (cast (cast {to=Int} x - cast y))
-sub (Db x) (Db y) = pure $ Db (x + y)
+sub (Db x) (Db y) = pure $ Db (x - y)
 sub _ _ = Nothing
 
 mul : Constant -> Constant -> Maybe Constant

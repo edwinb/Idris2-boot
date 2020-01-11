@@ -55,11 +55,29 @@ processFnOpt fc ndef PartialOK
 processFnOpt fc ndef Macro
     = setFlag fc ndef Macro
 
+getFnString : {auto c : Ref Ctxt Defs} ->
+              {auto m : Ref MD Metadata} ->
+              {auto u : Ref UST UState} ->
+              RawImp -> Core String
+getFnString (IPrimVal _ (Str st)) = pure st
+getFnString tm
+    = do inidx <- resolveName (UN "[foreign]")
+         let fc = getFC tm
+         let gstr = gnf [] (PrimVal fc StringType)
+         etm <- checkTerm inidx InExpr [] (MkNested []) [] tm gstr
+         defs <- get Ctxt
+         case !(nf defs [] etm) of
+              NPrimVal fc (Str st) => pure st
+              _ => throw (GenericMsg fc "%foreign calling convention must evaluate to a String")
+
 -- If it's declared as externally defined, set the definition to
 -- ExternFn <arity>, where the arity is assumed to be fixed (i.e.
 -- not dependent on any of the arguments)
 -- Similarly set foreign definitions. Possibly combine these?
-initDef : {auto c : Ref Ctxt Defs} ->
+initDef : {vars : _} ->
+          {auto c : Ref Ctxt Defs} ->
+          {auto m : Ref MD Metadata} ->
+          {auto u : Ref UST UState} ->
           Name -> Env Term vars -> Term vars -> List FnOpt -> Core Def
 initDef n env ty []
     = do addUserHole n
@@ -71,7 +89,8 @@ initDef n env ty (ExternFn :: opts)
 initDef n env ty (ForeignFn cs :: opts)
     = do defs <- get Ctxt
          a <- getArity defs env ty
-         pure (ForeignDef a cs)
+         cs' <- traverse getFnString cs
+         pure (ForeignDef a cs')
 initDef n env ty (_ :: opts) = initDef n env ty opts
 
 export

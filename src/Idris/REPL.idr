@@ -670,12 +670,12 @@ mutual
            opts <- get ROpts
            coreLift (putStr (prompt (evalMode opts) ++ showSep "." (reverse ns) ++ "> "))
            inp <- coreLift getLine
-           repeat <- interpret inp
            end <- coreLift $ fEOF stdin
-           if repeat && not end
-              then repl
-              else do iputStrLn "Bye for now!"
-                      pure ()
+           if end
+             then do
+               -- start a new line in REPL mode (not relevant in IDE mode)
+               coreLift $ putStrLn ""
+               iputStrLn "Bye for now!"
               else do res <- interpret inp
                       handleResult res
 

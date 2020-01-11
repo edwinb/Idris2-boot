@@ -139,7 +139,7 @@ mutual
          = "(|" ++ showSep "," (map show alts) ++ "|)"
       show (IRewrite _ rule tm)
          = "(%rewrite (" ++ show rule ++ ") (" ++ show tm ++ "))"
-      show (ICoerced _ tm) = show tm
+      show (ICoerced _ tm) = "(%coerced " ++ show tm ++ ")"
 
       show (IBindHere fc b sc)
          = "(%bindhere " ++ show sc ++ ")"
@@ -174,7 +174,7 @@ mutual
        GlobalHint : Bool -> FnOpt
        ExternFn : FnOpt
        -- Defined externally, list calling conventions
-       ForeignFn : List String -> FnOpt
+       ForeignFn : List RawImp -> FnOpt
        -- assume safe to cancel arguments in unification
        Invertible : FnOpt
        Total : FnOpt
@@ -201,7 +201,7 @@ mutual
     (Hint x) == (Hint y) = x == y
     (GlobalHint x) == (GlobalHint y) = x == y
     ExternFn == ExternFn = True
-    (ForeignFn xs) == (ForeignFn ys) = xs == ys
+    (ForeignFn xs) == (ForeignFn ys) = True -- xs == ys
     Invertible == Invertible = True
     Total == Total = True
     Covering == Covering = True

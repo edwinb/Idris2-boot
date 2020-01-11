@@ -1006,44 +1006,44 @@ paramDecls fname indents
          end <- location
          pure (PParameters (MkFC fname start end) ps (collectDefs (concat ds)))
 
-fnOpt : Rule FnOpt
+fnOpt : Rule PFnOpt
 fnOpt
     = do keyword "partial"
-         pure PartialOK
+         pure $ IFnOpt PartialOK
   <|> do keyword "total"
-         pure Total
+         pure $ IFnOpt Total
   <|> do keyword "covering"
-         pure Covering
+         pure $ IFnOpt Covering
 
-fnDirectOpt : Rule FnOpt
-fnDirectOpt
+fnDirectOpt : FileName -> Rule PFnOpt
+fnDirectOpt fname
     = do exactIdent "hint"
-         pure (Hint True)
+         pure $ IFnOpt (Hint True)
   <|> do exactIdent "globalhint"
-         pure (GlobalHint False)
+         pure $ IFnOpt (GlobalHint False)
   <|> do exactIdent "defaulthint"
-         pure (GlobalHint True)
+         pure $ IFnOpt (GlobalHint True)
   <|> do exactIdent "inline"
-         pure Inline
+         pure $ IFnOpt Inline
   <|> do exactIdent "extern"
-         pure ExternFn
+         pure $ IFnOpt ExternFn
   <|> do exactIdent "macro"
-         pure Macro
+         pure $ IFnOpt Macro
   <|> do exactIdent "foreign"
-         cs <- many strLit
-         pure (ForeignFn cs)
+         cs <- block (expr pdef fname)
+         pure $ PForeign cs
 
-visOpt : Rule (Either Visibility FnOpt)
-visOpt
+visOpt : FileName -> Rule (Either Visibility PFnOpt)
+visOpt fname
     = do vis <- visOption
          pure (Left vis)
   <|> do tot <- fnOpt
          pure (Right tot)
   <|> do symbol "%"
-         opt <- fnDirectOpt
+         opt <- fnDirectOpt fname
          pure (Right opt)
 
-getVisibility : Maybe Visibility -> List (Either Visibility FnOpt) ->
+getVisibility : Maybe Visibility -> List (Either Visibility PFnOpt) ->
                 EmptyRule Visibility
 getVisibility Nothing [] = pure Private
 getVisibility (Just vis) [] = pure vis
@@ -1193,7 +1193,7 @@ recordDecl fname indents
 claim : FileName -> IndentInfo -> Rule PDecl
 claim fname indents
     = do start <- location
-         visOpts <- many visOpt
+         visOpts <- many (visOpt fname)
          vis <- getVisibility Nothing visOpts
          let opts = mapMaybe getRight visOpts
          m <- multiplicity

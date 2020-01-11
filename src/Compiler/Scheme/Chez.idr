@@ -25,34 +25,8 @@ findChez
          case env of
             Just n => pure n
             Nothing => do e <- firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
-                                    x <- ["scheme", "chez", "chezscheme9.5"]]
+                                    x <- ["chez", "chezscheme9.5", "scheme"]]
                           pure $ fromMaybe "/usr/bin/env -S scheme" e
-
-locate : {auto c : Ref Ctxt Defs} ->
-         String -> Core (String, String)
-locate libspec
-    = do -- Attempt to turn libspec into an appropriate filename for the system
-         let fname
-              = case words libspec of
-                     [] => ""
-                     [fn] => if '.' `elem` unpack fn
-                                then fn -- full filename given
-                                else -- add system extension
-                                     fn ++ "." ++ dylib_suffix
-                     (fn :: ver :: _) =>
-                          -- library and version given, build path name as
-                          -- appropriate for the system
-                          cond [(dylib_suffix == "dll",
-                                      fn ++ "-" ++ ver ++ ".dll"),
-                                (dylib_suffix == "dylib",
-                                      fn ++ "." ++ ver ++ ".dylib")]
-                                (fn ++ "." ++ dylib_suffix ++ "." ++ ver)
-
-         fullname <- catch (findLibraryFile fname)
-                           (\err => -- assume a system library so not
-                                    -- in our library path
-                                    pure fname)
-         pure (fname, fullname)
 
 -- Given the chez compiler directives, return a list of pairs of:
 --   - the library file name
@@ -176,6 +150,7 @@ cCall fc cfn clib args ret
          lib <- if clib `elem` loaded
                    then pure ""
                    else do (fname, fullname) <- locate clib
+                           copyLib (fname, fullname)
                            put Loaded (clib :: loaded)
                            pure $ "(load-shared-object \""
                                     ++ escapeQuotes fullname
@@ -297,6 +272,7 @@ compileToSS : Ref Ctxt Defs ->
 compileToSS c tm outfile
     = do ds <- getDirectives Chez
          libs <- findLibs ds
+         traverse_ copyLib libs
          (ns, tags) <- findUsedNames tm
          defs <- get Ctxt
          l <- newRef {t = List String} Loaded ["libc", "libc 6"]

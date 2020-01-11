@@ -130,6 +130,8 @@ cCall fc cfn libspec args ret
          lib <- if libn `elem` loaded
                    then pure ""
                    else do put Loaded (libn :: loaded)
+                           ldata <- locate libspec
+                           copyLib ldata
                            pure (loadlib libn vers)
 
          argTypes <- traverse (\a => do s <- cftySpec fc (snd a)

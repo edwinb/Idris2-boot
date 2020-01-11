@@ -10,20 +10,6 @@ import System.Info
 
 %default total
 
-isWindows : Bool
-isWindows = os `elem` ["windows", "mingw32", "cygwin32"]
-
-sep : Char
-sep = '/'
-
-export
-dirSep : String
-dirSep = cast sep
-
-export
-pathSep : Char
-pathSep = if isWindows then ';' else ':'
-
 fullPath : String -> List String
 fullPath fp = filter (/="") $ split (==sep) fp
 
@@ -130,6 +116,8 @@ pathToNS wdir sdir fname
 export
 mkdirs : List String -> IO (Either FileError ())
 mkdirs [] = pure (Right ())
+mkdirs ("." :: ds) = mkdirs ds
+mkdirs ("" :: ds) = mkdirs ds
 mkdirs (d :: ds)
     = do ok <- changeDir d
          if ok
@@ -143,6 +131,12 @@ mkdirs (d :: ds)
                     changeDir ".."
                     pure (Right ())
 
+isDirSep : Char -> Bool
+isDirSep c = cast c == dirSep
+
+splitDir : String -> List String
+splitDir = split isDirSep
+
 -- Given a namespace (i.e. a module name), make the build directory for the
 -- corresponding ttc file
 export
@@ -150,13 +144,23 @@ makeBuildDirectory : {auto c : Ref Ctxt Defs} ->
                      List String -> Core ()
 makeBuildDirectory ns
     = do d <- getDirs
-         let bdir = build_dir d
+         let bdir = splitDir $ build_dir d
          let ndirs = case ns of
                           [] => []
                           (n :: ns) => ns -- first item is file name
          let fname = showSep dirSep (reverse ndirs)
-         Right _ <- coreLift $ mkdirs (build_dir d :: "ttc" :: reverse ndirs)
-            | Left err => throw (FileErr (bdir ++ dirSep ++ fname) err)
+         Right _ <- coreLift $ mkdirs (bdir ++ "ttc" :: reverse ndirs)
+            | Left err => throw (FileErr (build_dir d ++ dirSep ++ fname) err)
+         pure ()
+
+export
+makeExecDirectory : {auto c : Ref Ctxt Defs} ->
+                    Core ()
+makeExecDirectory
+    = do d <- getDirs
+         let edir = splitDir $ exec_dir d
+         Right _ <- coreLift $ mkdirs edir
+            | Left err => throw (FileErr (exec_dir d) err)
          pure ()
 
 -- Given a source file, return the name of the ttc file to generate
