@@ -42,7 +42,7 @@ checkHole rig elabinfo nest env fc n_in (Just gexpty)
          addUserHole nm
          pure (metaval, gexpty)
 checkHole rig elabinfo nest env fc n_in exp
-    = do nmty <- genName "holeTy"
+    = do nmty <- genName ("type_of_" ++ nameRoot n_in)
          let env' = letToLam env
          ty <- metaVar fc Rig0 env' nmty (TType fc)
          nm <- inCurrentNS (UN n_in)

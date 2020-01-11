@@ -195,7 +195,7 @@ checkTerm rig elabinfo nest env (Implicit fc b) (Just gexpty)
                put EST (addBindIfUnsolved nm rig Explicit env metaval expty est)
          pure (metaval, gexpty)
 checkTerm rig elabinfo nest env (Implicit fc b) Nothing
-    = do nmty <- genName "impTy"
+    = do nmty <- genName "implicit_type"
          ty <- metaVar fc Rig0 env nmty (TType fc)
          nm <- genName "_"
          metaval <- metaVar fc rig env nm ty
