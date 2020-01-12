@@ -33,7 +33,7 @@ conflict defs nfty n
 
       conflictNF : NF vars -> NF [] -> Core Bool
       conflictNF t (NBind fc x b sc)
-          = conflictNF t !(sc defs (toClosure defaultOpts [] (Erased fc)))
+          = conflictNF t !(sc defs (toClosure defaultOpts [] (Erased fc False)))
       conflictNF (NDCon _ n t a args) (NDCon _ n' t' a' args')
           = if t == t'
                then conflictArgs args args'
@@ -59,7 +59,7 @@ isEmpty defs _ = pure False
 -- Need this to get a NF from a Term; the names are free in any case
 freeEnv : FC -> (vs : List Name) -> Env Term vs
 freeEnv fc [] = []
-freeEnv fc (n :: ns) = PVar RigW Explicit (Erased fc) :: freeEnv fc ns
+freeEnv fc (n :: ns) = PVar RigW Explicit (Erased fc False) :: freeEnv fc ns
 
 -- Given a normalised type, get all the possible constructors for that
 -- type family, with their type, name, tag, and arity
@@ -89,7 +89,7 @@ emptyRHS fc (Case idx el sc alts) = Case idx el sc (map emptyRHSalt alts)
     emptyRHSalt (DelayCase c arg sc) = DelayCase c arg (emptyRHS fc sc)
     emptyRHSalt (ConstCase c sc) = ConstCase c (emptyRHS fc sc)
     emptyRHSalt (DefaultCase sc) = DefaultCase (emptyRHS fc sc)
-emptyRHS fc (STerm s) = STerm (Erased fc)
+emptyRHS fc (STerm s) = STerm (Erased fc False)
 emptyRHS fc sc = sc
 
 mkAlt : FC -> CaseTree vars -> (Name, Int, Nat) -> CaseAlt vars

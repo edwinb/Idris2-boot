@@ -28,7 +28,7 @@ doPLetRenames : List (Name, (RigCount, Name)) ->
                 List Name -> Term vars -> Term vars
 doPLetRenames ns drops (Bind fc n b@(PLet _ _ _) sc)
     = if n `elem` drops
-         then subst (Erased fc) (doPLetRenames ns drops sc)
+         then subst (Erased fc False) (doPLetRenames ns drops sc)
          else Bind fc n b (doPLetRenames ns drops sc)
 doPLetRenames ns drops (Bind fc n b sc)
     = case lookup n ns of

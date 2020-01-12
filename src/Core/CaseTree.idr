@@ -153,7 +153,7 @@ mkPat' args orig (Ref fc Bound n) = PLoc fc n
 mkPat' args orig (Ref fc (DataCon t a) n) = PCon fc n t a args
 mkPat' args orig (Ref fc (TyCon t a) n) = PTyCon fc n a args
 mkPat' args orig (Bind fc x (Pi _ _ s) t)
-    = let t' = subst (Erased fc) t in
+    = let t' = subst (Erased fc False) t in
           PArrow fc x (mkPat' [] s s) (mkPat' [] t' t')
 mkPat' args orig (App fc fn arg)
     = let parg = mkPat' [] arg arg in

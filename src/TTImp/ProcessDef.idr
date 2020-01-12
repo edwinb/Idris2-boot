@@ -315,6 +315,11 @@ applyEnv env withname
                   \fc, nt => applyTo fc
                          (Ref fc nt (Resolved n')) env))
 
+getImpossibleTerm : {vars : _} ->
+                    {auto c : Ref Ctxt Defs} ->
+                    RawImp -> Core (Term vars)
+getImpossibleTerm tm = pure (Erased (getFC tm) False)
+
 -- Check a pattern clause, returning the component of the 'Case' expression it
 -- represents, or Nothing if it's an impossible clause
 export
@@ -324,32 +329,34 @@ checkClause : {vars : _} ->
               {auto u : Ref UST UState} ->
               (mult : RigCount) -> (hashit : Bool) ->
               Int -> List ElabOpt -> NestedNames vars -> Env Term vars ->
-              ImpClause -> Core (Maybe Clause)
+              ImpClause -> Core (Either (Term vars) Clause)
 checkClause mult hashit n opts nest env (ImpossibleClause fc lhs)
-    = handleUnify
-         (do lhs_raw <- lhsInCurrentNS nest lhs
-             autoimp <- isAutoImplicits
-             autoImplicits True
-             (_, lhs) <- bindNames False lhs_raw
-             autoImplicits autoimp
+    = do lhs_raw <- lhsInCurrentNS nest lhs
+         handleUnify
+           (do autoimp <- isAutoImplicits
+               autoImplicits True
+               (_, lhs) <- bindNames False lhs_raw
+               autoImplicits autoimp
 
-             log 5 $ "Checking " ++ show lhs
-             logEnv 5 "In env" env
-             (lhstm, lhstyg) <-
-                         elabTerm n (InLHS mult) opts nest env
-                                    (IBindHere fc PATTERN lhs) Nothing
-             defs <- get Ctxt
-             lhs <- normaliseHoles defs env lhstm
-             if !(hasEmptyPat defs env lhs)
-                then pure Nothing
-                else throw (ValidCase fc env (Left lhs)))
-         (\err =>
-            case err of
-                 ValidCase _ _ _ => throw err
-                 _ => do defs <- get Ctxt
-                         if !(impossibleErrOK defs err)
-                            then pure Nothing
-                            else throw (ValidCase fc env (Right err)))
+               log 5 $ "Checking " ++ show lhs
+               logEnv 5 "In env" env
+               (lhstm, lhstyg) <-
+                           elabTerm n (InLHS mult) opts nest env
+                                      (IBindHere fc PATTERN lhs) Nothing
+               defs <- get Ctxt
+               lhs <- normaliseHoles defs env lhstm
+               if !(hasEmptyPat defs env lhs)
+                  then do lhs_p <- getImpossibleTerm lhs_raw
+                          pure (Left lhs_p)
+                  else throw (ValidCase fc env (Left lhs)))
+           (\err =>
+              case err of
+                   ValidCase _ _ _ => throw err
+                   _ => do defs <- get Ctxt
+                           if !(impossibleErrOK defs err)
+                              then do lhs_p <- getImpossibleTerm lhs_raw
+                                      pure (Left lhs_p)
+                              else throw (ValidCase fc env (Right err)))
 checkClause {vars} mult hashit n opts nest env (PatClause fc lhs_in rhs)
     = do (_, (vars'  ** (sub', env', nest', lhstm', lhsty'))) <-
              checkLHS mult hashit n opts nest env fc lhs_in
@@ -373,7 +380,7 @@ checkClause {vars} mult hashit n opts nest env (PatClause fc lhs_in rhs)
                  addLHS (getFC lhs_in) (length env) env' lhstm'
               _ => pure ()
 
-         pure (Just (MkClause env' lhstm' rhstm))
+         pure (Right (MkClause env' lhstm' rhstm))
 -- TODO: (to decide) With is complicated. Move this into its own module?
 checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs)
     = do (lhs, (vars'  ** (sub', env', nest', lhspat, reqty))) <-
@@ -457,7 +464,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
          let wdef = IDef fc wname cs'
          processDecl [] nest'' env wdef
 
-         pure (Just (MkClause env' lhspat rhs))
+         pure (Right (MkClause env' lhspat rhs))
   where
     -- If it's 'KeepCons/SubRefl' in 'outprf', that means it was in the outer
     -- environment so we need to keep it in the same place in the 'with'
@@ -588,10 +595,9 @@ processDef opts nest env fc n_in cs_in
                        else Rig1
          nidx <- resolveName n
          cs <- traverse (checkClause mult hashit nidx opts nest env) cs_in
-         let pats = map toPats (mapMaybe id cs)
+         let pats = map toPats (rights cs)
 
-         (cargs ** tree_ct) <- getPMDef fc CompileTime n ty
-                                        (mapMaybe id cs)
+         (cargs ** tree_ct) <- getPMDef fc CompileTime n ty (rights cs)
 
          logC 5 (do t <- toFullNames tree_ct
                     pure ("Case tree for " ++ show n ++ ": " ++ show t))
@@ -621,29 +627,29 @@ processDef opts nest env fc n_in cs_in
                 sc <- calculateSizeChange fc n
                 setSizeChange fc n sc
 
-         -- If we're not in a case tree, compile all the outstanding case
-         -- trees
-         when (not (elem InCase opts)) $
-           compileRunTime
-
          md <- get MD -- don't need the metadata collected on the coverage check
-         cov <- checkCoverage nidx mult cs tree_ct
+         cov <- checkCoverage nidx ty mult cs
          setCovering fc n cov
          put MD md
+
+         -- If we're not in a case tree, compile all the outstanding case
+         -- trees. TODO: Take into account coverage, and add error cases
+         -- if we're not covering.
+         when (not (elem InCase opts)) $
+           compileRunTime
 
   where
     simplePat : Term vars -> Bool
     simplePat (Local _ _ _ _) = True
-    simplePat (Erased _) = True
+    simplePat (Erased _ _) = True
     simplePat (As _ _ p) = simplePat p
     simplePat _ = False
 
     -- Is the clause returned from 'checkClause' a catch all clause, i.e.
     -- one where all the arguments are variables? If so, no need to do the
     -- (potentially expensive) coverage check
-    catchAll : Maybe Clause -> Bool
-    catchAll Nothing = False
-    catchAll (Just (MkClause env lhs _))
+    catchAll : Clause -> Bool
+    catchAll (MkClause env lhs _)
        = all simplePat (getArgs lhs)
 
     -- Return 'Nothing' if the clause is impossible, otherwise return the
@@ -658,7 +664,8 @@ processDef opts nest env fc n_in cs_in
                    ok <- checkClause mult False n [] (MkNested []) []
                                      (ImpossibleClause fc itm)
                    put Ctxt ctxt
-                   maybe (pure Nothing) (\chktm => pure (Just tm)) ok)
+                   either (\e => pure Nothing)
+                          (\chktm => pure (Just tm)) ok)
                (\err => case err of
                              WhenUnifying _ env l r err
                                => do defs <- get Ctxt
@@ -668,10 +675,13 @@ processDef opts nest env fc n_in cs_in
                                         else pure (Just tm)
                              _ => pure (Just tm))
 
-    checkCoverage : Int -> RigCount -> List (Maybe Clause) ->
-                    CaseTree vs -> Core Covering
-    checkCoverage n mult cs ctree
-        = do missCase <- if any catchAll cs
+    checkCoverage : Int -> ClosedTerm -> RigCount ->
+                    List (Either (Term vs) Clause) ->
+                    Core Covering
+    checkCoverage n ty mult cs
+        = do let covcs = rights cs -- TODO: Make stand in LHS for impossible clauses
+             (_ ** ctree) <- getPMDef fc CompileTime (Resolved n) ty covcs
+             missCase <- if any catchAll covcs
                             then do log 3 $ "Catch all case in " ++ show n
                                     pure []
                             else getMissing fc (Resolved n) ctree

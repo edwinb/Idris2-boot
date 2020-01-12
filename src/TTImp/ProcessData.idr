@@ -31,7 +31,7 @@ checkRetType : {auto c : Ref Ctxt Defs} ->
                (NF vars -> Core ()) -> Core ()
 checkRetType env (NBind fc x (Pi _ _ ty) sc) chk
     = do defs <- get Ctxt
-         checkRetType env !(sc defs (toClosure defaultOpts env (Erased fc))) chk
+         checkRetType env !(sc defs (toClosure defaultOpts env (Erased fc False))) chk
 checkRetType env nf chk = chk nf
 
 checkIsType : {auto c : Ref Ctxt Defs} ->

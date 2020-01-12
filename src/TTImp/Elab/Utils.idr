@@ -11,7 +11,7 @@ import TTImp.TTImp
 
 findErasedFrom : Defs -> Nat -> NF [] -> Core (List Nat)
 findErasedFrom defs pos (NBind fc x (Pi c _ _) scf)
-    = do sc <- scf defs (toClosure defaultOpts [] (Erased fc))
+    = do sc <- scf defs (toClosure defaultOpts [] (Erased fc False))
          rest <- findErasedFrom defs (1 + pos) sc
          case c of
               Rig0 => pure (pos :: rest)

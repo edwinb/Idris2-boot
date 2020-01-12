@@ -238,8 +238,8 @@ tryRecursive fc rig opts env ty topty (Just rdata)
       argDiff (App _ f a) (App _ f' a')
          = structDiff f f' || structDiff a a'
       argDiff (PrimVal _ c) (PrimVal _ c') = c /= c'
-      argDiff (Erased _) _ = False
-      argDiff _ (Erased _) = False
+      argDiff (Erased _ _) _ = False
+      argDiff _ (Erased _ _) = False
       argDiff (TType _) (TType _) = False
       argDiff (As _ _ x) y = argDiff x y
       argDiff x (As _ _ y) = argDiff x y

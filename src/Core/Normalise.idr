@@ -117,7 +117,7 @@ parameters (defs : Defs, topopts : EvalOpts)
                       eval env (arg :: locs) (Local {name = UN "fvar"} fc Nothing _ First) stk
                   _ => pure (NForce fc r tm' stk)
     eval env locs (PrimVal fc c) stk = pure $ NPrimVal fc c
-    eval env locs (Erased fc) stk = pure $ NErased fc
+    eval env locs (Erased fc i) stk = pure $ NErased fc i
     eval env locs (TType fc) stk = pure $ NType fc
 
     evalLocal : {vars : _} ->
@@ -427,7 +427,7 @@ gType fc = MkGlue True (pure (TType fc)) (const (pure (NType fc)))
 
 export
 gErased : FC -> Glued vars
-gErased fc = MkGlue True (pure (Erased fc)) (const (pure (NErased fc)))
+gErased fc = MkGlue True (pure (Erased fc False)) (const (pure (NErased fc False)))
 
 export
 data QVar : Type where
@@ -564,7 +564,7 @@ mutual
                 t => do arg' <- quoteGenNF q defs bound env arg
                         pure $ apply fc (TForce fc r arg') args'
   quoteGenNF q defs bound env (NPrimVal fc c) = pure $ PrimVal fc c
-  quoteGenNF q defs bound env (NErased fc) = pure $ Erased fc
+  quoteGenNF q defs bound env (NErased fc i) = pure $ Erased fc i
   quoteGenNF q defs bound env (NType fc) = pure $ TType fc
 
 export
@@ -735,8 +735,8 @@ mutual
              else pure False
 
     convGen q defs env (NPrimVal _ c) (NPrimVal _ c') = pure (c == c')
-    convGen q defs env (NErased _) _ = pure True
-    convGen q defs env _ (NErased _) = pure True
+    convGen q defs env (NErased _ _) _ = pure True
+    convGen q defs env _ (NErased _ _) = pure True
     convGen q defs env (NType _) (NType _) = pure True
     convGen q defs env x y = pure False
 
@@ -753,7 +753,7 @@ mutual
 export
 getValArity : Defs -> Env Term vars -> NF vars -> Core Nat
 getValArity defs env (NBind fc x (Pi _ _ _) sc)
-    = pure (S !(getValArity defs env !(sc defs (toClosure defaultOpts env (Erased fc)))))
+    = pure (S !(getValArity defs env !(sc defs (toClosure defaultOpts env (Erased fc False)))))
 getValArity defs env val = pure 0
 
 export

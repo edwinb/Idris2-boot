@@ -393,7 +393,7 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
                        (rewrite appendAssociative vs [v] got in locs)
                        (rewrite appendAssociative vs [v] got in tm)
                        sc
-             pure (Bind bfc x (Lam c Explicit (Erased bfc)) sc')
+             pure (Bind bfc x (Lam c Explicit (Erased bfc False)) sc')
     mkDef got (vs ++ [v]) (Snoc rec) cvs locs tm ty
         = ufail loc $ "Can't make solution for " ++ show mname
 

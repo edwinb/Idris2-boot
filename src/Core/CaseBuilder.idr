@@ -84,7 +84,7 @@ updatePats env nf (p :: ps)
 
 mkEnv : FC -> (vs : List Name) -> Env Term vs
 mkEnv fc [] = []
-mkEnv fc (n :: ns) = PVar RigW Explicit (Erased fc) :: mkEnv fc ns
+mkEnv fc (n :: ns) = PVar RigW Explicit (Erased fc False) :: mkEnv fc ns
 
 substInPatInfo : {auto c : Ref Ctxt Defs} ->
                  FC -> Name -> Term vars -> PatInfo pvar vars ->
@@ -352,7 +352,7 @@ nextNames {vars} fc root (p :: pats) fty
           fa_tys <- the (Core (Maybe (NF vars), ArgType vars)) $
               case fty of
                    Nothing => pure (Nothing, Unknown)
-                   Just (NBind pfc _ (Pi c _ (NErased _)) fsc) =>
+                   Just (NBind pfc _ (Pi c _ (NErased _ _)) fsc) =>
                       pure (Just !(fsc defs (toClosure defaultOpts env (Ref pfc Bound n))),
                         Unknown)
                    Just (NBind pfc _ (Pi c _ farg) fsc) =>
@@ -423,11 +423,11 @@ groupCons fc fn pvars cs
     addConG {todo} n tag pargs pats rhs []
         = do cty <- the (Core (NF vars)) $ if n == UN "->"
                       then pure $ NBind fc (MN "_" 0) (Pi RigW Explicit (NType fc)) $
-                              (\d, a => pure $ NBind fc (MN "_" 1) (Pi RigW Explicit (NErased fc))
+                              (\d, a => pure $ NBind fc (MN "_" 1) (Pi RigW Explicit (NErased fc False))
                                 (\d, a => pure $ NType fc))
                       else do defs <- get Ctxt
                               Just t <- lookupTyExact n (gamma defs)
-                                   | Nothing => pure (NErased fc)
+                                   | Nothing => pure (NErased fc False)
                               nf defs (mkEnv fc vars) (embed t)
              (patnames ** newargs) <- nextNames {vars} fc "e" pargs (Just cty)
              -- Update non-linear names in remaining patterns (to keep
@@ -725,6 +725,8 @@ mutual
   match {todo = []} fc fn phase [] err
        = maybe (pure (Unmatched "No patterns"))
                pure err
+  match {todo = []} fc fn phase ((MkPatClause pvars [] (Erased _ True)) :: _) err
+       = pure Impossible
   match {todo = []} fc fn phase ((MkPatClause pvars [] rhs) :: _) err
        = pure $ STerm rhs
 
@@ -920,7 +922,7 @@ getPMDef fc phase fn ty []
     getArgs : Int -> NF [] -> Core (List Name)
     getArgs i (NBind fc x (Pi _ _ _) sc)
         = do defs <- get Ctxt
-             sc' <- sc defs (toClosure defaultOpts [] (Erased fc))
+             sc' <- sc defs (toClosure defaultOpts [] (Erased fc False))
              pure (MN "arg" i :: !(getArgs i sc'))
     getArgs i _ = pure []
 getPMDef fc phase fn ty clauses

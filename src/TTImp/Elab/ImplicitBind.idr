@@ -49,7 +49,7 @@ mutual
       = TDelay fc x (embedSub sub t) (embedSub sub y)
   embedSub sub (TForce fc r x) = TForce fc r (embedSub sub x)
   embedSub sub (PrimVal fc c) = PrimVal fc c
-  embedSub sub (Erased fc) = Erased fc
+  embedSub sub (Erased fc i) = Erased fc i
   embedSub sub (TType fc) = TType fc
 
 -- Make a hole for an unbound implicit in the outer environment
@@ -204,7 +204,7 @@ swapVars (TDelayed fc x tm) = TDelayed fc x (swapVars tm)
 swapVars (TDelay fc x ty tm) = TDelay fc x (swapVars ty) (swapVars tm)
 swapVars (TForce fc r tm) = TForce fc r (swapVars tm)
 swapVars (PrimVal fc c) = PrimVal fc c
-swapVars (Erased fc) = Erased fc
+swapVars (Erased fc i) = Erased fc i
 swapVars (TType fc) = TType fc
 
 -- Push an explicit pi binder as far into a term as it'll go. That is,

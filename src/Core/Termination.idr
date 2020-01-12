@@ -51,7 +51,7 @@ scEq (TDelayed _ _ t) (TDelayed _ _ t') = scEq t t'
 scEq (TDelay _ _ t x) (TDelay _ _ t' x') = scEq t t' && scEq x x'
 scEq (TForce _ _ t) (TForce _ _ t') = scEq t t'
 scEq (PrimVal _ c) (PrimVal _ c') = c == c'
-scEq (Erased _) (Erased _) = True
+scEq (Erased _ _) (Erased _ _) = True
 scEq (TType _) (TType _) = True
 scEq _ _ = False
 
@@ -122,7 +122,7 @@ mutual
             Term vars -> -- Term we're checking
             Term vars -> -- Argument it might be smaller than
             Bool
-  smaller inc defs big _ (Erased _) = False -- Never smaller than an erased thing!
+  smaller inc defs big _ (Erased _ _) = False -- Never smaller than an erased thing!
   -- for an as pattern, it's smaller if it's smaller than either part
   smaller inc defs big s (As _ p t)
       = smaller inc defs big s p || smaller inc defs big s t
@@ -210,7 +210,7 @@ mutual
                  Just t => t
         where
           urhs : Term vs -> Term vs'
-          urhs (Local fc _ _ _) = Erased fc
+          urhs (Local fc _ _ _) = Erased fc False
           urhs (Ref fc nt n) = Ref fc nt n
           urhs (Meta fc m i margs) = Meta fc m i (map (updateRHS ms) margs)
           urhs (App fc f a) = App fc (updateRHS ms f) (updateRHS ms a)
@@ -223,7 +223,7 @@ mutual
               = Bind fc x (map (updateRHS ms) b)
                   (updateRHS (map (\vt => (weaken (fst vt), weaken (snd vt))) ms) sc)
           urhs (PrimVal fc c) = PrimVal fc c
-          urhs (Erased fc) = Erased fc
+          urhs (Erased fc i) = Erased fc i
           urhs (TType fc) = TType fc
 
       updatePat : List (Term vs, Term vs') -> (Nat, Term vs) -> (Nat, Term vs')
@@ -469,7 +469,7 @@ nameIn : Defs -> List Name -> NF [] -> Core Bool
 nameIn defs tyns (NBind fc x b sc)
     = if !(nameIn defs tyns (binderType b))
          then pure True
-         else do sc' <- sc defs (toClosure defaultOpts [] (Erased fc))
+         else do sc' <- sc defs (toClosure defaultOpts [] (Erased fc False))
                  nameIn defs tyns sc'
 nameIn defs tyns (NApp _ _ args)
     = anyM (nameIn defs tyns)
@@ -510,7 +510,7 @@ posArg defs tyns (NTCon _ tc _ _ args)
 posArg defs tyns (NBind fc x (Pi c e ty) sc)
     = if !(nameIn defs tyns ty)
          then pure (NotTerminating NotStrictlyPositive)
-         else do sc' <- sc defs (toClosure defaultOpts [] (Erased fc))
+         else do sc' <- sc defs (toClosure defaultOpts [] (Erased fc False))
                  posArg defs tyns sc'
 posArg defs tyn _ = pure IsTerminating
 
@@ -519,7 +519,7 @@ checkPosArgs defs tyns (NBind fc x (Pi c e ty) sc)
     = case !(posArg defs tyns ty) of
            IsTerminating =>
                 checkPosArgs defs tyns
-                       !(sc defs (toClosure defaultOpts [] (Erased fc)))
+                       !(sc defs (toClosure defaultOpts [] (Erased fc False)))
            bad => pure bad
 checkPosArgs defs tyns _ = pure IsTerminating
 

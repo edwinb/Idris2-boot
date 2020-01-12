@@ -188,11 +188,11 @@ mutual
     fromBuf b
         = case !getTag of
                0 => do c <- fromBuf b; x <- fromBuf b; ty <- fromBuf b; pure (Lam c x ty)
-               1 => do c <- fromBuf b; x <- fromBuf b; pure (Let c x (Erased emptyFC))
+               1 => do c <- fromBuf b; x <- fromBuf b; pure (Let c x (Erased emptyFC False))
                2 => do c <- fromBuf b; x <- fromBuf b; y <- fromBuf b; pure (Pi c x y)
                3 => do c <- fromBuf b; p <- fromBuf b; ty <- fromBuf b; pure (PVar c p ty)
-               4 => do c <- fromBuf b; x <- fromBuf b; pure (PLet c x (Erased emptyFC))
-               5 => do c <- fromBuf b; pure (PVTy c (Erased emptyFC))
+               4 => do c <- fromBuf b; x <- fromBuf b; pure (PLet c x (Erased emptyFC False))
+               5 => do c <- fromBuf b; pure (PVTy c (Erased emptyFC False))
                _ => corrupt "Binder"
 
 
@@ -238,7 +238,7 @@ mutual
     toBuf b (PrimVal fc c)
         = do tag 9;
              toBuf b c
-    toBuf b (Erased fc)
+    toBuf b (Erased fc _)
         = tag 10
     toBuf b (TType fc)
         = tag 11
@@ -271,7 +271,7 @@ mutual
                        pure (TForce emptyFC lr tm)
                9 => do c <- fromBuf b
                        pure (PrimVal emptyFC c)
-               10 => pure (Erased emptyFC)
+               10 => pure (Erased emptyFC False)
                11 => pure (TType emptyFC)
                idxp => do c <- fromBuf b
                           name <- fromBuf b
@@ -339,7 +339,7 @@ mutual
         = case !getTag of
                0 => do name <- fromBuf b; idx <- fromBuf b
                        xs <- fromBuf b
-                       pure (Case {name} idx (mkPrf idx) (Erased emptyFC) xs)
+                       pure (Case {name} idx (mkPrf idx) (Erased emptyFC False) xs)
                1 => do x <- fromBuf b
                        pure (STerm x)
                2 => do msg <- fromBuf b
@@ -880,7 +880,7 @@ TTC GlobalDef where
                       pure (MkGlobalDef loc name ty eargs mul vars vis
                                         tot fl refs inv c True def cdef sc)
               else do let fc = emptyFC
-                      pure (MkGlobalDef fc name (Erased fc) []
+                      pure (MkGlobalDef fc name (Erased fc False) []
                                         RigW [] Public unchecked [] refs
                                         False False True def cdef [])
 

@@ -60,7 +60,7 @@ mutual
                        pure $ glueBack defs env fty
   chk env (PrimVal fc x) = pure $ gnf env (chkConstant fc x)
   chk env (TType fc) = pure (gType fc)
-  chk env (Erased fc) = pure (gErased fc)
+  chk env (Erased fc _) = pure (gErased fc)
 
   chkMeta : {auto c : Ref Ctxt Defs} ->
             FC -> Env Term vars -> NF vars -> List (Term vars) ->

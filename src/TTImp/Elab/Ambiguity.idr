@@ -150,7 +150,7 @@ mutual
 
   mightMatch : Defs -> NF vars -> NF [] -> Core TypeMatch
   mightMatch defs target (NBind fc n (Pi _ _ _) sc)
-      = mightMatchD defs target !(sc defs (toClosure defaultOpts [] (Erased fc)))
+      = mightMatchD defs target !(sc defs (toClosure defaultOpts [] (Erased fc False)))
   mightMatch defs (NTCon _ n t a args) (NTCon _ n' t' a' args')
       = if n == n'
            then do amatch <- mightMatchArgs defs args args'
@@ -165,9 +165,9 @@ mutual
       = if x == y then pure Concrete else pure NoMatch
   mightMatch defs (NType _) (NType _) = pure Concrete
   mightMatch defs (NApp _ _ _) _ = pure Poly
-  mightMatch defs (NErased _) _ = pure Poly
+  mightMatch defs (NErased _ _) _ = pure Poly
   mightMatch defs _ (NApp _ _ _) = pure Poly
-  mightMatch defs _ (NErased _) = pure Poly
+  mightMatch defs _ (NErased _ _) = pure Poly
   mightMatch _ _ _ = pure NoMatch
 
 -- Return true if the given name could return something of the given target type

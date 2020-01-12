@@ -457,17 +457,17 @@ implicitsAs defs ns tm = setAs (map Just (ns ++ map UN (findIBinds tm))) tm
 
         findImps : List (Maybe Name) -> NF [] -> Core (List (Name, PiInfo))
         findImps ns (NBind fc x (Pi _ Explicit _) sc)
-            = findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc)))
+            = findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc False)))
         -- if the implicit was given, skip it
         findImps ns (NBind fc x (Pi _ AutoImplicit _) sc)
             = case updateNs x ns of
                    Nothing => -- didn't find explicit call
-                      pure $ (x, AutoImplicit) :: !(findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc))))
-                   Just ns' => findImps ns' !(sc defs (toClosure defaultOpts [] (Erased fc)))
+                      pure $ (x, AutoImplicit) :: !(findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc False))))
+                   Just ns' => findImps ns' !(sc defs (toClosure defaultOpts [] (Erased fc False)))
         findImps ns (NBind fc x (Pi _ p _) sc)
             = if Just x `elem` ns
-                 then findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc)))
-                 else pure $ (x, p) :: !(findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc))))
+                 then findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc False)))
+                 else pure $ (x, p) :: !(findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc False))))
         findImps _ _ = pure []
 
         impAs : FC -> List (Name, PiInfo) -> RawImp -> RawImp

@@ -54,9 +54,9 @@ expandClause : {auto c : Ref Ctxt Defs} ->
 expandClause loc n c
     = do log 10 $ "Trying clause " ++ show c
          c <- uniqueRHS c
-         Just clause <- checkClause Rig1 False n [] (MkNested []) [] c
-            | Nothing => pure [] -- TODO: impossible clause, do something
-                                 -- appropriate
+         Right clause <- checkClause Rig1 False n [] (MkNested []) [] c
+            | Left _ => pure [] -- TODO: impossible clause, do something
+                                -- appropriate
          let MkClause {vars} env lhs rhs = clause
          logTerm 10 "RHS hole" rhs
          let Meta _ i fn _ = getFn rhs

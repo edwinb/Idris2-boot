@@ -22,7 +22,7 @@ import Data.NameMap
 
 getRetTy : Defs -> NF [] -> Core Name
 getRetTy defs (NBind fc _ (Pi _ _ _) sc)
-    = getRetTy defs !(sc defs (toClosure defaultOpts [] (Erased fc)))
+    = getRetTy defs !(sc defs (toClosure defaultOpts [] (Erased fc False)))
 getRetTy defs (NTCon _ n _ _ _) = pure n
 getRetTy defs ty
     = throw (GenericMsg (getLoc ty)

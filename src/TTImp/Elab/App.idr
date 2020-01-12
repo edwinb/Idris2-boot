@@ -117,7 +117,7 @@ isHole _ = False
 -- elaborating them, which might help us disambiguate things more easily.
 concrete : Defs -> Env Term vars -> NF vars -> Core Bool
 concrete defs env (NBind fc _ (Pi _ _ _) sc)
-    = do sc' <- sc defs (toClosure defaultOpts env (Erased fc))
+    = do sc' <- sc defs (toClosure defaultOpts env (Erased fc False))
          concrete defs env sc'
 concrete defs env (NDCon _ _ _ _ _) = pure True
 concrete defs env (NTCon _ _ _ _ _) = pure True
@@ -285,7 +285,7 @@ mutual
      = do defs <- get Ctxt
           kr <- if knownret
                    then pure True
-                   else do sc' <- sc defs (toClosure defaultOpts env (Erased fc))
+                   else do sc' <- sc defs (toClosure defaultOpts env (Erased fc False))
                            concrete defs env sc'
           if !(needsDelay (elabMode elabinfo) kr arg) then do
              nm <- genMVName x

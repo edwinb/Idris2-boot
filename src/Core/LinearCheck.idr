@@ -302,7 +302,7 @@ mutual
                    do let checkRig = rigMult rigf rig
                       (a', gaty, aused) <- lcheck checkRig erase env a
                       sc' <- scdone defs (toClosure defaultOpts env a')
-                      let aerased = if erase && rigf == Rig0 then Erased fc else a'
+                      let aerased = if erase && rigf == Rig0 then Erased fc False else a'
                       -- Possibly remove this check, or make it a compiler
                       -- flag? It is a useful double check on the result of
                       -- elaboration, but there are pathological cases where
@@ -345,8 +345,8 @@ mutual
                 _ => throw (GenericMsg fc "Not a delayed tyoe")
   lcheck rig erase env (PrimVal fc c)
       = pure (PrimVal fc c, gErased fc, [])
-  lcheck rig erase env (Erased fc)
-      = pure (Erased fc, gErased fc, [])
+  lcheck rig erase env (Erased fc i)
+      = pure (Erased fc i, gErased fc, [])
   lcheck rig erase env (TType fc)
       = pure (TType fc, gType fc, [])
 
@@ -621,7 +621,7 @@ mutual
            (arg', gargTy, aused) <- lcheck checkRig erase env arg
            defs <- get Ctxt
            sc' <- sc defs (toClosure defaultOpts env arg')
-           let aerased = if erase && rigf == Rig0 then Erased fc else arg'
+           let aerased = if erase && rigf == Rig0 then Erased fc False else arg'
            (tm, gty, u) <- lcheckMeta rig erase env fc n idx args
                                       (aerased :: chk) sc'
            pure (tm, gty, aused ++ u)

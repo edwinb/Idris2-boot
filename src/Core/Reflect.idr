@@ -157,11 +157,11 @@ Reify a => Reify (List a) where
 
 export
 Reflect a => Reflect (List a) where
-  reflect fc defs env [] = appCon fc defs (prelude "Nil") [Erased fc]
+  reflect fc defs env [] = appCon fc defs (prelude "Nil") [Erased fc False]
   reflect fc defs env (x :: xs)
       = do x' <- reflect fc defs env x
            xs' <- reflect fc defs env xs
-           appCon fc defs (prelude "::") [Erased fc, x', xs']
+           appCon fc defs (prelude "::") [Erased fc False, x', xs']
 
 export
 Reify a => Reify (Maybe a) where
@@ -174,10 +174,10 @@ Reify a => Reify (Maybe a) where
 
 export
 Reflect a => Reflect (Maybe a) where
-  reflect fc defs env Nothing = appCon fc defs (prelude "Nothing") [Erased fc]
+  reflect fc defs env Nothing = appCon fc defs (prelude "Nothing") [Erased fc False]
   reflect fc defs env (Just x)
       = do x' <- reflect fc defs env x
-           appCon fc defs (prelude "Just") [Erased fc, x']
+           appCon fc defs (prelude "Just") [Erased fc False, x']
 
 
 export
@@ -193,7 +193,7 @@ export
   reflect fc defs env (x, y)
       = do x' <- reflect fc defs env x
            y' <- reflect fc defs env y
-           appCon fc defs (builtin "MkPair") [Erased fc, Erased fc, x', y']
+           appCon fc defs (builtin "MkPair") [Erased fc False, Erased fc False, x', y']
 
 export
 Reify Name where
@@ -409,11 +409,12 @@ Reflect FC where
 export
 Reflect (IsVar name idx vs) where
   reflect fc defs env First
-      = appCon fc defs (reflectiontt "First") [Erased fc, Erased fc]
+      = appCon fc defs (reflectiontt "First") [Erased fc False, Erased fc False]
   reflect fc defs env (Later p)
       = do p' <- reflect fc defs env p
            appCon fc defs (reflectiontt "Later")
-                  [Erased fc, Erased fc, Erased fc, Erased fc, p']
+                  [Erased fc False, Erased fc False,
+                   Erased fc False, Erased fc False, p']
 
 -- Assume terms are normalised so there's not Let bindings in particular
 export
@@ -424,13 +425,13 @@ Reflect (Term vs) where
            idx' <- reflect fc defs env idx
            prf' <- reflect fc defs env prf
            appCon fc defs (reflectiontt "Local")
-                  [Erased fc, Erased fc, lfc', idx', prf']
+                  [Erased fc False, Erased fc False, lfc', idx', prf']
   reflect fc defs env (Ref rfc nt n)
       = do rfc' <- reflect fc defs env rfc
            nt' <- reflect fc defs env nt
            n' <- reflect fc defs env n
            appCon fc defs (reflectiontt "Ref")
-                  [Erased fc, rfc', nt', n']
+                  [Erased fc False, rfc', nt', n']
   reflect fc defs env (Bind bfc x (Pi c p ty) sc)
       = do bfc' <- reflect fc defs env bfc
            x' <- reflect fc defs env x
@@ -439,7 +440,7 @@ Reflect (Term vs) where
            ty' <- reflect fc defs env ty
            sc' <- reflect fc defs env sc
            appCon fc defs (reflectiontt "Pi")
-                  [Erased fc, bfc', c', p', x', ty', sc']
+                  [Erased fc False, bfc', c', p', x', ty', sc']
   reflect fc defs env (Bind bfc x (Lam c p ty) sc)
       = do bfc' <- reflect fc defs env bfc
            x' <- reflect fc defs env x
@@ -448,44 +449,44 @@ Reflect (Term vs) where
            ty' <- reflect fc defs env ty
            sc' <- reflect fc defs env sc
            appCon fc defs (reflectiontt "Lam")
-                  [Erased fc, bfc', c', p', x', ty', sc']
+                  [Erased fc False, bfc', c', p', x', ty', sc']
   reflect fc defs env (App afc fn arg)
       = do afc' <- reflect fc defs env afc
            fn' <- reflect fc defs env fn
            arg' <- reflect fc defs env arg
            appCon fc defs (reflectiontt "App")
-                  [Erased fc, afc', fn', arg']
+                  [Erased fc False, afc', fn', arg']
   reflect fc defs env (TDelayed dfc r tm)
       = do dfc' <- reflect fc defs env dfc
            r' <- reflect fc defs env r
            tm' <- reflect fc defs env tm
            appCon fc defs (reflectiontt "TDelayed")
-                  [Erased fc, dfc', r', tm']
+                  [Erased fc False, dfc', r', tm']
   reflect fc defs env (TDelay dfc r ty tm)
       = do dfc' <- reflect fc defs env dfc
            r' <- reflect fc defs env r
            ty' <- reflect fc defs env ty
            tm' <- reflect fc defs env tm
            appCon fc defs (reflectiontt "TDelay")
-                  [Erased fc, dfc', r', ty', tm']
+                  [Erased fc False, dfc', r', ty', tm']
   reflect fc defs env (TForce dfc r tm)
       = do dfc' <- reflect fc defs env dfc
            r' <- reflect fc defs env r
            tm' <- reflect fc defs env tm
            appCon fc defs (reflectiontt "TForce")
-                  [Erased fc, r', dfc', tm']
+                  [Erased fc False, r', dfc', tm']
   reflect fc defs env (PrimVal pfc c)
       = do pfc' <- reflect fc defs env pfc
            c' <- reflect fc defs env c
            appCon fc defs (reflectiontt "PrimVal")
-                  [Erased fc, pfc', c']
-  reflect fc defs env (Erased efc)
+                  [Erased fc False, pfc', c']
+  reflect fc defs env (Erased efc _)
       = do efc' <- reflect fc defs env efc
            appCon fc defs (reflectiontt "Erased")
-                  [Erased fc, efc']
+                  [Erased fc False, efc']
   reflect fc defs env (TType tfc)
       = do tfc' <- reflect fc defs env tfc
            appCon fc defs (reflectiontt "TType")
-                  [Erased fc, tfc']
+                  [Erased fc False, tfc']
   reflect fc defs env val = cantReflect fc "Term"
 

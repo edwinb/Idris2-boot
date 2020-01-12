@@ -80,7 +80,7 @@ mutual
        NDelay   : FC -> LazyReason -> Closure vars -> Closure vars -> NF vars
        NForce   : FC -> LazyReason -> NF vars -> List (Closure vars) -> NF vars
        NPrimVal : FC -> Constant -> NF vars
-       NErased  : FC -> NF vars
+       NErased  : FC -> (imp : Bool) -> NF vars
        NType    : FC -> NF vars
 
 export
@@ -94,6 +94,6 @@ getLoc (NDelayed fc _ _) = fc
 getLoc (NDelay fc _ _ _) = fc
 getLoc (NForce fc _ _ _) = fc
 getLoc (NPrimVal fc _) = fc
-getLoc (NErased fc) = fc
+getLoc (NErased fc i) = fc
 getLoc (NType fc) = fc
 

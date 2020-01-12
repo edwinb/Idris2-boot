@@ -154,7 +154,7 @@ getArgNames defs allvars env (NBind fc x (Pi _ p ty) sc)
     = do ns <- case p of
                     Explicit => pure [!(getArgName defs x allvars ty)]
                     _ => pure []
-         sc' <- sc defs (toClosure defaultOpts env (Erased fc))
+         sc' <- sc defs (toClosure defaultOpts env (Erased fc False))
          pure $ ns ++ !(getArgNames defs (map UN ns ++ allvars) env sc')
 getArgNames defs allvars env val = pure []
 
@@ -163,7 +163,7 @@ getEnvArgNames : {auto c : Ref Ctxt Defs} ->
                  Defs -> Nat -> NF [] -> Core (List String)
 getEnvArgNames defs Z sc = getArgNames defs [] [] sc
 getEnvArgNames defs (S k) (NBind fc n _ sc)
-    = getEnvArgNames defs k !(sc defs (toClosure defaultOpts [] (Erased fc)))
+    = getEnvArgNames defs k !(sc defs (toClosure defaultOpts [] (Erased fc False)))
 getEnvArgNames defs n ty = pure []
 
 expandCon : {auto c : Ref Ctxt Defs} ->

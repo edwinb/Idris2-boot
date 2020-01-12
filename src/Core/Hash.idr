@@ -118,7 +118,7 @@ mutual
         = h `hashWithSalt` 8 `hashWithSalt` x
     hashWithSalt h (PrimVal fc c)
         = h `hashWithSalt` 9 `hashWithSalt` (show c)
-    hashWithSalt h (Erased fc)
+    hashWithSalt h (Erased fc _)
         = hashWithSalt h 10
     hashWithSalt h (TType fc)
         = hashWithSalt h 11
