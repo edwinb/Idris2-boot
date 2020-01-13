@@ -106,7 +106,6 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
                               InLHS _ => InLHS
                               _ => InTerm
          solveConstraints solvemode Normal
-         solveConstraints solvemode Normal
          logTerm 5 "Looking for delayed in " chktm
          ust <- get UST
          catch (retryDelayed (reverse (delayedElab ust)))
