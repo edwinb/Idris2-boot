@@ -3,6 +3,8 @@ package base
 modules = Control.Monad.Identity,
           Control.Monad.State,
           Control.Monad.Trans,
+		  Control.Monad.Error,
+		  Control.Monad.Error.IORef,
           Control.WellFounded,
 
           Data.Buffer,

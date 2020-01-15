@@ -736,6 +736,16 @@ Monad (Either e) where
     (Left n) >>= _ = Left n
     (Right r) >>= f = f r
 
+public export
+Foldable (Either e) where
+	foldr _ z ( Left  _ ) = z
+	foldr f z ( Right x ) = f x z
+
+public export
+Traversable (Either e) where
+	traverse _ ( Left  e ) = pure( Left e )
+	traverse f ( Right x ) = map Right ( f x )
+
 -----------
 -- LISTS --
 -----------
