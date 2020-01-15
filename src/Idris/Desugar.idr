@@ -87,7 +87,7 @@ toTokList (POp fc opn l r)
                       pure (Expr l :: Op fc opn (mkPrec fix prec) :: rtoks)
   where
     backtickPrec : OpPrec
-    backtickPrec = NonAssoc 10
+    backtickPrec = NonAssoc 1
 toTokList (PPrefixOp fc opn arg)
     = do syn <- get Syn
          let op = nameRoot opn
@@ -203,12 +203,16 @@ mutual
              Just f => pure $ IApp fc (IVar fc f)
                                       (IPrimVal fc (Ch x))
   desugar side ps (PPrimVal fc x) = pure $ IPrimVal fc x
-  desugar side ps (PQuote fc x)
-      = throw (GenericMsg fc "Reflection not implemeted yet")
---       = pure $ IQuote fc !(desugar side ps x)
-  desugar side ps (PUnquote fc x)
-      = throw (GenericMsg fc "Reflection not implemeted yet")
---       = pure $ IUnquote fc !(desugar side ps x)
+  desugar side ps (PQuote fc tm)
+      = pure $ IQuote fc !(desugar side ps tm)
+  desugar side ps (PQuoteDecl fc x)
+      = do [x'] <- desugarDecl ps x
+              | _ => throw (GenericMsg fc "Can't quote this declaration")
+           pure $ IQuoteDecl fc x'
+  desugar side ps (PUnquote fc tm)
+      = pure $ IUnquote fc !(desugar side ps tm)
+  desugar side ps (PRunElab fc tm)
+      = pure $ IRunElab fc !(desugar side ps tm)
   desugar side ps (PHole fc br holename)
       = do when br $
               do syn <- get Syn
@@ -485,6 +489,17 @@ mutual
 
   getDecl Single d = Just d
 
+  export
+  desugarFnOpt : {auto s : Ref Syn SyntaxInfo} ->
+                 {auto c : Ref Ctxt Defs} ->
+                 {auto u : Ref UST UState} ->
+                 {auto m : Ref MD Metadata} ->
+                 List Name -> PFnOpt -> Core FnOpt
+  desugarFnOpt ps (IFnOpt f) = pure f
+  desugarFnOpt ps (PForeign tms)
+      = do tms' <- traverse (desugar AnyExpr ps) tms
+           pure (ForeignFn tms')
+
   -- Given a high level declaration, return a list of TTImp declarations
   -- which process it, and update any necessary state on the way.
   export
@@ -493,8 +508,9 @@ mutual
                 {auto u : Ref UST UState} ->
                 {auto m : Ref MD Metadata} ->
                 List Name -> PDecl -> Core (List ImpDecl)
-  desugarDecl ps (PClaim fc rig vis opts ty)
-      = pure [IClaim fc rig vis opts !(desugarType ps ty)]
+  desugarDecl ps (PClaim fc rig vis fnopts ty)
+      = do opts <- traverse (desugarFnOpt ps) fnopts
+           pure [IClaim fc rig vis opts !(desugarType ps ty)]
   desugarDecl ps (PDef fc clauses)
   -- The clauses won't necessarily all be from the same function, so split
   -- after desugaring, by function name, using collectDefs from RawImp

@@ -22,6 +22,7 @@ import TTImp.Elab.ImplicitBind
 import TTImp.Elab.Lazy
 import TTImp.Elab.Local
 import TTImp.Elab.Prim
+import TTImp.Elab.Quote
 import TTImp.Elab.Record
 import TTImp.Elab.Rewrite
 import TTImp.Reflect
@@ -43,11 +44,18 @@ insertImpLam {vars} env tm (Just ty) = bindLam tm ty
     bindLamTm : RawImp -> Term vs -> Core (Maybe RawImp)
     bindLamTm tm@(ILam _ _ Implicit _ _ _) (Bind fc n (Pi _ Implicit _) sc)
         = pure (Just tm)
+    bindLamTm tm@(ILam _ _ AutoImplicit _ _ _) (Bind fc n (Pi _ AutoImplicit _) sc)
+        = pure (Just tm)
     bindLamTm tm (Bind fc n (Pi c Implicit ty) sc)
         = do n' <- genVarName (nameRoot n)
              Just sc' <- bindLamTm tm sc
                  | Nothing => pure Nothing
              pure $ Just (ILam fc c Implicit (Just n') (Implicit fc False) sc')
+    bindLamTm tm (Bind fc n (Pi c AutoImplicit ty) sc)
+        = do n' <- genVarName (nameRoot n)
+             Just sc' <- bindLamTm tm sc
+                 | Nothing => pure Nothing
+             pure $ Just (ILam fc c AutoImplicit (Just n') (Implicit fc False) sc')
     bindLamTm tm exp
         = case getFn exp of
                Ref _ Func _ => pure Nothing -- might still be implicit
@@ -58,12 +66,20 @@ insertImpLam {vars} env tm (Just ty) = bindLam tm ty
     bindLamNF : RawImp -> NF vars -> Core RawImp
     bindLamNF tm@(ILam _ _ Implicit _ _ _) (NBind fc n (Pi _ Implicit _) sc)
         = pure tm
+    bindLamNF tm@(ILam _ _ AutoImplicit _ _ _) (NBind fc n (Pi _ AutoImplicit _) sc)
+        = pure tm
     bindLamNF tm (NBind fc n (Pi c Implicit ty) sc)
         = do defs <- get Ctxt
              n' <- genVarName (nameRoot n)
              sctm <- sc defs (toClosure defaultOpts env (Ref fc Bound n'))
              sc' <- bindLamNF tm sctm
              pure $ ILam fc c Implicit (Just n') (Implicit fc False) sc'
+    bindLamNF tm (NBind fc n (Pi c AutoImplicit ty) sc)
+        = do defs <- get Ctxt
+             n' <- genVarName (nameRoot n)
+             sctm <- sc defs (toClosure defaultOpts env (Ref fc Bound n'))
+             sc' <- bindLamNF tm sctm
+             pure $ ILam fc c AutoImplicit (Just n') (Implicit fc False) sc'
     bindLamNF tm sc = pure tm
 
     bindLam : RawImp -> Glued vars -> Core RawImp
@@ -151,6 +167,14 @@ checkTerm rig elabinfo nest env (IDelay fc tm) exp
     = checkDelay rig elabinfo nest env fc tm exp
 checkTerm rig elabinfo nest env (IForce fc tm) exp
     = checkForce rig elabinfo nest env fc tm exp
+checkTerm rig elabinfo nest env (IQuote fc tm) exp
+    = checkQuote rig elabinfo nest env fc tm exp
+checkTerm rig elabinfo nest env (IQuoteDecl fc tm) exp
+    = throw (GenericMsg fc "Declaration reflection not implemented yet")
+checkTerm rig elabinfo nest env (IUnquote fc tm) exp
+    = throw (GenericMsg fc "Can't escape outside a quoted term")
+checkTerm rig elabinfo nest env (IRunElab fc tm) exp
+    = throw (GenericMsg fc "RunElab not implemented yet")
 checkTerm {vars} rig elabinfo nest env (IPrimVal fc c) exp
     = do let (cval, cty) = checkPrim {vars} fc c
          checkExp rig elabinfo env fc cval (gnf env cty) exp
@@ -171,7 +195,7 @@ checkTerm rig elabinfo nest env (Implicit fc b) (Just gexpty)
                put EST (addBindIfUnsolved nm rig Explicit env metaval expty est)
          pure (metaval, gexpty)
 checkTerm rig elabinfo nest env (Implicit fc b) Nothing
-    = do nmty <- genName "impTy"
+    = do nmty <- genName "implicit_type"
          ty <- metaVar fc Rig0 env nmty (TType fc)
          nm <- genName "_"
          metaval <- metaVar fc rig env nm ty

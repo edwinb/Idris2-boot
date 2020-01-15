@@ -20,10 +20,14 @@ import System.Info
 %default covering
 
 findRacket : IO String
-findRacket = pure "/usr/bin/env racket"
+findRacket =
+  do env <- getEnv "RACKET"
+     pure $ fromMaybe "/usr/bin/env -S racket" env
 
 findRacoExe : IO String
-findRacoExe = pure "raco exe"
+findRacoExe =
+  do env <- getEnv "RACKET_RACO"
+     pure $ (fromMaybe "/usr/bin/env -S raco" env) ++ " exe"
 
 schHeader : String -> String
 schHeader libs
@@ -126,6 +130,8 @@ cCall fc cfn libspec args ret
          lib <- if libn `elem` loaded
                    then pure ""
                    else do put Loaded (libn :: loaded)
+                           ldata <- locate libspec
+                           copyLib ldata
                            pure (loadlib libn vers)
 
          argTypes <- traverse (\a => do s <- cftySpec fc (snd a)

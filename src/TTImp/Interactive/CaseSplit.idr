@@ -92,7 +92,7 @@ findCons n lhs
                       Nothing => pure (SplitFail (CantSplitThis n
                                          ("Can't find type of " ++ show n ++ " in LHS")))
                       Just tyn =>
-                          do Just (TCon _ _ _ _ _ cons) <-
+                          do Just (TCon _ _ _ _ _ _ cons) <-
                                       lookupDefExact tyn (gamma defs)
                                 | res => pure (SplitFail
                                             (CantSplitThis n

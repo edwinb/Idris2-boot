@@ -338,8 +338,19 @@ export
 export
 TTC a => TTC (List a) where
   toBuf b xs
-      = do toBuf b (cast {to=Int} (length xs))
+      = do toBuf b (TailRec_length xs)
            traverse_ (toBuf b) xs
+    where
+      ||| Tail-recursive length as buffer sizes can get large
+      ||| 
+      ||| Once we port to Idris2, can use Data.List.TailRec.length instead
+      length_aux : List a -> Int -> Int
+      length_aux [] len = len
+      length_aux (_::xs) len = length_aux xs (1 + len)
+      
+      TailRec_length : List a -> Int
+      TailRec_length xs = length_aux xs 0
+
   fromBuf b
       = do len <- fromBuf b {a = Int}
            readElems [] (cast len)

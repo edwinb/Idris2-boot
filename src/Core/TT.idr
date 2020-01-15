@@ -1122,7 +1122,7 @@ export Show (Term vars) where
           = "{" ++ showCount c ++ show x ++ " : " ++ show ty ++
             "} -> " ++ show sc
       showApp (Bind _ x (Pi c AutoImplicit ty) sc) []
-          = "{auto" ++ showCount c ++ show x ++ " : " ++ show ty ++
+          = "{auto " ++ showCount c ++ show x ++ " : " ++ show ty ++
             "} -> " ++ show sc
       showApp (Bind _ x (PVar c Explicit ty) sc) []
           = "pat " ++ showCount c ++ show x ++ " : " ++ show ty ++

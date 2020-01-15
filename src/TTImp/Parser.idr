@@ -524,6 +524,8 @@ dataOpt : Rule DataOpt
 dataOpt
     = do exactIdent "noHints"
          pure NoHints
+  <|> do exactIdent "uniqueSearch"
+         pure UniqueSearch
   <|> do exactIdent "search"
          ns <- some name
          pure (SearchBy ns)

@@ -178,7 +178,7 @@ TTC (Var vars) where
 mutual
   export
   TTC (Binder (Term vars)) where
-    toBuf b (Lam c x ty) = do tag 0; toBuf b c; toBuf b x; -- toBuf b ty
+    toBuf b (Lam c x ty) = do tag 0; toBuf b c; toBuf b x; toBuf b ty
     toBuf b (Let c val ty) = do tag 1; toBuf b c; toBuf b val -- ; toBuf b ty
     toBuf b (Pi c x ty) = do tag 2; toBuf b c; toBuf b x; toBuf b ty
     toBuf b (PVar c p ty) = do tag 3; toBuf b c; toBuf b p; toBuf b ty
@@ -187,7 +187,7 @@ mutual
 
     fromBuf b
         = case !getTag of
-               0 => do c <- fromBuf b; x <- fromBuf b; pure (Lam c x (Erased emptyFC))
+               0 => do c <- fromBuf b; x <- fromBuf b; ty <- fromBuf b; pure (Lam c x ty)
                1 => do c <- fromBuf b; x <- fromBuf b; pure (Let c x (Erased emptyFC))
                2 => do c <- fromBuf b; x <- fromBuf b; y <- fromBuf b; pure (Pi c x y)
                3 => do c <- fromBuf b; p <- fromBuf b; ty <- fromBuf b; pure (PVar c p ty)
@@ -743,9 +743,9 @@ TTC Def where
   toBuf b (Builtin a)
       = throw (InternalError "Trying to serialise a Builtin")
   toBuf b (DCon t arity) = do tag 4; toBuf b t; toBuf b arity
-  toBuf b (TCon t arity parampos detpos ms datacons)
+  toBuf b (TCon t arity parampos detpos u ms datacons)
       = do tag 5; toBuf b t; toBuf b arity; toBuf b parampos
-           toBuf b detpos; toBuf b ms; toBuf b datacons
+           toBuf b detpos; toBuf b u; toBuf b ms; toBuf b datacons
   toBuf b (Hole locs p)
       = do tag 6; toBuf b locs; toBuf b p
   toBuf b (BySearch c depth def)
@@ -772,8 +772,9 @@ TTC Def where
                      pure (DCon t a)
              5 => do t <- fromBuf b; a <- fromBuf b
                      ps <- fromBuf b; dets <- fromBuf b;
+                     u <- fromBuf b
                      ms <- fromBuf b; cs <- fromBuf b
-                     pure (TCon t a ps dets ms cs)
+                     pure (TCon t a ps dets u ms cs)
              6 => do l <- fromBuf b
                      p <- fromBuf b
                      pure (Hole l p)
@@ -805,6 +806,7 @@ TTC DefFlag where
   toBuf b TCInline = tag 5
   toBuf b (SetTotal x) = do tag 6; toBuf b x
   toBuf b BlockedHint = tag 7
+  toBuf b Macro = tag 8
 
   fromBuf b
       = case !getTag of
@@ -814,6 +816,7 @@ TTC DefFlag where
              5 => pure TCInline
              6 => do x <- fromBuf b; pure (SetTotal x)
              7 => pure BlockedHint
+             8 => pure Macro
              _ => corrupt "DefFlag"
 
 export

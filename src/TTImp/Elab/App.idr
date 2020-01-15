@@ -56,7 +56,7 @@ getNameType rigc env fc x
                  let nt = case definition def of
                                PMDef _ _ _ _ _ => Func
                                DCon t a => DataCon t a
-                               TCon t a _ _ _ _ => TyCon t a
+                               TCon t a _ _ _ _ _ => TyCon t a
                                _ => Func
                  pure (Ref fc nt (Resolved i), gnf env (embed (type def)))
   where
@@ -90,7 +90,7 @@ getVarType rigc nest env fc x
                          let nt = case definition ndef of
                                        PMDef _ _ _ _ _ => Func
                                        DCon t a => DataCon t a
-                                       TCon t a _ _ _ _ => TyCon t a
+                                       TCon t a _ _ _ _ _ => TyCon t a
                                        _ => Func
                              tm = tmf fc nt
                              tyenv = useVars (getArgs tm)
@@ -471,7 +471,7 @@ mutual
            let [] = constraints cres
               | cs => do cty <- getTerm expfnty
                          ctm <- newConstant fc rig env (fst res) cty cs
-                         pure (ctm, expfnty)
+                         pure (ctm, gnf env retTy)
            pure res
 
 export

@@ -43,6 +43,8 @@ data Def : Type where
     TCon : (tag : Int) -> (arity : Nat) ->
            (parampos : List Nat) -> -- parameters
            (detpos : List Nat) -> -- determining arguments
+           (uniqueAuto : Bool) -> -- should 'auto' implicits check
+                                  -- for uniqueness
            (mutwith : List Name) ->
            (datacons : List Name) ->
            Def
@@ -68,7 +70,7 @@ Show Def where
   show (PMDef _ args ct rt pats)
       = show args ++ "; " ++ show ct
   show (DCon t a) = "DataCon " ++ show t ++ " " ++ show a
-  show (TCon t a ps ds ms cons)
+  show (TCon t a ps ds u ms cons)
       = "TyCon " ++ show t ++ " " ++ show a ++ " params: " ++ show ps ++
         " constructors: " ++ show cons ++
         " mutual with: " ++ show ms
@@ -118,6 +120,7 @@ data DefFlag
          -- care!
     | SetTotal TotalReq
     | BlockedHint -- a hint, but blocked for the moment (so don't use)
+    | Macro
 
 export
 Eq TotalReq where
@@ -134,6 +137,7 @@ Eq DefFlag where
     (==) TCInline TCInline = True
     (==) (SetTotal x) (SetTotal y) = x == y
     (==) BlockedHint BlockedHint = True
+    (==) Macro Macro = True
     (==) _ _ = False
 
 public export
@@ -575,9 +579,9 @@ HasNames Def where
       fullNamesPat (_ ** (env, lhs, rhs))
           = pure $ (_ ** (!(full gam env),
                           !(full gam lhs), !(full gam rhs)))
-  full gam (TCon t a ps ds ms cs)
-      = pure $ TCon t a ps ds !(traverse (full gam) ms)
-                              !(traverse (full gam) cs)
+  full gam (TCon t a ps ds u ms cs)
+      = pure $ TCon t a ps ds u !(traverse (full gam) ms)
+                                !(traverse (full gam) cs)
   full gam (BySearch c d def)
       = pure $ BySearch c d !(full gam def)
   full gam (Guess tm b cs)
@@ -593,9 +597,9 @@ HasNames Def where
       resolvedNamesPat (_ ** (env, lhs, rhs))
           = pure $ (_ ** (!(resolved gam env),
                           !(resolved gam lhs), !(resolved gam rhs)))
-  resolved gam (TCon t a ps ds ms cs)
-      = pure $ TCon t a ps ds !(traverse (resolved gam) ms)
-                              !(traverse (resolved gam) cs)
+  resolved gam (TCon t a ps ds u ms cs)
+      = pure $ TCon t a ps ds u !(traverse (resolved gam) ms)
+                                !(traverse (resolved gam) cs)
   resolved gam (BySearch c d def)
       = pure $ BySearch c d !(resolved gam def)
   resolved gam (Guess tm b cs)
@@ -1199,7 +1203,7 @@ getSearchData : {auto c : Ref Ctxt Defs} ->
                 Core SearchData
 getSearchData fc defaults target
     = do defs <- get Ctxt
-         Just (TCon _ _ _ dets _ _) <- lookupDefExact target (gamma defs)
+         Just (TCon _ _ _ dets u _ _) <- lookupDefExact target (gamma defs)
               | _ => throw (UndefinedName fc target)
          let hs = case lookup !(toFullNames target) (typeHints defs) of
                        Just hs => hs
@@ -1216,7 +1220,7 @@ getSearchData fc defaults target
                      pure (MkSearchData dets (filter (isCons . snd)
                                [(False, opens),
                                 (False, autos),
-                                (False, tyhs),
+                                (not u, tyhs),
                                 (True, chasers)]))
   where
     isDefault : (Name, Bool) -> Bool
@@ -1232,9 +1236,9 @@ setMutWith fc tn tns
     = do defs <- get Ctxt
          Just g <- lookupCtxtExact tn (gamma defs)
               | _ => throw (UndefinedName fc tn)
-         let TCon t a ps dets _ cons = definition g
+         let TCon t a ps dets u _ cons = definition g
               | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setMutWith]"))
-         updateDef tn (const (Just (TCon t a ps dets tns cons)))
+         updateDef tn (const (Just (TCon t a ps dets u tns cons)))
 
 export
 addMutData : {auto c : Ref Ctxt Defs} ->
@@ -1257,10 +1261,10 @@ setDetermining fc tyn args
     = do defs <- get Ctxt
          Just g <- lookupCtxtExact tyn (gamma defs)
               | _ => throw (UndefinedName fc tyn)
-         let TCon t a ps _ cons ms = definition g
+         let TCon t a ps _ u cons ms = definition g
               | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setDetermining]"))
          apos <- getPos 0 args (type g)
-         updateDef tyn (const (Just (TCon t a ps apos cons ms)))
+         updateDef tyn (const (Just (TCon t a ps apos u cons ms)))
   where
     -- Type isn't normalised, but the argument names refer to those given
     -- explicitly in the type, so there's no need.
@@ -1274,6 +1278,16 @@ setDetermining fc tyn args
     getPos _ ns ty = throw (GenericMsg fc ("Unknown determining arguments: "
                            ++ showSep ", " (map show ns)))
 
+export
+setUniqueSearch : {auto c : Ref Ctxt Defs} ->
+                  FC -> Name -> Bool -> Core ()
+setUniqueSearch fc tyn u
+    = do defs <- get Ctxt
+         Just g <- lookupCtxtExact tyn (gamma defs)
+              | _ => throw (UndefinedName fc tyn)
+         let TCon t a ps ds _ cons ms = definition g
+              | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setDetermining]"))
+         updateDef tyn (const (Just (TCon t a ps ds u cons ms)))
 
 export
 addHintFor : {auto c : Ref Ctxt Defs} ->
@@ -1507,7 +1521,7 @@ addData vars vis tidx (MkData (MkCon dfc tyn arity tycon) datacons)
                             (TCon tag arity
                                   (paramPos (Resolved tidx) (map type datacons))
                                   (allDet arity)
-                                  [] (map name datacons))
+                                  False [] (map name datacons))
          (idx, gam') <- addCtxt tyn tydef (gamma defs)
          gam'' <- addDataConstructors 0 datacons gam'
          put Ctxt (record { gamma = gam'' } defs)
@@ -1677,6 +1691,12 @@ setBuildDir : {auto c : Ref Ctxt Defs} -> String -> Core ()
 setBuildDir dir
     = do defs <- get Ctxt
          put Ctxt (record { options->dirs->build_dir = dir } defs)
+
+export
+setExecDir : {auto c : Ref Ctxt Defs} -> String -> Core ()
+setExecDir dir
+    = do defs <- get Ctxt
+         put Ctxt (record { options->dirs->exec_dir = dir } defs)
 
 export
 setSourceDir : {auto c : Ref Ctxt Defs} -> Maybe String -> Core ()

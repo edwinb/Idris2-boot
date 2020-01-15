@@ -28,7 +28,7 @@ idrisTests
        "basic011", "basic012", "basic013", "basic014", "basic015",
        "basic016", "basic017", "basic018", "basic019", "basic020",
        "basic021", "basic022", "basic023", "basic024", "basic025",
-       "basic026", "basic027", "basic028", "basic029",
+       "basic026", "basic027", "basic028", "basic029", "basic030",
        "coverage001", "coverage002", "coverage003", "coverage004",
        "error001", "error002", "error003", "error004", "error005",
        "error006", "error007", "error008", "error009", "error010",
@@ -40,11 +40,12 @@ idrisTests
        "interface005", "interface006", "interface007", "interface008",
        "interface009", "interface010", "interface011", "interface012",
        "interface013", "interface014",
+       "interpreter001",
        "lazy001",
        "linear001", "linear002", "linear003", "linear004", "linear005",
        "linear006", "linear007",
        "params001",
-       "perf001", "perf002",
+       "perf001", "perf002", "perf003",
        "perror001", "perror002", "perror003", "perror004", "perror005",
        "perror006",
        "pkg001",
@@ -82,25 +83,31 @@ fail err
 runTest : String -> String -> IO Bool
 runTest prog testPath
     = do chdir testPath
-         putStr $ testPath ++ ": "
-         system $ "sh ./run " ++ prog ++ " | tr -d '\\r' > output"
-         Right out <- readFile "output"
-               | Left err => do print err
-                                pure False
-         Right exp <- readFile "expected"
-               | Left err => do print err
-                                pure False
-
-         if (out == exp)
-            then putStrLn "success"
-            else do
-              putStrLn "FAILURE"
-              putStrLn "Expected:"
-              printLn exp
-              putStrLn "Given:"
-              printLn out
+         isSuccess <- runTest'
          chdir "../.."
-         pure (out == exp)
+         pure isSuccess
+    where
+        runTest' : IO Bool
+        runTest'
+            = do putStr $ testPath ++ ": "
+                 system $ "sh ./run " ++ prog ++ " | tr -d '\\r' > output"
+                 Right out <- readFile "output"
+                     | Left err => do print err
+                                      pure False
+                 Right exp <- readFile "expected"
+                     | Left err => do print err
+                                      pure False
+
+                 if (out == exp)
+                    then putStrLn "success"
+                    else do
+                      putStrLn "FAILURE"
+                      putStrLn "Expected:"
+                      printLn exp
+                      putStrLn "Given:"
+                      printLn out
+
+                 pure (out == exp)
 
 exists : String -> IO Bool
 exists f
@@ -119,7 +126,7 @@ findChez
          case env of
             Just n => pure $ Just n
             Nothing => firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
-                                    x <- ["scheme", "chez", "chezscheme9.5"]]
+                                    x <- ["chez", "chezscheme9.5", "scheme"]]
 
 runChezTests : String -> List String -> IO (List Bool)
 runChezTests prog tests

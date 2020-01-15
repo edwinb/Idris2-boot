@@ -22,9 +22,13 @@ modules = Control.Monad.Identity,
           Data.Strings,
           Data.Vect,
 
+          Debug.Trace,
+
           Decidable.Equality,
 
           Language.Reflection,
+          Language.Reflection.TT,
+          Language.Reflection.TTImp,
 
           System,
           System.Concurrency.Raw,

@@ -114,7 +114,7 @@ searchName fc rigc opts env target topty defining (n, ndef)
          let namety : NameType
                  = case definition ndef of
                         DCon tag arity => DataCon tag arity
-                        TCon tag arity _ _ _ _ => TyCon tag arity
+                        TCon tag arity _ _ _ _ _ => TyCon tag arity
                         _ => Func
          log 5 $ "Trying " ++ show (fullname ndef)
          nty <- nf defs env (embed ty)

@@ -4,7 +4,10 @@ import Compiler.CompileExpr
 import Compiler.Inline
 
 import Core.Context
+import Core.Directory
+import Core.Options
 import Core.TT
+import Utils.Binary
 
 import Data.NameMap
 
@@ -29,7 +32,14 @@ export
 compile : {auto c : Ref Ctxt Defs} ->
           Codegen ->
           ClosedTerm -> (outfile : String) -> Core (Maybe String)
-compile {c} cg = compileExpr cg c
+compile {c} cg tm out
+    = do makeExecDirectory
+         cwd <- coreLift $ currentDir
+         d <- getDirs
+         coreLift $ changeDir (exec_dir d)
+         fn <- compileExpr cg c tm out
+         coreLift $ changeDir cwd
+         pure fn
 
 ||| execute
 ||| As with `compile`, produce a functon that executes
@@ -61,7 +71,7 @@ mkNameTags : Defs -> NameTags -> Int -> List Name -> Core NameTags
 mkNameTags defs tags t [] = pure tags
 mkNameTags defs tags t (n :: ns)
     = case !(lookupDefExact n (gamma defs)) of
-           Just (TCon _ _ _ _ _ _)
+           Just (TCon _ _ _ _ _ _ _)
               => mkNameTags defs (insert n t tags) (t + 1) ns
            _ => mkNameTags defs tags t ns
 
@@ -153,3 +163,41 @@ dylib_suffix
     = cond [(os `elem` ["windows", "mingw32", "cygwin32"], "dll"),
             (os == "darwin", "dylib")]
            "so"
+
+export
+locate : {auto c : Ref Ctxt Defs} ->
+         String -> Core (String, String)
+locate libspec
+    = do -- Attempt to turn libspec into an appropriate filename for the system
+         let fname
+              = case words libspec of
+                     [] => ""
+                     [fn] => if '.' `elem` unpack fn
+                                then fn -- full filename given
+                                else -- add system extension
+                                     fn ++ "." ++ dylib_suffix
+                     (fn :: ver :: _) =>
+                          -- library and version given, build path name as
+                          -- appropriate for the system
+                          cond [(dylib_suffix == "dll",
+                                      fn ++ "-" ++ ver ++ ".dll"),
+                                (dylib_suffix == "dylib",
+                                      fn ++ "." ++ ver ++ ".dylib")]
+                                (fn ++ "." ++ dylib_suffix ++ "." ++ ver)
+
+         fullname <- catch (findLibraryFile fname)
+                           (\err => -- assume a system library so not
+                                    -- in our library path
+                                    pure fname)
+         pure (fname, fullname)
+
+export
+copyLib : (String, String) -> Core ()
+copyLib (lib, fullname)
+    = if lib == fullname
+         then pure ()
+         else do Right bin <- coreLift $ readFromFile fullname
+                    | Left err => throw (FileErr fullname err)
+                 Right _ <- coreLift $ writeToFile lib bin
+                    | Left err => throw (FileErr lib err)
+                 pure ()

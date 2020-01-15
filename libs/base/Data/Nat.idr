@@ -214,6 +214,11 @@ export
 divCeil : Nat -> Nat -> Nat
 divCeil x (S y) = divCeilNZ x (S y) SIsNotZ
 
+public export
+Integral Nat where
+  div = divNat
+  mod = modNat
+
 export
 gcd : (a: Nat) -> (b: Nat) -> {auto ok: NotBothZero a b} -> Nat
 gcd a Z     = a
@@ -410,5 +415,3 @@ multOneRightNeutral (S left) =
   let inductiveHypothesis = multOneRightNeutral left in
     rewrite inductiveHypothesis in
             Refl
-
-

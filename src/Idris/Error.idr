@@ -80,6 +80,8 @@ perror (NotTotal fc n r)
     = pure $ show n ++ " is not total"
 perror (LinearUsed fc count n)
     = pure $ "There are " ++ show count ++ " uses of linear name " ++ sugarName n
+perror (LinearMisuse fc n Rig0 ctx)
+    = pure $ show n ++ " is not accessible in this context"
 perror (LinearMisuse fc n exp ctx)
     = pure $ "Trying to use " ++ showRig exp ++ " name " ++ sugarName n ++
                  " in " ++ showRel ctx ++ " context"
@@ -199,6 +201,8 @@ perror (CaseCompile _ n DifferingTypes)
     = pure $ "Patterns for " ++ show n ++ " require matching on different types"
 perror (CaseCompile _ n UnknownType)
     = pure $ "Can't infer type to match in " ++ show n
+perror (CaseCompile fc n (NotFullyApplied cn))
+    = pure $ "Constructor " ++ show !(toFullNames cn) ++ " is not fully applied"
 perror (CaseCompile fc n (MatchErased (_ ** (env, tm))))
     = pure $ "Attempt to match on erased argument " ++ !(pshow env tm) ++
              " in " ++ show n

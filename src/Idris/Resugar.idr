@@ -214,6 +214,14 @@ mutual
   toPTerm p (IDelayed fc r ty) = pure (PDelayed fc r !(toPTerm argPrec ty))
   toPTerm p (IDelay fc tm) = pure (PDelay fc !(toPTerm argPrec tm))
   toPTerm p (IForce fc tm) = pure (PForce fc !(toPTerm argPrec tm))
+  toPTerm p (IQuote fc tm) = pure (PQuote fc !(toPTerm argPrec tm))
+  toPTerm p (IQuoteDecl fc d)
+      = do md <- toPDecl d
+           case md of
+                Nothing => throw (InternalError "Can't resugar log or pragma")
+                Just d' => pure (PQuoteDecl fc d')
+  toPTerm p (IUnquote fc tm) = pure (PUnquote fc !(toPTerm argPrec tm))
+  toPTerm p (IRunElab fc tm) = pure (PRunElab fc !(toPTerm argPrec tm))
 
   toPTerm p (Implicit fc True) = pure (PImplicit fc)
   toPTerm p (Implicit fc False) = pure (PInfer fc)
@@ -315,12 +323,20 @@ mutual
            fs' <- traverse toPField fs
            pure (n, ps', con, fs')
 
+  toPFnOpt : {auto c : Ref Ctxt Defs} ->
+             {auto s : Ref Syn SyntaxInfo} ->
+             FnOpt -> Core PFnOpt
+  toPFnOpt (ForeignFn cs)
+      = do cs' <- traverse (toPTerm startPrec) cs
+           pure (PForeign cs')
+  toPFnOpt o = pure $ IFnOpt o
 
   toPDecl : {auto c : Ref Ctxt Defs} ->
             {auto s : Ref Syn SyntaxInfo} ->
             ImpDecl -> Core (Maybe PDecl)
   toPDecl (IClaim fc rig vis opts ty)
-      = pure (Just (PClaim fc rig vis opts !(toPTypeDecl ty)))
+      = do opts' <- traverse toPFnOpt opts
+           pure (Just (PClaim fc rig vis opts' !(toPTypeDecl ty)))
   toPDecl (IData fc vis d)
       = pure (Just (PData fc vis !(toPData d)))
   toPDecl (IDef fc n cs)

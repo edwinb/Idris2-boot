@@ -82,6 +82,12 @@ mutual
        IDelay : FC -> RawImp -> RawImp -- delay constructor
        IForce : FC -> RawImp -> RawImp
 
+       -- Quasiquoting
+       IQuote : FC -> RawImp -> RawImp
+       IQuoteDecl : FC -> ImpDecl -> RawImp
+       IUnquote : FC -> RawImp -> RawImp
+       IRunElab : FC -> RawImp -> RawImp
+
        IPrimVal : FC -> (c : Constant) -> RawImp
        IType : FC -> RawImp
        IHole : FC -> String -> RawImp
@@ -133,7 +139,7 @@ mutual
          = "(|" ++ showSep "," (map show alts) ++ "|)"
       show (IRewrite _ rule tm)
          = "(%rewrite (" ++ show rule ++ ") (" ++ show tm ++ "))"
-      show (ICoerced _ tm) = show tm
+      show (ICoerced _ tm) = "(%coerced " ++ show tm ++ ")"
 
       show (IBindHere fc b sc)
          = "(%bindhere " ++ show sc ++ ")"
@@ -143,6 +149,10 @@ mutual
       show (IDelayed fc r tm) = "(%delayed " ++ show tm ++ ")"
       show (IDelay fc tm) = "(%delay " ++ show tm ++ ")"
       show (IForce fc tm) = "(%force " ++ show tm ++ ")"
+      show (IQuote fc tm) = "(%quote " ++ show tm ++ ")"
+      show (IQuoteDecl fc tm) = "(%quotedecl " ++ show tm ++ ")"
+      show (IUnquote fc tm) = "(%unquote " ++ show tm ++ ")"
+      show (IRunElab fc tm) = "(%runelab " ++ show tm ++ ")"
       show (IPrimVal fc c) = show c
       show (IHole _ x) = "?" ++ x
       show (IType fc) = "%type"
@@ -164,12 +174,13 @@ mutual
        GlobalHint : Bool -> FnOpt
        ExternFn : FnOpt
        -- Defined externally, list calling conventions
-       ForeignFn : List String -> FnOpt
+       ForeignFn : List RawImp -> FnOpt
        -- assume safe to cancel arguments in unification
        Invertible : FnOpt
        Total : FnOpt
        Covering : FnOpt
        PartialOK : FnOpt
+       Macro : FnOpt
 
   export
   Show FnOpt where
@@ -182,6 +193,7 @@ mutual
     show Total = "total"
     show Covering = "covering"
     show PartialOK = "partial"
+    show Macro = "%macro"
 
   export
   Eq FnOpt where
@@ -189,11 +201,12 @@ mutual
     (Hint x) == (Hint y) = x == y
     (GlobalHint x) == (GlobalHint y) = x == y
     ExternFn == ExternFn = True
-    (ForeignFn xs) == (ForeignFn ys) = xs == ys
+    (ForeignFn xs) == (ForeignFn ys) = True -- xs == ys
     Invertible == Invertible = True
     Total == Total = True
     Covering == Covering = True
     PartialOK == PartialOK = True
+    Macro == Macro = True
     _ == _ = False
 
   public export
@@ -208,11 +221,13 @@ mutual
   data DataOpt : Type where
        SearchBy : List Name -> DataOpt -- determining arguments
        NoHints : DataOpt -- Don't generate search hints for constructors
+       UniqueSearch : DataOpt -- auto implicit search must check result is unique
 
   export
   Eq DataOpt where
     (==) (SearchBy xs) (SearchBy ys) = xs == ys
     (==) NoHints NoHints = True
+    (==) UniqueSearch UniqueSearch = True
     (==) _ _ = False
 
   public export
@@ -366,6 +381,9 @@ findIBinds (IAlternative fc u alts)
 findIBinds (IDelayed fc _ ty) = findIBinds ty
 findIBinds (IDelay fc tm) = findIBinds tm
 findIBinds (IForce fc tm) = findIBinds tm
+findIBinds (IQuote fc tm) = findIBinds tm
+findIBinds (IUnquote fc tm) = findIBinds tm
+findIBinds (IRunElab fc tm) = findIBinds tm
 findIBinds (IBindHere _ _ tm) = findIBinds tm
 findIBinds (IBindVar _ n) = [n]
 -- We've skipped lambda, case, let and local - rather than guess where the
@@ -395,6 +413,9 @@ findImplicits (IAlternative fc u alts)
 findImplicits (IDelayed fc _ ty) = findImplicits ty
 findImplicits (IDelay fc tm) = findImplicits tm
 findImplicits (IForce fc tm) = findImplicits tm
+findImplicits (IQuote fc tm) = findImplicits tm
+findImplicits (IUnquote fc tm) = findImplicits tm
+findImplicits (IRunElab fc tm) = findImplicits tm
 findImplicits (IBindVar _ n) = [n]
 findImplicits tm = []
 
@@ -511,6 +532,10 @@ getFC (IMustUnify x _ _) = x
 getFC (IDelayed x _ _) = x
 getFC (IDelay x _) = x
 getFC (IForce x _) = x
+getFC (IQuote x _) = x
+getFC (IQuoteDecl x _) = x
+getFC (IUnquote x _) = x
+getFC (IRunElab x _) = x
 getFC (IAs x _ _ _) = x
 getFC (Implicit x _) = x
 
@@ -579,15 +604,24 @@ mutual
     toBuf b (IForce fc t)
         = do tag 20; toBuf b fc; toBuf b t
 
+    toBuf b (IQuote fc t)
+        = do tag 21; toBuf b fc; toBuf b t
+    toBuf b (IQuoteDecl fc t)
+        = do tag 22; toBuf b fc; toBuf b t
+    toBuf b (IUnquote fc t)
+        = do tag 23; toBuf b fc; toBuf b t
+    toBuf b (IRunElab fc t)
+        = do tag 24; toBuf b fc; toBuf b t
+
     toBuf b (IPrimVal fc y)
-        = do tag 21; toBuf b fc; toBuf b y
+        = do tag 25; toBuf b fc; toBuf b y
     toBuf b (IType fc)
-        = do tag 22; toBuf b fc
+        = do tag 26; toBuf b fc
     toBuf b (IHole fc y)
-        = do tag 23; toBuf b fc; toBuf b y
+        = do tag 27; toBuf b fc; toBuf b y
 
     toBuf b (Implicit fc i)
-        = do tag 24; toBuf b fc; toBuf b i
+        = do tag 28; toBuf b fc; toBuf b i
 
     fromBuf b
         = case !getTag of
@@ -655,12 +689,21 @@ mutual
                         pure (IForce fc y)
 
                21 => do fc <- fromBuf b; y <- fromBuf b
-                        pure (IPrimVal fc y)
-               22 => do fc <- fromBuf b
-                        pure (IType fc)
+                        pure (IQuote fc y)
+               22 => do fc <- fromBuf b; y <- fromBuf b
+                        pure (IQuoteDecl fc y)
                23 => do fc <- fromBuf b; y <- fromBuf b
+                        pure (IUnquote fc y)
+               24 => do fc <- fromBuf b; y <- fromBuf b
+                        pure (IRunElab fc y)
+
+               25 => do fc <- fromBuf b; y <- fromBuf b
+                        pure (IPrimVal fc y)
+               26 => do fc <- fromBuf b
+                        pure (IType fc)
+               27 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IHole fc y)
-               24 => do fc <- fromBuf b
+               28 => do fc <- fromBuf b
                         i <- fromBuf b
                         pure (Implicit fc i)
                _ => corrupt "RawImp"
@@ -753,12 +796,14 @@ mutual
     toBuf b (SearchBy ns)
         = do tag 0; toBuf b ns
     toBuf b NoHints = tag 1
+    toBuf b UniqueSearch = tag 2
 
     fromBuf b
         = case !getTag of
                0 => do ns <- fromBuf b
                        pure (SearchBy ns)
                1 => pure NoHints
+               2 => pure UniqueSearch
                _ => corrupt "DataOpt"
 
   export
@@ -811,6 +856,7 @@ mutual
     toBuf b Total = tag 6
     toBuf b Covering = tag 7
     toBuf b PartialOK = tag 8
+    toBuf b Macro = tag 9
 
     fromBuf b
         = case !getTag of
@@ -823,6 +869,7 @@ mutual
                6 => pure Total
                7 => pure Covering
                8 => pure PartialOK
+               9 => pure Macro
                _ => corrupt "FnOpt"
 
   export

@@ -85,7 +85,7 @@ span p (x::xs) =
 
 public export
 break : (a -> Bool) -> List a -> (List a, List a)
-break p = span (not . p)
+break p xs = span (not . p) xs
 
 public export
 split : (a -> Bool) -> List a -> List (List a)
@@ -121,6 +121,14 @@ public export
 reverse : List a -> List a
 reverse = reverseOnto []
 
+||| Construct a list with `n` copies of `x`.
+||| @ n how many copies
+||| @ x the element to replicate
+public export
+replicate : (n : Nat) -> (x : a) -> List a
+replicate Z     _ = []
+replicate (S n) x = x :: replicate n x
+
 ||| Compute the intersect of two lists by user-supplied equality predicate.
 export
 intersectBy : (a -> a -> Bool) -> List a -> List a -> List a
@@ -130,6 +138,39 @@ intersectBy eq xs ys = [x | x <- xs, any (eq x) ys]
 export
 intersect : Eq a => List a -> List a -> List a
 intersect = intersectBy (==)
+
+||| Combine two lists elementwise using some function.
+|||
+||| If the lists are different lengths, the result is truncated to the
+||| length of the shortest list.
+export
+zipWith : (a -> b -> c) -> List a -> List b -> List c
+zipWith _ [] _ = []
+zipWith _ _ [] = []
+zipWith f (x::xs) (y::ys) = f x y :: zipWith f xs ys
+
+||| Combine two lists elementwise into pairs.
+|||
+||| If the lists are different lengths, the result is truncated to the
+||| length of the shortest list.
+export
+zip : List a -> List b -> List (a, b)
+zip = zipWith \x, y => (x, y)
+
+export
+zipWith3 : (a -> b -> c -> d) -> List a -> List b -> List c -> List d
+zipWith3 _ [] _ _ = []
+zipWith3 _ _ [] _ = []
+zipWith3 _ _ _ [] = []
+zipWith3 f (x::xs) (y::ys) (z::zs) = f x y z :: zipWith3 f xs ys zs
+
+||| Combine three lists elementwise into tuples.
+|||
+||| If the lists are different lengths, the result is truncated to the
+||| length of the shortest list.
+export
+zip3 : List a -> List b -> List c -> List (a, b, c)
+zip3 = zipWith3 \x, y, z => (x, y, z)
 
 public export
 data NonEmpty : (xs : List a) -> Type where
@@ -168,6 +209,18 @@ export
 toList : Foldable t => t a -> List a
 toList = foldr (::) []
 
+||| Prefix every element in the list with the given element
+|||
+||| ```idris example
+||| with List (mergeReplicate '>' ['a', 'b', 'c', 'd', 'e'])
+||| ```
+|||
+export
+mergeReplicate : a -> List a -> List a
+mergeReplicate sep []      = []
+mergeReplicate sep (y::ys) = sep :: y :: mergeReplicate sep ys
+
+
 ||| Insert some separator between the elements of a list.
 |||
 ||| ````idris example
@@ -177,11 +230,7 @@ toList = foldr (::) []
 export
 intersperse : a -> List a -> List a
 intersperse sep []      = []
-intersperse sep (x::xs) = x :: intersperse' sep xs
-  where
-    intersperse' : a -> List a -> List a
-    intersperse' sep []      = []
-    intersperse' sep (y::ys) = sep :: y :: intersperse' sep ys
+intersperse sep (x::xs) = x :: mergeReplicate sep xs
 
 ||| Apply a partial function to the elements of a list, keeping the ones at which
 ||| it is defined.
@@ -221,7 +270,7 @@ mergeBy order (x::xs) (y::ys) =
 ||| Merge two sorted lists using the default ordering for the type of their elements.
 export
 merge : Ord a => List a -> List a -> List a
-merge = mergeBy compare
+merge left right = mergeBy compare left right
 
 ||| Sort a list using some arbitrary comparison predicate.
 |||

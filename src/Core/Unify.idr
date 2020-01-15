@@ -578,8 +578,12 @@ mutual
                    (soln : NF vars) ->
                    Core UnifyResult
   postponePatVar swap mode loc env mname mref margs margs' tm
-      = postponeS swap loc "Not in pattern fragment" env
-                 (NApp loc (NMeta mname mref margs) margs') tm
+      = do let x = NApp loc (NMeta mname mref margs) margs'
+           defs <- get Ctxt
+           if !(convert defs env x tm)
+              then pure success
+              else postponeS swap loc "Not in pattern fragment" env
+                             x tm
 
   solveHole : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
@@ -1093,7 +1097,7 @@ retryGuess mode smode (hid, (loc, hname))
                      (do tm <- search loc rig (smode == Defaults) depth defining
                                       (type def) []
                          let gdef = record { definition = PMDef False [] (STerm tm) (STerm tm) [] } def
-                         logTerm 5 ("Solved " ++ show hname) tm
+                         logTermNF 5 ("Solved " ++ show hname) [] tm
                          addDef (Resolved hid) gdef
                          removeGuess hid
                          pure True)
@@ -1157,7 +1161,7 @@ solveConstraints umode smode
     = do ust <- get UST
          progress <- traverse (retryGuess umode smode) (toList (guesses ust))
          when (or (map Delay progress)) $
-               solveConstraints umode smode
+               solveConstraints umode Normal
 
 -- Replace any 'BySearch' with 'Hole', so that we don't keep searching
 -- fruitlessly while elaborating the rest of a source file

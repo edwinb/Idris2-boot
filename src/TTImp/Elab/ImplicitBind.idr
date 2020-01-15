@@ -75,7 +75,7 @@ mkOuterHole loc rig n topenv Nothing
     = do est <- get EST
          let sub = subEnv est
          let env = outerEnv est
-         nm <- genName "impty"
+         nm <- genName ("type_of_" ++ nameRoot n)
          ty <- metaVar loc Rig0 env nm (TType loc)
          log 10 $ "Made metavariable for type of " ++ show n ++ ": " ++ show nm
          put EST (addBindIfUnsolved nm rig Explicit topenv (embedSub sub ty) (TType loc) est)
@@ -435,7 +435,6 @@ checkBindVar rig elabinfo nest env fc str topexp
                         PI _ => setInvertible fc n
                         _ => pure ()
                    log 5 $ "Added Bound implicit " ++ show (n, (rig, tm, exp, bty))
-                   defs <- get Ctxt
                    est <- get EST
                    put EST (record { boundNames $= ((n, NameBinding rig Explicit tm exp) ::),
                                      toBind $= ((n, NameBinding rig Explicit tm bty) :: ) } est)
@@ -447,7 +446,6 @@ checkBindVar rig elabinfo nest env fc str topexp
                    combine (UN str) rig (bindingRig bty)
                    let tm = bindingTerm bty
                    let ty = bindingType bty
-                   defs <- get Ctxt
                    addNameType fc (UN str) env ty
                    checkExp rig elabinfo env fc tm (gnf env ty) topexp
   where
