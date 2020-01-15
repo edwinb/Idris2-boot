@@ -494,6 +494,8 @@ mutual
         = do fc' <- reflect fc defs env tfc
              t' <- reflect fc defs env t
              appCon fc defs (reflectionttimp "IHole") [fc', t']
+    reflect fc defs env (IUnifyLog tfc t)
+        = reflect fc defs env t
     reflect fc defs env (Implicit tfc t)
         = do fc' <- reflect fc defs env tfc
              t' <- reflect fc defs env t

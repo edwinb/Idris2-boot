@@ -345,6 +345,11 @@ mutual
     <|> do start <- location
            symbol "["
            listExpr fname start indents
+    <|> do start <- location
+           symbol "%"; exactIdent "unifyLog"
+           e <- expr pdef fname indents
+           end <- location
+           pure (PUnifyLog (MkFC fname start end) e)
 
   multiplicity : EmptyRule (Maybe Integer)
   multiplicity

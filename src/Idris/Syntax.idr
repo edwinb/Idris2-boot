@@ -89,6 +89,9 @@ mutual
        -- A stream range [x,y..]
        PRangeStream : FC -> PTerm -> Maybe PTerm -> PTerm
 
+       -- Debugging
+       PUnifyLog : FC -> PTerm -> PTerm
+
        -- TODO: Ranges, idiom brackets (?),
        -- 'with' disambiguation
 
@@ -451,6 +454,7 @@ mutual
         = "[" ++ showPrec d start ++ " .. ]"
     showPrec d (PRangeStream _ start (Just next))
         = "[" ++ showPrec d start ++ ", " ++ showPrec d next ++ " .. ]"
+    showPrec d (PUnifyLog _ tm) = showPrec d tm
 
 public export
 record IFaceInfo where

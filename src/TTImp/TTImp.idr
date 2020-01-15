@@ -92,6 +92,7 @@ mutual
        IType : FC -> RawImp
        IHole : FC -> String -> RawImp
 
+       IUnifyLog : FC -> RawImp -> RawImp
        -- An implicit value, solved by unification, but which will also be
        -- bound (either as a pattern variable or a type variable) if unsolved
        -- at the end of elaborator
@@ -155,6 +156,7 @@ mutual
       show (IRunElab fc tm) = "(%runelab " ++ show tm ++ ")"
       show (IPrimVal fc c) = show c
       show (IHole _ x) = "?" ++ x
+      show (IUnifyLog _ x) = "(%unifyLog " ++ show x ++ ")"
       show (IType fc) = "%type"
       show (Implicit fc True) = "_"
       show (Implicit fc False) = "?"
@@ -525,6 +527,7 @@ getFC (IRewrite x _ _) = x
 getFC (ICoerced x _) = x
 getFC (IPrimVal x _) = x
 getFC (IHole x _) = x
+getFC (IUnifyLog x _) = x
 getFC (IType x) = x
 getFC (IBindVar x _) = x
 getFC (IBindHere x _ _) = x
@@ -619,6 +622,7 @@ mutual
         = do tag 26; toBuf b fc
     toBuf b (IHole fc y)
         = do tag 27; toBuf b fc; toBuf b y
+    toBuf b (IUnifyLog fc x) = toBuf b x
 
     toBuf b (Implicit fc i)
         = do tag 28; toBuf b fc; toBuf b i

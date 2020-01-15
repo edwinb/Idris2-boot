@@ -291,6 +291,8 @@ mutual
                 desugar side ps (PApp fc (PRef fc (UN "rangeFrom")) start)
              Just n =>
                 desugar side ps (PApp fc (PApp fc (PRef fc (UN "rangeFromThen")) start) n)
+  desugar side ps (PUnifyLog fc tm)
+      = pure $ IUnifyLog fc !(desugar side ps tm)
 
   desugarUpdate : {auto s : Ref Syn SyntaxInfo} ->
                   {auto c : Ref Ctxt Defs} ->

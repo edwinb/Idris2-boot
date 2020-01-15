@@ -640,7 +640,7 @@ mutual
                        qargs <- traverse (quote empty env) args'
                        qtm <- quote empty env tmnf
                        pure $ "Unifying: " ++ show mname ++ " " ++ show qargs ++
-                              " with " ++ show qtm)
+                              " with " ++ show qtm) -- first attempt, try 'empty', only try 'defs' when on 'retry'?
            case !(patternEnv env args) of
                 Nothing =>
                   do Just hdef <- lookupCtxtExact (Resolved mref) (gamma defs)
@@ -869,6 +869,20 @@ mutual
                   (NBind xfc x bx scx)
                   (NBind yfc y by scy)
 
+  dumpArg : {auto c : Ref Ctxt Defs} ->
+            Env Term vars -> Closure vars -> Core ()
+  dumpArg env (MkClosure opts loc lenv tm)
+      = do defs <- get Ctxt
+           empty <- clearDefs defs
+           logTerm 0 "Term: " tm
+           nf <- evalClosure empty (MkClosure opts loc lenv tm)
+           logNF 0 "  " env nf
+  dumpArg env cl
+      = do defs <- get Ctxt
+           empty <- clearDefs defs
+           nf <- evalClosure empty cl
+           logNF 0 "  " env nf
+
   export
   unifyNoEta : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
@@ -879,13 +893,38 @@ mutual
   unifyNoEta mode loc env (NDCon xfc x tagx ax xs) (NDCon yfc y tagy ay ys)
       = do gam <- get Ctxt
            if tagx == tagy
-             then unifyArgs mode loc env xs ys
+             then
+                  do ust <- get UST
+                     -- Constantly checking the log setting appears to have
+                     -- a bit of overhead, but I'm keeping this here because it
+                     -- may prove useful again...
+                     {-
+                     when (logging ust) $
+                        do log 0 $ "Constructor " ++ show !(toFullNames x) ++ " " ++ show loc
+                           log 0 "ARGUMENTS:"
+                           defs <- get Ctxt
+                           traverse_ (dumpArg env) xs
+                           log 0 "WITH:"
+                           traverse_ (dumpArg env) ys
+                     -}
+                     unifyArgs mode loc env xs ys
              else convertError loc env
                        (NDCon xfc x tagx ax xs)
                        (NDCon yfc y tagy ay ys)
   unifyNoEta mode loc env (NTCon xfc x tagx ax xs) (NTCon yfc y tagy ay ys)
       = if x == y
-           then unifyArgs mode loc env xs ys
+           then do ust <- get UST
+                   -- see above
+                   {-
+                   when (logging ust) $
+                      do log 0 $ "Constructor " ++ show !(toFullNames x) ++ " " ++ show loc
+                         log 0 "ARGUMENTS:"
+                         defs <- get Ctxt
+                         traverse_ (dumpArg env) xs
+                         log 0 "WITH:"
+                         traverse_ (dumpArg env) ys
+                   -}
+                   unifyArgs mode loc env xs ys
              -- TODO: Type constructors are not necessarily injective.
              -- If we don't know it's injective, need to postpone the
              -- constraint. But before then, we need some way to decide
@@ -999,6 +1038,10 @@ mutual
   Unify Term where
     unifyD _ _ mode loc env x y
           = do defs <- get Ctxt
+               ust <- get UST
+               when (logging ust) $
+                  do logTerm 0 "TOP LEVEL Unifying: " x
+                     logTerm 0 "          with: " y
                if x == y
                   then do log 10 $ "Skipped unification (equal already): "
                                  ++ show x ++ " and " ++ show y
