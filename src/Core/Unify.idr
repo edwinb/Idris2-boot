@@ -322,7 +322,7 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
                             -- it was built from an environment, so no need
                             -- to normalise
          defs <- get Ctxt
-         rhs <- mkDef [] newvars (snocList newvars) CompatPre
+         rhs <- mkDef [] newvars (snocList newvars)
                      (rewrite appendNilRightNeutral newvars in locs)
                      (rewrite appendNilRightNeutral newvars in tm)
                      ty
@@ -378,23 +378,22 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
     updateLocs locs tm = Just tm
 
     mkDef : (got : List Name) -> (vs : List Name) -> SnocList vs ->
-            CompatibleVars got rest ->
             List (Var (vs ++ got)) -> Term (vs ++ got) ->
-            Term ts -> Core (Term rest)
-    mkDef {rest} got [] Empty cvs locs tm ty
+            Term ts -> Core (Term got)
+    mkDef got [] Empty locs tm ty
         = do let Just tm' = updateLocs (reverse locs) tm
                     | Nothing => ufail loc ("Can't make solution for " ++ show mname)
-             pure (renameVars cvs tm')
-    mkDef got vs rec cvs locs tm (Bind _ _ (Let _ _ _) sc)
-        = mkDef got vs rec cvs locs tm sc
-    mkDef got (vs ++ [v]) (Snoc rec) cvs locs tm (Bind bfc x (Pi c _ ty) sc)
+             pure tm'
+    mkDef got vs rec locs tm (Bind _ _ (Let _ _ _) sc)
+        = mkDef got vs rec locs tm sc
+    mkDef got (vs ++ [v]) (Snoc rec) locs tm (Bind bfc x (Pi c _ ty) sc)
         = do defs <- get Ctxt
-             sc' <- mkDef (v :: got) vs rec (CompatExt cvs)
+             sc' <- mkDef (v :: got) vs rec
                        (rewrite appendAssociative vs [v] got in locs)
                        (rewrite appendAssociative vs [v] got in tm)
                        sc
-             pure (Bind bfc x (Lam c Explicit (Erased bfc False)) sc')
-    mkDef got (vs ++ [v]) (Snoc rec) cvs locs tm ty
+             pure (Bind bfc v (Lam c Explicit (Erased bfc False)) sc')
+    mkDef got (vs ++ [v]) (Snoc rec) locs tm ty
         = ufail loc $ "Can't make solution for " ++ show mname
 
 export
