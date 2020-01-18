@@ -186,8 +186,9 @@ mutual
              _ =>
                 do defs <- get Ctxt
                    nm <- genMVName x
-                   empty <- clearDefs defs
-                   metaty <- quote empty env aty
+                   -- We need the full normal form to check determining arguments
+                   -- so we might as well calculate the whole thing now
+                   metaty <- quote defs env aty
                    est <- get EST
                    metaval <- searchVar fc argRig 500 (Resolved (defining est))
                                         env nm metaty
