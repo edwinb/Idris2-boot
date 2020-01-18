@@ -13,6 +13,7 @@ import Utils.Binary
 
 import Data.IntMap
 import Data.NameMap
+import Data.StringMap
 
 %default covering
 
@@ -469,7 +470,8 @@ tryErrorUnify elab
                    commit
                    pure (Right res))
                (\err => do put UST ust
-                           put Ctxt defs
+                           defs' <- get Ctxt
+                           put Ctxt (record { timings = timings defs' } defs)
                            pure (Left err))
 
 export

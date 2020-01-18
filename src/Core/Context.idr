@@ -753,7 +753,7 @@ record Defs where
   userHoles : NameMap ()
      -- ^ Metavariables the user still has to fill in. In practice, that's
      -- everything with a user accessible name and a definition of Hole
-  timings : StringMap Integer
+  timings : StringMap (Bool, Integer)
      -- ^ record of timings from logTimeRecord
 
 -- Label for context references
@@ -1996,12 +1996,9 @@ logTimeWhen p str act
     addZeros [x,y] = "0" ++ cast x ++ cast y
     addZeros str = pack str
 
--- for ad-hoc profiling, record the time the action takes and add it
--- to the time for the given category
-export
-logTimeRecord : {auto c : Ref Ctxt Defs} ->
-                String -> Core a -> Core a
-logTimeRecord key act
+logTimeRecord' : {auto c : Ref Ctxt Defs} ->
+                 String -> Core a -> Core a
+logTimeRecord' key act
     = do clock <- coreLift clockTime
          let nano = 1000000000
          let t = seconds clock * nano + nanoseconds clock
@@ -2012,9 +2009,25 @@ logTimeRecord key act
          defs <- get Ctxt
          let tot = case lookup key (timings defs) of
                         Nothing => 0
-                        Just t => t
-         put Ctxt (record { timings $= insert key (tot + time) } defs)
+                        Just (_, t) => t
+         put Ctxt (record { timings $= insert key (False, tot + time) } defs)
          pure res
+
+-- for ad-hoc profiling, record the time the action takes and add it
+-- to the time for the given category
+export
+logTimeRecord : {auto c : Ref Ctxt Defs} ->
+                String -> Core a -> Core a
+logTimeRecord key act
+    = do defs <- get Ctxt
+         -- Only record if we're not currently recording that key
+         case lookup key (timings defs) of
+              Just (True, t) => act
+              Just (False, t)
+                => do put Ctxt (record { timings $= insert key (True, t) } defs)
+                      logTimeRecord' key act
+              Nothing
+                => logTimeRecord' key act
 
 export
 showTimeRecord : {auto c : Ref Ctxt Defs} ->
@@ -2029,8 +2042,8 @@ showTimeRecord
     addZeros [x,y] = "0" ++ cast x ++ cast y
     addZeros str = pack str
 
-    showTimeLog : (String, Integer) -> Core ()
-    showTimeLog (key, time)
+    showTimeLog : (String, (Bool, Integer)) -> Core ()
+    showTimeLog (key, (_, time))
         = do coreLift $ putStr (key ++ ": ")
              let nano = 1000000000
              assert_total $ -- We're not dividing by 0

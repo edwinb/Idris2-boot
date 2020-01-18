@@ -17,6 +17,7 @@ import TTImp.TTImp
 
 import Data.IntMap
 import Data.NameMap
+import Data.StringMap
 
 public export
 data ElabMode = InType | InLHS RigCount | InExpr
@@ -370,7 +371,8 @@ tryError elab
                (\err => do put UST ust
                            put EST est
                            put MD md
-                           put Ctxt defs
+                           defs' <- get Ctxt
+                           put Ctxt (record { timings = timings defs' } defs)
                            pure (Left err))
 
 export

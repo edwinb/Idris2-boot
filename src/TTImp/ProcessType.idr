@@ -135,7 +135,7 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
          -- level check so don't set the flag.
          when (not (InCase `elem` eopts)) $ setLinearCheck idx True
 
-         log 1 $ "Setting options for " ++ show n ++ ": " ++ show opts
+         log 2 $ "Setting options for " ++ show n ++ ": " ++ show opts
          traverse (processFnOpt fc (Resolved idx)) opts
 
          -- Add to the interactive editing metadata

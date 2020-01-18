@@ -174,6 +174,7 @@ stMain opts
                       -- exit with an error code if there was an error, otherwise
                       -- just exit
                     do ropts <- get ROpts
+                       showTimeRecord
                        case errorLine ropts of
                          Nothing => pure ()
                          Just _ => coreLift $ exit 1
