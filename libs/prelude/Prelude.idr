@@ -67,7 +67,8 @@ the : (0 a : Type) -> (1 x : a) -> a
 the _ x = x
 
 public export %inline
-id : (x : a) -> a
+id : (1 x : a) -> a           -- Hopefully linearity annotation won't
+                              -- break equality proofs involving id
 id x = x
 
 public export %inline
@@ -106,7 +107,7 @@ public export
 -------------------
 
 public export
-cong : (f : t -> u) -> a = b -> f a = f b
+cong : (f : t -> u) -> (1 p : a = b) -> f a = f b
 cong f Refl = Refl
 
 public export
@@ -137,17 +138,17 @@ public export
 data Bool = True | False
 
 public export
-not : Bool -> Bool
+not : (1 b : Bool) -> Bool
 not True = False
 not False = True
 
 public export
-(&&) : Bool -> Lazy Bool -> Bool
+(&&) : (1 b : Bool) -> Lazy Bool -> Bool
 (&&) True x = x
 (&&) False x = False
 
 public export
-(||) : Bool -> Lazy Bool -> Bool
+(||) : (1 b : Bool) -> Lazy Bool -> Bool
 (||) True x = True
 (||) False x = x
 
@@ -611,18 +612,18 @@ integerToNat x
 
 -- Define separately so we can spot the name when optimising Nats
 public export
-plus : Nat -> Nat -> Nat
+plus : (1 x : Nat) -> (1 y : Nat) -> Nat
 plus Z y = y
 plus (S k) y = S (plus k y)
 
 public export
-minus : Nat -> Nat -> Nat
+minus : (1 left : Nat) -> Nat -> Nat
 minus Z        right     = Z
 minus left     Z         = left
 minus (S left) (S right) = minus left right
 
 public export
-mult : Nat -> Nat -> Nat
+mult : (1 x : Nat) -> Nat -> Nat
 mult Z y = Z
 mult (S k) y = plus y (mult k y)
 
@@ -649,7 +650,10 @@ Ord Nat where
 public export
 natToInteger : Nat -> Integer
 natToInteger Z = 0
-natToInteger (S k) = 1 + natToInteger k
+natToInteger (S k) = 1 + natToInteger k 
+                         -- integer (+) may be non-linear in second
+                         -- argument
+
 
 -----------
 -- PAIRS --
@@ -808,7 +812,7 @@ Ord a => Ord (List a) where
 
 namespace List
   public export
-  (++) : List a -> List a -> List a
+  (++) : (1 xs : List a) -> List a -> List a
   [] ++ ys = ys
   (x :: xs) ++ ys = x :: xs ++ ys
 
@@ -879,7 +883,7 @@ tail : Stream a -> Stream a
 tail (x :: xs) = xs
 
 public export
-take : Nat -> Stream a -> List a
+take : (1 n : Nat) -> Stream a -> List a
 take Z xs = []
 take (S k) (x :: xs) = x :: take k xs
 
@@ -1048,7 +1052,7 @@ interface Show ty where
   showPrec : (d : Prec) -> (x : ty) -> String
   showPrec _ x = show x
 
-showParens : (b : Bool) -> String -> String
+showParens : (1 b : Bool) -> String -> String
 showParens False s = s
 showParens True  s = "(" ++ s ++ ")"
 
