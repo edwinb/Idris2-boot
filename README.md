@@ -98,4 +98,4 @@ Things still missing
 Talks
 =====
 
-[![Idris 2 - Type-driven Development of Idris (Curry On - London 2019)](http://img.youtube.com/vi/DRq2NgeFcO0/0.jpg)](http://www.youtube.com/watch?v=DRq2NgeFcO0 "Idris 2 - Type-driven Development of Idris (Curry On - London 2019)")
+[![Idris 2 - Type-driven Development of Idris (Curry On - London 2019)](https://img.youtube.com/vi/DRq2NgeFcO0/0.jpg)](https://www.youtube.com/watch?v=DRq2NgeFcO0 "Idris 2 - Type-driven Development of Idris (Curry On - London 2019)")
