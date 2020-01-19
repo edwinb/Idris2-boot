@@ -435,7 +435,7 @@ shiftR : Int -> Int -> Int
 shiftR = prim__shr_Int
 
 ---------------------------------
--- FUNCTOR, APPLICATIVE, MONAD --
+-- FUNCTOR, APPLICATIVE, ALTERNATIVE, MONAD --
 ---------------------------------
 
 public export
@@ -445,6 +445,10 @@ interface Functor f where
 public export
 (<$>) : Functor f => (func : a -> b) -> f a -> f b
 (<$>) func x = map func x
+
+public export
+ignore : Functor f => f a -> f ()
+ignore = map (const ())
 
 public export
 interface Functor f => Applicative f where
@@ -465,8 +469,8 @@ a *> b = map (const id) a <*> b
 
 public export
 interface Applicative f => Alternative f where
-    empty : f a
-    (<|>) : f a -> f a -> f a
+  empty : f a
+  (<|>) : f a -> f a -> f a
 
 public export
 interface Applicative m => Monad m where
@@ -544,6 +548,35 @@ public export
 for_ : (Foldable t, Applicative f) => t a -> (a -> f b) -> f ()
 for_ = flip traverse_
 
+||| Fold using Alternative
+|||
+||| If you have a left-biased alternative operator `<|>`, then `choice`
+||| performs left-biased choice from a list of alternatives, which means that
+||| it evaluates to the left-most non-`empty` alternative.
+|||
+||| If the list is empty, or all values in it are `empty`, then it
+||| evaluates to `empty`.
+|||
+||| Example:
+|||
+||| ```
+||| -- given a parser expression like:
+||| expr = literal <|> keyword <|> funcall
+|||
+||| -- choice lets you write this as:
+||| expr = choice [literal, keyword, funcall]
+||| ```
+|||
+||| Note: In Haskell, `choice` is called `asum`.
+public export
+choice : (Foldable t, Alternative f) => t (f a) -> f a
+choice = foldr (<|>) empty
+
+||| A fused version of `choice` and `map`.
+public export
+choiceMap : (Foldable t, Alternative f) => (a -> f b) -> t a -> f b
+choiceMap f = foldr (\e, a => f e <|> a) empty
+
 public export
 interface (Functor t, Foldable t) => Traversable (t : Type -> Type) where
   ||| Map each element of a structure to a computation, evaluate those
@@ -617,6 +650,18 @@ public export
 natToInteger : Nat -> Integer
 natToInteger Z = 0
 natToInteger (S k) = 1 + natToInteger k
+
+-----------
+-- PAIRS --
+-----------
+
+public export
+Functor (Pair a) where
+  map f (x, y) = (x, f y)
+
+public export
+mapFst : (a -> c) -> (a, b) -> (c, b)
+mapFst f (x, y) = (f x, y)
 
 -----------
 -- MAYBE --

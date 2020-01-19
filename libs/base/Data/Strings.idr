@@ -2,6 +2,10 @@ module Data.Strings
 
 import Data.List
 
+export
+singleton : Char -> String
+singleton c = strCons c ""
+
 partial
 foldr1 : (a -> a -> a) -> List a -> a
 foldr1 _ [x] = x

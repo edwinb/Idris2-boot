@@ -11,6 +11,7 @@ public export
 FileName : Type
 FileName = String
 
+||| A file context is a filename together with starting and ending positions
 public export
 data FC = MkFC FileName FilePos FilePos
         | EmptyFC
