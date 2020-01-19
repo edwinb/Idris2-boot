@@ -25,7 +25,9 @@ data IDECommand
      | MakeLemma Integer String
      | MakeCase Integer String
      | MakeWith Integer String
+     | Metavariables Integer
      | Version
+     | GetOptions
 
 readHints : List SExp -> Maybe (List String)
 readHints [] = Just []
@@ -75,7 +77,10 @@ getIDECommand (SExpList [SymbolAtom "make-case", IntegerAtom l, StringAtom n])
     = Just $ MakeCase l n
 getIDECommand (SExpList [SymbolAtom "make-with", IntegerAtom l, StringAtom n])
     = Just $ MakeWith l n
+getIDECommand (SExpList [SymbolAtom "metavariables", IntegerAtom n])
+    = Just $ Metavariables n
 getIDECommand (SymbolAtom "version") = Just Version
+getIDECommand (SExpList [SymbolAtom "get-options"]) = Just GetOptions
 getIDECommand _ = Nothing
 
 export
@@ -96,6 +101,8 @@ putIDECommand (GenerateDef line n)            = (SExpList [SymbolAtom "generate-
 putIDECommand (MakeLemma line n)              = (SExpList [SymbolAtom "make-lemma", IntegerAtom line, StringAtom n])
 putIDECommand (MakeCase line n)               = (SExpList [SymbolAtom "make-case", IntegerAtom line, StringAtom n])
 putIDECommand (MakeWith line n)               = (SExpList [SymbolAtom "make-with", IntegerAtom line, StringAtom n])
+putIDECommand (Metavariables n)               = (SExpList [SymbolAtom "metavariables", IntegerAtom n])
+putIDECommand GetOptions                      = (SExpList [SymbolAtom "get-options"])
 putIDECommand Version                         = SymbolAtom "version"
 
 export
@@ -150,6 +157,10 @@ SExpable Int where
   toSExp = IntegerAtom . cast
 
 export
+SExpable Nat where
+  toSExp = IntegerAtom . cast
+
+export
 SExpable Name where
   toSExp = SymbolAtom . show
 
@@ -164,6 +175,11 @@ export
 SExpable a => SExpable (List a) where
   toSExp xs
       = SExpList (map toSExp xs)
+
+export
+SExpable a => SExpable (Maybe a) where
+  toSExp Nothing = SExpList []
+  toSExp (Just x) = toSExp x
 
 export
 sym : String -> Name

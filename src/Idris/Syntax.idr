@@ -252,6 +252,12 @@ data REPLEval : Type where
      NormaliseAll : REPLEval -- Normalise everything (default)
      Execute : REPLEval -- Evaluate then pass to an executer
 
+export
+Show REPLEval where
+  show EvalTC = "typecheck"
+  show NormaliseAll = "normalise"
+  show Execute = "execute"
+
 public export
 data REPLOpt : Type where
      ShowImplicits : Bool -> REPLOpt
@@ -260,6 +266,16 @@ data REPLOpt : Type where
      EvalMode : REPLEval -> REPLOpt
      Editor : String -> REPLOpt
      CG : String -> REPLOpt
+
+export
+Show REPLOpt where
+  show (ShowImplicits impl) = "showimplicits = " ++ show impl
+  show (ShowNamespace ns) = "shownamespace = " ++ show ns
+  show (ShowTypes typs) = "showtypes = " ++ show typs
+  show (EvalMode mod) = "eval = " ++ show mod
+  show (Editor editor) = "editor = " ++ show editor
+  show (CG str) = "cg = " ++ str
+
 
 public export
 data EditCmd : Type where
@@ -285,6 +301,7 @@ data REPLCmd : Type where
      ProofSearch : Name -> REPLCmd
      DebugInfo : Name -> REPLCmd
      SetOpt : REPLOpt -> REPLCmd
+     GetOpts : REPLCmd
      CD : String -> REPLCmd
      Missing : Name -> REPLCmd
      Total : Name -> REPLCmd
@@ -578,5 +595,3 @@ initSyntax
 -- A label for Syntax info in the global state
 export
 data Syn : Type where
-
-

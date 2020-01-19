@@ -30,6 +30,7 @@ import Yaffle.Main
 import YafflePaths
 
 %default covering
+%flag C "-g"
 
 findInput : List CLOpt -> Maybe String
 findInput [] = Nothing
@@ -146,7 +147,7 @@ stMain opts
                                    when (not $ noprelude session) $
                                      readPrelude
                       Just f => logTime "Loading main file" $
-                                   loadMainFile f
+                                   (loadMainFile f >>= displayErrors)
 
                  doRepl <- postOptions opts
                  if doRepl
