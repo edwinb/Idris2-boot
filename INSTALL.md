@@ -9,7 +9,7 @@ version 1.3.2 (see https://www.idris-lang.org/download)
 There are several sets of instructions on how to install Idris from source and
 binary.
 
-+ [Official ipkg installer for macOS](http://www.idris-lang.org/pkgs/idris-current.pkg)
++ [Official ipkg installer for macOS](https://www.idris-lang.org/pkgs/idris-current.pkg)
 + [Source build instructions from the Idris GitHub Wiki](https://github.com/idris-lang/Idris-dev/wiki/Installation-Instructions)
 + [Binary installation using Cabal from the Idris Manual](https://idris.readthedocs.io/en/latest/tutorial/starting.html)
 

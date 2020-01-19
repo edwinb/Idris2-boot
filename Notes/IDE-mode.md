@@ -3,7 +3,7 @@ IDE protocol, version 2
 
 The IDE protocol is (or rather, will be) compatible with the IDE protocol for
 Idris 1, as described here:
-http://docs.idris-lang.org/en/latest/reference/ide-protocol.html
+https://idris.readthedocs.io/en/latest/reference/ide-protocol.html
 
 On start up, it reports:
 

@@ -6,6 +6,7 @@ import Core.FC
 import Core.TT
 
 import Data.Vect
+import Data.LengthMatch
 
 %default covering
 
@@ -20,18 +21,6 @@ weakenEnv (e :: env) = weaken e :: weakenEnv env
 weakenNsEnv : (xs : List Name) -> EEnv free vars -> EEnv (xs ++ free) vars
 weakenNsEnv [] env = env
 weakenNsEnv (x :: xs) env = weakenEnv (weakenNsEnv xs env)
-
--- TODO: This is in CaseBuilder too, so tidy it up...
-data LengthMatch : List a -> List b -> Type where
-     NilMatch : LengthMatch [] []
-     ConsMatch : LengthMatch xs ys -> LengthMatch (x :: xs) (y :: ys)
-
-checkLengthMatch : (xs : List a) -> (ys : List b) -> Maybe (LengthMatch xs ys)
-checkLengthMatch [] [] = Just NilMatch
-checkLengthMatch [] (x :: xs) = Nothing
-checkLengthMatch (x :: xs) [] = Nothing
-checkLengthMatch (x :: xs) (y :: ys)
-    = Just (ConsMatch !(checkLengthMatch xs ys))
 
 extend : EEnv free vars -> (args : List (CExp free)) -> (args' : List Name) ->
          LengthMatch args args' -> EEnv free (args' ++ vars)
@@ -128,11 +117,7 @@ mutual
   eval rec env stk (CCon fc n t args)
       = pure $ unload stk $ CCon fc n t !(traverse (eval rec env []) args)
   eval rec env stk (COp fc p args)
-      = pure $ unload stk $ COp fc p !(mapV (eval rec env []) args)
-    where
-      mapV : (a -> Core b) -> Vect n a -> Core (Vect n b)
-      mapV f [] = pure []
-      mapV f (x :: xs) = pure $ !(f x) :: !(mapV f xs)
+      = pure $ unload stk $ COp fc p !(traverseVect (eval rec env []) args)
   eval rec env stk (CExtPrim fc p args)
       = pure $ unload stk $ CExtPrim fc p !(traverse (eval rec env []) args)
   eval rec env stk (CForce fc e)
@@ -143,28 +128,18 @@ mutual
       = pure $ unload stk (CDelay fc !(eval rec env [] e))
   eval rec env stk (CConCase fc sc alts def)
       = do sc' <- eval rec env [] sc
-           case !(pickAlt rec env stk sc' alts def) of
-                Nothing =>
-                   do def' <- case def of
-                                   Nothing => pure Nothing
-                                   Just d => pure (Just !(eval rec env stk d))
-                      pure $
-                         CConCase fc sc'
-                                !(traverse (evalAlt fc rec env stk) alts)
-                                def'
-                Just val => pure val
+           Nothing <- pickAlt rec env stk sc' alts def | Just val => pure val
+           def' <- traverseOpt (eval rec env stk) def
+           pure $ CConCase fc sc'
+                     !(traverse (evalAlt fc rec env stk) alts)
+                     def'
   eval rec env stk (CConstCase fc sc alts def)
       = do sc' <- eval rec env [] sc
-           case !(pickConstAlt rec env stk sc' alts def) of
-                Nothing =>
-                   do def' <- case def of
-                                   Nothing => pure Nothing
-                                   Just d => pure (Just !(eval rec env stk d))
-                      pure $
-                         CConstCase fc sc'
-                                    !(traverse (evalConstAlt rec env stk) alts)
-                                    def'
-                Just val => pure val
+           Nothing <- pickConstAlt rec env stk sc' alts def | Just val => pure val
+           def' <- traverseOpt (eval rec env stk) def
+           pure $ CConstCase fc sc'
+                         !(traverse (evalConstAlt rec env stk) alts)
+                         def'
   eval rec env stk (CPrimVal fc c) = pure $ unload stk $ CPrimVal fc c
   eval rec env stk (CErased fc) = pure $ unload stk $ CErased fc
   eval rec env stk (CCrash fc str) = pure $ unload stk $ CCrash fc str
@@ -182,7 +157,7 @@ mutual
                  List Name -> EEnv free vars -> Stack free -> CConstAlt (vars ++ free) ->
                  Core (CConstAlt free)
   evalConstAlt rec env stk (MkConstAlt c sc)
-      = pure $ MkConstAlt c !(eval rec env stk sc)
+      = MkConstAlt c <$> eval rec env stk sc
 
   pickAlt : {auto c : Ref Ctxt Defs} ->
             List Name -> EEnv free vars -> Stack free ->
@@ -190,9 +165,7 @@ mutual
             Maybe (CExp (vars ++ free)) ->
             Core (Maybe (CExp free))
   pickAlt rec env stk (CCon fc n t args) [] def
-      = case def of
-             Nothing => pure Nothing
-             Just d => pure $ Just !(eval rec env stk d)
+      = traverseOpt (eval rec env stk) def
   pickAlt {vars} {free} rec env stk (CCon fc n t args) (MkConAlt n' t' args' sc :: alts) def
       = if t == t'
            then case checkLengthMatch args args' of
@@ -212,18 +185,16 @@ mutual
                  Maybe (CExp (vars ++ free)) ->
                  Core (Maybe (CExp free))
   pickConstAlt rec env stk (CPrimVal fc c) [] def
-      = case def of
-             Nothing => pure Nothing
-             Just d => pure $ Just !(eval rec env stk d)
+      = traverseOpt (eval rec env stk) def
   pickConstAlt {vars} {free} rec env stk (CPrimVal fc c) (MkConstAlt c' sc :: alts) def
       = if c == c'
-           then pure $ Just !(eval rec env stk sc)
+           then Just <$> eval rec env stk sc
            else pickConstAlt rec env stk (CPrimVal fc c) alts def
   pickConstAlt rec env stk _ _ _ = pure Nothing
 
 inline : {auto c : Ref Ctxt Defs} ->
          CDef -> Core CDef
-inline (MkFun args exp) = pure $ MkFun args !(eval [] [] [] exp)
+inline (MkFun args exp) = MkFun args <$> eval [] [] [] exp
 inline d = pure d
 
 export
@@ -231,14 +202,7 @@ inlineDef : {auto c : Ref Ctxt Defs} ->
             Name -> Core ()
 inlineDef n
     = do defs <- get Ctxt
-         case !(lookupCtxtExact n (gamma defs)) of
-              Nothing => pure ()
-              Just def =>
-                   case compexpr def of
-                        Nothing => pure ()
-                        Just cexpr =>
-                             do -- coreLift $ putStrLn $ show (fullname def) ++ " before: " ++ show cexpr
-                                inlined <- inline cexpr
-                                -- coreLift $ putStrLn $ show (fullname def) ++ " after: " ++ show inlined
-                                setCompiled n inlined
+         Just def <- lookupCtxtExact n (gamma defs) | Nothing => pure ()
+         let Just cexpr =  compexpr def             | Nothing => pure ()
+         setCompiled n !(inline cexpr)
 
