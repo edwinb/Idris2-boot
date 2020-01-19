@@ -715,7 +715,7 @@ mutual
   displayResult  (TermChecked x y) = printResult $ show x ++ " : " ++ show y
   displayResult  (FileLoaded x) = printResult $ "Loaded file " ++ x
   displayResult  (ErrorLoadingFile x err) = printError $ "Error loading file " ++ x ++ ": " ++ show err
-  displayResult  (ErrorsBuildingFile x errs) = printError $ "Error(s) building file " ++ x ++ ": " ++ (showSep "\n" $ map show errs)
+  displayResult  (ErrorsBuildingFile x errs) = printError $ "Error(s) building file " ++ x -- messages already displayed while building
   displayResult  NoFileLoaded = printError "No file can be reloaded"
   displayResult  (ChangedDirectory dir) = printResult ("Changed directory to " ++ dir)
   displayResult  CompilationFailed = printError "Compilation failed"
