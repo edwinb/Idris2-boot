@@ -927,20 +927,24 @@ getPMDef fc phase fn ty []
     getArgs i _ = pure []
 getPMDef fc phase fn ty clauses
     = do defs <- get Ctxt
-         let cs = map (toClosed defs) clauses
+         let cs = map (toClosed defs) (labelPat 0 clauses)
          simpleCase fc phase fn ty Nothing cs
   where
-    mkSubstEnv : Int -> Env Term vars -> SubstEnv vars []
-    mkSubstEnv i [] = Nil
-    mkSubstEnv i (v :: vs)
-       = Ref fc Bound (MN "pat" i) :: mkSubstEnv (i + 1) vs
+    labelPat : Int -> List a -> List (String, a)
+    labelPat i [] = []
+    labelPat i (x :: xs) = ("pat" ++ show i ++ ":", x) :: labelPat (i + 1) xs
 
-    close : Env Term vars -> Term vars -> ClosedTerm
-    close {vars} env tm
-        = substs (mkSubstEnv 0 env)
+    mkSubstEnv : Int -> String -> Env Term vars -> SubstEnv vars []
+    mkSubstEnv i pname [] = Nil
+    mkSubstEnv i pname (v :: vs)
+       = Ref fc Bound (MN pname i) :: mkSubstEnv (i + 1) pname vs
+
+    close : Env Term vars -> String -> Term vars -> ClosedTerm
+    close {vars} env pname tm
+        = substs (mkSubstEnv 0 pname env)
               (rewrite appendNilRightNeutral vars in tm)
 
-    toClosed : Defs -> Clause -> (ClosedTerm, ClosedTerm)
-    toClosed defs (MkClause env lhs rhs)
-          = (close env lhs, close env rhs)
+    toClosed : Defs -> (String, Clause) -> (ClosedTerm, ClosedTerm)
+    toClosed defs (pname, MkClause env lhs rhs)
+          = (close env pname lhs, close env pname rhs)
 
