@@ -8,6 +8,8 @@ import Core.Normalise
 import Core.TT
 import Core.Value
 
+import Data.LengthMatch
+
 %default covering
 
 public export
@@ -186,17 +188,6 @@ substInClause : {auto c : Ref Ctxt Defs} ->
 substInClause {vars} {a} fc (MkPatClause pvars (MkInfo pat pprf fty :: pats) rhs)
     = do pats' <- substInPats fc a (mkTerm vars pat) pats
          pure (MkPatClause pvars (MkInfo pat pprf fty :: pats') rhs)
-
-data LengthMatch : List a -> List b -> Type where
-     NilMatch : LengthMatch [] []
-     ConsMatch : LengthMatch xs ys -> LengthMatch (x :: xs) (y :: ys)
-
-checkLengthMatch : (xs : List a) -> (ys : List b) -> Maybe (LengthMatch xs ys)
-checkLengthMatch [] [] = Just NilMatch
-checkLengthMatch [] (x :: xs) = Nothing
-checkLengthMatch (x :: xs) [] = Nothing
-checkLengthMatch (x :: xs) (y :: ys)
-    = Just (ConsMatch !(checkLengthMatch xs ys))
 
 data Partitions : List (PatClause vars todo) -> Type where
      ConClauses : (cs : List (PatClause vars todo)) ->
