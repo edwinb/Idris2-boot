@@ -97,7 +97,7 @@ insertAt (FS k) y []      = absurd k
 ||| deleteAt 1 [1,2,3,4]
 ||| ```
 public export
-deleteAt : Fin (S len) -> Vect (S len) elem -> Vect len elem
+deleteAt : {len : _} -> Fin (S len) -> Vect (S len) elem -> Vect len elem
 deleteAt             FZ     (x::xs) = xs
 deleteAt {len = S m} (FS k) (x::xs) = x :: deleteAt k xs
 deleteAt {len = Z}   (FS k) (x::xs) impossible
@@ -859,7 +859,7 @@ mapElem (There e) = There (mapElem e)
 ||| @xs The vector to be removed from
 ||| @p A proof that the element to be removed is in the vector
 public export
-dropElem : (xs : Vect (S k) t) -> (p : Elem x xs) -> Vect k t
+dropElem : {k : _} -> (xs : Vect (S k) t) -> (p : Elem x xs) -> Vect k t
 dropElem (x :: ys) Here = ys
 dropElem {k = (S k)} (x :: ys) (There later) = x :: dropElem ys later
 

@@ -54,6 +54,7 @@ showInfo (n, idx, d)
                               show !(toFullNames (definition d)))
          coreLift $ putStrLn (show (multiplicity d))
          coreLift $ putStrLn ("Erasable args: " ++ show (eraseArgs d))
+         coreLift $ putStrLn ("Detaggable arg types: " ++ show (safeErase d))
          case compexpr d of
               Nothing => pure ()
               Just expr => coreLift $ putStrLn ("Compiled: " ++ show expr)

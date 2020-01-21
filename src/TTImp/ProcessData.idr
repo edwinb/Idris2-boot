@@ -17,6 +17,8 @@ import TTImp.TTImp
 
 import Data.NameMap
 
+%default covering
+
 processDataOpt : {auto c : Ref Ctxt Defs} ->
                  FC -> Name -> DataOpt -> Core ()
 processDataOpt fc n NoHints
@@ -93,6 +95,88 @@ checkCon {vars} opts nest env vis tn (MkImpTy fc cn_in ty_raw)
 conName : Constructor -> Name
 conName (MkCon _ cn _ _) = cn
 
+-- Get the indices of the constructor type (with non-constructor parts erased)
+getIndexPats : {auto c : Ref Ctxt Defs} ->
+               ClosedTerm -> Core (List (NF []))
+getIndexPats tm
+    = do defs <- get Ctxt
+         tmnf <- nf defs [] tm
+         ret <- getRetType defs tmnf
+         getPats defs ret
+  where
+    getRetType : Defs -> NF [] -> Core (NF [])
+    getRetType defs (NBind fc _ (Pi _ _ _) sc)
+        = do sc' <- sc defs (toClosure defaultOpts [] (Erased fc False))
+             getRetType defs sc'
+    getRetType defs t = pure t
+
+    getPats : Defs -> NF [] -> Core (List (NF []))
+    getPats defs (NTCon fc _ _ _ args)
+        = traverse (evalClosure defs) args
+    getPats defs _ = pure [] -- Can't happen if we defined the type successfully!
+
+getDetags : {auto c : Ref Ctxt Defs} ->
+            FC -> List ClosedTerm -> Core (Maybe (List Nat))
+getDetags fc [] = pure (Just []) -- empty type, trivially detaggable
+getDetags fc [t] = pure (Just []) -- one constructor, trivially detaggable
+getDetags fc tys
+   = do ps <- traverse getIndexPats tys
+        case !(getDisjointPos 0 (transpose ps)) of
+             [] => pure $ Nothing
+             xs => pure $ Just xs
+  where
+    mutual
+      disjointArgs : List (NF []) -> List (NF []) -> Core Bool
+      disjointArgs [] _ = pure False
+      disjointArgs _ [] = pure False
+      disjointArgs (a :: args) (a' :: args')
+          = if !(disjoint a a')
+               then pure True
+               else disjointArgs args args'
+
+      disjoint : NF [] -> NF [] -> Core Bool
+      disjoint (NDCon _ _ t _ args) (NDCon _ _ t' _ args')
+          = if t /= t'
+               then pure True
+               else do defs <- get Ctxt
+                       argsnf <- traverse (evalClosure defs) args
+                       args'nf <- traverse (evalClosure defs) args'
+                       disjointArgs argsnf args'nf
+      disjoint (NTCon _ n _ _ args) (NDCon _ n' _ _ args')
+          = if n /= n'
+               then pure True
+               else do defs <- get Ctxt
+                       argsnf <- traverse (evalClosure defs) args
+                       args'nf <- traverse (evalClosure defs) args'
+                       disjointArgs argsnf args'nf
+      disjoint (NPrimVal _ c) (NPrimVal _ c') = pure (c /= c')
+      disjoint _ _ = pure False
+
+    allDisjointWith : NF [] -> List (NF []) -> Core Bool
+    allDisjointWith val [] = pure True
+    allDisjointWith (NErased _ _) _ = pure False
+    allDisjointWith val (nf :: nfs)
+        = do ok <- disjoint val nf
+             if ok then allDisjointWith val nfs
+                   else pure False
+
+    allDisjoint : List (NF []) -> Core Bool
+    allDisjoint [] = pure True
+    allDisjoint (NErased _ _ :: _) = pure False
+    allDisjoint (nf :: nfs)
+        = do ok <- allDisjoint nfs
+             if ok then allDisjointWith nf nfs
+                   else pure False
+
+    -- Which argument positions have completely disjoint contructors
+    getDisjointPos : Nat -> List (List (NF [])) -> Core (List Nat)
+    getDisjointPos i [] = pure []
+    getDisjointPos i (args :: argss)
+        = do rest <- getDisjointPos (1 + i) argss
+             if !(allDisjoint args)
+                then pure (i :: rest)
+                else pure rest
+
 export
 processData : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
@@ -123,7 +207,7 @@ processData {vars} eopts nest env fc vis (MkImpLater dfc n_in ty_raw)
 
          -- Add the type constructor as a placeholder
          tidx <- addDef n (newDef fc n Rig1 vars fullty vis
-                          (TCon 0 arity [] [] False [] []))
+                          (TCon 0 arity [] [] False [] [] Nothing))
          addMutData (Resolved tidx)
          defs <- get Ctxt
          traverse_ (\n => setMutWith fc n (mutData defs)) (mutData defs)
@@ -160,7 +244,7 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
                   Nothing => pure []
                   Just ndef =>
                     case definition ndef of
-                         TCon _ _ _ _ _ mw _ =>
+                         TCon _ _ _ _ _ mw _ _ =>
                             do ok <- convert defs [] fullty (type ndef)
                                if ok then pure mw
                                      else do logTermNF 1 "Previous" [] (type ndef)
@@ -176,7 +260,7 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
          -- Add the type constructor as a placeholder while checking
          -- data constructors
          tidx <- addDef n (newDef fc n Rig1 vars fullty vis
-                          (TCon 0 arity [] [] False [] []))
+                          (TCon 0 arity [] [] False [] [] Nothing))
          case vis of
               Private => pure ()
               _ => do addHash n
@@ -199,6 +283,9 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
 
          traverse_ (processDataOpt fc (Resolved tidx)) opts
          dropMutData (Resolved tidx)
+
+         detags <- getDetags fc (map type cons)
+         setDetags fc (Resolved tidx) detags
 
          traverse_ addToSave (keys (getMetas ty))
          addToSave n

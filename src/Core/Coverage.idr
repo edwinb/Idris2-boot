@@ -51,7 +51,7 @@ export
 isEmpty : Defs -> NF vars -> Core Bool
 isEmpty defs (NTCon fc n t a args)
      = case !(lookupDefExact n (gamma defs)) of
-            Just (TCon _ _ _ _ _ _ cons)
+            Just (TCon _ _ _ _ _ _ cons _)
                  => allM (conflict defs (NTCon fc n t a args)) cons
             _ => pure False
 isEmpty defs _ = pure False
@@ -66,7 +66,7 @@ freeEnv fc (n :: ns) = PVar RigW Explicit (Erased fc False) :: freeEnv fc ns
 getCons : Defs -> NF vars -> Core (List (NF [], Name, Int, Nat))
 getCons defs (NTCon _ tn _ _ _)
     = case !(lookupDefExact tn (gamma defs)) of
-           Just (TCon _ _ _ _ _ _ cons) =>
+           Just (TCon _ _ _ _ _ _ cons _) =>
                 do cs' <- traverse addTy cons
                    pure (mapMaybe id cs')
            _ => pure []

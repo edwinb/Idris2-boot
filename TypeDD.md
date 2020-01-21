@@ -117,12 +117,31 @@ Chapter 9
 In `Hangman.idr`:
 
 + Add `import Decidable.Equality` and `import Data.Strings`
++ `removeElem` pattern matches on `n`, so it needs to be written in its
+  type:
+
+    removeElem : {n : _} ->
+                 (value : a) -> (xs : Vect (S n) a) ->
+                 {auto prf : Elem value xs} ->
+                 Vect n a
+
++ `letters` is used by `processGuess`, because it's passed to `removeElem`:
+
+    processGuess : {letters : _} ->
+                   (letter : Char) -> WordState (S guesses) (S letters) ->
+                   Either (WordState guesses (S letters))
+                          (WordState (S guesses) letters)
+
 + `guesses` and `letters` are implicit arguments to `game`, but are used by the
   definition, so add them to its type:
 
     game : {guesses : _} -> {letters : _} ->
            WordState (S guesses) (S letters) -> IO Finished
-  
+
+In `RemoveElem.idr`
+
++ `removeElem` needs to be updated as above.
+
 Chapter 10
 ----------
 

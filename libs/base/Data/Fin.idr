@@ -82,7 +82,7 @@ weakenN n (FS f) = FS (weakenN n f)
 ||| Attempt to tighten the bound on a Fin.
 ||| Return `Left` if the bound could not be tightened, or `Right` if it could.
 export
-strengthen : Fin (S n) -> Either (Fin (S n)) (Fin n)
+strengthen : {n : _} -> Fin (S n) -> Either (Fin (S n)) (Fin n)
 strengthen {n = S k} FZ = Right FZ
 strengthen {n = S k} (FS i) with (strengthen i)
   strengthen (FS i) | Left x   = Left (FS x)

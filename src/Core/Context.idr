@@ -47,6 +47,10 @@ data Def : Type where
                                   -- for uniqueness
            (mutwith : List Name) ->
            (datacons : List Name) ->
+           (detagabbleBy : Maybe (List Nat)) ->
+                    -- argument positions which can be used for
+                    -- detagging, if it's possible (to check if it's
+                    -- safe to erase)
            Def
     Hole : (numlocs : Nat) -> -- Number of locals in scope at binding point
                               -- (mostly to help display)
@@ -70,10 +74,11 @@ Show Def where
   show (PMDef _ args ct rt pats)
       = show args ++ "; " ++ show ct
   show (DCon t a) = "DataCon " ++ show t ++ " " ++ show a
-  show (TCon t a ps ds u ms cons)
+  show (TCon t a ps ds u ms cons det)
       = "TyCon " ++ show t ++ " " ++ show a ++ " params: " ++ show ps ++
         " constructors: " ++ show cons ++
-        " mutual with: " ++ show ms
+        " mutual with: " ++ show ms ++
+        " detaggable by: " ++ show det
   show (ExternDef arity) = "<external def with arity " ++ show arity ++ ">"
   show (ForeignDef a cs) = "<foreign def with arity " ++ show a ++
                            " " ++ show cs ++">"
@@ -170,6 +175,9 @@ record GlobalDef where
   fullname : Name -- original unresolved name
   type : ClosedTerm
   eraseArgs : List Nat -- which argument positions to erase at runtime
+  safeErase : List Nat -- which argument positions are safe to assume
+                       -- erasable without 'dotting', because their types
+                       -- are collapsible relative to non-erased arguments
   multiplicity : RigCount
   vars : List Name -- environment name is defined in
   visibility : Visibility
@@ -430,7 +438,7 @@ export
 newDef : FC -> Name -> RigCount -> List Name ->
          ClosedTerm -> Visibility -> Def -> GlobalDef
 newDef fc n rig vars ty vis def
-    = MkGlobalDef fc n ty [] rig vars vis unchecked [] empty False False False def
+    = MkGlobalDef fc n ty [] [] rig vars vis unchecked [] empty False False False def
                   Nothing []
 
 -- Rewrite rules, applied after type checking, for runtime code only
@@ -579,9 +587,9 @@ HasNames Def where
       fullNamesPat (_ ** (env, lhs, rhs))
           = pure $ (_ ** (!(full gam env),
                           !(full gam lhs), !(full gam rhs)))
-  full gam (TCon t a ps ds u ms cs)
+  full gam (TCon t a ps ds u ms cs det)
       = pure $ TCon t a ps ds u !(traverse (full gam) ms)
-                                !(traverse (full gam) cs)
+                                !(traverse (full gam) cs) det
   full gam (BySearch c d def)
       = pure $ BySearch c d !(full gam def)
   full gam (Guess tm b cs)
@@ -597,9 +605,9 @@ HasNames Def where
       resolvedNamesPat (_ ** (env, lhs, rhs))
           = pure $ (_ ** (!(resolved gam env),
                           !(resolved gam lhs), !(resolved gam rhs)))
-  resolved gam (TCon t a ps ds u ms cs)
+  resolved gam (TCon t a ps ds u ms cs det)
       = pure $ TCon t a ps ds u !(traverse (resolved gam) ms)
-                                !(traverse (resolved gam) cs)
+                                !(traverse (resolved gam) cs) det
   resolved gam (BySearch c d def)
       = pure $ BySearch c d !(resolved gam def)
   resolved gam (Guess tm b cs)
@@ -859,7 +867,7 @@ addBuiltin : {auto x : Ref Ctxt Defs} ->
              Name -> ClosedTerm -> Totality ->
              PrimFn arity -> Core ()
 addBuiltin n ty tot op
-    = do addDef n (MkGlobalDef emptyFC n ty [] RigW [] Public tot
+    = do addDef n (MkGlobalDef emptyFC n ty [] [] RigW [] Public tot
                                [Inline] empty False False True (Builtin op)
                                Nothing [])
          pure ()
@@ -1203,7 +1211,7 @@ getSearchData : {auto c : Ref Ctxt Defs} ->
                 Core SearchData
 getSearchData fc defaults target
     = do defs <- get Ctxt
-         Just (TCon _ _ _ dets u _ _) <- lookupDefExact target (gamma defs)
+         Just (TCon _ _ _ dets u _ _ _) <- lookupDefExact target (gamma defs)
               | _ => throw (UndefinedName fc target)
          let hs = case lookup !(toFullNames target) (typeHints defs) of
                        Just hs => hs
@@ -1236,9 +1244,9 @@ setMutWith fc tn tns
     = do defs <- get Ctxt
          Just g <- lookupCtxtExact tn (gamma defs)
               | _ => throw (UndefinedName fc tn)
-         let TCon t a ps dets u _ cons = definition g
+         let TCon t a ps dets u _ cons det = definition g
               | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setMutWith]"))
-         updateDef tn (const (Just (TCon t a ps dets u tns cons)))
+         updateDef tn (const (Just (TCon t a ps dets u tns cons det)))
 
 export
 addMutData : {auto c : Ref Ctxt Defs} ->
@@ -1261,10 +1269,10 @@ setDetermining fc tyn args
     = do defs <- get Ctxt
          Just g <- lookupCtxtExact tyn (gamma defs)
               | _ => throw (UndefinedName fc tyn)
-         let TCon t a ps _ u cons ms = definition g
+         let TCon t a ps _ u cons ms det = definition g
               | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setDetermining]"))
          apos <- getPos 0 args (type g)
-         updateDef tyn (const (Just (TCon t a ps apos u cons ms)))
+         updateDef tyn (const (Just (TCon t a ps apos u cons ms det)))
   where
     -- Type isn't normalised, but the argument names refer to those given
     -- explicitly in the type, so there's no need.
@@ -1279,15 +1287,26 @@ setDetermining fc tyn args
                            ++ showSep ", " (map show ns)))
 
 export
+setDetags : {auto c : Ref Ctxt Defs} ->
+            FC -> Name -> Maybe (List Nat) -> Core ()
+setDetags fc tyn args
+    = do defs <- get Ctxt
+         Just g <- lookupCtxtExact tyn (gamma defs)
+              | _ => throw (UndefinedName fc tyn)
+         let TCon t a ps det u cons ms _ = definition g
+              | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setDetermining]"))
+         updateDef tyn (const (Just (TCon t a ps det u cons ms args)))
+
+export
 setUniqueSearch : {auto c : Ref Ctxt Defs} ->
                   FC -> Name -> Bool -> Core ()
 setUniqueSearch fc tyn u
     = do defs <- get Ctxt
          Just g <- lookupCtxtExact tyn (gamma defs)
               | _ => throw (UndefinedName fc tyn)
-         let TCon t a ps ds _ cons ms = definition g
+         let TCon t a ps ds _ cons ms det = definition g
               | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setDetermining]"))
-         updateDef tyn (const (Just (TCon t a ps ds u cons ms)))
+         updateDef tyn (const (Just (TCon t a ps ds u cons ms det)))
 
 export
 addHintFor : {auto c : Ref Ctxt Defs} ->
@@ -1521,7 +1540,7 @@ addData vars vis tidx (MkData (MkCon dfc tyn arity tycon) datacons)
                             (TCon tag arity
                                   (paramPos (Resolved tidx) (map type datacons))
                                   (allDet arity)
-                                  False [] (map name datacons))
+                                  False [] (map name datacons) Nothing)
          (idx, gam') <- addCtxt tyn tydef (gamma defs)
          gam'' <- addDataConstructors 0 datacons gam'
          put Ctxt (record { gamma = gam'' } defs)

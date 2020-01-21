@@ -76,6 +76,7 @@ impossibleErrOK defs (CantSolveEq fc env l r)
          logTerm 10 "    ...and" !(normalise defs env r)
          impossibleOK defs !(nf defs env l)
                            !(nf defs env r)
+impossibleErrOK defs (BadDotPattern _ _ "Erased argument" _ _) = pure True
 impossibleErrOK defs (CyclicMeta _ _) = pure True
 impossibleErrOK defs (AllFailed errs)
     = anyM (impossibleErrOK defs) (map snd errs)

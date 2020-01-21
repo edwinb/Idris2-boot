@@ -124,10 +124,11 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
 
          def <- initDef n env ty opts
          let fullty = abstractEnvType tfc env ty
-         erased <- findErased fullty
+         (erased, dterased) <- findErased fullty
 
          addDef (Resolved idx)
-                (record { eraseArgs = erased }
+                (record { eraseArgs = erased,
+                          safeErase = dterased }
                         (newDef fc n rig vars fullty vis def))
          -- Flag it as checked, because we're going to check the clauses
          -- from the top level.

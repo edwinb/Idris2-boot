@@ -43,4 +43,3 @@ notFunny [True, True, False, False] = 12
 notFunny [True, True, False, True] = 13
 notFunny [True, True, True, False] = 14
 notFunny [True, True, True, True] = 15
-

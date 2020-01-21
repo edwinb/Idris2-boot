@@ -4,7 +4,6 @@
 1/1: Building DLFail (DLFail.idr)
 DLFail.idr:3:20--3:29:While processing left hand side of Main.describe_list_end at DLFail.idr:3:1--4:1:
 Can't match on ?xs ++ [?x] (Not a constructor application or primitive)
-It elaborates to: ?xs ++ [?x]
 1/1: Building IsSuffix (IsSuffix.idr)
 1/1: Building MergeSort (MergeSort.idr)
 1/1: Building MergeSortView (MergeSortView.idr)

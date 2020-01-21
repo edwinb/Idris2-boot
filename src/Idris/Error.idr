@@ -208,8 +208,7 @@ perror (CaseCompile fc n (MatchErased (_ ** (env, tm))))
              " in " ++ show n
 perror (BadDotPattern _ env reason x y)
     = pure $ "Can't match on " ++ !(pshow env x) ++
-           (if reason /= "" then " (" ++ reason ++ ")" else "") ++ "\n" ++
-           "It elaborates to: " ++ !(pshow env y)
+           (if reason /= "" then " (" ++ reason ++ ")" else "")
 perror (MatchTooSpecific _ env tm)
     = pure $ "Can't match on " ++ !(pshow env tm) ++
              " as it has a polymorphic type"

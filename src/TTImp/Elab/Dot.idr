@@ -42,7 +42,7 @@ checkDot rig elabinfo nest env fc reason tm (Just gexpty)
              expty <- getTerm gexpty
              metaval <- metaVar fc rig env nm expty
              addDot fc env nm wantedTm reason metaval
-             checkExp rig elabinfo env fc metaval wantedTy (Just gexpty)
+             pure (metaval, gexpty)
         _ => throw (GenericMsg fc ("Dot pattern not valid here (Not LHS) "
                                    ++ show tm))
 

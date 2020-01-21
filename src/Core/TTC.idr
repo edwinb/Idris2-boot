@@ -743,9 +743,10 @@ TTC Def where
   toBuf b (Builtin a)
       = throw (InternalError "Trying to serialise a Builtin")
   toBuf b (DCon t arity) = do tag 4; toBuf b t; toBuf b arity
-  toBuf b (TCon t arity parampos detpos u ms datacons)
+  toBuf b (TCon t arity parampos detpos u ms datacons dets)
       = do tag 5; toBuf b t; toBuf b arity; toBuf b parampos
            toBuf b detpos; toBuf b u; toBuf b ms; toBuf b datacons
+           toBuf b dets
   toBuf b (Hole locs p)
       = do tag 6; toBuf b locs; toBuf b p
   toBuf b (BySearch c depth def)
@@ -774,7 +775,8 @@ TTC Def where
                      ps <- fromBuf b; dets <- fromBuf b;
                      u <- fromBuf b
                      ms <- fromBuf b; cs <- fromBuf b
-                     pure (TCon t a ps dets u ms cs)
+                     detags <- fromBuf b
+                     pure (TCon t a ps dets u ms cs detags)
              6 => do l <- fromBuf b
                      p <- fromBuf b
                      pure (Hole l p)
@@ -853,6 +855,7 @@ TTC GlobalDef where
               do toBuf b (location gdef)
                  toBuf b (type gdef)
                  toBuf b (eraseArgs gdef)
+                 toBuf b (safeErase gdef)
                  toBuf b (multiplicity gdef)
                  toBuf b (vars gdef)
                  toBuf b (visibility gdef)
@@ -871,16 +874,17 @@ TTC GlobalDef where
            if isUserName name
               then do loc <- fromBuf b;
                       ty <- fromBuf b; eargs <- fromBuf b;
+                      seargs <- fromBuf b
                       mul <- fromBuf b; vars <- fromBuf b
                       vis <- fromBuf b; tot <- fromBuf b
                       fl <- fromBuf b
                       inv <- fromBuf b
                       c <- fromBuf b
                       sc <- fromBuf b
-                      pure (MkGlobalDef loc name ty eargs mul vars vis
+                      pure (MkGlobalDef loc name ty eargs seargs mul vars vis
                                         tot fl refs inv c True def cdef sc)
               else do let fc = emptyFC
-                      pure (MkGlobalDef fc name (Erased fc False) []
+                      pure (MkGlobalDef fc name (Erased fc False) [] []
                                         RigW [] Public unchecked [] refs
                                         False False True def cdef [])
 

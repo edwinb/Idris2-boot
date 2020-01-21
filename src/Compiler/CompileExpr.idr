@@ -359,7 +359,7 @@ toCDef tags n ty (Builtin {arity} op)
     getVars (ConsArg a rest) = MkVar First :: map weakenVar (getVars rest)
 toCDef tags n _ (DCon tag arity)
     = pure $ MkCon (fromMaybe tag $ lookup n tags) arity
-toCDef tags n _ (TCon tag arity _ _ _ _ _)
+toCDef tags n _ (TCon tag arity _ _ _ _ _ _)
     = pure $ MkCon (fromMaybe tag $ lookup n tags) arity
 -- We do want to be able to compile these, but also report an error at run time
 -- (and, TODO: warn at compile time)
