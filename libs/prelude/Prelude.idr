@@ -116,7 +116,7 @@ interface Uninhabited t where
 
 %extern
 public export
-void : Void -> a
+void : (0 x : Void) -> a
 
 export
 Uninhabited Void where
