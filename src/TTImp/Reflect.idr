@@ -38,7 +38,7 @@ Reify UseSide where
       = pure UseLeft
   reify defs (NDCon _ (NS _ (UN "UseRight")) _ _ _)
       = pure UseRight
-  reify deva val = cantReify val "UseSide"
+  reify defs val = cantReify val "UseSide"
 
 export
 Reflect UseSide where
@@ -46,6 +46,37 @@ Reflect UseSide where
       = getCon fc defs (reflectionttimp "UseLeft")
   reflect fc defs env UseRight
       = getCon fc defs (reflectionttimp "UseRight")
+
+export
+Reify DotReason where
+  reify defs (NDCon _ (NS _ (UN "NonLinearVar")) _ _ _)
+      = pure NonLinearVar
+  reify defs (NDCon _ (NS _ (UN "VarApplied")) _ _ _)
+      = pure VarApplied
+  reify defs (NDCon _ (NS _ (UN "NotConstructor")) _ _ _)
+      = pure NotConstructor
+  reify defs (NDCon _ (NS _ (UN "ErasedArg")) _ _ _)
+      = pure ErasedArg
+  reify defs (NDCon _ (NS _ (UN "UserDotted")) _ _ _)
+      = pure UserDotted
+  reify defs (NDCon _ (NS _ (UN "UnknownDot")) _ _ _)
+      = pure UnknownDot
+  reify defs val = cantReify val "DotReason"
+
+export
+Reflect DotReason where
+  reflect fc defs env NonLinearVar
+      = getCon fc defs (reflectionttimp "NonLinearVar")
+  reflect fc defs env VarApplied
+      = getCon fc defs (reflectionttimp "VarApplied")
+  reflect fc defs env NotConstructor
+      = getCon fc defs (reflectionttimp "NotConstructor")
+  reflect fc defs env ErasedArg
+      = getCon fc defs (reflectionttimp "ErasedArg")
+  reflect fc defs env UserDotted
+      = getCon fc defs (reflectionttimp "UserDotted")
+  reflect fc defs env UnknownDot
+      = getCon fc defs (reflectionttimp "UnknownDot")
 
 mutual
   export

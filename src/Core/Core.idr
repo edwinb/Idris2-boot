@@ -25,6 +25,23 @@ data CaseError = DifferingArgNumbers
                | NotFullyApplied Name
                | UnknownType
 
+public export
+data DotReason = NonLinearVar
+               | VarApplied
+               | NotConstructor
+               | ErasedArg
+               | UserDotted
+               | UnknownDot
+
+export
+Show DotReason where
+  show NonLinearVar = "Non linear pattern variable"
+  show VarApplied = "Variable applied to arguments"
+  show NotConstructor = "Not a constructor application or primitive"
+  show ErasedArg = "Erased argument"
+  show UserDotted = "User dotted"
+  show UnknownDot = "Unknown reason"
+
 -- All possible errors, carrying a location
 public export
 data Error
@@ -71,7 +88,7 @@ data Error
     | NotRewriteRule FC (Env Term vars) (Term vars)
     | CaseCompile FC Name CaseError
     | MatchTooSpecific FC (Env Term vars) (Term vars)
-    | BadDotPattern FC (Env Term vars) String (Term vars) (Term vars)
+    | BadDotPattern FC (Env Term vars) DotReason (Term vars) (Term vars)
     | BadImplicit FC String
     | BadRunElab FC (Env Term vars) (Term vars)
     | GenericMsg FC String
@@ -218,7 +235,7 @@ Show Error where
       = show fc ++ ":Can't match on " ++ show tm ++ " as it is has a polymorphic type"
   show (BadDotPattern fc env reason x y)
       = show fc ++ ":Can't match on " ++ show x ++
-           (if reason /= "" then " (" ++ reason ++ ")" else "") ++
+           " (" ++ show reason ++ ")" ++
            " - it elaborates to " ++ show y
   show (BadImplicit fc str) = show fc ++ ":" ++ str ++ " can't be bound here"
   show (BadRunElab fc env script) = show fc ++ ":Bad elaborator script " ++ show script

@@ -13,6 +13,14 @@ mutual
   data UseSide = UseLeft | UseRight
 
   public export
+  data DotReason = NonLinearVar
+                 | VarApplied
+                 | NotConstructor
+                 | ErasedArg
+                 | UserDotted
+                 | UnknownDot
+
+  public export
   data TTImp : Type where
        IVar : FC -> Name -> TTImp
        IPi : FC -> Count -> PiInfo -> Maybe Name ->
@@ -44,7 +52,7 @@ mutual
        IAs : FC -> UseSide -> Name -> TTImp -> TTImp
        -- A 'dot' pattern, i.e. one which must also have the given value
        -- by unification
-       IMustUnify : FC -> (reason : String) -> TTImp -> TTImp
+       IMustUnify : FC -> DotReason -> TTImp -> TTImp
 
        -- Laziness annotations
        IDelayed : FC -> LazyReason -> TTImp -> TTImp -- the type

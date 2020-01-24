@@ -283,7 +283,7 @@ mutual
                  Implicit _ _ => tm
                  IAs _ _ _ (IBindVar _ _) => tm
                  IAs _ _ _ (Implicit _ _) => tm
-                 _ => IMustUnify (getFC tm) "Erased argument" tm
+                 _ => IMustUnify (getFC tm) ErasedArg tm
   dotErased _ _ _ r tm = pure $ tm
 
   -- Check the rest of an application given the argument type and the
@@ -534,7 +534,8 @@ checkApp rig elabinfo nest env fc (IVar fc' n) expargs impargs exp
                                                  etynf <- normaliseHoles defs env ety
                                                  pure (Just !(toFullNames etynf)))
                                        exp
-                    pure ("Checking application of " ++ show !(getFullName n) ++
+                    pure ("Checking application of " ++ show !(getFullName n) ++ 
+                          " (" ++ show n ++ ")" ++
                           " to " ++ show expargs ++ "\n\tFunction type " ++
                           (show !(toFullNames fnty)) ++ "\n\tExpected app type "
                                 ++ show exptyt))

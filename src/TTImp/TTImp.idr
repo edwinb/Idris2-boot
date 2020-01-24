@@ -75,7 +75,7 @@ mutual
        IAs : FC -> UseSide -> Name -> RawImp -> RawImp
        -- A 'dot' pattern, i.e. one which must also have the given value
        -- by unification
-       IMustUnify : FC -> (reason : String) -> RawImp -> RawImp
+       IMustUnify : FC -> DotReason -> RawImp -> RawImp
 
        -- Laziness annotations
        IDelayed : FC -> LazyReason -> RawImp -> RawImp -- the type
@@ -683,7 +683,7 @@ mutual
                         pure (IAs fc side y pattern)
                17 => do fc <- fromBuf b
                         pattern <- fromBuf b
-                        pure (IMustUnify fc "" pattern)
+                        pure (IMustUnify fc UnknownDot pattern)
 
                18 => do fc <- fromBuf b; r <- fromBuf b
                         y <- fromBuf b

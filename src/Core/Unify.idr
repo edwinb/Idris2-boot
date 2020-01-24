@@ -1272,7 +1272,7 @@ checkDots
          ust <- get UST
          put UST (record { dotConstraints = [] } ust)
   where
-    checkConstraint : (Name, String, Constraint) -> Core ()
+    checkConstraint : (Name, DotReason, Constraint) -> Core ()
     checkConstraint (n, reason, MkConstraint fc env x y)
         = do logTermNF 10 "Dot" env y
              logTermNF 10 "  =" env x

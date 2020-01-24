@@ -24,18 +24,20 @@ expandAmbigName : {auto c : Ref Ctxt Defs} ->
 expandAmbigName (InLHS _) nest env orig args (IBindVar fc n) exp
     = do est <- get EST
          if n `elem` lhsPatVars est
-            then pure $ IMustUnify fc "Non linear pattern variable" orig
+            then pure $ IMustUnify fc NonLinearVar orig
             else pure $ orig
 expandAmbigName mode nest env orig args (IVar fc x) exp
    = case lookup x (names nest) of
-          Just _ => pure orig
+          Just _ => do log 10 $ "Nested " ++ show x
+                       pure orig
           Nothing => do
              defs <- get Ctxt
              case defined x env of
                   Just _ =>
                     if isNil args || notLHS mode
-                       then pure $ orig
-                       else pure $ IMustUnify fc "Name applied to arguments" orig
+                       then do log 10 $ "Defined in env " ++ show x
+                               pure $ orig
+                       else pure $ IMustUnify fc VarApplied orig
                   Nothing =>
                      do est <- get EST
                         fi <- fromIntegerName
@@ -44,8 +46,11 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
                         let prims = mapMaybe id [fi, si, ci]
                         let primApp = isPrimName prims x
                         case !(lookupCtxtName x (gamma defs)) of
-                             [] => pure orig
-                             [nalt] => pure $ mkAlt primApp est nalt
+                             [] => do log 10 $ "Failed to find " ++ show orig
+                                      pure orig
+                             [nalt] =>
+                                   do log 10 $ "Only one " ++ show (fst nalt)
+                                      pure $ mkAlt primApp est nalt
                              nalts => pure $ IAlternative fc (uniqType fi si ci x args)
                                                     (map (mkAlt primApp est) nalts)
   where
@@ -84,11 +89,11 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
     wrapDot prim est (InLHS _) n' [arg] _ tm
        = if n' == Resolved (defining est) || prim
             then tm
-            else IMustUnify fc "Not a constructor application or primitive" tm
+            else IMustUnify fc NotConstructor tm
     wrapDot prim est (InLHS _) n' _ _ tm
        = if n' == Resolved (defining est)
             then tm
-            else IMustUnify fc "Not a constructor application or primitive" tm
+            else IMustUnify fc NotConstructor tm
     wrapDot _ _ _ _ _ _ tm = tm
 
 
@@ -111,7 +116,9 @@ expandAmbigName mode nest env orig args (IApp fc f a) exp
 expandAmbigName mode nest env orig args (IImplicitApp fc f n a) exp
     = expandAmbigName mode nest env orig
                       ((fc, Just n, a) :: args) f exp
-expandAmbigName elabmode nest env orig args tm exp = pure orig
+expandAmbigName elabmode nest env orig args tm exp
+    = do log 10 $ "No ambiguity " ++ show orig
+         pure orig
 
 stripDelay : NF vars -> NF vars
 stripDelay (NDelayed fc r t) = stripDelay t

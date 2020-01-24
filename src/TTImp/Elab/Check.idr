@@ -347,11 +347,12 @@ record ElabInfo where
   constructor MkElabInfo
   elabMode : ElabMode
   implicitMode : BindMode
+  topLevel : Bool
   bindingVars : Bool
 
 export
 initElabInfo : ElabMode -> ElabInfo
-initElabInfo m = MkElabInfo m NONE False
+initElabInfo m = MkElabInfo m NONE False True
 
 export
 tryError : {vars : _} ->

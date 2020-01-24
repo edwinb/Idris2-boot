@@ -25,7 +25,7 @@ checkDot : {vars : _} ->
            {auto e : Ref EST (EState vars)} ->
            RigCount -> ElabInfo ->
            NestedNames vars -> Env Term vars ->
-           FC -> String -> RawImp -> Maybe (Glued vars) ->
+           FC -> DotReason -> RawImp -> Maybe (Glued vars) ->
            Core (Term vars, Glued vars)
 checkDot rig elabinfo nest env fc reason tm Nothing
     = throw (GenericMsg fc ("Dot pattern not valid here (unknown type) "
