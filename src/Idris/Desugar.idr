@@ -409,7 +409,9 @@ mutual
                 {auto m : Ref MD Metadata} ->
                 List Name -> PTypeDecl -> Core ImpTy
   desugarType ps (MkPTy fc n ty)
-      = pure $ MkImpTy fc n !(bindTypeNames ps !(desugar AnyExpr ps ty))
+      = do syn <- get Syn
+           pure $ MkImpTy fc n !(bindTypeNames (usingImpl syn)
+                                               ps !(desugar AnyExpr ps ty))
 
   desugarClause : {auto s : Ref Syn SyntaxInfo} ->
                   {auto c : Ref Ctxt Defs} ->
@@ -439,11 +441,16 @@ mutual
                 {auto m : Ref MD Metadata} ->
                 List Name -> PDataDecl -> Core ImpData
   desugarData ps (MkPData fc n tycon opts datacons)
-      = pure $ MkImpData fc n !(bindTypeNames ps !(desugar AnyExpr ps tycon))
+      = do syn <- get Syn
+           pure $ MkImpData fc n
+                              !(bindTypeNames (usingImpl syn)
+                                              ps !(desugar AnyExpr ps tycon))
                               opts
                               !(traverse (desugarType ps) datacons)
   desugarData ps (MkPLater fc n tycon)
-      = pure $ MkImpLater fc n !(bindTypeNames ps !(desugar AnyExpr ps tycon))
+      = do syn <- get Syn
+           pure $ MkImpLater fc n !(bindTypeNames (usingImpl syn)
+                                                  ps !(desugar AnyExpr ps tycon))
 
   desugarField : {auto s : Ref Syn SyntaxInfo} ->
                  {auto c : Ref Ctxt Defs} ->
@@ -452,7 +459,9 @@ mutual
                  List Name -> PField ->
                  Core IField
   desugarField ps (MkField fc rig p n ty)
-      = pure (MkIField fc rig p n !(bindTypeNames ps !(desugar AnyExpr ps ty)))
+      = do syn <- get Syn
+           pure (MkIField fc rig p n !(bindTypeNames (usingImpl syn)
+                                                     ps !(desugar AnyExpr ps ty)))
 
   -- Get the declaration to process on each pass of a mutual block
   -- Essentially: types on the first pass
@@ -488,6 +497,8 @@ mutual
 
   getDecl p (PParameters fc ps pds)
       = Just (PParameters fc ps (mapMaybe (getDecl p) pds))
+  getDecl p (PUsing fc ps pds)
+      = Just (PUsing fc ps (mapMaybe (getDecl p) pds))
 
   getDecl Single d = Just d
 
@@ -546,6 +557,16 @@ mutual
                                     (map snd params')
            let paramsb = map (\ (n, tm) => (n, doBind pnames tm)) params'
            pure [IParameters fc paramsb (concat pds')]
+  desugarDecl ps (PUsing fc uimpls uds)
+      = do syn <- get Syn
+           let oldu = usingImpl syn
+           uimpls' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
+                                            pure (fst ntm, tm')) uimpls
+           put Syn (record { usingImpl = uimpls' ++ oldu } syn)
+           uds' <- traverse (desugarDecl ps) uds
+           syn <- get Syn
+           put Syn (record { usingImpl = oldu } syn)
+           pure (concat uds')
   desugarDecl ps (PReflect fc tm)
       = throw (GenericMsg fc "Reflection not implemented yet")
 --       pure [IReflect fc !(desugar AnyExpr ps tm)]

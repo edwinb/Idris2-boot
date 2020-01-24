@@ -1011,6 +1011,24 @@ paramDecls fname indents
          end <- location
          pure (PParameters (MkFC fname start end) ps (collectDefs (concat ds)))
 
+usingDecls : FileName -> IndentInfo -> Rule PDecl
+usingDecls fname indents
+    = do start <- location
+         keyword "using"
+         commit
+         symbol "("
+         us <- sepBy (symbol ",")
+                     (do n <- option Nothing
+                                (do x <- unqualifiedName
+                                    symbol ":"
+                                    pure (Just (UN x)))
+                         ty <- typeExpr pdef fname indents
+                         pure (n, ty))
+         symbol ")"
+         ds <- assert_total (nonEmptyBlock (topDecl fname))
+         end <- location
+         pure (PUsing (MkFC fname start end) us (collectDefs (concat ds)))
+
 fnOpt : Rule PFnOpt
 fnOpt
     = do keyword "partial"
@@ -1259,6 +1277,8 @@ topDecl fname indents
   <|> do d <- mutualDecls fname indents
          pure [d]
   <|> do d <- paramDecls fname indents
+         pure [d]
+  <|> do d <- usingDecls fname indents
          pure [d]
   <|> do d <- directiveDecl fname indents
          pure [d]

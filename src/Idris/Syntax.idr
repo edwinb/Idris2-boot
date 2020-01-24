@@ -195,6 +195,7 @@ mutual
        PDef : FC -> List PClause -> PDecl
        PData : FC -> Visibility -> PDataDecl -> PDecl
        PParameters : FC -> List (Name, PTerm) -> List PDecl -> PDecl
+       PUsing : FC -> List (Maybe Name, PTerm) -> List PDecl -> PDecl
        PReflect : FC -> PTerm -> PDecl
        PInterface : FC ->
                     Visibility ->
@@ -243,6 +244,7 @@ definedIn [] = []
 definedIn (PClaim _ _ _ _ (MkPTy _ n _) :: ds) = n :: definedIn ds
 definedIn (PData _ _ d :: ds) = definedInData d ++ definedIn ds
 definedIn (PParameters _ _ pds :: ds) = definedIn pds ++ definedIn ds
+definedIn (PUsing _ _ pds :: ds) = definedIn pds ++ definedIn ds
 definedIn (PNamespace _ _ ns :: ds) = definedIn ns ++ definedIn ds
 definedIn (_ :: ds) = definedIn ds
 
@@ -512,6 +514,7 @@ record SyntaxInfo where
   ifaces : ANameMap IFaceInfo
   bracketholes : List Name -- hole names in argument position (so need
                            -- to be bracketed when solved)
+  usingImpl : List (Maybe Name, RawImp)
   startExpr : RawImp
 
 export
@@ -545,7 +548,7 @@ TTC SyntaxInfo where
            bhs <- fromBuf b
            start <- fromBuf b
            pure (MkSyntax (fromList inf) (fromList pre) (fromList ifs)
-                          bhs start)
+                          bhs [] start)
 
 HasNames IFaceInfo where
   full gam iface
@@ -589,6 +592,7 @@ initSyntax
     = MkSyntax (insert "=" (Infix, 0) empty)
                (insert "-" 10 empty)
                empty
+               []
                []
                (IVar (MkFC "(default)" (0, 0) (0, 0)) (UN "main"))
 

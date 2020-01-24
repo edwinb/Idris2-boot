@@ -65,9 +65,9 @@ elabRecord {vars} eopts fc env nest vis tn params rcon fields
         = do let retty = apply (IVar fc tn) (map (IVar fc) (map fst params))
              let conty = mkTy (map jname params) $
                          mkTy (map farg fields) retty
-             let con = MkImpTy fc cname !(bindTypeNames (map fst params ++
+             let con = MkImpTy fc cname !(bindTypeNames [] (map fst params ++
                                            map fname fields ++ vars) conty)
-             let dt = MkImpData fc tn !(bindTypeNames (map fst params ++
+             let dt = MkImpData fc tn !(bindTypeNames [] (map fst params ++
                                            map fname fields ++ vars)
                                          (mkDataTy fc params)) [] [con]
              log 5 $ "Record data type " ++ show dt
@@ -98,7 +98,7 @@ elabRecord {vars} eopts fc env nest vis tn params rcon fields
                    ty <- unelab tyenv ty_chk
                    let ty' = substNames vars upds ty
                    let rname = MN "rec" 0
-                   gty <- bindTypeNames
+                   gty <- bindTypeNames []
                                  (map fst params ++ map fname fields ++ vars) $
                                     mkTy (map jname params) $
                                       IPi fc RigW Explicit (Just rname) recTy ty'
