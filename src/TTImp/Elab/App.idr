@@ -316,7 +316,7 @@ mutual
                    then pure True
                    else do sc' <- sc defs (toClosure defaultOpts env (Erased fc False))
                            concrete defs env sc'
-          if !(needsDelay (elabMode elabinfo) kr arg) then do
+          if !(needsDelay (elabMode elabinfo) kr arg_in) then do
              nm <- genMVName x
              empty <- clearDefs defs
              metaty <- quote empty env aty

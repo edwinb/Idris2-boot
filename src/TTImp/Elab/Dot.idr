@@ -33,7 +33,7 @@ checkDot rig elabinfo nest env fc reason tm Nothing
 checkDot rig elabinfo nest env fc reason tm (Just gexpty)
     = case elabMode elabinfo of
         InLHS _ =>
-          do (wantedTm, wantedTy) <- checkImp rig
+          do (wantedTm, wantedTy) <- check rig
                                               (record { elabMode = InExpr }
                                                   elabinfo)
                                               nest env
