@@ -84,12 +84,11 @@ Information about external dependencies are presented in [INSTALL.md](INSTALL.md
 Things still missing
 ====================
 
-+ Some high level syntax, notably idiom brackets 
 + 'using' blocks
++ Disambiguation via 'with'
 + Cumulativity (so we currently have Type : Type! Bear that in mind when you
   think you've proved something :))
 + 'rewrite' doesn't yet work on dependent types
-+ Some details of 'with' not yet done (notably recursive with call syntax)
 + Parts of the ide-mode, particularly syntax highlighting
 + Documentation strings and HTML documentation generation
 + ':search' and ':apropos' at the REPL

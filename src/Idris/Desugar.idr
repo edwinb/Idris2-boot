@@ -114,6 +114,13 @@ bindBangs ((n, fc, btm) :: bs) tm
                           (ILam fc RigW Explicit (Just n)
                                 (Implicit fc False) tm)
 
+idiomise : FC -> RawImp -> RawImp
+idiomise fc (IApp afc f a)
+    = IApp fc (IApp fc (IVar fc (UN "<*>"))
+                    (idiomise afc f))
+                    a
+idiomise fc fn = IApp fc (IVar fc (UN "pure")) fn
+
 data Bang : Type where
 
 mutual
@@ -252,6 +259,9 @@ mutual
                               bangNames $= ((bn, fc, itm) ::)
                             } bs)
            pure (IVar fc bn)
+  desugarB side ps (PIdiom fc term)
+      = do itm <- desugarB side ps term
+           pure (idiomise fc itm)
   desugarB side ps (PList fc args)
       = expandList side ps fc args
   desugarB side ps (PPair fc l r)

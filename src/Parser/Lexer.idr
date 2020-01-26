@@ -116,6 +116,7 @@ symbols : List String
 symbols
     = [".(", -- for things such as Foo.Bar.(+)
        "@{",
+       "[|", "|]",
        "(", ")", "{", "}", "[", "]", ",", ";", "_",
        "`(", "`"]
 

@@ -351,6 +351,12 @@ mutual
            end <- location
            pure (PBang (MkFC fname start end) e)
     <|> do start <- location
+           symbol "[|"
+           e <- expr pdef fname indents
+           symbol "|]"
+           end <- location
+           pure (PIdiom (MkFC fname start end) e)
+    <|> do start <- location
            symbol "%"; exactIdent "unifyLog"
            e <- expr pdef fname indents
            end <- location

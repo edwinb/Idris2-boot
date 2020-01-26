@@ -78,6 +78,7 @@ mutual
 
        PDoBlock : FC -> List PDo -> PTerm
        PBang : FC -> PTerm -> PTerm
+       PIdiom : FC -> PTerm -> PTerm
        PList : FC -> List PTerm -> PTerm
        PPair : FC -> PTerm -> PTerm -> PTerm
        PDPair : FC -> PTerm -> PTerm -> PTerm -> PTerm
@@ -93,8 +94,7 @@ mutual
        -- Debugging
        PUnifyLog : FC -> PTerm -> PTerm
 
-       -- TODO: Idiom brackets (?),
-       -- 'with' disambiguation
+       -- TODO: 'with' disambiguation
 
   public export
   data PFieldUpdate : Type where
@@ -443,6 +443,7 @@ mutual
     showPrec d (PDoBlock _ ds)
         = "do " ++ showSep " ; " (map showDo ds)
     showPrec d (PBang _ tm) = "!" ++ showPrec d tm
+    showPrec d (PIdiom _ tm) = "[|" ++ showPrec d tm ++ "|]"
     showPrec d (PList _ xs)
         = "[" ++ showSep ", " (map (showPrec d) xs) ++ "]"
     showPrec d (PPair _ l r) = "(" ++ showPrec d l ++ ", " ++ showPrec d r ++ ")"
