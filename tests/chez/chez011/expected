@@ -1,0 +1,15 @@
+5
+"12"
+True
+False
+     ____    __     _         ___                                           
+    /  _/___/ /____(_)____   |__ \                                          
+    / // __  / ___/ / ___/   __/ /     Version 0.0.0-9cd040fcb
+  _/ // /_/ / /  / (__  )   / __/      https://www.idris-lang.org           
+ /___/\__,_/_/  /_/____/   /____/                                           
+
+Welcome to Idris 2.  Enjoy yourself!
+1/1: Building bangs (bangs.idr)
+Main> Just 7
+Main> Just 7
+Main> Main> Main> Main> Main> Bye for now!

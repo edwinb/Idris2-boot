@@ -346,6 +346,11 @@ mutual
            symbol "["
            listExpr fname start indents
     <|> do start <- location
+           symbol "!"
+           e <- simpleExpr fname indents
+           end <- location
+           pure (PBang (MkFC fname start end) e)
+    <|> do start <- location
            symbol "%"; exactIdent "unifyLog"
            e <- expr pdef fname indents
            end <- location

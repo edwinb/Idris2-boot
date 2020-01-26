@@ -77,6 +77,7 @@ mutual
        -- Syntactic sugar
 
        PDoBlock : FC -> List PDo -> PTerm
+       PBang : FC -> PTerm -> PTerm
        PList : FC -> List PTerm -> PTerm
        PPair : FC -> PTerm -> PTerm -> PTerm
        PDPair : FC -> PTerm -> PTerm -> PTerm -> PTerm
@@ -92,7 +93,7 @@ mutual
        -- Debugging
        PUnifyLog : FC -> PTerm -> PTerm
 
-       -- TODO: Ranges, idiom brackets (?),
+       -- TODO: Idiom brackets (?),
        -- 'with' disambiguation
 
   public export
@@ -441,6 +442,7 @@ mutual
     showPrec d (PBracketed _ tm) = "(" ++ showPrec d tm ++ ")"
     showPrec d (PDoBlock _ ds)
         = "do " ++ showSep " ; " (map showDo ds)
+    showPrec d (PBang _ tm) = "!" ++ showPrec d tm
     showPrec d (PList _ xs)
         = "[" ++ showSep ", " (map (showPrec d) xs) ++ "]"
     showPrec d (PPair _ l r) = "(" ++ showPrec d l ++ ", " ++ showPrec d r ++ ")"
