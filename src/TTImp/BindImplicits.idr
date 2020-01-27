@@ -110,7 +110,7 @@ export
 bindNames : {auto c : Ref Ctxt Defs} ->
             (arg : Bool) -> RawImp -> Core (List Name, RawImp)
 bindNames arg tm
-    = if !isAutoImplicits
+    = if !isUnboundImplicits
          then do let ns = nub (findBindableNames arg [] [] tm)
                  pure (map UN (map snd ns), doBind ns tm)
          else pure ([], tm)
@@ -125,7 +125,7 @@ bindTypeNames : {auto c : Ref Ctxt Defs} ->
                 List Name -> RawImp-> Core RawImp
 bindTypeNames uimpls env tm_in
     = let tm = addUsing uimpls tm_in in
-          if !isAutoImplicits
+          if !isUnboundImplicits
              then do let ns = nub (findBindableNames True env [] tm)
                      pure (doBind ns tm)
              else pure tm
@@ -134,7 +134,7 @@ export
 bindTypeNamesUsed : {auto c : Ref Ctxt Defs} ->
                     List String -> List Name -> RawImp -> Core RawImp
 bindTypeNamesUsed used env tm
-    = if !isAutoImplicits
+    = if !isUnboundImplicits
          then do let ns = nub (findBindableNames True env used tm)
                  pure (doBind ns tm)
          else pure tm

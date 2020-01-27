@@ -1327,5 +1327,3 @@ checkDots
                          _ => do put UST (record { dotConstraints = [] } ust)
                                  throw err)
     checkConstraint _ = pure ()
-
-

@@ -150,6 +150,7 @@ mutual
        Hide : Name -> Directive
        Logging : Nat -> Directive
        LazyOn : Bool -> Directive
+       UnboundImplicits : Bool -> Directive
        PairNames : Name -> Name -> Name -> Directive
        RewriteName : Name -> Name -> Directive
        PrimInteger : Name -> Directive

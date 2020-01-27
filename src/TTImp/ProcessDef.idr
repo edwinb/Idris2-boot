@@ -218,10 +218,10 @@ checkLHS : {vars : _} ->
 checkLHS {vars} mult hashit n opts nest env fc lhs_in
     = do defs <- get Ctxt
          lhs_raw <- lhsInCurrentNS nest lhs_in
-         autoimp <- isAutoImplicits
-         autoImplicits True
+         autoimp <- isUnboundImplicits
+         setUnboundImplicits True
          (_, lhs_bound) <- bindNames False lhs_raw
-         autoImplicits autoimp
+         setUnboundImplicits autoimp
          lhs <- implicitsAs defs vars lhs_bound
 
          log 5 $ "Checking LHS of " ++ show !(getFullName (Resolved n)) ++
@@ -334,10 +334,10 @@ checkClause : {vars : _} ->
 checkClause mult hashit n opts nest env (ImpossibleClause fc lhs)
     = do lhs_raw <- lhsInCurrentNS nest lhs
          handleUnify
-           (do autoimp <- isAutoImplicits
-               autoImplicits True
+           (do autoimp <- isUnboundImplicits
+               setUnboundImplicits True
                (_, lhs) <- bindNames False lhs_raw
-               autoImplicits autoimp
+               setUnboundImplicits autoimp
 
                log 5 $ "Checking " ++ show lhs
                logEnv 5 "In env" env

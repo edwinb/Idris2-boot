@@ -934,6 +934,10 @@ directive fname indents
          b <- onoff
          atEnd indents
          pure (LazyOn b)
+  <|> do exactIdent "unbound_implicits"
+         b <- onoff
+         atEnd indents
+         pure (UnboundImplicits b)
   <|> do exactIdent "pair"
          ty <- name
          f <- name

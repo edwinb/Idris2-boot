@@ -107,11 +107,11 @@ getNewLHS : {auto c : Ref Ctxt Defs} ->
             RawImp -> RawImp -> Core RawImp
 getNewLHS ploc drop nest wname wargnames lhs_raw patlhs
     = do (mlhs_raw, wrest) <- dropWithArgs drop patlhs
-         autoimp <- isAutoImplicits
-         autoImplicits True
+         autoimp <- isUnboundImplicits
+         setUnboundImplicits True
          (_, lhs) <- bindNames False lhs_raw
          (_, mlhs) <- bindNames False mlhs_raw
-         autoImplicits autoimp
+         setUnboundImplicits autoimp
 
          let (warg :: rest) = reverse wrest
              | _ => throw (GenericMsg ploc "Badly formed 'with' clause")

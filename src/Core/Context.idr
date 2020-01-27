@@ -1765,11 +1765,11 @@ lazyActive a
          put Ctxt (record { options->elabDirectives->lazyActive = a } defs)
 
 export
-autoImplicits : {auto c : Ref Ctxt Defs} ->
+setUnboundImplicits : {auto c : Ref Ctxt Defs} ->
                 Bool -> Core ()
-autoImplicits a
+setUnboundImplicits a
     = do defs <- get Ctxt
-         put Ctxt (record { options->elabDirectives->autoImplicits = a } defs)
+         put Ctxt (record { options->elabDirectives->unboundImplicits = a } defs)
 
 export
 isLazyActive : {auto c : Ref Ctxt Defs} ->
@@ -1779,11 +1779,11 @@ isLazyActive
          pure (lazyActive (elabDirectives (options defs)))
 
 export
-isAutoImplicits : {auto c : Ref Ctxt Defs} ->
+isUnboundImplicits : {auto c : Ref Ctxt Defs} ->
                   Core Bool
-isAutoImplicits
+isUnboundImplicits
     = do defs <- get Ctxt
-         pure (autoImplicits (elabDirectives (options defs)))
+         pure (unboundImplicits (elabDirectives (options defs)))
 
 export
 setPair : {auto c : Ref Ctxt Defs} ->
