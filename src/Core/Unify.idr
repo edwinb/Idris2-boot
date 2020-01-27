@@ -370,7 +370,9 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
         updateLocsB : Binder (Term vs) -> Maybe (Binder (Term vs))
         updateLocsB (Lam c p t) = Just (Lam c p !(updateLocs locs t))
         updateLocsB (Let c v t) = Just (Let c !(updateLocs locs v) !(updateLocs locs t))
-        updateLocsB (Pi c p t) = Just (Pi c p !(updateLocs locs t))
+        -- Make 'pi' binders have multiplicity W when we infer a metavariable,
+        -- since this is the most general thing to do if it's unknown.
+        updateLocsB (Pi c p t) = Just (Pi RigW p !(updateLocs locs t))
         updateLocsB (PVar c p t) = Just (PVar c p !(updateLocs locs t))
         updateLocsB (PLet c v t) = Just (PLet c !(updateLocs locs v) !(updateLocs locs t))
         updateLocsB (PVTy c t) = Just (PVTy c !(updateLocs locs t))
