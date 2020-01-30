@@ -66,9 +66,9 @@ updatePaths
          addPkgDir "prelude"
          addPkgDir "base"
          addDataDir (dir_prefix (dirs (options defs)) ++ dirSep ++
-                        "idris2-" ++ showVersion version ++ dirSep ++ "support")
+                        "idris2-" ++ showVersion False version ++ dirSep ++ "support")
          addLibDir (dir_prefix (dirs (options defs)) ++ dirSep ++
-                        "idris2-" ++ showVersion version ++ dirSep ++ "lib")
+                        "idris2-" ++ showVersion False version ++ dirSep ++ "lib")
 
 updateREPLOpts : {auto o : Ref ROpts REPLOpts} ->
                  Core ()
@@ -100,7 +100,7 @@ tryYaffle (c :: cs) = tryYaffle cs
 banner : String
 banner = "     ____    __     _         ___                                           \n" ++
          "    /  _/___/ /____(_)____   |__ \\                                          \n" ++
-         "    / // __  / ___/ / ___/   __/ /     Version " ++ showVersion version ++ "\n" ++
+         "    / // __  / ___/ / ___/   __/ /     Version " ++ showVersion True version ++ "\n" ++
          "  _/ // /_/ / /  / (__  )   / __/      https://www.idris-lang.org           \n" ++
          " /___/\\__,_/_/  /_/____/   /____/                                           \n" ++
          "\n" ++

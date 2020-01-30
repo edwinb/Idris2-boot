@@ -154,7 +154,7 @@ optUsage d
 
 export
 versionMsg : String
-versionMsg = "Idris 2, version " ++ showVersion version
+versionMsg = "Idris 2, version " ++ showVersion True version
 
 export
 usage : String

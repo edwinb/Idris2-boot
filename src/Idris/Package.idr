@@ -287,7 +287,7 @@ install pkg
          srcdir <- coreLift currentDir
          -- Make the package installation directory
          let installPrefix = dir_prefix (dirs (options defs)) ++
-                             dirSep ++ "idris2-" ++ showVersion version
+                             dirSep ++ "idris2-" ++ showVersion False version
          True <- coreLift $ changeDir installPrefix
              | False => throw (FileErr (name pkg) FileReadError)
          Right _ <- coreLift $ mkdirs [name pkg]

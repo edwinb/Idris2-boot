@@ -22,12 +22,12 @@ addPkgDir : {auto c : Ref Ctxt Defs} ->
 addPkgDir p
     = do defs <- get Ctxt
          addExtraDir (dir_prefix (dirs (options defs)) ++ dirSep ++
-                             "idris2-" ++ showVersion version ++ dirSep ++ p)
+                             "idris2-" ++ showVersion False version ++ dirSep ++ p)
 
 dirOption : Dirs -> DirCommand -> Core ()
 dirOption dirs LibDir
     = coreLift $ putStrLn
-         (dir_prefix dirs ++ dirSep ++ "idris2-" ++ showVersion version ++ dirSep)
+         (dir_prefix dirs ++ dirSep ++ "idris2-" ++ showVersion False version ++ dirSep)
 
 -- Options to be processed before type checking. Return whether to continue.
 export

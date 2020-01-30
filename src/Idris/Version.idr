@@ -22,9 +22,10 @@ version with (yversion)
   | (s,t) = MkVersion s (Just t)
 
 export
-showVersion : Version -> String
-showVersion (MkVersion (maj,min,patch) versionTag) =
-  concat (intersperse "." (map show [ maj, min, patch])) ++ showTag
+showVersion : Bool -> Version -> String
+showVersion tag (MkVersion (maj,min,patch) versionTag) =
+  concat (intersperse "." (map show [ maj, min, patch])) ++
+         if tag then showTag else ""
   where
     showTag : String
     showTag = case versionTag of

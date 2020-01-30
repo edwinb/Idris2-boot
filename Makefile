@@ -14,7 +14,8 @@ ifeq ($(shell git status >/dev/null 2>&1; echo $$?), 0)
     endif
 endif
 
-IDRIS2_VERSION:=${MAJOR}.${MINOR}.${PATCH}${VER_TAG}
+IDRIS2_VERSION_TAG:=${MAJOR}.${MINOR}.${PATCH}${VER_TAG}
+IDRIS2_VERSION:=${MAJOR}.${MINOR}.${PATCH}
 
 PREFIX ?= ${HOME}/.idris2
 export IDRIS2_PATH = ${CURDIR}/libs/prelude/build/ttc:${CURDIR}/libs/base/build/ttc
@@ -34,7 +35,7 @@ check_version:
 	@if [ $(shell expr $(IDRIS_VERSION) : $(VALID_IDRIS_VERSION_REGEXP)) -eq 0 ]; then echo "Wrong idris version, expected version matching $(VALID_IDRIS_VERSION_REGEXP)"; exit 1; fi
 
 idris2: src/YafflePaths.idr check_version
-	@echo "Building Idris 2 version: $(IDRIS2_VERSION)"
+	@echo "Building Idris 2 version: $(IDRIS2_VERSION_TAG)"
 	idris --build idris2.ipkg
 
 src/YafflePaths.idr:
