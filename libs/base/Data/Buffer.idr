@@ -13,6 +13,10 @@ newBuffer size
          pure (MkBuffer buf size 0)
 
 export
+resetBuffer : Buffer -> Buffer
+resetBuffer (MkBuffer ptr s l) = MkBuffer ptr s 0
+
+export
 rawSize : Buffer -> IO Int
 rawSize (MkBuffer buf _ _)
     = schemeCall Int "blodwen-buffer-size" [buf]
@@ -52,6 +56,11 @@ getDouble : Buffer -> (loc : Int) -> IO Double
 getDouble (MkBuffer buf _ _) loc
     = schemeCall Double "blodwen-buffer-getdouble" [buf, loc]
 
+-- Get the length of a string in bytes, rather than characters
+export
+%foreign "scheme:blodwen-stringbytelen"
+stringByteLength : String -> Int
+
 export
 setString : Buffer -> (loc : Int) -> (val : String) -> IO ()
 setString (MkBuffer buf _ _) loc val
@@ -73,6 +82,12 @@ bufferData buf
     unpackTo acc loc
         = do val <- getByte buf (loc - 1)
              unpackTo (val :: acc) (loc - 1)
+
+export
+copyData : (src : Buffer) -> (start, len : Int) ->
+           (dest : Buffer) -> (loc : Int) -> IO ()
+copyData (MkBuffer src _ _) start len (MkBuffer dest _ _) loc
+    = schemeCall () "blodwen-buffer-copydata" [src,start,len,dest,loc]
 
 export
 readBufferFromFile : BinaryFile -> Buffer -> (maxbytes : Int) ->

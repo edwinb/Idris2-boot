@@ -74,6 +74,9 @@
 (define (blodwen-buffer-getdouble buf loc)
   (bytevector-ieee-double-ref buf loc (native-endianness)))
 
+(define (blodwen-stringbytelen str)
+  (bytevector-length (string->utf8 str)))
+
 (define (blodwen-buffer-setstring buf loc val)
   (let* [(strvec (string->utf8 val))
          (len (bytevector-length strvec))]
@@ -83,6 +86,9 @@
   (let [(newvec (make-bytevector len))]
     (bytevector-copy! buf loc newvec 0 len)
     (utf8->string newvec)))
+
+(define (blodwen-buffer-copydata buf start len dest loc)
+  (bytevector-copy! buf start dest loc len))
 
 (define (blodwen-readbuffer h buf loc max)
   (guard (x (#t -1))
