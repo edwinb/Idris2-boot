@@ -155,6 +155,7 @@ public export
 data ExtPrim = CCall | SchemeCall | PutStr | GetStr
              | FileOpen | FileClose | FileReadLine | FileWriteLine | FileEOF
              | NewIORef | ReadIORef | WriteIORef
+             | NewArray | ArrayGet | ArraySet
              | Stdin | Stdout | Stderr
              | VoidElim | Unknown Name
 
@@ -172,6 +173,9 @@ Show ExtPrim where
   show NewIORef = "NewIORef"
   show ReadIORef = "ReadIORef"
   show WriteIORef = "WriteIORef"
+  show NewArray = "NewArray"
+  show ArrayGet = "ArrayGet"
+  show ArraySet = "ArraySet"
   show Stdin = "Stdin"
   show Stdout = "Stdout"
   show Stderr = "Stderr"
@@ -193,6 +197,9 @@ toPrim pn@(NS _ n)
             (n == UN "prim__newIORef", NewIORef),
             (n == UN "prim__readIORef", ReadIORef),
             (n == UN "prim__writeIORef", WriteIORef),
+            (n == UN "prim__newArray", NewArray),
+            (n == UN "prim__arrayGet", ArrayGet),
+            (n == UN "prim__arraySet", ArraySet),
             (n == UN "prim__stdin", Stdin),
             (n == UN "prim__stdout", Stdout),
             (n == UN "prim__stderr", Stderr),
@@ -341,6 +348,16 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
       = pure $ mkWorld $ "(set-box! "
                            ++ !(schExp i vs ref) ++ " "
                            ++ !(schExp i vs val) ++ ")"
+  schExtCommon i vs NewArray [_, size, val, world]
+      = pure $ mkWorld $ "(make-vector " ++ !(schExp i vs size) ++ " "
+                                         ++ !(schExp i vs val) ++ ")"
+  schExtCommon i vs ArrayGet [_, arr, pos, world]
+      = pure $ mkWorld $ "(vector-ref " ++ !(schExp i vs arr) ++ " "
+                                        ++ !(schExp i vs pos) ++ ")"
+  schExtCommon i vs ArraySet [_, arr, pos, val, world]
+      = pure $ mkWorld $ "(vector-set! " ++ !(schExp i vs arr) ++ " "
+                                         ++ !(schExp i vs pos) ++ " "
+                                         ++ !(schExp i vs val) ++ ")"
   schExtCommon i vs VoidElim [_, _]
       = pure "(display \"Error: Executed 'void'\")"
   schExtCommon i vs (Unknown n) args
