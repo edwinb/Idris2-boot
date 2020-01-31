@@ -148,6 +148,7 @@ buildMod : {auto c : Ref Ctxt Defs} ->
 -- file
 buildMod loc num len mod
    = do clearCtxt; addPrimitives
+        lazyActive True; setUnboundImplicits True
         let src = buildFile mod
         mttc <- getTTCFileName src ".ttc"
         -- We'd expect any errors in nsToPath to have been caught by now
