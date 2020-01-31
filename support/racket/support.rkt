@@ -11,7 +11,7 @@
 (define blodwen-shl (lambda (x y) (arithmetic-shift x y)))
 (define blodwen-shr (lambda (x y) (arithmetic-shift x (- y))))
 (define blodwen-and (lambda (x y) (bitwise-and x y)))
-(define blodwen-or (lambda (x y) (bitwise-or x y)))
+(define blodwen-or (lambda (x y) (bitwise-ior x y)))
 (define blodwen-xor (lambda (x y) (bitwise-xor x y)))
 
 (define cast-num 
@@ -93,10 +93,15 @@
 (define (blodwen-buffer-copydata buf start len dest loc)
   (bytevector-copy! buf start dest loc len))
 
-(define (blodwen-readbuffer h buf loc max)
+(define (blodwen-readbuffer-bytes h buf loc max)
   (with-handlers
     ([(lambda (x) #t) (lambda (exn) -1)])
     (get-bytevector-n! h buf loc max)))
+
+(define (blodwen-readbuffer h)
+  (with-handlers
+    ([(lambda (x) #t) (lambda (exn) (make-bytevector 0))])
+    (get-bytevector-all h)))
 
 (define (blodwen-writebuffer h buf loc max)
   (with-handlers

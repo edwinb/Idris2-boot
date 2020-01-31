@@ -93,9 +93,13 @@
 (define (blodwen-buffer-copydata buf start len dest loc)
   (bytevector-copy! buf start dest loc len))
 
-(define (blodwen-readbuffer h buf loc max)
+(define (blodwen-readbuffer-bytes h buf loc max)
   (guard (x (#t -1))
     (get-bytevector-n! h buf loc max)))
+
+(define (blodwen-readbuffer h)
+  (guard (x (#t (bytevector)))
+    (get-bytevector-all h)))
 
 (define (blodwen-writebuffer h buf loc max)
   (guard (x (#t -1))
@@ -151,6 +155,9 @@
         (let ((str (get-line p)))
             (string-append str "\n"))
         ""))
+
+(define (blodwen-file-size p)
+    (port-length p))
 
 (define (blodwen-eof p)
     (if (port-eof? p)

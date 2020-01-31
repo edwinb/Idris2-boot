@@ -3,7 +3,8 @@ import System.File
 
 main : IO ()
 main
-    = do buf <- newBuffer 100
+    = do Just buf <- newBuffer 100
+              | Nothing => putStrLn "Buffer creation failed"
          s <- rawSize buf
          printLn s
 
@@ -34,8 +35,7 @@ main
 
          Right f <- openBinaryFile "test.buf" Read
              | Left err => putStrLn "File error on read"
-         buf2 <- newBuffer 100
-         Right _ <- readBufferFromFile f buf2 100
+         Right buf2 <- createBufferFromFile f
              | Left err => do putStrLn "Buffer read fail"
                               closeFile f
          closeFile f
@@ -45,7 +45,8 @@ main
 
          Right f <- openBinaryFile "test.buf" Read
              | Left err => putStrLn "File error on read"
-         buf3 <- newBuffer 99
+         Just buf3 <- newBuffer 99
+              | Nothing => putStrLn "Buffer creation failed"
          Right _ <- readBufferFromFile f buf3 100
              | Left err => do putStrLn "Buffer read fail"
                               closeFile f
