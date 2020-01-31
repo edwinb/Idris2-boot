@@ -464,6 +464,9 @@ TTC (PrimFn n) where
   toBuf b (Neg ty) = do tag 5; toBuf b ty
   toBuf b (ShiftL ty) = do tag 35; toBuf b ty
   toBuf b (ShiftR ty) = do tag 36; toBuf b ty
+  toBuf b (BAnd ty) = do tag 37; toBuf b ty
+  toBuf b (BOr ty) = do tag 38; toBuf b ty
+  toBuf b (BXOr ty) = do tag 39; toBuf b ty
   toBuf b (LT ty) = do tag 6; toBuf b ty
   toBuf b (LTE ty) = do tag 7; toBuf b ty
   toBuf b (EQ ty) = do tag 8; toBuf b ty
@@ -543,6 +546,9 @@ TTC (PrimFn n) where
                  16 => pure StrAppend
                  35 => do ty <- fromBuf b; pure (ShiftL ty)
                  36 => do ty <- fromBuf b; pure (ShiftR ty)
+                 37 => do ty <- fromBuf b; pure (BAnd ty)
+                 38 => do ty <- fromBuf b; pure (BOr ty)
+                 39 => do ty <- fromBuf b; pure (BXOr ty)
                  _ => corrupt "PrimFn 2"
 
       fromBuf3 : Ref Bin Binary ->

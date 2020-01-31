@@ -1,5 +1,5 @@
 Processing as TTImp
 Eta.yaff:16:1--17:1:When elaborating right hand side of Main.etaBad:
-Eta.yaff:16:10--17:1:When unifying: ($resolved91 ((x : Char) -> ((y : ?Main.{_:14}_[x[0]]) -> $resolved99)) ((x : Char) -> ((y : ?Main.{_:14}_[x[0]]) -> $resolved99)) ?Main.{x:18}_[] ?Main.{x:18}_[]) and ($resolved91 ((x : Char) -> ((y : ?Main.{_:14}_[x[0]]) -> $resolved99)) (({arg:10} : Integer) -> (({arg:11} : Integer) -> $resolved99)) $resolved100 \x : Char => \y : ?Main.{_:14}_[x[0]] => ($resolved100 ?Main.{_:15}_[x[1], y[0]] ?Main.{_:16}_[x[1], y[0]]))
+Eta.yaff:16:10--17:1:When unifying: ($resolved98 ((x : Char) -> ((y : ?Main.{_:14}_[x[0]]) -> $resolved106)) ((x : Char) -> ((y : ?Main.{_:14}_[x[0]]) -> $resolved106)) ?Main.{x:18}_[] ?Main.{x:18}_[]) and ($resolved98 ((x : Char) -> ((y : ?Main.{_:14}_[x[0]]) -> $resolved106)) (({arg:10} : Integer) -> (({arg:11} : Integer) -> $resolved106)) $resolved107 \x : Char => \y : ?Main.{_:14}_[x[0]] => ($resolved107 ?Main.{_:15}_[x[1], y[0]] ?Main.{_:16}_[x[1], y[0]]))
 	Eta.yaff:16:10--17:1:Type mismatch: Char and Integer
 Yaffle> Bye for now!

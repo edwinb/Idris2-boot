@@ -113,6 +113,10 @@ data PrimFn : Nat -> Type where
      ShiftL : (ty : Constant) -> PrimFn 2
      ShiftR : (ty : Constant) -> PrimFn 2
 
+     BAnd : (ty : Constant) -> PrimFn 2
+     BOr : (ty : Constant) -> PrimFn 2
+     BXOr : (ty : Constant) -> PrimFn 2
+
      LT  : (ty : Constant) -> PrimFn 2
      LTE : (ty : Constant) -> PrimFn 2
      EQ  : (ty : Constant) -> PrimFn 2
@@ -153,6 +157,9 @@ Show (PrimFn arity) where
   show (Neg ty) = "neg " ++ show ty
   show (ShiftL ty) = "shl " ++ show ty
   show (ShiftR ty) = "shr " ++ show ty
+  show (BAnd ty) = "and " ++ show ty
+  show (BOr ty) = "or " ++ show ty
+  show (BXOr ty) = "xor " ++ show ty
   show (LT ty) = "<" ++ show ty
   show (LTE ty) = "<=" ++ show ty
   show (EQ ty) = "==" ++ show ty

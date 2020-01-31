@@ -10,6 +10,9 @@
 
 (define blodwen-shl (lambda (x y) (ash x y)))
 (define blodwen-shr (lambda (x y) (ash x (- y))))
+(define blodwen-and (lambda (x y) (logand x y)))
+(define blodwen-or (lambda (x y) (logor x y)))
+(define blodwen-xor (lambda (x y) (logxor x y)))
 
 (define cast-num 
   (lambda (x) 

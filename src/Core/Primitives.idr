@@ -139,11 +139,27 @@ mod _ _ = Nothing
 
 shiftl : Constant -> Constant -> Maybe Constant
 shiftl (I x) (I y) = pure $ I (shiftL x y)
+shiftl (BI x) (BI y) = pure $ BI (prim__shlBigInt x y)
 shiftl _ _ = Nothing
 
 shiftr : Constant -> Constant -> Maybe Constant
 shiftr (I x) (I y) = pure $ I (shiftR x y)
+shiftr (BI x) (BI y) = pure $ BI (prim__ashrBigInt x y)
 shiftr _ _ = Nothing
+
+band : Constant -> Constant -> Maybe Constant
+band (I x) (I y) = pure $ I (prim__andInt x y)
+band (BI x) (BI y) = pure $ BI (prim__andBigInt x y)
+band _ _ = Nothing
+
+bor : Constant -> Constant -> Maybe Constant
+bor (I x) (I y) = pure $ I (prim__orInt x y)
+bor (BI x) (BI y) = pure $ BI (prim__orBigInt x y)
+bor _ _ = Nothing
+
+bxor : Constant -> Constant -> Maybe Constant
+bxor (I x) (I y) = pure $ I (prim__xorInt x y)
+bxor _ _ = Nothing
 
 neg : Constant -> Maybe Constant
 neg (BI x) = pure $ BI (-x)
@@ -290,6 +306,10 @@ getOp (Neg ty) = unaryOp neg
 getOp (ShiftL ty) = binOp shiftl
 getOp (ShiftR ty) = binOp shiftr
 
+getOp (BAnd ty) = binOp band
+getOp (BOr ty) = binOp bor
+getOp (BXOr ty) = binOp bxor
+
 getOp (LT ty) = binOp lt
 getOp (LTE ty) = binOp lte
 getOp (EQ ty) = binOp eq
@@ -335,6 +355,9 @@ opName (Mod ty) = prim $ "mod_" ++ show ty
 opName (Neg ty) = prim $ "negate_" ++ show ty
 opName (ShiftL ty) = prim $ "shl_" ++ show ty
 opName (ShiftR ty) = prim $ "shr_" ++ show ty
+opName (BAnd ty) = prim $ "and_" ++ show ty
+opName (BOr ty) = prim $ "or_" ++ show ty
+opName (BXOr ty) = prim $ "xor_" ++ show ty
 opName (LT ty) = prim $ "lt_" ++ show ty
 opName (LTE ty) = prim $ "lte_" ++ show ty
 opName (EQ ty) = prim $ "eq_" ++ show ty
@@ -371,8 +394,12 @@ allPrimitives =
     map (\t => MkPrim (Div t) (arithTy t) notCovering) [IntType, IntegerType, DoubleType] ++
     map (\t => MkPrim (Mod t) (arithTy t) notCovering) [IntType, IntegerType] ++
     map (\t => MkPrim (Neg t) (predTy t t) isTotal) [IntType, IntegerType, DoubleType] ++
-    map (\t => MkPrim (ShiftL t) (arithTy t) notCovering) [IntType] ++
-    map (\t => MkPrim (ShiftR t) (arithTy t) notCovering) [IntType] ++
+    map (\t => MkPrim (ShiftL t) (arithTy t) notCovering) [IntType, IntegerType] ++
+    map (\t => MkPrim (ShiftR t) (arithTy t) notCovering) [IntType, IntegerType] ++
+
+    map (\t => MkPrim (BAnd t) (arithTy t) notCovering) [IntType, IntegerType] ++
+    map (\t => MkPrim (BOr t) (arithTy t) notCovering) [IntType, IntegerType] ++
+    map (\t => MkPrim (BXOr t) (arithTy t) notCovering) [IntType] ++
 
     map (\t => MkPrim (LT t) (cmpTy t) isTotal) [IntType, IntegerType, CharType, DoubleType, StringType] ++
     map (\t => MkPrim (LTE t) (cmpTy t) isTotal) [IntType, IntegerType, CharType, DoubleType, StringType] ++
