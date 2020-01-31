@@ -179,7 +179,9 @@ idePutStrLn outf i msg
 
 printIDEWithStatus : File -> Integer -> String -> SExp -> Core ()
 printIDEWithStatus outf i status msg
-    = do let m = SExpList [SymbolAtom status, toSExp msg ]
+    = do let m = SExpList [SymbolAtom status, toSExp msg,
+                           -- highlighting; currently blank
+                           SExpList []]
          send outf (SExpList [SymbolAtom "return", m, toSExp i])
 
 printIDEResult : File -> Integer -> SExp -> Core ()
