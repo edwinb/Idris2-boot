@@ -165,3 +165,11 @@ toUpper str = pack (map toUpper (unpack str))
 export
 toLower : String -> String
 toLower str = pack (map toLower (unpack str))
+
+export
+strIndex : String -> Int -> Char
+strIndex = prim__strIndex
+
+export
+strTail : String -> String
+strTail = prim__strTail
