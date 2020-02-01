@@ -34,4 +34,5 @@ modules = Control.Monad.Identity,
           System,
           System.Concurrency.Raw,
           System.File,
+          System.Info,
           System.REPL

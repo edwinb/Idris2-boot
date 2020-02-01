@@ -63,6 +63,8 @@ mutual
   chickenPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String
   chickenPrim i vs CCall [ret, fn, args, world]
       = throw (InternalError ("Can't compile C FFI calls to Chicken Scheme yet"))
+  chickenPrim i vs SysCodegen []
+      = pure $ "\"chicken\""
   chickenPrim i vs prim args
       = schExtCommon chickenPrim chickenString i vs prim args
 

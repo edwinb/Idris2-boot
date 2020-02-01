@@ -123,6 +123,8 @@ mutual
       -- throw (InternalError ("C FFI calls must be to statically known functions (" ++ show fn ++ ")"))
   chezExtPrim i vs GetStr [world]
       = pure $ mkWorld "(get-line (current-input-port))"
+  chezExtPrim i vs SysCodegen []
+      = pure $ "\"chez\""
   chezExtPrim i vs prim args
       = schExtCommon chezExtPrim chezString i vs prim args
 

@@ -67,6 +67,8 @@ mutual
   racketPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String
   racketPrim i vs CCall [ret, fn, args, world]
       = throw (InternalError ("Can't compile C FFI calls to Racket yet"))
+  racketPrim i vs SysCodegen []
+      = pure $ "\"racket\""
   racketPrim i vs prim args
       = schExtCommon racketPrim racketString i vs prim args
 
