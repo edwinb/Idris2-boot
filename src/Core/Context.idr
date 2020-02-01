@@ -743,13 +743,13 @@ record Defs where
      -- ^ A mapping from names to transformation rules which update applications
      -- of that name
   saveTransforms : List (Name, Transform)
-  namedirectives : List (Name, List String)
+  namedirectives : NameMap (List String)
   ifaceHash : Int
   importHashes : List (List String, Int)
      -- ^ interface hashes of imported modules
   imported : List (List String, Bool, List String)
      -- ^ imported modules, whether to rexport, as namespace
-  allImported : List (String, List String)
+  allImported : List (String, (List String, List String))
      -- ^ all imported filenames/namespaces, just to avoid loading something
      -- twice unnecessarily (this is a record of all the things we've
      -- called 'readFromTTC' with, in practice)
@@ -780,7 +780,7 @@ initDefs
     = do gam <- initCtxt
          pure (MkDefs gam [] ["Main"] [] defaults empty 100
                       empty empty empty [] [] empty []
-                      [] 5381 [] [] [] [] [] empty empty)
+                      empty 5381 [] [] [] [] [] empty empty)
 
 -- Reset the context, except for the options
 export
@@ -1833,7 +1833,7 @@ addNameDirective : {auto c : Ref Ctxt Defs} ->
 addNameDirective fc n ns
     = do defs <- get Ctxt
          n' <- checkUnambig fc n
-         put Ctxt (record { namedirectives $= ((n', ns) ::) } defs)
+         put Ctxt (record { namedirectives $= insert n' ns  } defs)
 
 -- Checking special names from Options
 

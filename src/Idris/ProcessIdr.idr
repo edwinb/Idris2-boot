@@ -58,7 +58,10 @@ readModule : {auto c : Ref Ctxt Defs} ->
              (as : List String) -> -- Namespace to import into
              Core ()
 readModule top loc vis reexp imp as
-    = do Right fname <- nsToPath loc imp
+    = do defs <- get Ctxt
+         let False = (imp, as) `elem` map snd (allImported defs)
+             | True => when vis (setVisible imp)
+         Right fname <- nsToPath loc imp
                | Left err => throw err
          Just (syn, hash, more) <- logTime ("Reading " ++ show imp) $
                                          readFromTTC {extra = SyntaxInfo}
@@ -127,10 +130,9 @@ readAsMain fname
          extendAs replNS replNS syn
 
          ustm <- get UST
-         traverse (\ mimp =>
+         traverse_ (\ mimp =>
                        do let m = fst mimp
                           let as = snd (snd mimp)
-                          fname <- nsToPath emptyFC m
                           readModule False emptyFC True False m as) more
 
          -- We're in the namespace from the first TTC, so use the next name

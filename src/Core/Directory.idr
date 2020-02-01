@@ -82,7 +82,7 @@ nsToSource loc ns
          let fnameOrig = showSep dirSep (reverse ns)
          let fnameBase = maybe fnameOrig (\srcdir => srcdir ++ dirSep ++ fnameOrig) (source_dir d)
          let fs = map (\ext => fnameBase ++ ext)
-                      [".yaff", ".idr", ".lidr"]
+                      [".idr", ".lidr", ".yaff"]
          Just f <- firstAvailable fs
             | Nothing => throw (ModuleNotFound loc ns)
          pure f

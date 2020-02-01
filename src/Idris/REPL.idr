@@ -439,7 +439,7 @@ loadMainFile f
          Right res <- coreLift (readFile f)
             | Left err => do setSource ""
                              pure (ErrorLoadingFile f err)
-         errs <- buildDeps f
+         errs <- logTime "Build deps" $ buildDeps f
          updateErrorLine errs
          setSource res
          case errs of

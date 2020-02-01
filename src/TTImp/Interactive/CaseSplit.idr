@@ -18,6 +18,8 @@ import TTImp.TTImp
 import TTImp.Unelab
 import TTImp.Utils
 
+import Data.NameMap
+
 %default covering
 
 -- The result of a request to case split is a list of string updates, i.e. edits
@@ -137,7 +139,7 @@ getArgName defs x allvars ty
     findNames : NF vars -> Core (List String)
     findNames (NBind _ x (Pi _ _ _) _) = pure ["f", "g"]
     findNames (NTCon _ n _ _ _)
-        = case !(lookupName n (namedirectives defs)) of
+        = case !(lookupName n (NameMap.toList (namedirectives defs))) of
                Nothing => pure defaultNames
                Just ns => pure ns
     findNames ty = pure defaultNames

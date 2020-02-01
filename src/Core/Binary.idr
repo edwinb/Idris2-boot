@@ -285,7 +285,7 @@ writeToTTC extradata fname
                               (pairnames (options defs))
                               (rewritenames (options defs))
                               (primnames (options defs))
-                              (namedirectives defs)
+                              (NameMap.toList (namedirectives defs))
                               (cgdirectives defs)
                               extradata)
          Right ok <- coreLift $ writeToFile fname !(get Bin)
@@ -359,7 +359,7 @@ updateNameDirectives : {auto c : Ref Ctxt Defs} ->
 updateNameDirectives [] = pure ()
 updateNameDirectives ((t, ns) :: nds)
     = do defs <- get Ctxt
-         put Ctxt (record { namedirectives $= ((t, ns) ::) } defs)
+         put Ctxt (record { namedirectives $= insert t ns } defs)
          updateNameDirectives nds
 
 export
@@ -387,9 +387,9 @@ readFromTTC : TTC extra =>
 readFromTTC loc reexp fname modNS importAs
     = do defs <- get Ctxt
          -- If it's already in the context, don't load it again
-         let False = (fname, importAs) `elem` allImported defs
+         let False = (modNS, importAs) `elem` map snd (allImported defs)
               | True => pure Nothing
-         put Ctxt (record { allImported $= ((fname, importAs) :: ) } defs)
+         put Ctxt (record { allImported $= ((fname, (modNS, importAs)) :: ) } defs)
 
          Right buf <- coreLift $ readFromFile fname
                | Left err => throw (InternalError (fname ++ ": " ++ show err))
@@ -397,8 +397,9 @@ readFromTTC loc reexp fname modNS importAs
          let as = if importAs == modNS
                      then Nothing
                      else Just importAs
-         ttc <- readTTCFile modNS as bin
-         logTime "Adding defs" $ traverse (addGlobalDef modNS as) (context ttc)
+         ttc <- logTime ("Read file " ++ show modNS) $ 
+                  readTTCFile modNS as bin
+         traverse (addGlobalDef modNS as) (context ttc)
          traverse_ addUserHole (userHoles ttc)
          setNS (currentNS ttc)
          setNestedNS (nestedNS ttc)
