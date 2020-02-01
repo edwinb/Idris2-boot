@@ -297,6 +297,22 @@ export
 sort : Ord a => List a -> List a
 sort = sortBy compare
 
+export
+isPrefixOfBy : (eq : a -> a -> Bool) -> (left, right : List a) -> Bool
+isPrefixOfBy p [] right        = True
+isPrefixOfBy p left []         = False
+isPrefixOfBy p (x::xs) (y::ys) =
+  if p x y then
+    isPrefixOfBy p xs ys
+  else
+    False
+
+||| The isPrefixOf function takes two lists and returns True iff the first list is a prefix of the second.
+export
+isPrefixOf : Eq a => List a -> List a -> Bool
+isPrefixOf = isPrefixOfBy (==)
+
+
 --------------------------------------------------------------------------------
 -- Properties
 --------------------------------------------------------------------------------
