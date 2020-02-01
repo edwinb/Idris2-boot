@@ -184,14 +184,19 @@ checkUpdate rig elabinfo nest env fc upds rec expected
                        _ => do (_, ty) <- checkImp rig elabinfo
                                                    nest env rec Nothing
                                pure ty
+         let solvemode = case elabMode elabinfo of
+                              InLHS c => InLHS
+                              _ => InTerm
          delayOnFailure fc rig env recty needType $
            \delayed =>
-             do exp <- getTerm recty
+             do solveConstraints solvemode Normal
+                exp <- getTerm recty
                 -- We can't just use the old NF on the second attempt,
                 -- because we might know more now, so recalculate it
                 let recty' = if delayed
                                 then gnf env exp
                                 else recty
+                logGlueNF 5 (show delayed ++ " record type " ++ show rec) env recty'
                 rcase <- recUpdate rig elabinfo fc nest env upds rec recty'
                 log 5 $ "Record update: " ++ show rcase
                 check rig elabinfo nest env rcase expected
