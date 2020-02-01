@@ -386,18 +386,20 @@ mutual
                                (Implicit fc False)
                                (PatClause fc bpat rest'
                                   :: alts')))
-  expandDo side ps topfc (DoLet fc n rig tm :: rest)
+  expandDo side ps topfc (DoLet fc n rig ty tm :: rest)
       = do tm' <- desugar side ps tm
+           ty' <- desugar side ps ty
            rest' <- expandDo side ps topfc rest
-           pure $ ILet fc rig n (Implicit fc False) tm' rest'
-  expandDo side ps topfc (DoLetPat fc pat tm alts :: rest)
+           pure $ ILet fc rig n ty' tm' rest'
+  expandDo side ps topfc (DoLetPat fc pat ty tm alts :: rest)
       = do pat' <- desugar LHS ps pat
+           ty' <- desugar side ps ty
            (newps, bpat) <- bindNames False pat'
            tm' <- desugar side ps tm
            alts' <- traverse (desugarClause ps True) alts
            let ps' = newps ++ ps
            rest' <- expandDo side ps' topfc rest
-           pure $ ICase fc tm' (Implicit fc False)
+           pure $ ICase fc tm' ty'
                        (PatClause fc bpat rest'
                                   :: alts')
   expandDo side ps topfc (DoLetLocal fc decls :: rest)

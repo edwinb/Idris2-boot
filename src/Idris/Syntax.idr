@@ -106,8 +106,8 @@ mutual
        DoExp : FC -> PTerm -> PDo
        DoBind : FC -> Name -> PTerm -> PDo
        DoBindPat : FC -> PTerm -> PTerm -> List PClause -> PDo
-       DoLet : FC -> Name -> RigCount -> PTerm -> PDo
-       DoLetPat : FC -> PTerm -> PTerm -> List PClause -> PDo
+       DoLet : FC -> Name -> RigCount -> PTerm -> PTerm -> PDo
+       DoLetPat : FC -> PTerm -> PTerm -> PTerm -> List PClause -> PDo
        DoLetLocal : FC -> List PDecl -> PDo
        DoRewrite : FC -> PTerm -> PDo
 
@@ -116,8 +116,8 @@ mutual
   getLoc (DoExp fc _) = fc
   getLoc (DoBind fc _ _) = fc
   getLoc (DoBindPat fc _ _ _) = fc
-  getLoc (DoLet fc _ _ _) = fc
-  getLoc (DoLetPat fc _ _ _) = fc
+  getLoc (DoLet fc _ _ _ _) = fc
+  getLoc (DoLetPat fc _ _ _ _) = fc
   getLoc (DoLetLocal fc _) = fc
   getLoc (DoRewrite fc _) = fc
 
@@ -348,8 +348,8 @@ mutual
   showDo (DoBind _ n tm) = show n ++ " <- " ++ show tm
   showDo (DoBindPat _ l tm alts)
       = show l ++ " <- " ++ show tm ++ concatMap showAlt alts
-  showDo (DoLet _ l rig tm) = "let " ++ show l ++ " = " ++ show tm
-  showDo (DoLetPat _ l tm alts)
+  showDo (DoLet _ l rig _ tm) = "let " ++ show l ++ " = " ++ show tm
+  showDo (DoLetPat _ l _ tm alts)
       = "let " ++ show l ++ " = " ++ show tm ++ concatMap showAlt alts
   showDo (DoLetLocal _ ds)
       -- We'll never see this when displaying a normal form...
