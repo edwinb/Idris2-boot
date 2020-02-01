@@ -159,7 +159,8 @@ mutual
            arg <- implicitArg fname indents
            pure (ImpArg (fst arg) (snd arg))
     <|> if withOK q
-           then do symbol "|"
+           then do continue indents
+                   symbol "|"
                    arg <- expr (record { withOK = False} q) fname indents
                    pure (WithArg arg)
            else fail "| not allowed here"
