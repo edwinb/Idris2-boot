@@ -330,14 +330,15 @@ mutual
       = pure $ IUnifyLog fc !(desugarB side ps tm)
 
   desugarUpdate : {auto s : Ref Syn SyntaxInfo} ->
+                  {auto b : Ref Bang BangData} ->
                   {auto c : Ref Ctxt Defs} ->
                   {auto u : Ref UST UState} ->
                   {auto m : Ref MD Metadata} ->
                   Side -> List Name -> PFieldUpdate -> Core IFieldUpdate
   desugarUpdate side ps (PSetField p v)
-      = pure (ISetField p !(desugar side ps v))
+      = pure (ISetField p !(desugarB side ps v))
   desugarUpdate side ps (PSetFieldApp p v)
-      = pure (ISetFieldApp p !(desugar side ps v))
+      = pure (ISetFieldApp p !(desugarB side ps v))
 
   expandList : {auto s : Ref Syn SyntaxInfo} ->
                {auto c : Ref Ctxt Defs} ->
