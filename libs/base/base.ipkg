@@ -33,6 +33,7 @@ modules = Control.Monad.Identity,
 
           System,
           System.Concurrency.Raw,
+          System.Directory,
           System.File,
           System.Info,
           System.REPL

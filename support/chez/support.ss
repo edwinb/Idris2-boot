@@ -117,7 +117,7 @@
         ((i/o-write-error? x) 2)
         ((i/o-file-does-not-exist-error? x) 3)
         ((i/o-file-protection-error? x) 4)
-        (else (+ x 256))))
+        (else 255)))
 
 ;; If the file operation raises an error, catch it and return an appropriate
 ;; error code
@@ -163,6 +163,19 @@
     (if (port-eof? p)
         1
         0))
+
+;; Directories
+
+(define (blodwen-current-directory)
+  (current-directory))
+
+(define (blodwen-change-directory dir)
+  (if (file-directory? dir)
+      (begin (current-directory dir) 1)
+      0))
+
+(define (blodwen-create-directory dir)
+  (blodwen-file-op (lambda () (mkdir dir) 0)))
 
 ;; Threads
 

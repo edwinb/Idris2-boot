@@ -169,6 +169,19 @@
       1
       0))
 
+;; Directories
+
+(define (blodwen-current-directory)
+  (path->string (current-directory)))
+
+(define (blodwen-change-directory dir)
+  (if (directory-exists? dir)
+      (begin (current-directory dir) 1)
+      0))
+
+(define (blodwen-create-directory dir)
+  (blodwen-file-op (lambda () (make-directory dir))))
+
 ;; Threads
 
 (define blodwen-thread-data (make-thread-cell #f))

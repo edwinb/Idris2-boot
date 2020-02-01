@@ -2,52 +2,38 @@ module System.Directory
 
 import public System.File
 
-public export
-data Directory : Type where
-  DHandle : (p : AnyPtr) -> Directory
+toFileError : Int -> FileError
+toFileError 1 = FileReadError
+toFileError 2 = FileWriteError
+toFileError 3 = FileNotFound
+toFileError 4 = PermissionDenied
+toFileError x = GenericFileError (x - 256)
 
-export
-dirOpen : (d : String) -> IO (Either FileError Directory)
--- dirOpen d
---     = do dptr <- foreign FFI_C "idris_dirOpen" (String -> IO Ptr) d
---          if !(nullPtr dptr)
---             then Left <$> getFileError
---             else pure (Right (DHandle dptr))
+fpure : Either Int a -> IO (Either FileError a)
+fpure (Left err) = pure (Left (toFileError err))
+fpure (Right x) = pure (Right x)
 
-export
-dirClose : Directory -> IO ()
--- dirClose (DHandle d) = foreign FFI_C "idris_dirClose" (Ptr -> IO ()) d
+%foreign "scheme:blodwen-current-directory"
+prim_currentDir : PrimIO String
 
-export
-dirError : Directory -> IO Bool
--- dirError (DHandle d)
---     = do err <- foreign FFI_C "idris_dirError" (Ptr -> IO Int) d
---          pure (err /= 0)
+%foreign "scheme:blodwen-change-directory"
+prim_changeDir : String -> PrimIO Int
 
-export
-dirEntry : Directory -> IO (Either FileError String)
--- dirEntry (DHandle d)
---     = do fn <- foreign FFI_C "idris_nextDirEntry" (Ptr -> IO String) d
---          if !(dirError (DHandle d))
---             then pure (Left FileReadError)
---             else pure (Right fn)
+%foreign "scheme:blodwen-create-directory"
+prim_createDir : String -> PrimIO (Either Int ())
 
 export
 createDir : String -> IO (Either FileError ())
--- createDir d
---     = do ok <- foreign FFI_C "idris_mkdir" (String -> IO Int) d
---          if (ok == 0)
---             then pure (Right ())
---             else Left <$> getFileError
+createDir dir
+    = do ok <- primIO (prim_createDir dir)
+         fpure ok
 
 export
 changeDir : String -> IO Bool
--- changeDir dir 
---     = do ok <- foreign FFI_C "idris_chdir" (String -> IO Int) dir
---          pure (ok == 0)
+changeDir dir
+    = do ok <- primIO (prim_changeDir dir)
+         pure (ok /= 0)
 
 export
 currentDir : IO String
--- currentDir = do
---   MkRaw s <- foreign FFI_C "idris_currentDir" (IO (Raw String))
---   pure s
+currentDir = primIO prim_currentDir
