@@ -317,7 +317,7 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
 
          let alts' = map (updateClause casen splitOn env smaller) alts
          log 2 $ "Generated alts: " ++ show alts'
-         let nest' = record { names $= ((Resolved cidx, (Nothing,
+         let nest' = record { names $= ((Resolved cidx, (Nothing, length pre_env,
                                   (\fc, nt => applyToFull fc caseRef pre_env))) ::) }
                             nest
          processDecl [InCase] nest' pre_env (IDef fc casen alts')

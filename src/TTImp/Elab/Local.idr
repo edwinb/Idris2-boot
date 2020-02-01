@@ -49,11 +49,11 @@ checkLocal {vars} rig elabinfo nest env fc nestdecls scope expty
              else b :: dropLinear bs
 
     applyEnv : {auto c : Ref Ctxt Defs} -> Int -> Name ->
-               Core (Name, (Maybe Name, FC -> NameType -> Term vars))
+               Core (Name, (Maybe Name, Nat, FC -> NameType -> Term vars))
     applyEnv outer inner
           = do let nestedName = Nested outer inner
                n' <- addName nestedName
-               pure (inner, (Just nestedName,
+               pure (inner, (Just nestedName, lengthNoLet env,
                         \fc, nt => applyTo fc
                                (Ref fc nt (Resolved n')) env))
 

@@ -77,11 +77,12 @@ getVarType : {vars : _} ->
              {auto e : Ref EST (EState vars)} ->
              RigCount -> NestedNames vars -> Env Term vars ->
              FC -> Name ->
-             Core (Term vars, Glued vars)
+             Core (Term vars, Nat, Glued vars)
 getVarType rigc nest env fc x
     = case lookup x (names nest) of
-           Nothing => getNameType rigc env fc x
-           Just (nestn, tmf) =>
+           Nothing => do (tm, ty) <- getNameType rigc env fc x
+                         pure (tm, 0, ty)
+           Just (nestn, arglen, tmf) =>
               do defs <- get Ctxt
                  let n' = maybe x id nestn
                  case !(lookupCtxtExact n' (gamma defs)) of
@@ -98,7 +99,7 @@ getVarType rigc nest env fc x
                              do checkVisibleNS fc (fullname ndef) (visibility ndef)
                                 logTerm 10 ("Type of " ++ show n') tyenv
                                 logTerm 10 ("Expands to") tm
-                                pure (tm, gnf env tyenv)
+                                pure (tm, arglen, gnf env tyenv)
     where
       useVars : List (Term vars) -> Term vars -> Term vars
       useVars [] sc = sc
@@ -524,7 +525,7 @@ checkApp rig elabinfo nest env fc (IApp fc' fn arg) expargs impargs exp
 checkApp rig elabinfo nest env fc (IImplicitApp fc' fn nm arg) expargs impargs exp
    = checkApp rig elabinfo nest env fc' fn expargs ((nm, arg) :: impargs) exp
 checkApp rig elabinfo nest env fc (IVar fc' n) expargs impargs exp
-   = do (ntm, nty_in) <- getVarType rig nest env fc n
+   = do (ntm, arglen, nty_in) <- getVarType rig nest env fc n
         nty <- getNF nty_in
         elabinfo <- updateElabInfo (elabMode elabinfo) n expargs elabinfo
         logC 10 (do defs <- get Ctxt
@@ -539,7 +540,7 @@ checkApp rig elabinfo nest env fc (IVar fc' n) expargs impargs exp
                           " to " ++ show expargs ++ "\n\tFunction type " ++
                           (show !(toFullNames fnty)) ++ "\n\tExpected app type "
                                 ++ show exptyt))
-        checkAppWith rig elabinfo nest env fc ntm nty (Just n, 0) expargs impargs False exp
+        checkAppWith rig elabinfo nest env fc ntm nty (Just n, arglen) expargs impargs False exp
   where
     isPrimName : List Name -> Name -> Bool
     isPrimName [] fn = False

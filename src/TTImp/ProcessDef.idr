@@ -309,10 +309,10 @@ hasEmptyPat defs env _ = pure False
 -- For checking with blocks as nested names
 applyEnv : {auto c : Ref Ctxt Defs} ->
            Env Term vars -> Name ->
-           Core (Name, (Maybe Name, FC -> NameType -> Term vars))
+           Core (Name, (Maybe Name, Nat, FC -> NameType -> Term vars))
 applyEnv env withname
     = do n' <- resolveName withname
-         pure (withname, (Just withname,
+         pure (withname, (Just withname, lengthNoLet env,
                   \fc, nt => applyTo fc
                          (Ref fc nt (Resolved n')) env))
 

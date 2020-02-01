@@ -221,7 +221,7 @@ readTTCFile modns as b
 --            coreLift $ putStrLn $ "Read " ++ show (length guesses) ++ " guesses"
 --            constraints <- the (Core (List (Int, Constraint))) $ fromBuf b
 --            coreLift $ putStrLn $ "Read " ++ show (length constraints) ++ " constraints"
-           defs <- logTime "Definitions" $ fromBuf b
+           defs <- logTime ("Definitions " ++ show modns) $ fromBuf b
            uholes <- fromBuf b
            autohs <- fromBuf b
            typehs <- fromBuf b

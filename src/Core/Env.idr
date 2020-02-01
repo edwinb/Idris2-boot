@@ -17,6 +17,12 @@ length : Env tm xs -> Nat
 length [] = 0
 length (_ :: xs) = S (length xs)
 
+export
+lengthNoLet : Env tm xs -> Nat
+lengthNoLet [] = 0
+lengthNoLet (Let _ _ _ :: xs) = lengthNoLet xs
+lengthNoLet (_ :: xs) = S (lengthNoLet xs)
+
 public export
 data IsDefined : Name -> List Name -> Type where
   MkIsDefined : {idx : Nat} -> RigCount -> .(IsVar n idx vars) ->
