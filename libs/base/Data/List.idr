@@ -112,6 +112,50 @@ partition p (x::xs) =
     else
       (lefts, x::rights)
 
+||| The inits function returns all initial segments of the argument, shortest
+||| first. For example,
+|||
+||| ```idris example
+||| inits [1,2,3]
+||| ```
+public export
+inits : List a -> List (List a)
+inits xs = [] :: case xs of
+  []        => []
+  x :: xs'  => map (x ::) (inits xs')
+
+||| The tails function returns all final segments of the argument, longest
+||| first. For example,
+|||
+||| ```idris example
+||| tails [1,2,3] == [[1,2,3], [2,3], [3], []]
+|||```
+public export
+tails : List a -> List (List a)
+tails xs = xs :: case xs of
+  []        => []
+  _ :: xs'  => tails xs'
+
+||| Split on the given element.
+|||
+||| ```idris example
+||| splitOn 0 [1,0,2,0,0,3]
+||| ```
+|||
+public export
+splitOn : Eq a => a -> List a -> List (List a)
+splitOn a = split (== a)
+
+||| Replaces all occurences of the first argument with the second argument in a list.
+|||
+||| ```idris example
+||| replaceOn '-' ',' ['1', '-', '2', '-', '3']
+||| ```
+|||
+public export
+replaceOn : Eq a => a -> a -> List a -> List a
+replaceOn a b l = map (\c => if c == a then b else c) l
+
 public export
 reverseOnto : List a -> List a -> List a
 reverseOnto acc [] = acc
@@ -312,6 +356,28 @@ export
 isPrefixOf : Eq a => List a -> List a -> Bool
 isPrefixOf = isPrefixOfBy (==)
 
+export
+isSuffixOfBy : (a -> a -> Bool) -> List a -> List a -> Bool
+isSuffixOfBy p left right = isPrefixOfBy p (reverse left) (reverse right)
+
+||| The isSuffixOf function takes two lists and returns True iff the first list is a suffix of the second.
+export
+isSuffixOf : Eq a => List a -> List a -> Bool
+isSuffixOf = isSuffixOfBy (==)
+
+||| The isInfixOf function takes two lists and returns True iff the first list
+||| is contained, wholly and intact, anywhere within the second.
+|||
+||| ```idris example
+||| isInfixOf ['b','c'] ['a', 'b', 'c', 'd']
+||| ```
+||| ```idris example
+||| isInfixOf ['b','d'] ['a', 'b', 'c', 'd']
+||| ```
+|||
+export
+isInfixOf : Eq a => List a -> List a -> Bool
+isInfixOf n h = any (isPrefixOf n) (tails h)
 
 --------------------------------------------------------------------------------
 -- Properties
