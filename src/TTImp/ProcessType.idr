@@ -119,7 +119,7 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
                    checkTerm idx InType (HolesOkay :: eopts) nest env
                              (IBindHere fc (PI Rig0) ty_raw)
                              (gType fc)
-         logTermNF 5 ("Type of " ++ show n) [] (abstractEnvType tfc env ty)
+         logTermNF 3 ("Type of " ++ show n) [] (abstractEnvType tfc env ty)
          -- TODO: Check name visibility
 
          def <- initDef n env ty opts
