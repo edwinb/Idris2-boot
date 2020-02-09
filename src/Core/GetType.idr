@@ -45,7 +45,7 @@ mutual
                          pure $ glueBack defs env sc'
                 _ => do fty' <- getTerm fty
                         throw (NotFunctionType fc env fty')
-  chk env (As fc n p) = chk env p
+  chk env (As fc s n p) = chk env p
   chk env (TDelayed fc r tm) = pure (gType fc)
   chk env (TDelay fc r dty tm)
       = do gtm <- chk env tm

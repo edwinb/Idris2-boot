@@ -894,7 +894,11 @@ simpleCase : {auto c : Ref Ctxt Defs} ->
              (clauses : List (ClosedTerm, ClosedTerm)) ->
              Core (args ** CaseTree args)
 simpleCase fc phase fn ty def clauses
-    = do log 5 $ "Compiling clauses " ++ show clauses
+    = do logC 2 (do cs <- traverse (\c =>
+                                do lhs <- toFullNames (fst c)
+                                   rhs <- toFullNames (snd c)
+                                   pure ("Clause " ++ show lhs ++ " = " ++ show rhs ++ "\n")) clauses
+                    pure (concat cs))
          ps <- traverse (toPatClause fc fn) clauses
          defs <- get Ctxt
          patCompile fc fn phase ty ps def

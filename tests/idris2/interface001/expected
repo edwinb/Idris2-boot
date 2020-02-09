@@ -4,9 +4,9 @@ IFace> True
 IFace> False
 IFace> Bye for now!
 2/2: Building IFace1 (IFace1.idr)
-IFace1>    conArg : (DecEq a, Eq (p t))
- 0 a : Type
+IFace1>  0 a : Type
  0 p : a -> Type
+   conArg : (DecEq a, Eq (p t))
    l' : a
    r : p l'
    r' : p l'

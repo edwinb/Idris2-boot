@@ -158,9 +158,9 @@ mkPat' args orig (Bind fc x (Pi _ _ s) t)
 mkPat' args orig (App fc fn arg)
     = let parg = mkPat' [] arg arg in
                  mkPat' (parg :: args) orig fn
-mkPat' args orig (As fc (Ref _ Bound n) ptm)
+mkPat' args orig (As fc _ (Ref _ Bound n) ptm)
     = PAs fc n (mkPat' [] ptm ptm)
-mkPat' args orig (As fc _ ptm)
+mkPat' args orig (As fc _ _ ptm)
     = mkPat' [] orig ptm
 mkPat' args orig (TDelay fc r ty p)
     = PDelay fc r (mkPat' [] orig ty) (mkPat' [] orig p)

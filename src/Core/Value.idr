@@ -75,7 +75,7 @@ mutual
                   List (Closure vars) -> NF vars
        NTCon    : FC -> Name -> (tag : Int) -> (arity : Nat) ->
                   List (Closure vars) -> NF vars
-       NAs      : FC -> NF vars -> NF vars -> NF vars
+       NAs      : FC -> UseSide -> NF vars -> NF vars -> NF vars
        NDelayed : FC -> LazyReason -> NF vars -> NF vars
        NDelay   : FC -> LazyReason -> Closure vars -> Closure vars -> NF vars
        NForce   : FC -> LazyReason -> NF vars -> List (Closure vars) -> NF vars
@@ -89,7 +89,7 @@ getLoc (NBind fc _ _ _) = fc
 getLoc (NApp fc _ _) = fc
 getLoc (NDCon fc _ _ _ _) = fc
 getLoc (NTCon fc _ _ _ _) = fc
-getLoc (NAs fc _ _) = fc
+getLoc (NAs fc _ _ _) = fc
 getLoc (NDelayed fc _ _) = fc
 getLoc (NDelay fc _ _ _) = fc
 getLoc (NForce fc _ _ _) = fc

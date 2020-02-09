@@ -39,11 +39,6 @@ mutual
   public export
   data BindMode = PI RigCount | PATTERN | NONE
 
-  -- For as patterns matching linear arguments, select which side is
-  -- consumed
-  public export
-  data UseSide = UseLeft | UseRight
-
   public export
   data RawImp : Type where
        IVar : FC -> Name -> RawImp
@@ -57,6 +52,14 @@ mutual
        ICase : FC -> RawImp -> (ty : RawImp) ->
                List ImpClause -> RawImp
        ILocal : FC -> List ImpDecl -> RawImp -> RawImp
+       -- Local definitions made elsewhere, but that we're pushing
+       -- into a case branch as nested names.
+       -- An appearance of 'uname' maps to an application of
+       -- 'internalName' to 'args'.
+       ICaseLocal : FC -> (uname : Name) ->
+                    (internalName : Name) ->
+                    (args : List Name) -> RawImp -> RawImp
+
        IUpdate : FC -> List IFieldUpdate -> RawImp -> RawImp
 
        IApp : FC -> RawImp -> RawImp -> RawImp
@@ -127,6 +130,9 @@ mutual
          = "(%case (" ++ show scr ++ ") " ++ show alts ++ ")"
       show (ILocal _ def scope)
          = "(%local (" ++ show def ++ ") " ++ show scope ++ ")"
+      show (ICaseLocal _ uname iname args sc)
+         = "(%caselocal (" ++ show uname ++ " " ++ show iname
+               ++ " " ++ show args ++ ") " ++ show sc ++ ")"
       show (IUpdate _ flds rec)
          = "(%record " ++ showSep ", " (map show flds) ++ " " ++ show rec ++ ")"
 
@@ -519,6 +525,7 @@ getFC (ILam x _ _ _ _ _) = x
 getFC (ILet x _ _ _ _ _) = x
 getFC (ICase x _ _ _) = x
 getFC (ILocal x _ _) = x
+getFC (ICaseLocal x _ _ _ _) = x
 getFC (IUpdate x _ _) = x
 getFC (IApp x _ _) = x
 getFC (IImplicitApp x _ _ _) = x
@@ -576,6 +583,8 @@ mutual
         = do tag 4; toBuf b fc; toBuf b y; toBuf b ty; toBuf b xs
     toBuf b (ILocal fc xs sc)
         = do tag 5; toBuf b fc; toBuf b xs; toBuf b sc
+    toBuf b (ICaseLocal fc _ _ _ sc)
+        = toBuf b sc
     toBuf b (IUpdate fc fs rec)
         = do tag 6; toBuf b fc; toBuf b fs; toBuf b rec
     toBuf b (IApp fc fn arg)
@@ -743,17 +752,6 @@ mutual
                1 => pure PATTERN
                2 => pure NONE
                _ => corrupt "BindMode"
-
-  export
-  TTC UseSide where
-    toBuf b UseLeft = tag 0
-    toBuf b UseRight = tag 1
-
-    fromBuf b
-        = case !getTag of
-               0 => pure UseLeft
-               1 => pure UseRight
-               _ => corrupt "UseSide"
 
   export
   TTC AltType where

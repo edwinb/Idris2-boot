@@ -105,6 +105,10 @@ findCons n lhs
 findAllVars : Term vars -> List Name
 findAllVars (Bind _ x (PVar c p ty) sc)
     = x :: findAllVars sc
+findAllVars (Bind _ x (Let c p ty) sc)
+    = x :: findAllVars sc
+findAllVars (Bind _ x (PLet c p ty) sc)
+    = x :: findAllVars sc
 findAllVars _ = []
 
 unique : List String -> List String -> Int -> List Name -> String
@@ -337,7 +341,8 @@ getSplitsLHS : {auto m : Ref MD Metadata} ->
                Core (SplitResult (List ClauseUpdate))
 getSplitsLHS fc envlen lhs_in n
     = do let lhs = substLets lhs_in
-         let usedns = findAllVars lhs
+         logTerm 3 "Splitting" lhs_in
+         let usedns = findAllVars lhs_in
 
          defs <- get Ctxt
 

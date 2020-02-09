@@ -153,7 +153,7 @@ mutual
       dropS (S p :: xs) = p :: dropS xs
   findUsed env used (App fc fn arg)
       = findUsed env (findUsed env used fn) arg
-  findUsed env used (As fc a p)
+  findUsed env used (As fc s a p)
       = findUsed env (findUsed env used a) p
   findUsed env used (TDelayed fc r tm)
       = findUsed env used tm

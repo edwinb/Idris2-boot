@@ -23,7 +23,7 @@ expandAmbigName : {auto c : Ref Ctxt Defs} ->
                   RawImp -> Maybe (Glued vars) -> Core RawImp
 expandAmbigName (InLHS _) nest env orig args (IBindVar fc n) exp
     = do est <- get EST
-         if n `elem` lhsPatVars est
+         if UN n `elem` lhsPatVars est
             then pure $ IMustUnify fc NonLinearVar orig
             else pure $ orig
 expandAmbigName mode nest env orig args (IVar fc x) exp

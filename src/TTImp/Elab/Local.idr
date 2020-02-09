@@ -1,5 +1,6 @@
 module TTImp.Elab.Local
 
+import Core.CaseTree
 import Core.Context
 import Core.Core
 import Core.Env
@@ -86,4 +87,37 @@ checkLocal {vars} rig elabinfo nest env fc nestdecls scope expty
          = IData loc' vis (updateDataName nest d)
     updateName nest i = i
 
+getLocalTerm : {auto c : Ref Ctxt Defs} ->
+               FC -> Env Term vars -> Term vars -> List Name -> Core (Term vars)
+getLocalTerm fc env f [] = pure f
+getLocalTerm fc env f (a :: as)
+    = case defined a env of
+           Just (MkIsDefined rigb lv) =>
+                getLocalTerm fc env (App fc f (Local fc Nothing _ lv)) as
+           Nothing => throw (InternalError "Case Local failed")
 
+export
+checkCaseLocal : {vars : _} ->
+                 {auto c : Ref Ctxt Defs} ->
+                 {auto m : Ref MD Metadata} ->
+                 {auto u : Ref UST UState} ->
+                 {auto e : Ref EST (EState vars)} ->
+                 RigCount -> ElabInfo ->
+                 NestedNames vars -> Env Term vars ->
+                 FC -> Name -> Name -> List Name -> RawImp ->
+                 (expTy : Maybe (Glued vars)) ->
+                 Core (Term vars, Glued vars)
+checkCaseLocal {vars} rig elabinfo nest env fc uname iname args sc expty
+    = do defs <- get Ctxt
+         Just def <- lookupCtxtExact iname (gamma defs)
+              | Nothing => check rig elabinfo nest env sc expty
+         let name = case definition def of
+                         PMDef _ _ _ _ _ => Ref fc Func iname
+                         DCon t a => Ref fc (DataCon t a) iname
+                         TCon t a _ _ _ _ _ _ => Ref fc (TyCon t a) iname
+                         _ => Ref fc Func iname
+         app <- getLocalTerm fc env name args
+         let nest' = record { names $= ((uname, (Just iname, length args,
+                                                (\fc, nt => app))) :: ) }
+                            nest
+         check rig elabinfo nest' env sc expty

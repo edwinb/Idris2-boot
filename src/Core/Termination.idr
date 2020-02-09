@@ -45,8 +45,8 @@ scEq (Meta _ _ i args) _ = True
 scEq _ (Meta _ _ i args) = True
 scEq (Bind _ _ b sc) (Bind _ _ b' sc') = False -- not checkable
 scEq (App _ f a) (App _ f' a') = scEq f f' && scEq a a'
-scEq (As _ a p) p' = scEq p p'
-scEq p (As _ a p') = scEq p p'
+scEq (As _ _ a p) p' = scEq p p'
+scEq p (As _ _ a p') = scEq p p'
 scEq (TDelayed _ _ t) (TDelayed _ _ t') = scEq t t'
 scEq (TDelay _ _ t x) (TDelay _ _ t' x') = scEq t t' && scEq x x'
 scEq (TForce _ _ t) (TForce _ _ t') = scEq t t'
@@ -124,7 +124,7 @@ mutual
             Bool
   smaller inc defs big _ (Erased _ _) = False -- Never smaller than an erased thing!
   -- for an as pattern, it's smaller if it's smaller than either part
-  smaller inc defs big s (As _ p t)
+  smaller inc defs big s (As _ _ p t)
       = smaller inc defs big s p || smaller inc defs big s t
   smaller True defs big s t
       = if s == t
@@ -170,7 +170,7 @@ mutual
              (arg : Term vars) ->
              Maybe (Nat, SizeChange)
   mkChange defs aSmaller [] arg = Nothing
-  mkChange defs aSmaller ((i, As _ p parg) :: pats) arg
+  mkChange defs aSmaller ((i, As _ _ p parg) :: pats) arg
       = mkChange defs aSmaller ((i, p) :: (i, parg) :: pats) arg
   mkChange defs aSmaller ((i, parg) :: pats) arg
       = cond [(scEq arg parg, Just (i, Same)),
@@ -194,7 +194,7 @@ mutual
     where
       lookupTm : Term vs -> List (Term vs, Term vs') -> Maybe (Term vs')
       lookupTm tm [] = Nothing
-      lookupTm tm ((As _ p tm', v) :: tms)
+      lookupTm tm ((As _ _ p tm', v) :: tms)
           = if tm == p
                then Just v
                else lookupTm tm ((tm', v) :: tms)
@@ -214,7 +214,7 @@ mutual
           urhs (Ref fc nt n) = Ref fc nt n
           urhs (Meta fc m i margs) = Meta fc m i (map (updateRHS ms) margs)
           urhs (App fc f a) = App fc (updateRHS ms f) (updateRHS ms a)
-          urhs (As fc a p) = As fc (updateRHS ms a) (updateRHS ms p)
+          urhs (As fc s a p) = As fc s (updateRHS ms a) (updateRHS ms p)
           urhs (TDelayed fc r ty) = TDelayed fc r (updateRHS ms ty)
           urhs (TDelay fc r ty tm)
               = TDelay fc r (updateRHS ms ty) (updateRHS ms tm)
@@ -300,7 +300,7 @@ delazy defs (Meta fc n i args) = Meta fc n i (map (delazy defs) args)
 delazy defs (Bind fc x b sc)
     = Bind fc x (map (delazy defs) b) (delazy defs sc)
 delazy defs (App fc f a) = App fc (delazy defs f) (delazy defs a)
-delazy defs (As fc a p) = As fc (delazy defs a) (delazy defs p)
+delazy defs (As fc s a p) = As fc s (delazy defs a) (delazy defs p)
 delazy defs tm = tm
 
 findCalls : {auto c : Ref Ctxt Defs} ->

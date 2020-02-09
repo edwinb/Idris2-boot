@@ -199,7 +199,7 @@ getVars got (NApp fc (NLocal r idx v) [] :: xs)
     inArgs n [] = False
     inArgs n (n' :: ns)
         = if toIntegerNat n == toIntegerNat n' then True else inArgs n ns
-getVars got (NAs _ _ p :: xs) = getVars got (p :: xs)
+getVars got (NAs _ _ _ p :: xs) = getVars got (p :: xs)
 getVars _ (_ :: xs) = Nothing
 
 -- Make a sublist representing the variables used in the application.
@@ -958,8 +958,8 @@ mutual
            then unifyApp True mode loc env yfc hd args y
            else unifyIfEq True loc env y (NApp yfc hd args)
   -- Only try stripping as patterns as a last resort
-  unifyNoEta mode loc env x (NAs _ _ y) = unifyNoEta mode loc env x y
-  unifyNoEta mode loc env (NAs _ _ x) y = unifyNoEta mode loc env x y
+  unifyNoEta mode loc env x (NAs _ _ _ y) = unifyNoEta mode loc env x y
+  unifyNoEta mode loc env (NAs _ _ _ x) y = unifyNoEta mode loc env x y
   unifyNoEta mode loc env x y
       = do defs <- get Ctxt
            empty <- clearDefs defs

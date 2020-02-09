@@ -241,8 +241,8 @@ tryRecursive fc rig opts env ty topty (Just rdata)
       argDiff (Erased _ _) _ = False
       argDiff _ (Erased _ _) = False
       argDiff (TType _) (TType _) = False
-      argDiff (As _ _ x) y = argDiff x y
-      argDiff x (As _ _ y) = argDiff x y
+      argDiff (As _ _ _ x) y = argDiff x y
+      argDiff x (As _ _ _ y) = argDiff x y
       argDiff _ _ = True
 
       appsDiff : Term vs -> Term vs' -> List (Term vs) -> List (Term vs') ->

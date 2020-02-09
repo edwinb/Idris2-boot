@@ -170,7 +170,7 @@ mutual
   toCExpTm tags n (App fc tm arg)
       = pure $ CApp fc !(toCExp tags n tm) [!(toCExp tags n arg)]
   -- This shouldn't be in terms any more, but here for completeness
-  toCExpTm tags n (As _ _ p) = toCExpTm tags n p
+  toCExpTm tags n (As _ _ _ p) = toCExpTm tags n p
   -- TODO: Either make sure 'Delayed' is always Rig0, or add to typecase
   toCExpTm tags n (TDelayed fc _ _) = pure $ CErased fc
   toCExpTm tags n (TDelay fc _ _ arg)

@@ -105,7 +105,7 @@ record EState (vars : List Name) where
                                           SubVars outer vars')))
                   -- names to add as unbound implicits if they are still holes
                   -- when unbound implicits are added
-  lhsPatVars : List String
+  lhsPatVars : List Name
                   -- names which we've bound in elab mode InLHS (i.e. not
                   -- in a dot pattern). We keep track of this because every
                   -- occurrence other than the first needs to be dotted
@@ -285,7 +285,7 @@ clearToBind excepts
 
 export
 noteLHSPatVar : {auto e : Ref EST (EState vars)} ->
-                ElabMode -> String -> Core ()
+                ElabMode -> Name -> Core ()
 noteLHSPatVar (InLHS _) n
     = do est <- get EST
          put EST (record { lhsPatVars $= (n ::) } est)

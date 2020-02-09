@@ -284,6 +284,7 @@ mutual
                  Implicit _ _ => tm
                  IAs _ _ _ (IBindVar _ _) => tm
                  IAs _ _ _ (Implicit _ _) => tm
+                 IAs fc p t arg => IAs fc p t (IMustUnify fc ErasedArg tm)
                  _ => IMustUnify (getFC tm) ErasedArg tm
   dotErased _ _ _ r tm = pure $ tm
 

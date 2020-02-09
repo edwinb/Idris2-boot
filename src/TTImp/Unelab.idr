@@ -20,7 +20,7 @@ used {vars} idx (Bind _ x b sc) = usedBinder b || used (1 + idx) sc
     usedBinder b = used idx (binderType b)
 used idx (Meta _ _ _ args) = any (used idx) args
 used idx (App _ f a) = used idx f || used idx a
-used idx (As _ _ pat) = used idx pat
+used idx (As _ _ _ pat) = used idx pat
 used idx (TDelayed _ _ tm) = used idx tm
 used idx (TDelay _ _ _ tm) = used idx tm
 used idx (TForce _ _ tm) = used idx tm
@@ -160,13 +160,13 @@ mutual
                         pure (IImplicitApp fc fn' (Just x) arg',
                                 glueBack defs env sc')
                 _ => pure (IApp fc fn' arg', gErased fc)
-  unelabTy' umode env (As fc p tm)
+  unelabTy' umode env (As fc s p tm)
       = do (p', _) <- unelabTy' umode env p
            (tm', ty) <- unelabTy' umode env tm
            case p' of
                 IVar _ n =>
                     case umode of
-                         NoSugar => pure (IAs fc UseRight n tm', ty)
+                         NoSugar => pure (IAs fc s n tm', ty)
                          _ => pure (tm', ty)
                 _ => pure (tm', ty) -- Should never happen!
   unelabTy' umode env (TDelayed fc r tm)

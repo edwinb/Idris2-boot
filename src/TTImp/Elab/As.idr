@@ -30,14 +30,11 @@ checkAs : {vars : _} ->
 checkAs rig elabinfo nest env fc side n_in pat topexp
     = do let elabmode = elabMode elabinfo
          let InLHS _ = elabmode
-             | _ => throw (GenericMsg fc "@-patterns only allowed in pattern clauses")
-         let str : String
-             = case n_in of
-                    UN x => x
-                    _ => show n_in
+             | _ => do log 2 $ "Bad @-pattern " ++ show pat
+                       throw (GenericMsg fc "@-patterns only allowed in pattern clauses")
          est <- get EST
-         let n = PV (UN str) (defining est)
-         noteLHSPatVar elabmode str
+         let n = PV n_in (defining est)
+         noteLHSPatVar elabmode n_in
          notePatVar n
          case lookup n (boundNames est) of
               Nothing =>
@@ -52,10 +49,9 @@ checkAs rig elabinfo nest env fc side n_in pat topexp
                         (record { boundNames $= ((n, AsBinding rigAs Explicit tm exp pattm) :: ),
                                   toBind $= ((n, AsBinding rigAs Explicit tm bty pattm) ::) }
                                 est)
-                   -- addNameType loc (UN str) env exp
                     (ntm, nty) <- checkExp rig elabinfo env fc tm (gnf env exp)
                                            (Just patty)
-                    pure (As fc ntm pattm, patty)
+                    pure (As fc side ntm pattm, patty)
               Just bty => throw (NonLinearPattern fc n_in)
   where
     -- Only one side can be usable if it's linear! Normally we'd assume this

@@ -195,6 +195,17 @@ mutual
                5 => do c <- fromBuf b; pure (PVTy c (Erased emptyFC False))
                _ => corrupt "Binder"
 
+  export
+  TTC UseSide where
+    toBuf b UseLeft = tag 0
+    toBuf b UseRight = tag 1
+
+    fromBuf b
+        = case !getTag of
+               0 => pure UseLeft
+               1 => pure UseRight
+               _ => corrupt "UseSide"
+
 
   export
   TTC (Term vars) where
@@ -223,9 +234,9 @@ mutual
 --              let (fn, args) = getFnArgs (App fc fn arg)
 --              toBuf b fn; -- toBuf b p;
 --              toBuf b args
-    toBuf b (As fc as tm)
+    toBuf b (As fc s as tm)
         = do tag 5;
-             toBuf b as; toBuf b tm
+             toBuf b as; toBuf b s; toBuf b tm
     toBuf b (TDelayed fc r tm)
         = do tag 6;
              toBuf b r; toBuf b tm
@@ -260,8 +271,8 @@ mutual
                4 => do fn <- fromBuf b
                        arg <- fromBuf b
                        pure (App emptyFC fn arg)
-               5 => do as <- fromBuf b; tm <- fromBuf b
-                       pure (As emptyFC as tm)
+               5 => do as <- fromBuf b; s <- fromBuf b; tm <- fromBuf b
+                       pure (As emptyFC s as tm)
                6 => do lr <- fromBuf b; tm <- fromBuf b
                        pure (TDelayed emptyFC lr tm)
                7 => do lr <- fromBuf b;

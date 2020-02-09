@@ -98,12 +98,12 @@ parameters (defs : Defs, topopts : EvalOpts)
                                               env (arg :: locs) scope stk)
     eval env locs (App fc fn arg) stk
         = eval env locs fn (MkClosure topopts locs env arg :: stk)
-    eval env locs (As fc n tm) stk
+    eval env locs (As fc s n tm) stk
         = if removeAs topopts
              then eval env locs tm stk
              else do n' <- eval env locs n stk
                      tm' <- eval env locs tm stk
-                     pure (NAs fc n' tm')
+                     pure (NAs fc s n' tm')
     eval env locs (TDelayed fc r ty) stk
         = do ty' <- eval env locs ty stk
              pure (NDelayed fc r ty')
@@ -537,10 +537,10 @@ mutual
   quoteGenNF q defs bound env (NTCon fc n t ar args)
       = do args' <- quoteArgs q defs bound env args
            pure $ apply fc (Ref fc (TyCon t ar) n) args'
-  quoteGenNF q defs bound env (NAs fc n pat)
+  quoteGenNF q defs bound env (NAs fc s n pat)
       = do n' <- quoteGenNF q defs bound env n
            pat' <- quoteGenNF q defs bound env pat
-           pure (As fc n' pat')
+           pure (As fc s n' pat')
   quoteGenNF q defs bound env (NDelayed fc r arg)
       = do argQ <- quoteGenNF q defs bound env arg
            pure (TDelayed fc r argQ)
@@ -716,7 +716,7 @@ mutual
         = if nm == nm'
              then allConv q defs env args args'
              else pure False
-    convGen q defs env (NAs _ _ tm) (NAs _ _ tm')
+    convGen q defs env (NAs _ _ _ tm) (NAs _ _ _ tm')
         = convGen q defs env tm tm'
 
     convGen q defs env (NDelayed _ r arg) (NDelayed _ r' arg')
@@ -878,10 +878,10 @@ replace' {vars} tmpi defs env lhs parg tm
              pure $ apply fc
                         !(quote empty env (NTCon fc n t a []))
                         args'
-    repSub (NAs fc a p)
+    repSub (NAs fc s a p)
         = do a' <- repSub a
              p' <- repSub p
-             pure (As fc a' p')
+             pure (As fc s a' p')
     repSub (NDelayed fc r tm)
         = do tm' <- repSub tm
              pure (TDelayed fc r tm')

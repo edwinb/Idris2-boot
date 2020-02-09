@@ -114,6 +114,8 @@ mutual
 
       findLocal : List (Term vs) -> Nat -> Maybe (Var vs)
       findLocal (Local _ _ _ p :: _) Z = Just (MkVar p)
+      findLocal (As _ _ (Local _ _ _ p) _ :: _) Z = Just (MkVar p)
+      findLocal (As _ _ _ (Local _ _ _ p) :: _) Z = Just (MkVar p)
       findLocal (_ :: els) (S k) = findLocal els k
       findLocal _ _ = Nothing
 
@@ -140,7 +142,7 @@ mutual
                       updateTy i ty'
                       pure True
                 _ => updateHoleUsageArgs useInHole var zs args
-  updateHoleUsage useInHole var zs (As _ a p)
+  updateHoleUsage useInHole var zs (As _ _ a p)
       = do h <- updateHoleUsage useInHole var zs a
            h' <- updateHoleUsage useInHole var zs a
            pure (h || h')
@@ -323,10 +325,10 @@ mutual
                         throw (GenericMsg fc ("Linearity checking failed on " ++ show f' ++
                               " (" ++ show tfty ++ " not a function type)"))
 
-  lcheck rig erase env (As fc as pat)
+  lcheck rig erase env (As fc s as pat)
       = do (as', _, _) <- lcheck rig erase env as
            (pat', pty, u) <- lcheck rig erase env pat
-           pure (As fc as' pat', pty, u)
+           pure (As fc s as' pat', pty, u)
   lcheck rig erase env (TDelayed fc r ty)
       = do (ty', _, u) <- lcheck rig erase env ty
            pure (TDelayed fc r ty', gType fc, u)
@@ -430,7 +432,7 @@ mutual
       getCaseUsage : Term ns -> Env Term vs -> List (Term vs) ->
                      Usage vs -> Term vs ->
                      Core (List (Name, ArgUsage))
-      getCaseUsage ty env (As _ _ p :: args) used rhs
+      getCaseUsage ty env (As _ _ _ p :: args) used rhs
           = getCaseUsage ty env (p :: args) used rhs
       getCaseUsage (Bind _ n (Pi Rig1 e ty) sc) env (Local _ _ idx p :: args) used rhs
           = do rest <- getCaseUsage sc env args used rhs
@@ -471,7 +473,7 @@ mutual
           = if idx == varIdx p
                then True
                else isLocArg p args
-      isLocArg p (As _ tm pat :: args)
+      isLocArg p (As _ _ tm pat :: args)
           = isLocArg p (tm :: pat :: args)
       isLocArg p (_ :: args) = isLocArg p args
 
@@ -569,12 +571,14 @@ mutual
                         PMDef _ _ _ _ pats =>
                             do u <- getArgUsage (getLoc (type def))
                                                 rig (type def) pats
-                               log 10 $ "Overall arg usage " ++ show u
+                               log 5 $ "Overall arg usage " ++ show u
                                let ty' = updateUsage u (type def)
                                updateTy idx ty'
                                setLinearCheck idx True
                                logTerm 5 ("New type of " ++
                                           show (fullname def)) ty'
+                               logTerm 5 ("Updated from " ++
+                                          show (fullname def)) (type def)
                                pure ty'
                         _ => pure (type def)
     where

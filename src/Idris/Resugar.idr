@@ -178,6 +178,7 @@ mutual
       = do ds' <- traverse toPDecl ds
            sc' <- toPTerm startPrec sc
            bracket p startPrec (PLocal fc (mapMaybe id ds') sc')
+  toPTerm p (ICaseLocal fc _ _ _ sc) = toPTerm p sc
   toPTerm p (IUpdate fc ds f)
       = do ds' <- traverse toPFieldUpdate ds
            f' <- toPTerm argPrec f

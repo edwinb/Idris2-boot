@@ -122,7 +122,7 @@ findLinear : {auto c : Ref Ctxt Defs} ->
              Core (List (Name, RigCount))
 findLinear top bound rig (Bind fc n b sc)
     = findLinear top (S bound) rig sc
-findLinear top bound rig (As fc _ p)
+findLinear top bound rig (As fc _ _ p)
     = findLinear top bound rig p
 findLinear top bound rig tm
     = case getFnArgs tm of
@@ -140,7 +140,10 @@ findLinear top bound rig tm
 
       findLinArg : RigCount -> NF [] -> List (Term vars) ->
                    Core (List (Name, RigCount))
-      findLinArg rig ty (As fc _ p :: as) = findLinArg rig ty (p :: as)
+      findLinArg rig ty (As fc UseLeft _ p :: as)
+          = findLinArg rig ty (p :: as)
+      findLinArg rig ty (As fc UseRight p _ :: as)
+          = findLinArg rig ty (p :: as)
       findLinArg rig (NBind _ x (Pi c _ _) sc) (Local {name=a} fc _ idx prf :: as)
           = do defs <- get Ctxt
                if idx < bound
@@ -231,7 +234,7 @@ checkLHS {vars} mult hashit n opts nest env fc lhs_in
              wrapError (InLHS fc !(getFullName (Resolved n))) $
                      elabTerm n (InLHS mult) opts nest env
                                 (IBindHere fc PATTERN lhs) Nothing
-         logTerm 10 "Checked LHS term" lhstm
+         logTerm 5 "Checked LHS term" lhstm
          lhsty <- getTerm lhstyg
 
          -- Normalise the LHS to get any functions or let bindings evaluated
@@ -248,7 +251,7 @@ checkLHS {vars} mult hashit n opts nest env fc lhs_in
          let lhstm_lin = setLinear linvars lhstm
          let lhsty_lin = setLinear linvars lhsty
 
-         logTerm 5 "LHS term" lhstm_lin
+         logTerm 3 "LHS term" lhstm_lin
          logTerm 5 "LHS type" lhsty_lin
          setHoleLHS (bindEnv fc env lhstm_lin)
 
@@ -365,11 +368,13 @@ checkClause {vars} mult hashit n opts nest env (PatClause fc lhs_in rhs)
                             Rig0 => InType
                             _ => InExpr
          log 5 $ "Checking RHS " ++ show rhs
+         logEnv 5 "In env" env'
+
          rhstm <- wrapError (InRHS fc !(getFullName (Resolved n))) $
                        checkTermSub n rhsMode opts nest' env' env sub' rhs (gnf env' lhsty')
          clearHoleLHS
 
-         logTerm 5 "RHS term" rhstm
+         logTerm 3 "RHS term" rhstm
          when hashit $
            do addHash lhstm'
               addHash rhstm
@@ -600,7 +605,7 @@ processDef opts nest env fc n_in cs_in
 
          (cargs ** tree_ct) <- getPMDef fc CompileTime n ty (rights cs)
 
-         logC 5 (do t <- toFullNames tree_ct
+         logC 2 (do t <- toFullNames tree_ct
                     pure ("Case tree for " ++ show n ++ ": " ++ show t))
 
          -- Add compile time tree as a placeholder for the runtime tree,
@@ -643,7 +648,7 @@ processDef opts nest env fc n_in cs_in
     simplePat : Term vars -> Bool
     simplePat (Local _ _ _ _) = True
     simplePat (Erased _ _) = True
-    simplePat (As _ _ p) = simplePat p
+    simplePat (As _ _ _ p) = simplePat p
     simplePat _ = False
 
     -- Is the clause returned from 'checkClause' a catch all clause, i.e.
