@@ -1,7 +1,10 @@
 1/1: Building CaseInf (CaseInf.idr)
-CaseInf.idr:6:17--6:24:While processing right hand side of Main.test3bad at CaseInf.idr:6:1--9:1:
-Ambiguous elaboration. Possible correct results:
-	Builtin.Pair (Prelude.fromInteger 1) (Prelude.fromInteger 2)
-	Builtin.MkPair (Prelude.fromInteger 1) (Prelude.fromInteger 2)
+CaseInf.idr:7:24--9:1:While processing right hand side of Main.test3bad at CaseInf.idr:6:1--9:1:
+While processing right hand side of Main.case block in 1148 at CaseInf.idr:7:14--9:1:
+When unifying Integer and Nat
+Mismatch between:
+	Integer
+and
+	Nat
 Main> S (S (S Z))
 Main> Bye for now!

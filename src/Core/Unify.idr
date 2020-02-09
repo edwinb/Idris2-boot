@@ -17,13 +17,21 @@ import Data.List.Views
 
 public export
 data UnifyMode = InLHS
-               | InTerm
+               | InTerm Bool -- True == precise, False = generalise to RigW in Pi
                | InMatch
                | InSearch
 
+lam : UnifyMode -> UnifyMode
+lam (InTerm _) = InTerm True
+lam m = m
+
+inLam : UnifyMode -> Bool
+inLam (InTerm t) = t
+inLam _ = False
+
 Eq UnifyMode where
    InLHS == InLHS = True
-   InTerm == InTerm = True
+   (InTerm s) == (InTerm t) = s == t
    InMatch == InMatch = True
    InSearch == InSearch = True
    _ == _ = False
@@ -307,13 +315,13 @@ patternEnvTm {vars} env args
 instantiate : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               {newvars : _} ->
-              FC -> Env Term vars ->
+              FC -> UnifyMode -> Env Term vars ->
               (metavar : Name) -> (mref : Int) -> (mdef : GlobalDef) ->
               List (Var newvars) -> -- Variable each argument maps to
               Term vars -> -- original, just for error message
               Term newvars -> -- shrunk environment
               Core ()
-instantiate {newvars} loc env mname mref mdef locs otm tm
+instantiate {newvars} loc mode env mname mref mdef locs otm tm
     = do logTerm 5 ("Instantiating in " ++ show newvars) tm
 --          let Hole _ _ = definition mdef
 --              | def => ufail {a=()} loc (show mname ++ " already resolved as " ++ show def)
@@ -372,7 +380,11 @@ instantiate {newvars} loc env mname mref mdef locs otm tm
         updateLocsB (Let c v t) = Just (Let c !(updateLocs locs v) !(updateLocs locs t))
         -- Make 'pi' binders have multiplicity W when we infer a Rig1 metavariable,
         -- since this is the most general thing to do if it's unknown.
-        updateLocsB (Pi Rig1 p t) = Just (Pi RigW p !(updateLocs locs t))
+        updateLocsB (Pi Rig1 p t)
+            = do t' <- updateLocs locs t
+                 if inLam mode
+                    then Just (Pi Rig1 p t')
+                    else Just (Pi RigW p t')
         updateLocsB (Pi c p t) = Just (Pi c p !(updateLocs locs t))
         updateLocsB (PVar c p t) = Just (PVar c p !(updateLocs locs t))
         updateLocsB (PLet c v t) = Just (PLet c !(updateLocs locs v) !(updateLocs locs t))
@@ -418,7 +430,7 @@ solveIfUndefined env (Meta fc mname idx args) soln
                        Just stm =>
                           do Just hdef <- lookupCtxtExact (Resolved idx) (gamma defs)
                                   | Nothing => throw (InternalError "Can't happen: no definition")
-                             instantiate fc env mname idx hdef locs soln stm
+                             instantiate fc (InTerm True) env mname idx hdef locs soln stm
                              pure True
 solveIfUndefined env metavar soln
     = pure False
@@ -592,7 +604,7 @@ mutual
   solveHole : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               {vars : _} ->
-              FC -> Env Term vars ->
+              FC -> UnifyMode -> Env Term vars ->
               (metaname : Name) -> (metaref : Int) ->
               (margs : List (Closure vars)) ->
               (margs' : List (Closure vars)) ->
@@ -602,7 +614,7 @@ mutual
               (soln : Term newvars) -> -- Solution with shrunk environment
               (solnf : NF vars) ->
               Core UnifyResult
-  solveHole loc env mname mref margs margs' locs submv solfull stm solnf
+  solveHole loc mode env mname mref margs margs' locs submv solfull stm solnf
       = do defs <- get Ctxt
            empty <- clearDefs defs
            -- if the terms are the same, this isn't a solution
@@ -616,7 +628,7 @@ mutual
                    -- metavariables)
                    do Just hdef <- lookupCtxtExact (Resolved mref) (gamma defs)
                            | Nothing => throw (InternalError ("Can't happen: Lost hole " ++ show mname))
-                      instantiate loc env mname mref hdef locs solfull stm
+                      instantiate loc mode env mname mref hdef locs solfull stm
                       pure $ solvedHole mref
     where
       -- Only need to check the head metavar is the same, we've already
@@ -657,7 +669,7 @@ mutual
                 Just (newvars ** (locs, submv)) =>
                   do tm <- quote empty env tmnf
                      case shrinkTerm tm submv of
-                          Just stm => solveHole fc env mname mref
+                          Just stm => solveHole fc mode env mname mref
                                                 margs margs' locs submv
                                                 tm stm tmnf
                           Nothing =>
@@ -666,7 +678,7 @@ mutual
                                     Nothing => postponeS swap loc "Can't shrink" env
                                                (NApp loc (NMeta mname mref margs) margs')
                                                tmnf
-                                    Just stm => solveHole fc env mname mref
+                                    Just stm => solveHole fc mode env mname mref
                                                           margs margs' locs submv
                                                           tm stm tmnf
 
@@ -735,9 +747,9 @@ mutual
                                      (NApp yfc (NLocal yr y yp) [])
   -- Locally bound things, in a term (not LHS). Since we have to unify
   -- for *all* possible values, we can safely unify the arguments.
-  unifyBothApps InTerm loc env xfc (NLocal xr x xp) xargs yfc (NLocal yr y yp) yargs
+  unifyBothApps (InTerm t) loc env xfc (NLocal xr x xp) xargs yfc (NLocal yr y yp) yargs
       = if x == y
-           then unifyArgs InTerm loc env xargs yargs
+           then unifyArgs (InTerm t) loc env xargs yargs
            else postpone loc "Postponing local app"
                          env (NApp xfc (NLocal xr x xp) xargs)
                              (NApp yfc (NLocal yr y yp) yargs)
@@ -867,8 +879,8 @@ mutual
                   tscy <- scy defs (toClosure defaultOpts env (Ref loc Bound xn))
                   tmx <- quote empty env tscx
                   tmy <- quote empty env tscy
-                  cs' <- unify mode loc env' (refsToLocals (Add x xn None) tmx)
-                                             (refsToLocals (Add x xn None) tmy)
+                  cs' <- unify (lam mode) loc env' (refsToLocals (Add x xn None) tmx)
+                                                   (refsToLocals (Add x xn None) tmy)
                   pure (union ct cs')
 
   unifyBothBinders mode loc env xfc x bx scx yfc y by scy

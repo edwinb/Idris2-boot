@@ -104,7 +104,7 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
          --   is most likely just to be able to display helpful errors
          let solvemode = case mode of
                               InLHS _ => InLHS
-                              _ => InTerm
+                              _ => InTerm False
          solveConstraints solvemode Normal
          logTerm 5 "Looking for delayed in " chktm
          ust <- get UST

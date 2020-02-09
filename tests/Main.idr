@@ -23,37 +23,58 @@ ttimpTests
 
 idrisTests : List String
 idrisTests
-    = ["basic001", "basic002", "basic003", "basic004", "basic005",
+    = -- Fundamental language feturea
+      ["basic001", "basic002", "basic003", "basic004", "basic005",
        "basic006", "basic007", "basic008", "basic009", "basic010",
        "basic011", "basic012", "basic013", "basic014", "basic015",
        "basic016", "basic017", "basic018", "basic019", "basic020",
        "basic021", "basic022", "basic023", "basic024", "basic025",
        "basic026", "basic027", "basic028", "basic029", "basic030",
        "basic031", "basic032", "basic033", "basic034",
+       -- Coverage checking
        "coverage001", "coverage002", "coverage003", "coverage004",
+       -- Error messages
        "error001", "error002", "error003", "error004", "error005",
        "error006", "error007", "error008", "error009", "error010",
+       -- Modules and imports
        "import001", "import002", "import003", "import004",
+       -- Interactive editing support
        "interactive001", "interactive002", "interactive003", "interactive004",
        "interactive005", "interactive006", "interactive007", "interactive008",
        "interactive009", "interactive010", "interactive011", "interactive012",
+       -- Interfaces
        "interface001", "interface002", "interface003", "interface004",
        "interface005", "interface006", "interface007", "interface008",
        "interface009", "interface010", "interface011", "interface012",
        "interface013", "interface014",
+       -- Miscellaneous REPL
        "interpreter001",
+       -- Implicit laziness, lazy evaluation
        "lazy001",
+       -- QTT and linearity related
        "linear001", "linear002", "linear003", "linear004", "linear005",
        "linear006", "linear007",
+       -- Parameters blocks
        "params001",
+       -- Performance: things which have been slow in the past, or which
+       -- pose interesting challenges for the elaborator
        "perf001", "perf002", "perf003",
+       -- Parse errors
        "perror001", "perror002", "perror003", "perror004", "perror005",
        "perror006",
+       -- Packages and ipkg files
        "pkg001",
+       -- Larger programs arising from real usage. Typically things with
+       -- interesting interactions between features
+       "real001",
+       -- Records, access and dependent update
        "record001", "record002",
+       -- Miscellaneous regressions
        "reg001", "reg002",
+       -- Totality checking
        "total001", "total002", "total003", "total004", "total005",
        "total006",
+       -- The 'with' rule
        "with001"]
 
 typeddTests : List String

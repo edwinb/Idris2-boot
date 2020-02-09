@@ -52,29 +52,30 @@ delayOnFailure : {auto c : Ref Ctxt Defs} ->
                  (Bool -> Core (Term vars, Glued vars)) ->
                  Core (Term vars, Glued vars)
 delayOnFailure fc rig env expected pred elab
-    = handle (elab False)
-        (\err =>
-            do est <- get EST
-               if pred err && allowDelay est
-                  then
-                    do nm <- genName "delayed"
-                       (ci, dtm) <- newDelayed fc Rig1 env nm !(getTerm expected)
-                       logGlueNF 5 ("Postponing elaborator " ++ show nm ++
-                                    " at " ++ show fc ++
-                                    " for") env expected
-                       log 10 ("Due to error " ++ show err)
-                       ust <- get UST
-                       put UST (record { delayedElab $=
-                               ((ci, mkClosedElab fc env
-                                         (do est <- get EST
-                                             put EST (record { allowDelay = False } est)
-                                             tm <- elab True
-                                             est <- get EST
-                                             put EST (record { allowDelay = True } est)
-                                             pure tm)) :: ) }
-                                       ust)
-                       pure (dtm, expected)
-                  else throw err)
+    = do est <- get EST
+         handle (elab (not (allowDelay est)))
+          (\err =>
+              do est <- get EST
+                 if pred err && allowDelay est
+                    then
+                      do nm <- genName "delayed"
+                         (ci, dtm) <- newDelayed fc Rig1 env nm !(getTerm expected)
+                         logGlueNF 5 ("Postponing elaborator " ++ show nm ++
+                                      " at " ++ show fc ++
+                                      " for") env expected
+                         log 10 ("Due to error " ++ show err)
+                         ust <- get UST
+                         put UST (record { delayedElab $=
+                                 ((ci, mkClosedElab fc env
+                                           (do est <- get EST
+                                               put EST (record { allowDelay = False } est)
+                                               tm <- elab True
+                                               est <- get EST
+                                               put EST (record { allowDelay = True } est)
+                                               pure tm)) :: ) }
+                                         ust)
+                         pure (dtm, expected)
+                    else throw err)
 
 export
 delayElab : {auto c : Ref Ctxt Defs} ->

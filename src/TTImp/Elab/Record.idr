@@ -186,7 +186,7 @@ checkUpdate rig elabinfo nest env fc upds rec expected
                                pure ty
          let solvemode = case elabMode elabinfo of
                               InLHS c => InLHS
-                              _ => InTerm
+                              _ => InTerm False
          delayOnFailure fc rig env recty needType $
            \delayed =>
              do solveConstraints solvemode Normal
