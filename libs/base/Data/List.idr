@@ -74,6 +74,30 @@ elemBy p e (x::xs) =
     elemBy p e xs
 
 public export
+nubBy : (a -> a -> Bool) -> List a -> List a
+nubBy = nubBy' []
+  where
+    nubBy' : List a -> (a -> a -> Bool) -> List a -> List a
+    nubBy' acc p []      = []
+    nubBy' acc p (x::xs) =
+      if elemBy p x acc then
+        nubBy' acc p xs
+      else
+        x :: nubBy' (x::acc) p xs
+
+||| O(n^2). The nub function removes duplicate elements from a list. In
+||| particular, it keeps only the first occurrence of each element. It is a
+||| special case of nubBy, which allows the programmer to supply their own
+||| equality test.
+|||
+||| ```idris example
+||| nub (the (List _) [1,2,1,3])
+||| ```
+public export
+nub : Eq a => List a -> List a
+nub = nubBy (==)
+
+public export
 span : (a -> Bool) -> List a -> (List a, List a)
 span p []      = ([], [])
 span p (x::xs) =
