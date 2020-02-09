@@ -369,6 +369,10 @@ updateCGDirectives cgs
     = do defs <- get Ctxt
          put Ctxt (record { cgdirectives $= (cgs ++) } defs)
 
+getNSas : (String, (List String, Bool, List String)) ->
+          (List String, List String)
+getNSas (a, (b, c, d)) = (b, d)
+
 -- Add definitions from a binary file to the current context
 -- Returns the "extra" section of the file (user defined data), the interface
 -- hash and the list of additional TTCs that need importing
@@ -386,10 +390,12 @@ readFromTTC : TTC extra =>
                            List (List String, Bool, List String)))
 readFromTTC loc reexp fname modNS importAs
     = do defs <- get Ctxt
-         -- If it's already in the context, don't load it again
-         let False = (modNS, importAs) `elem` map snd (allImported defs)
+         -- If it's already in the context, with the same reexport flag,
+         -- don't load it again (we do need to load it again if we're reexporting
+         -- this time, because we need to reexport the dependencies.)
+         let False = (modNS, reexp, importAs) `elem` map snd (allImported defs)
               | True => pure Nothing
-         put Ctxt (record { allImported $= ((fname, (modNS, importAs)) :: ) } defs)
+         put Ctxt (record { allImported $= ((fname, (modNS, reexp, importAs)) :: ) } defs)
 
          Right buf <- coreLift $ readFromFile fname
                | Left err => throw (InternalError (fname ++ ": " ++ show err))
@@ -399,30 +405,38 @@ readFromTTC loc reexp fname modNS importAs
                      else Just importAs
          ttc <- logTime ("Read file " ++ show modNS) $ 
                   readTTCFile modNS as bin
-         traverse (addGlobalDef modNS as) (context ttc)
-         traverse_ addUserHole (userHoles ttc)
-         setNS (currentNS ttc)
-         setNestedNS (nestedNS ttc)
-         -- Set up typeHints and autoHints based on the loaded data
-         traverse_ (addTypeHint loc) (typeHints ttc)
-         traverse_ addAutoHint (autoHints ttc)
-         -- Set up pair/rewrite etc names
-         updatePair (pairnames ttc)
-         updateRewrite (rewritenames ttc)
-         updatePrims (primnames ttc)
-         updateNameDirectives (reverse (namedirectives ttc))
-         updateCGDirectives (cgdirectives ttc)
 
-         when (not reexp) clearSavedHints
-         resetFirstEntry
+         -- If it's already imported, but without reexporting, then all we're
+         -- interested in is returning which other modules to load.
+         -- Otherwise, add the data
+         let ex = extraData ttc
+         if ((modNS, importAs) `elem` map getNSas (allImported defs))
+            then pure (Just (ex, ifaceHash ttc, imported ttc))
+            else do
+               traverse (addGlobalDef modNS as) (context ttc)
+               traverse_ addUserHole (userHoles ttc)
+               setNS (currentNS ttc)
+               setNestedNS (nestedNS ttc)
+               -- Set up typeHints and autoHints based on the loaded data
+               traverse_ (addTypeHint loc) (typeHints ttc)
+               traverse_ addAutoHint (autoHints ttc)
+               -- Set up pair/rewrite etc names
+               updatePair (pairnames ttc)
+               updateRewrite (rewritenames ttc)
+               updatePrims (primnames ttc)
+               updateNameDirectives (reverse (namedirectives ttc))
+               updateCGDirectives (cgdirectives ttc)
 
-         -- Finally, update the unification state with the holes from the
-         -- ttc
-         ust <- get UST
-         put UST (record { holes = fromList (holes ttc),
-                           constraints = fromList (constraints ttc),
-                           nextName = nextVar ttc } ust)
-         pure (Just (extraData ttc, ifaceHash ttc, imported ttc))
+               when (not reexp) clearSavedHints
+               resetFirstEntry
+
+               -- Finally, update the unification state with the holes from the
+               -- ttc
+               ust <- get UST
+               put UST (record { holes = fromList (holes ttc),
+                                 constraints = fromList (constraints ttc),
+                                 nextName = nextVar ttc } ust)
+               pure (Just (ex, ifaceHash ttc, imported ttc))
 
 getImportHashes : Ref Bin Binary ->
                   Core (List (List String, Int))

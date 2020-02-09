@@ -59,7 +59,7 @@ readModule : {auto c : Ref Ctxt Defs} ->
              Core ()
 readModule top loc vis reexp imp as
     = do defs <- get Ctxt
-         let False = (imp, as) `elem` map snd (allImported defs)
+         let False = (imp, reexp, as) `elem` map snd (allImported defs)
              | True => when vis (setVisible imp)
          Right fname <- nsToPath loc imp
                | Left err => throw err
@@ -67,7 +67,6 @@ readModule top loc vis reexp imp as
                                          readFromTTC {extra = SyntaxInfo}
                                                   loc vis fname imp as
               | Nothing => when vis (setVisible imp) -- already loaded, just set visibility
-         addImported (imp, reexp, as)
          extendAs imp as syn
 
          defs <- get Ctxt
@@ -87,7 +86,8 @@ readImport : {auto c : Ref Ctxt Defs} ->
              {auto s : Ref Syn SyntaxInfo} ->
              Import -> Core ()
 readImport imp
-    = readModule True (loc imp) True (reexport imp) (path imp) (nameAs imp)
+    = do readModule True (loc imp) True (reexport imp) (path imp) (nameAs imp)
+         addImported (path imp, reexport imp, nameAs imp)
 
 readHash : {auto c : Ref Ctxt Defs} ->
            {auto u : Ref UST UState} ->
@@ -129,11 +129,19 @@ readAsMain fname
          replNestedNS <- getNestedNS
          extendAs replNS replNS syn
 
+         -- Read the main file's top level imported modules, so we have access
+         -- to their names (and any of their public imports)
          ustm <- get UST
          traverse_ (\ mimp =>
                        do let m = fst mimp
                           let as = snd (snd mimp)
-                          readModule False emptyFC True False m as) more
+                          readModule False emptyFC True True m as
+                          addImported (m, True, as)) more
+
+         -- also load the prelude, if required, so that we have access to it
+         -- at the REPL.
+         when (not (noprelude !getSession)) $
+              readModule False emptyFC True True ["Prelude"] ["Prelude"]
 
          -- We're in the namespace from the first TTC, so use the next name
          -- from that for the fresh metavariable name generation
