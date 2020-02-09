@@ -442,6 +442,8 @@ checkConcreteDets fc defaults env top (NTCon tfc tyn t a args)
                               concreteDets fc defaults env top 0 (detArgs sd) args
             else
               do sd <- getSearchData fc defaults tyn
+                 log 10 $ "Determining arguments for " ++ show !(toFullNames tyn)
+                              ++ " " ++ show (detArgs sd)
                  concreteDets fc defaults env top 0 (detArgs sd) args
 checkConcreteDets fc defaults env top _
     = pure ()
@@ -479,9 +481,11 @@ searchType {vars} fc rigc defaults trying depth def checkdets top env target
                              when checkdets $
                                  checkConcreteDets fc defaults env top
                                                    (NTCon tfc tyn t a args)
-                             tryUnify
-                               (searchLocal fc rigc defaults trying' depth def top env nty)
-                               (tryGroups Nothing nty (hintGroups sd))
+                             if defaults
+                                then tryGroups Nothing nty (hintGroups sd)
+                                else tryUnify
+                                       (searchLocal fc rigc defaults trying' depth def top env nty)
+                                       (tryGroups Nothing nty (hintGroups sd))
                      else throw (CantSolveGoal fc [] top)
               _ => do logNF 10 "Next target: " env nty
                       searchLocal fc rigc defaults trying' depth def top env nty
