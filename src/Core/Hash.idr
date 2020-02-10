@@ -62,7 +62,7 @@ Hashable String where
 export
 Hashable Name where
   hashWithSalt h (MN s _) = hashWithSalt h s
-  hashWithSalt h (Resolved i) = i
+  hashWithSalt h (Resolved i) = hashWithSalt h i
   hashWithSalt h n = hashWithSalt h (show n)
 
 export

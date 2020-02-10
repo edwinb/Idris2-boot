@@ -70,8 +70,6 @@ readModule top loc vis reexp imp as
          extendAs imp as syn
 
          defs <- get Ctxt
-         when top $ put Ctxt (record { importHashes $= ((as, hash) ::) } defs)
-
          modNS <- getNS
          when vis $ setVisible imp
          traverse_ (\ mimp =>
@@ -241,6 +239,12 @@ processMod srcf ttcf msg mod sourcecode
                         setNS ns
                         errs <- logTime "Processing decls" $
                                     processDecls (decls mod)
+
+                        -- Save the import hashes for the imports we just read.
+                        -- If they haven't changed next time, and the source
+                        -- file hasn't changed, no need to rebuild.
+                        defs <- get Ctxt
+                        put Ctxt (record { importHashes = hs } defs)
                         pure (Just errs))
           (\err => pure (Just [err]))
 
