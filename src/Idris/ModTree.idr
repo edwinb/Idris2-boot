@@ -50,24 +50,6 @@ Show BuildMod where
       showNS : List String -> String
       showNS ns = showSep "." (reverse ns)
 
-readHeader : {auto c : Ref Ctxt Defs} ->
-             FC -> (mod : List String) -> Core (String, Module)
-readHeader loc mod
-    = do path <- nsToSource loc mod
-         Right res <- coreLift (readFile path)
-            | Left err => throw (FileErr path err)
-         case runParserTo isColon res (progHdr path) of
-              Left err => throw (ParseFail (getParseErrorLoc path err) err)
-              Right mod => pure (path, mod)
-  where
-    -- Stop at the first :, that's definitely not part of the header, to
-    -- save lexing the whole file unnecessarily
-    isColon : TokenData Token -> Bool
-    isColon t
-        = case tok t of
-               Symbol ":" => True
-               _ => False
-
 data AllMods : Type where
 
 mkModTree : {auto c : Ref Ctxt Defs} ->
@@ -86,7 +68,8 @@ mkModTree loc done mod
                     -- If we've seen it before, reuse what we found
                     case lookup mod all of
                          Nothing =>
-                           do (file, modInfo) <- readHeader loc mod
+                           do file <- nsToSource loc mod
+                              modInfo <- readHeader file
                               let imps = map path (imports modInfo)
                               ms <- traverse (mkModTree loc (mod :: done)) imps
                               let mt = MkModTree mod (Just file) ms

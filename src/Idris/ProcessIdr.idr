@@ -176,6 +176,24 @@ getParseErrorLoc fname (ParseFail _ (Just pos) _) = MkFC fname pos pos
 getParseErrorLoc fname (LexFail (l, c, _)) = MkFC fname (l, c) (l, c)
 getParseErrorLoc fname _ = replFC
 
+export
+readHeader : {auto c : Ref Ctxt Defs} ->
+             (path : String) -> Core Module
+readHeader path
+    = do Right res <- coreLift (readFile path)
+            | Left err => throw (FileErr path err)
+         case runParserTo isColon res (progHdr path) of
+              Left err => throw (ParseFail (getParseErrorLoc path err) err)
+              Right mod => pure mod
+  where
+    -- Stop at the first :, that's definitely not part of the header, to
+    -- save lexing the whole file unnecessarily
+    isColon : TokenData Token -> Bool
+    isColon t
+        = case tok t of
+               Symbol ":" => True
+               _ => False
+
 -- Process everything in the module; return the syntax information which
 -- needs to be written to the TTC (e.g. exported infix operators)
 -- Returns 'Nothing' if it didn't reload anything
@@ -185,11 +203,47 @@ processMod : {auto c : Ref Ctxt Defs} ->
              {auto m : Ref MD Metadata} ->
              {auto o : Ref ROpts REPLOpts} ->
              (srcf : String) -> (ttcf : String) -> (msg : String) ->
-             Module ->
              (sourcecode : String) ->
              Core (Maybe (List Error))
-processMod srcf ttcf msg mod sourcecode
-    = catch (do let ns = moduleNS mod
+processMod srcf ttcf msg sourcecode
+    = catch (do 
+        -- Just read the header to start with (this is to get the imports and
+        -- see if we can avoid rebuilding if none have changed)
+        modh <- readHeader srcf 
+        -- Add an implicit prelude import
+        let imps =
+             if (noprelude !getSession || moduleNS modh == ["Prelude"])
+                then imports modh
+                else addPrelude (imports modh)
+
+        hs <- traverse readHash imps
+        defs <- get Ctxt
+        log 5 $ "Current hash " ++ show (ifaceHash defs)
+        log 5 $ show (moduleNS modh) ++ " hashes:\n" ++
+                show (sort hs)
+        imphs <- readImportHashes ttcf
+        log 5 $ "Old hashes from " ++ ttcf ++ ":\n" ++ show (sort imphs)
+
+        -- If the old hashes are the same as the hashes we've just
+        -- read from the imports, and the source file is older than
+        -- the ttc, we can skip the rest.
+        srctime <- modTime srcf
+        ttctime <- modTime ttcf
+
+        let ns = moduleNS modh
+
+        if (sort hs == sort imphs && srctime <= ttctime)
+           then -- Hashes the same, source up to date, just set the namespace
+                -- for the REPL
+                do setNS ns
+                   pure Nothing
+           else -- needs rebuilding
+             do iputStrLn msg
+                Right mod <- logTime ("Parsing " ++ srcf) $
+                            pure (runParser sourcecode (do p <- prog srcf; eoi; pure p))
+                      | Left err => pure (Just [ParseFail (getParseErrorLoc srcf err) err])
+                initHash
+                resetNextVar
                 when (ns /= ["Main"]) $
                    do let MkFC fname _ _ = headerloc mod
                       d <- getDirs
@@ -197,55 +251,29 @@ processMod srcf ttcf msg mod sourcecode
                           throw (GenericMsg (headerloc mod)
                                    ("Module name " ++ showSep "." (reverse ns) ++
                                     " does not match file name " ++ fname))
-                -- Add an implicit prelude import
-                let imps =
-                     if (noprelude !getSession || moduleNS mod == ["Prelude"])
-                        then imports mod
-                        else addPrelude (imports mod)
 
-                hs <- traverse readHash imps
+                -- read import ttcs in full here
+                -- Note: We should only import .ttc - assumption is that there's
+                -- a phase before this which builds the dependency graph
+                -- (also that we only build child dependencies if rebuilding
+                -- changes the interface - will need to store a hash in .ttc!)
+                logTime "Reading imports" $
+                   traverse_ readImport imps
+
+                -- Before we process the source, make sure the "hide_everywhere"
+                -- names are set to private (TODO, maybe if we want this?)
+--                 defs <- get Ctxt
+--                 traverse (\x => setVisibility emptyFC x Private) (hiddenNames defs)
+                setNS ns
+                errs <- logTime "Processing decls" $
+                            processDecls (decls mod)
+
+                -- Save the import hashes for the imports we just read.
+                -- If they haven't changed next time, and the source
+                -- file hasn't changed, no need to rebuild.
                 defs <- get Ctxt
-                log 5 $ "Current hash " ++ show (ifaceHash defs)
-                log 5 $ show (moduleNS mod) ++ " hashes:\n" ++
-                        show (sort hs)
-                imphs <- readImportHashes ttcf
-                log 5 $ "Old hashes from " ++ ttcf ++ ":\n" ++ show (sort imphs)
-
-                -- If the old hashes are the same as the hashes we've just
-                -- read from the imports, and the source file is older than
-                -- the ttc, we can skip the rest.
-                srctime <- modTime srcf
-                ttctime <- modTime ttcf
-
-                if (sort hs == sort imphs && srctime <= ttctime)
-                   then -- Hashes the same, source up to date, just set the namespace
-                        -- for the REPL
-                        do setNS ns
-                           pure Nothing
-                   else
-                     do iputStrLn msg
-                        -- read imports here
-                        -- Note: We should only import .ttc - assumption is that there's
-                        -- a phase before this which builds the dependency graph
-                        -- (also that we only build child dependencies if rebuilding
-                        -- changes the interface - will need to store a hash in .ttc!)
-                        logTime "Reading imports" $
-                           traverse_ readImport imps
-
-                        -- Before we process the source, make sure the "hide_everywhere"
-                        -- names are set to private (TODO, maybe if we want this?)
---                         defs <- get Ctxt
---                         traverse (\x => setVisibility emptyFC x Private) (hiddenNames defs)
-                        setNS ns
-                        errs <- logTime "Processing decls" $
-                                    processDecls (decls mod)
-
-                        -- Save the import hashes for the imports we just read.
-                        -- If they haven't changed next time, and the source
-                        -- file hasn't changed, no need to rebuild.
-                        defs <- get Ctxt
-                        put Ctxt (record { importHashes = hs } defs)
-                        pure (Just errs))
+                put Ctxt (record { importHashes = hs } defs)
+                pure (Just errs))
           (\err => pure (Just [err]))
 
 -- Process a file. Returns any errors, rather than throwing them, because there
@@ -261,30 +289,20 @@ process : {auto c : Ref Ctxt Defs} ->
 process buildmsg file
     = do Right res <- coreLift (readFile file)
                | Left err => pure [FileErr file err]
-         parseRes <- logTime ("Parsing " ++ file) $
-                    pure (runParser res (do p <- prog file; eoi; pure p))
-         case parseRes of
-              Left err => pure [ParseFail (getParseErrorLoc file err) err]
-              Right mod =>
-                -- Processing returns a list of errors across a whole module,
-                -- but may fail for other reasons, so we still need to catch
-                -- other possible errors
-                    catch (do initHash
-                              resetNextVar
-                              fn <- getTTCFileName file ".ttc"
-                              Just errs <- logTime ("Elaborating " ++ file) $
-                                              processMod file fn buildmsg mod res
-                                   | Nothing => pure [] -- skipped it
-                              if isNil errs
-                                 then
-                                   do defs <- get Ctxt
-                                      d <- getDirs
-                                      makeBuildDirectory (pathToNS (working_dir d) (source_dir d) file)
-                                      logTime ("Writing TTC for " ++ file) $
-                                          writeToTTC !(get Syn) fn
-                                      mfn <- getTTCFileName file ".ttm"
-                                      logTime ("Writing TTM for " ++ file) $
-                                          writeToTTM mfn
-                                      pure []
-                                 else do pure errs)
-                          (\err => pure [err])
+         catch (do ttcf <- getTTCFileName file ".ttc"
+                   Just errs <- logTime ("Elaborating " ++ file) $
+                                   processMod file ttcf buildmsg res
+                        | Nothing => pure [] -- skipped it
+                   if isNil errs
+                      then
+                        do defs <- get Ctxt
+                           d <- getDirs
+                           makeBuildDirectory (pathToNS (working_dir d) (source_dir d) file)
+                           logTime ("Writing TTC for " ++ file) $
+                               writeToTTC !(get Syn) ttcf
+                           ttmf <- getTTCFileName file ".ttm"
+                           logTime ("Writing TTM for " ++ file) $
+                               writeToTTM ttmf
+                           pure []
+                      else do pure errs)
+               (\err => pure [err])
