@@ -84,7 +84,6 @@ Information about external dependencies are presented in [INSTALL.md](INSTALL.md
 Things still missing
 ====================
 
-+ 'using' blocks
 + Disambiguation via 'with'
 + Cumulativity (so we currently have Type : Type! Bear that in mind when you
   think you've proved something :))

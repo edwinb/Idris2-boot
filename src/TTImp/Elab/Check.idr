@@ -349,10 +349,12 @@ record ElabInfo where
   implicitMode : BindMode
   topLevel : Bool
   bindingVars : Bool
+  preciseInf : Bool -- are types inferred precisely (True) or do we generalise
+                    -- pi bindings to RigW (False, default)
 
 export
 initElabInfo : ElabMode -> ElabInfo
-initElabInfo m = MkElabInfo m NONE False True
+initElabInfo m = MkElabInfo m NONE False True False
 
 export
 tryError : {vars : _} ->
@@ -631,4 +633,4 @@ checkExp : {vars : _} ->
            (term : Term vars) ->
            (got : Glued vars) -> (expected : Maybe (Glued vars)) ->
            Core (Term vars, Glued vars)
-checkExp rig = checkExpP rig False
+checkExp rig elabinfo = checkExpP rig (preciseInf elabinfo) elabinfo
