@@ -115,19 +115,54 @@ bindNames arg tm
                  pure (map UN (map snd ns), doBind ns tm)
          else pure ([], tm)
 
+-- if the name is part of the using decls, add the relevant binder for it:
+-- either an implicit pi binding, if there's a name, or an autoimplicit type
+-- binding if the name just appears as part of the type
+getUsing : Name -> List (Int, Maybe Name, RawImp) -> 
+           List (Int, (RigCount, PiInfo, Maybe Name, RawImp))
+getUsing n [] = []
+getUsing n ((t, Just n', ty) :: us) -- implicit binder
+    = if n == n'
+         then (t, (Rig0, Implicit, Just n, ty)) :: getUsing n us
+         else getUsing n us
+getUsing n ((t, Nothing, ty) :: us) -- autoimplicit binder
+    = let ns = nub (findIBindVars ty) in
+          if n `elem` ns
+             then (t, (RigW, AutoImplicit, Nothing, ty)) ::
+                      getUsing n us
+             else getUsing n us
+
+getUsings : List Name -> List (Int, Maybe Name, RawImp) ->
+            List (Int, (RigCount, PiInfo, Maybe Name, RawImp))
+getUsings [] u = []
+getUsings (n :: ns) u = getUsing n u ++ getUsings ns u
+
+bindUsings : List (RigCount, PiInfo, Maybe Name, RawImp) -> RawImp -> RawImp
+bindUsings [] tm = tm
+bindUsings ((rig, p, mn, ty) :: us) tm
+    = IPi (getFC ty) rig p mn ty (bindUsings us tm)
+
 addUsing : List (Maybe Name, RawImp) ->
            RawImp -> RawImp
-addUsing uimpls tm = tm
+addUsing uimpls tm
+    = let ns = nub (findIBindVars tm)
+          bs = nubBy (\x, y => fst x == fst y)
+                     (getUsings ns (tag 0 uimpls)) in
+          bindUsings (map snd bs) tm
+  where
+    tag : Int -> List a -> List (Int, a) -- to check uniqueness of resulting uimps
+    tag t [] = []
+    tag t (x :: xs) = (t, x) :: tag (t + 1) xs
 
 export
 bindTypeNames : {auto c : Ref Ctxt Defs} ->
                 List (Maybe Name, RawImp) ->
                 List Name -> RawImp-> Core RawImp
-bindTypeNames uimpls env tm_in
-    = let tm = addUsing uimpls tm_in in
-          if !isUnboundImplicits
-             then do let ns = nub (findBindableNames True env [] tm)
-                     pure (doBind ns tm)
+bindTypeNames uimpls env tm
+    = if !isUnboundImplicits
+             then let ns = nub (findBindableNames True env [] tm)
+                      btm = doBind ns tm in
+                      pure (addUsing uimpls btm)
              else pure tm
 
 export

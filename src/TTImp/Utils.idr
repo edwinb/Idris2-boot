@@ -59,6 +59,34 @@ findBindableNames arg env used (IAlternative fc u alts)
 -- name should be bound, leave it to the programmer
 findBindableNames arg env used tm = []
 
+-- Find the names in a type that affect the 'using' declarations (i.e. 
+-- the ones that mean the declaration will be added).
+export
+findIBindVars : RawImp -> List Name
+findIBindVars (IPi fc rig p mn aty retty)
+    = findIBindVars aty ++ findIBindVars retty
+findIBindVars (ILam fc rig p mn aty sc)
+    = findIBindVars aty ++ findIBindVars sc
+findIBindVars (IApp fc fn av)
+    = findIBindVars fn ++ findIBindVars av
+findIBindVars (IImplicitApp fc fn n av)
+    = findIBindVars fn ++ findIBindVars av
+findIBindVars (IWithApp fc fn av)
+    = findIBindVars fn ++ findIBindVars av
+findIBindVars (IBindVar fc v)
+    = [UN v]
+findIBindVars (IDelayed fc r t)
+    = findIBindVars t
+findIBindVars (IDelay fc t)
+    = findIBindVars t
+findIBindVars (IForce fc t)
+    = findIBindVars t
+findIBindVars (IAlternative fc u alts)
+    = concatMap findIBindVars alts
+-- We've skipped case, let and local - rather than guess where the
+-- name should be bound, leave it to the programmer
+findIBindVars tm = []
+
 mutual
   export
   substNames : List Name -> List (Name, RawImp) ->

@@ -603,7 +603,8 @@ mutual
       = do syn <- get Syn
            let oldu = usingImpl syn
            uimpls' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
-                                            pure (fst ntm, tm')) uimpls
+                                            btm <- bindTypeNames oldu ps tm'
+                                            pure (fst ntm, btm)) uimpls
            put Syn (record { usingImpl = uimpls' ++ oldu } syn)
            uds' <- traverse (desugarDecl ps) uds
            syn <- get Syn
