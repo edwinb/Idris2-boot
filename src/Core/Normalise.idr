@@ -656,7 +656,7 @@ mutual
            NS _ (CaseBlock _ _) <- full (gamma defs) n'
               | _ => pure False
            -- both case operators. Due to the way they're elaborated, two
-           -- blocks might be arise from the same source but have different
+           -- blocks might arise from the same source but have different
            -- names. So we consider them the same if the scrutinees convert,
            -- and the functions are defined at the same location. This is a
            -- bit of a hack - and relies on the location being stored in the

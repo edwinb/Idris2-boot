@@ -183,7 +183,10 @@ checkLet rigc_in elabinfo nest env fc rigl n nTy nVal scope expty
                               => do c <- check Rig1 elabinfo
                                                nest env nVal (Just (gnf env tyv))
                                     pure (fst c, snd c, Rig1)
-                            e => throw e)
+                            e => do c <- check (rigMult rigl rigc)
+                                               elabinfo -- without preciseInf
+                                               nest env nVal (Just (gnf env tyv))
+                                    pure (fst c, snd c, rigMult rigl rigc))
          let env' : Env Term (n :: _) = Lam rigb Explicit tyv :: env
          let nest' = weaken (dropName n nest)
          expScope <- weakenExp env' expty
