@@ -193,7 +193,7 @@ mutual
                    -- so we might as well calculate the whole thing now
                    metaty <- quote defs env aty
                    est <- get EST
-                   metaval <- searchVar fc argRig 500 (Resolved (defining est))
+                   metaval <- searchVar fc argRig 50 (Resolved (defining est))
                                         env nm metaty
                    let fntm = App fc tm metaval
                    fnty <- sc defs (toClosure defaultOpts env metaval)

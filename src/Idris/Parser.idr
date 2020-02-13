@@ -75,7 +75,7 @@ atom fname
          symbol "%"
          exactIdent "search"
          end <- location
-         pure (PSearch (MkFC fname start end) 1000)
+         pure (PSearch (MkFC fname start end) 50)
   <|> do start <- location
          x <- name
          end <- location
