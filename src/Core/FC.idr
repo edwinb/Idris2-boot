@@ -17,6 +17,12 @@ data FC = MkFC FileName FilePos FilePos
         | EmptyFC
 
 export
+Eq FC where
+  (==) (MkFC n s e) (MkFC n' s' e') = n == n' && s == s' && e == e'
+  (==) EmptyFC EmptyFC = True
+  (==) _ _ = False
+
+export
 file : FC -> FileName
 file (MkFC fn _ _) = fn
 file EmptyFC = ""

@@ -645,6 +645,53 @@ mutual
       = pure $ !(convGen q defs env x y) && !(allConv q defs env xs ys)
   allConv q defs env _ _ = pure False
 
+  -- If two names are standing for case blocks, check the blocks originate
+  -- from the same place, and have the same scrutinee
+  chkConvCaseBlock : FC -> Ref QVar Int -> Defs -> Env Term vars ->
+                     NHead vars -> List (Closure vars) ->
+                     NHead vars -> List (Closure vars) -> Core Bool
+  chkConvCaseBlock fc q defs env (NRef _ n) nargs (NRef _ n') nargs'
+      = do NS _ (CaseBlock _ _) <- full (gamma defs) n
+              | _ => pure False
+           NS _ (CaseBlock _ _) <- full (gamma defs) n'
+              | _ => pure False
+           -- both case operators. Due to the way they're elaborated, two
+           -- blocks might be arise from the same source but have different
+           -- names. So we consider them the same if the scrutinees convert,
+           -- and the functions are defined at the same location. This is a
+           -- bit of a hack - and relies on the location being stored in the
+           -- term accurately - but otherwise it's a quick way to find out!
+           Just def <- lookupCtxtExact n (gamma defs)
+                | _ => pure False
+           Just def' <- lookupCtxtExact n' (gamma defs)
+                | _ => pure False
+           let PMDef _ _ tree _ _ = definition def
+                | _ => pure False
+           let PMDef _ _ tree' _ _ = definition def'
+                | _ => pure False
+           let Just scpos = findArgPos tree
+                | Nothing => pure False
+           let Just scpos' = findArgPos tree'
+                | Nothing => pure False
+           let Just sc = getScrutinee scpos nargs
+                | Nothing => pure False
+           let Just sc' = getScrutinee scpos' nargs'
+                | Nothing => pure False
+           convGen q defs env sc sc'
+           pure (location def == location def')
+    where
+      -- Need to find the position of the scrutinee to see if they are the
+      -- same
+      findArgPos : CaseTree as -> Maybe Nat
+      findArgPos (Case idx p _ _) = Just idx
+      findArgPos _ = Nothing
+
+      getScrutinee : Nat -> List (Closure vs) -> Maybe (Closure vs)
+      getScrutinee Z (x :: xs) = Just x
+      getScrutinee (S k) (x :: xs) = getScrutinee k xs
+      getScrutinee _ _ = Nothing
+  chkConvCaseBlock _ _ _ _ _ _ _ _ = pure False
+
   chkConvHead : Ref QVar Int -> Defs -> Env Term vars ->
                 NHead vars -> NHead vars -> Core Bool
   chkConvHead q defs env (NLocal _ idx _) (NLocal _ idx' _) = pure $ idx == idx'
@@ -703,10 +750,10 @@ mutual
                                 (Local fc Nothing _ First)))
              convGen q defs env etax tmy
 
-    convGen q defs env (NApp _ val args) (NApp _ val' args')
+    convGen q defs env (NApp fc val args) (NApp _ val' args')
         = if !(chkConvHead q defs env val val')
              then allConv q defs env args args'
-             else pure False
+             else chkConvCaseBlock fc q defs env val args val' args'
 
     convGen q defs env (NDCon _ nm tag _ args) (NDCon _ nm' tag' _ args')
         = if tag == tag'

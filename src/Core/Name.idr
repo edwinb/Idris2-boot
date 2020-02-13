@@ -178,3 +178,14 @@ nameEq (Resolved x) (Resolved y) with (decEq x y)
   nameEq (Resolved x) (Resolved y) | (No contra) = Nothing
 nameEq _ _ = Nothing
 
+export
+namesEq : (xs : List Name) -> (ys : List Name) -> Maybe (xs = ys)
+namesEq [] [] = Just Refl
+namesEq (x :: xs) (y :: ys)
+    = do p <- nameEq x y
+         ps <- namesEq xs ys
+         rewrite p
+         rewrite ps
+         Just Refl
+namesEq _ _ = Nothing
+

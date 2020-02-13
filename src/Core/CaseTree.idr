@@ -43,7 +43,7 @@ mutual
   export
   Show (CaseTree vars) where
     show (Case {name} idx prf ty alts)
-        = "case " ++ show name ++ " : " ++ show ty ++ " of { " ++
+        = "case " ++ show name ++ "[" ++ show idx ++ "] : " ++ show ty ++ " of { " ++
                 showSep " | " (assert_total (map show alts)) ++ " }"
     show (STerm tm) = show tm
     show (Unmatched msg) = "Error: " ++ show msg
