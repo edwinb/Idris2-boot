@@ -59,7 +59,7 @@ readModule : {auto c : Ref Ctxt Defs} ->
              Core ()
 readModule top loc vis reexp imp as
     = do defs <- get Ctxt
-         let False = (imp, reexp, as) `elem` map snd (allImported defs)
+         let False = (imp, vis, as) `elem` map snd (allImported defs)
              | True => when vis (setVisible imp)
          Right fname <- nsToPath loc imp
                | Left err => throw err

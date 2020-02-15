@@ -390,8 +390,8 @@ readFromTTC : TTC extra =>
                            List (List String, Bool, List String)))
 readFromTTC loc reexp fname modNS importAs
     = do defs <- get Ctxt
-         -- If it's already in the context, with the same reexport flag,
-         -- don't load it again (we do need to load it again if we're reexporting
+         -- If it's already in the context, with the same visibility flag,
+         -- don't load it again (we do need to load it again if it's visible
          -- this time, because we need to reexport the dependencies.)
          let False = (modNS, reexp, importAs) `elem` map snd (allImported defs)
               | True => pure Nothing
