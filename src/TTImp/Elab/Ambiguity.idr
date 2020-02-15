@@ -351,8 +351,7 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
                                       _ => InTerm False
                 delayOnFailure fc rig env expected ambiguous $
                      \delayed =>
-                       do solveConstraints solvemode Normal
-                          defs <- get Ctxt
+                       do defs <- get Ctxt
                           exp <- getTerm expected
 
                           -- We can't just use the old NF on the second attempt,
