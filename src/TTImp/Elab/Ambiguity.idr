@@ -45,7 +45,9 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
                         ci <- fromCharName
                         let prims = mapMaybe id [fi, si, ci]
                         let primApp = isPrimName prims x
-                        case !(lookupCtxtName x (gamma defs)) of
+                        ns <- lookupCtxtName x (gamma defs)
+                        ns' <- filterM visible ns
+                        case ns' of
                              [] => do log 10 $ "Failed to find " ++ show orig
                                       pure orig
                              [nalt] =>
@@ -54,6 +56,17 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
                              nalts => pure $ IAlternative fc (uniqType fi si ci x args)
                                                     (map (mkAlt primApp est) nalts)
   where
+    visible : (Name, Int, GlobalDef) -> Core Bool
+    visible (n, i, def)
+        = do let NS ns x = fullname def
+                 | _ => pure True
+             if !(isVisible ns)
+                then if visibleInAny (!getNS :: !getNestedNS) (NS ns x)
+                                     (visibility def)
+                        then pure True
+                        else pure False
+                else pure False
+
     -- If there's multiple alternatives and all else fails, resort to using
     -- the primitive directly
     uniqType : Maybe Name -> Maybe Name -> Maybe Name -> Name ->
