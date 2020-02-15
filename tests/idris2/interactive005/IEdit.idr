@@ -12,6 +12,8 @@ my_uncurry : (a -> b -> c) -> (a, b) -> c
 
 append : Vect n a -> Vect m a -> Vect (n + m) a
 
+lappend : (1 xs : List a) -> (1 ys : List a) -> List a
+
 zipWith : (a -> b -> c) -> Vect n a -> Vect n b -> Vect n c
 
 data Env : Vect n Type -> Type where

@@ -357,7 +357,10 @@ searchLocal : {auto c : Ref Ctxt Defs} ->
               Maybe RecData -> Core (List (Term vars))
 searchLocal fc rig opts env ty topty defining
     = do defs <- get Ctxt
-         searchLocalWith fc rig opts env (getAllEnv fc [] env)
+         -- Reverse the environment so we try the patterns left to right.
+         -- This heuristic is just so arguments appear the same order in
+         -- recursive calls
+         searchLocalWith fc rig opts env (reverse (getAllEnv fc [] env))
                          ty topty defining
 
 searchType : {auto c : Ref Ctxt Defs} ->
