@@ -6,13 +6,13 @@ public export
 data IORes : Type -> Type where
      MkIORes : (result : a) -> (1 x : %World) -> IORes a
 
-export
-data IO : Type -> Type where
-     MkIO : (1 fn : (1 x : %World) -> IORes a) -> IO a
-
 public export
 PrimIO : Type -> Type
 PrimIO a = (1 x : %World) -> IORes a
+
+export
+data IO : Type -> Type where
+     MkIO : (1 fn : PrimIO a) -> IO a
 
 export
 prim_io_pure : a -> PrimIO a

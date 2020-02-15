@@ -3,7 +3,6 @@ Main>  0 b : Type
  0 a' : Type
  0 a : Type
  0 m : Type -> Type
-   conArg : Monad m
    x : m a
 -------------------------------------
 foo : (a' -> m b) -> m b

@@ -83,8 +83,7 @@ impBracket True str = "{" ++ str ++ "}"
 
 showName : Name -> Bool
 showName (UN "_") = False
-showName (MN "_" _) = False
-showName (MN "_cn" _) = False
+showName (MN _ _) = False
 showName _ = True
 
 tidy : Name -> String
