@@ -414,7 +414,12 @@ mutual
            case expty of
                 NBind tfc' x' (Pi rigb' Implicit aty') sc'
                    => checkExp rig elabinfo env fc tm (glueBack defs env ty) (Just expty_in)
-                _ => makeImplicit rig argRig elabinfo nest env fc tm x aty sc argdata [] [] kr (Just expty_in)
+                _ => if not (preciseInf elabinfo)
+                        then makeImplicit rig argRig elabinfo nest env fc tm x aty sc argdata [] [] kr (Just expty_in)
+                        -- in 'preciseInf' mode blunder on anyway, and hope
+                        -- that we can resolve the implicits
+                        else handle (checkExp rig elabinfo env fc tm (glueBack defs env ty) (Just expty_in))
+                               (\err => makeImplicit rig argRig elabinfo nest env fc tm x aty sc argdata [] [] kr (Just expty_in))
   checkAppWith rig elabinfo nest env fc tm ty@(NBind tfc x (Pi rigb AutoImplicit aty) sc)
                argdata [] [] kr (Just expty_in)
       = do let argRig = rigMult rig rigb

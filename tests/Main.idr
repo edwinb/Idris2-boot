@@ -66,7 +66,7 @@ idrisTests
        "pkg001",
        -- Larger programs arising from real usage. Typically things with
        -- interesting interactions between features
-       "real001",
+       "real001", "real002",
        -- Records, access and dependent update
        "record001", "record002",
        -- Miscellaneous regressions
