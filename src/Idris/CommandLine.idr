@@ -67,6 +67,8 @@ data CLOpt
   IdeModeSocket String |
    ||| Run as a checker for the core language TTImp
   Yaffle String |
+   ||| Run a REPL command then exit immediately
+  RunREPL String |
   Timing |
   DebugElabCheck |
   BlodwenPaths
@@ -129,7 +131,8 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
               (Just "Display help text"),
            MkOpt ["--timing"] [] [Timing]
               (Just "Display timing logs"),
-
+           MkOpt ["--client"] ["REPL command"] (\f => [RunREPL f])
+              (Just "Run a REPL command then quit immediately"),
            -- Internal debugging options
            MkOpt ["--yaffle", "--ttimp"] ["ttimp file"] (\f => [Yaffle f])
               Nothing, -- run ttimp REPL rather than full Idris

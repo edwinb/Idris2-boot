@@ -660,7 +660,17 @@ interpret inp
 
 mutual
   export
+  replCmd : {auto c : Ref Ctxt Defs} ->
+            {auto u : Ref UST UState} ->
+            {auto s : Ref Syn SyntaxInfo} ->
+            {auto m : Ref MD Metadata} ->
+            {auto o : Ref ROpts REPLOpts} ->
+            String -> Core ()
+  replCmd cmd
+      = do res <- interpret cmd
+           displayResult res
 
+  export
   repl : {auto c : Ref Ctxt Defs} ->
          {auto u : Ref UST UState} ->
          {auto s : Ref Syn SyntaxInfo} ->

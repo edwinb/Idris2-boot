@@ -79,6 +79,10 @@ preOptions (Timing :: opts)
 preOptions (DebugElabCheck :: opts)
     = do setDebugElabCheck True
          preOptions opts
+preOptions (RunREPL _ :: opts)
+    = do setOutput (REPL True)
+         setSession (record { nobanner = True } !getSession)
+         preOptions opts
 preOptions (_ :: opts) = preOptions opts
 
 -- Options to be processed after type checking. Returns whether execution
@@ -101,6 +105,9 @@ postOptions (ExecFn str :: rest)
          pure False
 postOptions (CheckOnly :: rest)
     = do postOptions rest
+         pure False
+postOptions (RunREPL str :: rest)
+    = do replCmd str
          pure False
 postOptions (_ :: rest) = postOptions rest
 
