@@ -442,36 +442,11 @@ checkBindVar rig elabinfo nest env fc str topexp
                    addNameType fc (UN str) env exp
                    checkExp rig elabinfo env fc tm (gnf env exp) topexp
               Just bty =>
-                do -- Check rig is consistent with the one in bty, and
-                   -- update if necessary
-                   combine (UN str) rig (bindingRig bty)
-                   let tm = bindingTerm bty
+                do let tm = bindingTerm bty
                    let ty = bindingType bty
                    defs <- get Ctxt
                    addNameType fc (UN str) env ty
                    checkExp rig elabinfo env fc tm (gnf env ty) topexp
-  where
-    updateRig : Name -> RigCount -> List (Name, ImplBinding vars) ->
-                List (Name, ImplBinding vars)
-    updateRig n c [] = []
-    updateRig n c ((bn, r) :: bs)
-        = if n == bn
-             then case r of
-                  NameBinding _ p tm ty => (bn, NameBinding c p tm ty) :: bs
-                  AsBinding _ p tm ty pat => (bn, AsBinding c p tm ty pat) :: bs
-             else (bn, r) :: updateRig n c bs
-
-    combine : Name -> RigCount -> RigCount -> Core ()
-    combine n Rig1 Rig1 = throw (LinearUsed fc 2 n)
-    combine n Rig1 RigW = throw (LinearUsed fc 2 n)
-    combine n RigW Rig1 = throw (LinearUsed fc 2 n)
-    combine n RigW RigW = pure ()
-    combine n Rig0 c = pure ()
-    combine n c Rig0
-       -- It was 0, make it c
-       = do est <- get EST
-            put EST (record { boundNames $= updateRig n c,
-                              toBind $= updateRig n c } est)
 
 export
 checkBindHere : {vars : _} ->

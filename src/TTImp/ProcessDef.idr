@@ -352,7 +352,9 @@ checkClause mult hashit n opts nest env (ImpossibleClause fc lhs)
                             else throw (ValidCase fc env (Right err)))
 checkClause {vars} mult hashit n opts nest env (PatClause fc lhs_in rhs)
     = do (_, (vars'  ** (sub', env', nest', lhstm', lhsty'))) <-
-             checkLHS mult hashit n opts nest env fc lhs_in
+             wrapError
+                   (Core.InLHS fc !(getFullName (Resolved n)))
+                   (checkLHS mult hashit n opts nest env fc lhs_in)
          let rhsMode = case mult of
                             Rig0 => InType
                             _ => InExpr
