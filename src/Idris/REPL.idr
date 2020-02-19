@@ -264,6 +264,44 @@ data EditResult : Type where
   EditError : String -> EditResult
   MadeLemma : Name -> PTerm -> String -> EditResult
 
+updateFile : {auto r : Ref ROpts REPLOpts} ->
+             (List String -> List String) -> Core EditResult
+updateFile update
+    = do opts <- get ROpts
+         let Just f = mainfile opts
+             | Nothing => pure (DisplayEdit []) -- no file, nothing to do
+         Right content <- coreLift $ readFile f
+               | Left err => throw (FileErr f err)
+         coreLift $ writeFile (f ++ "~") content
+         coreLift $ writeFile f (unlines (update (lines content)))
+         pure (DisplayEdit [])
+
+rtrim : String -> String
+rtrim str = reverse (ltrim (reverse str))
+
+addClause : String -> Nat -> List String -> List String
+addClause c Z xs = rtrim c :: xs
+addClause c (S k) (x :: xs) = x :: addClause c k xs
+addClause c (S k) [] = [c]
+
+caseSplit : String -> Nat -> List String -> List String
+caseSplit c Z (x :: xs) = rtrim c :: xs
+caseSplit c (S k) (x :: xs) = x :: caseSplit c k xs
+caseSplit c _ [] = [c]
+
+proofSearch : Name -> String -> Nat -> List String -> List String
+proofSearch n res Z (x :: xs) = replaceStr ("?" ++ show n) res x :: xs
+  where
+    replaceStr : String -> String -> String -> String
+    replaceStr rep new "" = ""
+    replaceStr rep new str
+        = if isPrefixOf rep str
+             then new ++ pack (drop (length rep) (unpack str))
+             else assert_total $ strCons (strHead str)
+                          (replaceStr rep new (strTail str))
+proofSearch n res (S k) (x :: xs) = x :: proofSearch n res k xs
+proofSearch n res _ [] = []
+
 processEdit : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               {auto s : Ref Syn SyntaxInfo} ->
@@ -285,19 +323,23 @@ processEdit (TypeAt line col name)
             then pure (DisplayEdit [ nameRoot n ++ " : " ++
                                        !(displayTerm defs t)])
             else pure (DisplayEdit [])  -- ? Why () This means there is a global name and a type at (line,col)
-processEdit (CaseSplit line col name)
+processEdit (CaseSplit upd line col name)
     = do let find = if col > 0
                        then within (line-1, col-1)
                        else onLine (line-1)
          OK splits <- getSplits (anyAt find) name
              | SplitFail err => pure (EditError (show err))
          lines <- updateCase splits (line-1) (col-1)
-         pure $ DisplayEdit lines
-processEdit (AddClause line name)
+         if upd
+            then updateFile (caseSplit (unlines lines) (cast (line - 1)))
+            else pure $ DisplayEdit lines
+processEdit (AddClause upd line name)
     = do Just c <- getClause line name
              | Nothing => pure (EditError (show name ++ " not defined here"))
-         pure $ DisplayEdit [c]
-processEdit (ExprSearch line name hints all)
+         if upd
+            then updateFile (addClause c (cast line))
+            else pure $ DisplayEdit [c]
+processEdit (ExprSearch upd line name hints all)
     = do defs <- get Ctxt
          syn <- get Syn
          let brack = elemBy (\x, y => dropNS x == dropNS y) name (bracketholes syn)
@@ -314,10 +356,14 @@ processEdit (ExprSearch line name hints all)
                         then pure $ DisplayEdit (map show itms)
                         else case itms of
                                   [] => pure $ EditError "No search results"
-                                  (x :: xs) => pure $ DisplayEdit
-                                                      [show (if brack
-                                                            then addBracket replFC x
-                                                            else x)]
+                                  (x :: xs) =>
+                                     let res = show (if brack
+                                                        then addBracket replFC x
+                                                        else x) in
+                                       if upd
+                                          then updateFile (proofSearch name res (cast (line - 1)))
+                                          else pure $ DisplayEdit
+                                                      [res ]
               [] => pure $ EditError $ "Unknown name " ++ show name
               _ => pure $ EditError "Not a searchable hole"
   where
@@ -326,7 +372,7 @@ processEdit (ExprSearch line name hints all)
     dropLams Z env tm = (_ ** (env, tm))
     dropLams (S k) env (Bind _ _ b sc) = dropLams k (b :: env) sc
     dropLams _ env tm = (_ ** (env, tm))
-processEdit (GenerateDef line name)
+processEdit (GenerateDef upd line name)
     = do defs <- get Ctxt
          Just (_, n', _, _) <- findTyDeclAt (\p, n => onLine line p)
              | Nothing => pure (EditError ("Can't find declaration for " ++ show name ++ " on line " ++ show line))
@@ -334,13 +380,15 @@ processEdit (GenerateDef line name)
               Just None =>
                   catch
                     (do Just (fc, cs) <- makeDef (\p, n => onLine line p) n'
-                           | Nothing => processEdit (AddClause line name)
+                           | Nothing => processEdit (AddClause upd line name)
                         ls <- traverse (printClause (cast (snd (startPos fc)))) cs
-                        pure $ DisplayEdit ls)
+                        if upd
+                           then updateFile (addClause (unlines ls) (cast line))
+                           else pure $ DisplayEdit ls)
                     (\err => pure $ EditError $ "Can't find a definition for " ++ show n')
               Just _ => pure $ EditError "Already defined"
               Nothing => pure $ EditError $ "Can't find declaration for " ++ show name
-processEdit (MakeLemma line name)
+processEdit (MakeLemma upd line name)
     = do defs <- get Ctxt
          syn <- get Syn
          let brack = elemBy (\x, y => dropNS x == dropNS y) name (bracketholes syn)
@@ -355,9 +403,9 @@ processEdit (MakeLemma line name)
                                             else papp)
                      pure $ MadeLemma name pty pappstr
               _ => pure $ EditError "Can't make lifted definition"
-processEdit (MakeCase line name)
+processEdit (MakeCase upd line name)
     = pure $ EditError "Not implemented yet"
-processEdit (MakeWith line name)
+processEdit (MakeWith upd line name)
     = do Just l <- getSourceLine line
               | Nothing => pure (EditError "Source line not available")
          pure $ DisplayEdit [makeWith name l]
@@ -666,6 +714,7 @@ mutual
             {auto m : Ref MD Metadata} ->
             {auto o : Ref ROpts REPLOpts} ->
             String -> Core ()
+  replCmd "" = pure ()
   replCmd cmd
       = do res <- interpret cmd
            displayResult res
@@ -741,6 +790,7 @@ mutual
                                    showSep ", " (map show xs)
   displayResult  (LogLevelSet k) = printResult $ "Set loglevel to " ++ show k
   displayResult  (VersionIs x) = printResult $ showVersion True x
+  displayResult  (Edited (DisplayEdit [])) = pure ()
   displayResult  (Edited (DisplayEdit xs)) = printResult $ showSep "\n" xs
   displayResult  (Edited (EditError x)) = printError x
   displayResult  (Edited (MadeLemma name pty pappstr)) = printResult (show name ++ " : " ++ show pty ++ "\n" ++ pappstr)

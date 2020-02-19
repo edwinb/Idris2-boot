@@ -1434,38 +1434,46 @@ editCmd
          n <- name
          pure (TypeAt (fromInteger line) (fromInteger col) n)
   <|> do replCmd ["cs"]
+         upd <- option False (do symbol "!"; pure True)
          line <- intLit
          col <- intLit
          n <- name
-         pure (CaseSplit (fromInteger line) (fromInteger col) n)
+         pure (CaseSplit upd (fromInteger line) (fromInteger col) n)
   <|> do replCmd ["ac"]
+         upd <- option False (do symbol "!"; pure True)
          line <- intLit
          n <- name
-         pure (AddClause (fromInteger line) n)
+         pure (AddClause upd (fromInteger line) n)
   <|> do replCmd ["ps", "proofsearch"]
+         upd <- option False (do symbol "!"; pure True)
          line <- intLit
          n <- name
-         pure (ExprSearch (fromInteger line) n [] False)
+         pure (ExprSearch upd (fromInteger line) n [] False)
   <|> do replCmd ["psall"]
+         upd <- option False (do symbol "!"; pure True)
          line <- intLit
          n <- name
-         pure (ExprSearch (fromInteger line) n [] True)
+         pure (ExprSearch upd (fromInteger line) n [] True)
   <|> do replCmd ["gd"]
+         upd <- option False (do symbol "!"; pure True)
          line <- intLit
          n <- name
-         pure (GenerateDef (fromInteger line) n)
+         pure (GenerateDef upd (fromInteger line) n)
   <|> do replCmd ["ml", "makelemma"]
+         upd <- option False (do symbol "!"; pure True)
          line <- intLit
          n <- name
-         pure (MakeLemma (fromInteger line) n)
+         pure (MakeLemma upd (fromInteger line) n)
   <|> do replCmd ["mc", "makecase"]
+         upd <- option False (do symbol "!"; pure True)
          line <- intLit
          n <- name
-         pure (MakeCase (fromInteger line) n)
+         pure (MakeCase upd (fromInteger line) n)
   <|> do replCmd ["mw", "makewith"]
+         upd <- option False (do symbol "!"; pure True)
          line <- intLit
          n <- name
-         pure (MakeWith (fromInteger line) n)
+         pure (MakeWith upd (fromInteger line) n)
   <|> fatalError "Unrecognised command"
 
 nonEmptyCommand : Rule REPLCmd

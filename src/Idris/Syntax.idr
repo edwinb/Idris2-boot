@@ -284,13 +284,13 @@ Show REPLOpt where
 public export
 data EditCmd : Type where
      TypeAt : Int -> Int -> Name -> EditCmd
-     CaseSplit : Int -> Int -> Name -> EditCmd
-     AddClause : Int -> Name -> EditCmd
-     ExprSearch : Int -> Name -> List Name -> Bool -> EditCmd
-     GenerateDef : Int -> Name -> EditCmd
-     MakeLemma : Int -> Name -> EditCmd
-     MakeCase : Int -> Name -> EditCmd
-     MakeWith : Int -> Name -> EditCmd
+     CaseSplit : Bool -> Int -> Int -> Name -> EditCmd
+     AddClause : Bool -> Int -> Name -> EditCmd
+     ExprSearch : Bool -> Int -> Name -> List Name -> Bool -> EditCmd
+     GenerateDef : Bool -> Int -> Name -> EditCmd
+     MakeLemma : Bool -> Int -> Name -> EditCmd
+     MakeCase : Bool -> Int -> Name -> EditCmd
+     MakeWith : Bool -> Int -> Name -> EditCmd
 
 public export
 data REPLCmd : Type where
