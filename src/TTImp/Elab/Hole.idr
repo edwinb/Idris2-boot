@@ -40,6 +40,7 @@ checkHole rig elabinfo nest env fc n_in (Just gexpty)
          -- Record the LHS for this hole in the metadata
          withCurrentLHS (Resolved idx)
          addUserHole nm
+         saveHole nm
          pure (metaval, gexpty)
 checkHole rig elabinfo nest env fc n_in exp
     = do nmty <- genName ("type_of_" ++ n_in)
@@ -53,4 +54,5 @@ checkHole rig elabinfo nest env fc n_in exp
          (idx, metaval) <- metaVarI fc rig env' nm ty
          withCurrentLHS (Resolved idx)
          addUserHole nm
+         saveHole nm
          pure (metaval, gnf env ty)

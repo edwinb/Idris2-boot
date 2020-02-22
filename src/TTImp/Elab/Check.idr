@@ -114,17 +114,25 @@ record EState (vars : List Name) where
                   -- once we're done elaborating
   allowDelay : Bool -- Delaying elaborators is okay. We can't nest delays.
   linearUsed : List (Var vars)
+  saveHoles : NameMap () -- things we'll need to save to TTC, even if solved
 
 export
 data EST : Type where
 
 export
 initEStateSub : Int -> Env Term outer -> SubVars outer vars -> EState vars
-initEStateSub n env sub = MkEState n env sub [] [] [] [] [] True []
+initEStateSub n env sub = MkEState n env sub [] [] [] [] [] True [] empty
 
 export
 initEState : Int -> Env Term vars -> EState vars
 initEState n env = initEStateSub n env SubRefl
+
+export
+saveHole : {auto e : Ref EST (EState vars)} ->
+           Name -> Core ()
+saveHole n
+    = do est <- get EST
+         put EST (record { saveHoles $= insert n () } est)
 
 weakenedEState : {auto e : Ref EST (EState vars)} ->
                  Core (Ref EST (EState (n :: vars)))
@@ -140,7 +148,8 @@ weakenedEState {e}
                               (lhsPatVars est)
                               (allPatVars est)
                               (allowDelay est)
-                              (map weaken (linearUsed est)))
+                              (map weaken (linearUsed est))
+                              (saveHoles est))
          pure eref
   where
     wknTms : (Name, ImplBinding vs) ->
@@ -169,7 +178,8 @@ strengthenedEState {n} {vars} c e fc env
                         (lhsPatVars est)
                         (allPatVars est)
                         (allowDelay est)
-                        (mapMaybe dropTop (linearUsed est)))
+                        (mapMaybe dropTop (linearUsed est))
+                        (saveHoles est))
   where
     dropSub : SubVars xs (y :: ys) -> Core (SubVars xs ys)
     dropSub (DropCons sub) = pure sub
@@ -249,6 +259,7 @@ updateEnv env sub bif st
                (allPatVars st)
                (allowDelay st)
                (linearUsed st)
+               (saveHoles st)
 
 export
 addBindIfUnsolved : Name -> RigCount -> PiInfo ->
@@ -263,6 +274,7 @@ addBindIfUnsolved hn r p env tm ty st
                (allPatVars st)
                (allowDelay st)
                (linearUsed st)
+               (saveHoles st)
 
 clearBindIfUnsolved : EState vars -> EState vars
 clearBindIfUnsolved st
@@ -273,6 +285,7 @@ clearBindIfUnsolved st
                (allPatVars st)
                (allowDelay st)
                (linearUsed st)
+               (saveHoles st)
 
 -- Clear the 'toBind' list, except for the names given
 export

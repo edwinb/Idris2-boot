@@ -17,6 +17,7 @@ import TTImp.TTImp
 import TTImp.Unelab
 
 import Data.IntMap
+import Data.NameMap
 
 findPLetRenames : Term vars -> List (Name, (RigCount, Name))
 findPLetRenames (Bind fc n (PLet c (Local {name = x@(MN _ _)} _ _ _ p) ty) sc)
@@ -70,6 +71,17 @@ normaliseHoleTypes
                        Hole _ _ => updateType defs i gdef
                        _ => pure ()
                Nothing => pure ()
+
+export
+addHoleToSave : {auto c : Ref Ctxt Defs} ->
+                Name -> Core ()
+addHoleToSave n
+    = do defs <- get Ctxt
+         Just ty <- lookupTyExact n (gamma defs)
+              | Nothing => pure ()
+         let ms = keys (getMetas ty)
+         addToSave n
+         traverse_ addToSave ms
 
 export
 elabTermSub : {vars : _} ->
@@ -150,6 +162,11 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
          when (not incase) $
            do hs <- getHoles
               restoreHoles (addHoles empty hs (toList oldhs))
+
+         -- Make a note to save all the user holes and the things they
+         -- reference
+         est <- get EST
+         traverse_ addHoleToSave (keys (saveHoles est))
 
          -- On the LHS, finish by tidying up the plets (changing things that
          -- were of the form x@_, where the _ is inferred to be a variable,
