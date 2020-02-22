@@ -70,6 +70,10 @@ isHole : GlobalDef -> Maybe Nat
 isHole def
     = case definition def of
            Hole locs _ => Just locs
+           PMDef pi _ _ _ _ =>
+                 case holeInfo pi of
+                      NotHole => Nothing
+                      SolvedHole n => Just n
            _ => Nothing
 
 showCount : RigCount -> String
@@ -362,8 +366,7 @@ processEdit (ExprSearch upd line name hints all)
                                                         else x) in
                                        if upd
                                           then updateFile (proofSearch name res (cast (line - 1)))
-                                          else pure $ DisplayEdit
-                                                      [res ]
+                                          else pure $ DisplayEdit [res]
               [] => pure $ EditError $ "Unknown name " ++ show name
               _ => pure $ EditError "Not a searchable hole"
   where

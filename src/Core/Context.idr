@@ -21,9 +21,24 @@ import System
 %default covering
 
 public export
+data HoleInfo
+        = NotHole
+        | SolvedHole Nat
+
+public export
+record PMDefInfo where
+  constructor MkPMDefInfo
+  holeInfo : HoleInfo
+  alwaysReduce : Bool
+
+export
+defaultPI : PMDefInfo
+defaultPI = MkPMDefInfo NotHole False
+
+public export
 data Def : Type where
     None : Def -- Not yet defined
-    PMDef : (alwaysReduce : Bool) -> -- always reduce, even when quoting etc
+    PMDef : (pminfo : PMDefInfo) -> -- always reduce, even when quoting etc
                  -- typically for inlinable metavariable solutions
             (args : List Name) ->
             (treeCT : CaseTree args) ->
@@ -336,7 +351,10 @@ returnDef : Bool -> Int -> GlobalDef -> Maybe (Int, GlobalDef)
 returnDef False idx def = Just (idx, def)
 returnDef True idx def
     = case definition def of
-           PMDef True _ _ _ _ => Just (idx, def)
+           PMDef pi _ _ _ _ =>
+                 if alwaysReduce pi
+                    then Just (idx, def)
+                    else Nothing
            _ => Nothing
 
 export

@@ -129,7 +129,7 @@ retryDelayed ((i, elab) :: ds)
          log 5 ("Retrying delayed hole " ++ show !(getFullName (Resolved i)))
          tm <- elab
          updateDef (Resolved i) (const (Just
-              (PMDef True [] (STerm tm) (STerm tm) [])))
+              (PMDef (MkPMDefInfo NotHole True) [] (STerm tm) (STerm tm) [])))
          logTerm 5 ("Resolved delayed hole " ++ show i) tm
          logTermNF 5 ("Resolved delayed hole NF " ++ show i) [] tm
          removeHole i

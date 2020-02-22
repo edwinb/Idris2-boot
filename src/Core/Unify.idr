@@ -316,12 +316,13 @@ instantiate : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               {newvars : _} ->
               FC -> UnifyMode -> Env Term vars ->
-              (metavar : Name) -> (mref : Int) -> (mdef : GlobalDef) ->
+              (metavar : Name) -> (mref : Int) -> (numargs : Nat) ->
+              (mdef : GlobalDef) ->
               List (Var newvars) -> -- Variable each argument maps to
               Term vars -> -- original, just for error message
               Term newvars -> -- shrunk environment
               Core ()
-instantiate {newvars} loc mode env mname mref mdef locs otm tm
+instantiate {newvars} loc mode env mname mref num mdef locs otm tm
     = do logTerm 5 ("Instantiating in " ++ show newvars) tm
 --          let Hole _ _ = definition mdef
 --              | def => ufail {a=()} loc (show mname ++ " already resolved as " ++ show def)
@@ -339,7 +340,7 @@ instantiate {newvars} loc mode env mname mref mdef locs otm tm
          logTerm 5 ("Instantiated: " ++ show mname) ty
          log 5 ("From vars: " ++ show newvars)
          logTerm 5 "Definition" rhs
-         let simpleDef = isSimple rhs
+         let simpleDef = MkPMDefInfo (SolvedHole num) (isSimple rhs)
          let newdef = record { definition =
                                  PMDef simpleDef [] (STerm rhs) (STerm rhs) []
                              } mdef
@@ -430,7 +431,7 @@ solveIfUndefined env (Meta fc mname idx args) soln
                        Just stm =>
                           do Just hdef <- lookupCtxtExact (Resolved idx) (gamma defs)
                                   | Nothing => throw (InternalError "Can't happen: no definition")
-                             instantiate fc (InTerm True) env mname idx hdef locs soln stm
+                             instantiate fc (InTerm True) env mname idx (length args) hdef locs soln stm
                              pure True
 solveIfUndefined env metavar soln
     = pure False
@@ -628,7 +629,7 @@ mutual
                    -- metavariables)
                    do Just hdef <- lookupCtxtExact (Resolved mref) (gamma defs)
                            | Nothing => throw (InternalError ("Can't happen: Lost hole " ++ show mname))
-                      instantiate loc mode env mname mref hdef locs solfull stm
+                      instantiate loc mode env mname mref (length margs) hdef locs solfull stm
                       pure $ solvedHole mref
     where
       -- Only need to check the head metavar is the same, we've already
@@ -1160,7 +1161,7 @@ retryGuess mode smode (hid, (loc, hname))
                   handleUnify
                      (do tm <- search loc rig (smode == Defaults) depth defining
                                       (type def) []
-                         let gdef = record { definition = PMDef False [] (STerm tm) (STerm tm) [] } def
+                         let gdef = record { definition = PMDef defaultPI [] (STerm tm) (STerm tm) [] } def
                          logTermNF 5 ("Solved " ++ show hname) [] tm
                          addDef (Resolved hid) gdef
                          removeGuess hid
@@ -1189,7 +1190,8 @@ retryGuess mode smode (hid, (loc, hname))
                                            AddDelay r =>
                                               do ty <- getType [] tm
                                                  pure $ delayMeta r envb !(getTerm ty) tm
-                                  let gdef = record { definition = PMDef True [] (STerm tm') (STerm tm') [] } def
+                                  let gdef = record { definition = PMDef (MkPMDefInfo NotHole True)
+                                                                         [] (STerm tm') (STerm tm') [] } def
                                   logTerm 5 ("Resolved " ++ show hname) tm'
                                   addDef (Resolved hid) gdef
                                   removeGuess hid
@@ -1207,7 +1209,8 @@ retryGuess mode smode (hid, (loc, hname))
                          -- All constraints resolved, so turn into a
                          -- proper definition and remove it from the
                          -- hole list
-                         [] => do let gdef = record { definition = PMDef True [] (STerm tm) (STerm tm) [] } def
+                         [] => do let gdef = record { definition = PMDef (MkPMDefInfo NotHole True)
+                                                                         [] (STerm tm) (STerm tm) [] } def
                                   logTerm 5 ("Resolved " ++ show hname) tm
                                   addDef (Resolved hid) gdef
                                   removeGuess hid

@@ -747,12 +747,32 @@ TTC PrimNames where
            c <- fromBuf b
            pure (MkPrimNs i str c)
 
+export
+TTC HoleInfo where
+  toBuf b NotHole = tag 0
+  toBuf b (SolvedHole n) = do tag 1; toBuf b n
+
+  fromBuf b
+      = case !getTag of
+             0 => pure NotHole
+             1 => do n <- fromBuf b; pure (SolvedHole n)
+             _ => corrupt "HoleInfo"
+
+export
+TTC PMDefInfo where
+  toBuf b l
+      = do toBuf b (holeInfo l)
+           toBuf b (alwaysReduce l)
+  fromBuf b
+      = do h <- fromBuf b
+           r <- fromBuf b
+           pure (MkPMDefInfo h r)
 
 export
 TTC Def where
   toBuf b None = tag 0
-  toBuf b (PMDef r args ct rt pats)
-      = do tag 1; toBuf b args; toBuf b ct; toBuf b rt; toBuf b pats
+  toBuf b (PMDef pi args ct rt pats)
+      = do tag 1; toBuf b pi; toBuf b args; toBuf b ct; toBuf b rt; toBuf b pats
   toBuf b (ExternDef a)
       = do tag 2; toBuf b a
   toBuf b (ForeignDef a cs)
@@ -776,11 +796,12 @@ TTC Def where
   fromBuf b
       = case !getTag of
              0 => pure None
-             1 => do args <- fromBuf b
+             1 => do pi <- fromBuf b
+                     args <- fromBuf b
                      ct <- fromBuf b
                      rt <- fromBuf b
                      pats <- fromBuf b
-                     pure (PMDef False args ct rt pats)
+                     pure (PMDef pi args ct rt pats)
              2 => do a <- fromBuf b
                      pure (ExternDef a)
              3 => do a <- fromBuf b

@@ -612,7 +612,7 @@ processDef opts nest env fc n_in cs_in
          -- but we'll rebuild that in a later pass once all the case
          -- blocks etc are resolved
          addDef (Resolved nidx)
-                  (record { definition = PMDef False cargs tree_ct tree_ct pats
+                  (record { definition = PMDef defaultPI cargs tree_ct tree_ct pats
                           } gdef)
 
          let rmetas = getMetas tree_ct
