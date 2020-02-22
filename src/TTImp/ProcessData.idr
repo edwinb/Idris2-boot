@@ -56,15 +56,31 @@ checkFamily loc cn tn env nf
                                else throw (BadDataConType loc cn tn)
                       _ => throw (BadDataConType loc cn tn))
 
+updateNS : Name -> Name -> RawImp -> RawImp
+updateNS orig ns (IPi fc c p n ty sc) = IPi fc c p n ty (updateNS orig ns sc)
+updateNS orig ns tm = updateNSApp tm
+  where
+    updateNSApp : RawImp -> RawImp
+    updateNSApp (IVar fc n) -- data type type, must be defined in this namespace
+        = if n == orig
+             then IVar fc ns
+             else IVar fc n
+    updateNSApp (IApp fc f arg) = IApp fc (updateNSApp f) arg
+    updateNSApp (IImplicitApp fc f n arg) = IImplicitApp fc (updateNSApp f) n arg
+    updateNSApp t = t
+
 checkCon : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
            {auto m : Ref MD Metadata} ->
            {auto u : Ref UST UState} ->
            List ElabOpt -> NestedNames vars ->
-           Env Term vars -> Visibility -> Name ->
+           Env Term vars -> Visibility -> (orig : Name) -> (resolved : Name) ->
            ImpTy -> Core Constructor
-checkCon {vars} opts nest env vis tn (MkImpTy fc cn_in ty_raw)
+checkCon {vars} opts nest env vis tn_in tn (MkImpTy fc cn_in ty_raw)
     = do cn <- inCurrentNS cn_in
+         let ty_raw = updateNS tn_in tn ty_raw
+         log 5 $ "Checking constructor type " ++ show cn ++ " : " ++ show ty_raw
+         log 10 $ "Updated " ++ show (tn_in, tn)
 
          defs <- get Ctxt
          -- Check 'cn' is undefined
@@ -268,7 +284,7 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
          -- Constructors are private if the data type as a whole is
          -- export
          let cvis = if vis == Export then Private else vis
-         cons <- traverse (checkCon eopts nest env cvis (Resolved tidx)) cons_raw
+         cons <- traverse (checkCon eopts nest env cvis n_in (Resolved tidx)) cons_raw
 
          let ddef = MkData (MkCon dfc n arity fullty) cons
          addData vars vis tidx ddef
