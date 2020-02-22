@@ -142,6 +142,9 @@ stMain opts
                  session <- getSession
                  when (not $ nobanner session) $
                    iputStrLn banner
+                 fname <- if findipkg session
+                             then findIpkg fname
+                             else pure fname
                  case fname of
                       Nothing => logTime "Loading prelude" $
                                    when (not $ noprelude session) $

@@ -423,3 +423,36 @@ processPackageOpts [Package cmd f]
     = do processPackage cmd f
          pure True
 processPackageOpts opts = rejectPackageOpts opts
+
+-- find an ipkg file in one of the parent directories
+-- If it exists, read it, set the current directory to the root of the source
+-- tree, and set the relevant command line options before proceeding
+export
+findIpkg : {auto c : Ref Ctxt Defs} ->
+           {auto r : Ref ROpts REPLOpts} ->
+           Maybe String -> Core (Maybe String)
+findIpkg fname
+   = do Just (dir, ipkgn, up) <- coreLift findIpkgFile
+             | Nothing => pure fname
+        coreLift $ changeDir dir
+        Right (pname, fs) <- coreLift $ parseFile ipkgn
+                                 (do desc <- parsePkgDesc ipkgn
+                                     eoi
+                                     pure desc)
+              | Left err => throw (ParseFail (getParseErrorLoc ipkgn err) err)
+        pkg <- addFields fs (initPkgDesc pname)
+        setSourceDir (sourcedir pkg)
+        processOptions (options pkg)
+        case fname of
+             Nothing => pure Nothing
+             Just src =>
+                do let src' = showSep dirSep (up ++ [src])
+                   setSource src'
+                   opts <- get ROpts
+                   put ROpts (record { mainfile = Just src' } opts)
+                   pure (Just src')
+  where
+    dropHead : String -> List String -> List String
+    dropHead str [] = []
+    dropHead str (x :: xs)
+        = if x == str then xs else x :: xs

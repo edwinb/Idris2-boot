@@ -83,6 +83,9 @@ preOptions (RunREPL _ :: opts)
     = do setOutput (REPL True)
          setSession (record { nobanner = True } !getSession)
          preOptions opts
+preOptions (FindIPKG :: opts)
+    = do setSession (record { findipkg = True } !getSession)
+         preOptions opts
 preOptions (_ :: opts) = preOptions opts
 
 -- Options to be processed after type checking. Returns whether execution

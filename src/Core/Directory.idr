@@ -183,3 +183,54 @@ getExecFileName : {auto c : Ref Ctxt Defs} -> String -> Core String
 getExecFileName efile
     = do d <- getDirs
          pure $ build_dir d ++ dirSep ++ efile
+
+getEntries : Directory -> IO (List String)
+getEntries d
+    = do Right f <- dirEntry d
+             | Left err => pure []
+         ds <- assert_total $ getEntries d
+         pure (f :: ds)
+  
+dirEntries : String -> IO (Either FileError (List String))
+dirEntries dir
+    = do Right d <- dirOpen dir
+             | Left err => pure (Left err)
+         ds <- getEntries d
+         dirClose d
+         pure (Right ds)
+  
+findIpkg : List String -> Maybe String
+findIpkg [] = Nothing
+findIpkg (f :: fs)
+    = if isSuffixOf ".ipkg" f
+         then Just f
+         else findIpkg fs
+
+allDirs : String -> List String -> List (String, List String)
+allDirs path [] = []
+allDirs path ("" :: ds) = ("/", ds) :: allDirs path ds
+allDirs path (d :: ds)
+    = let d' = path ++ strCons sep d in
+          (d', ds) :: allDirs d' ds
+
+-- Find an ipkg file in any of the directories above this one
+-- returns the directory, the ipkg file name, and the directories we've
+-- gone up
+export
+findIpkgFile : IO (Maybe (String, String, List String))
+findIpkgFile
+    = do dir <- currentDir
+         -- 'paths' are the paths to look for an .ipkg, in order
+         let paths = reverse (allDirs "" (splitDir dir))
+         res <- firstIpkg paths
+         pure res
+  where
+    firstIpkg : List (String, List String) ->
+                IO (Maybe (String, String, List String))
+    firstIpkg [] = pure Nothing
+    firstIpkg ((d, up) :: ds)
+        = do Right files <- dirEntries d
+                   | Left err => pure Nothing
+             let Just f = findIpkg files
+                   | Nothing => firstIpkg ds
+             pure $ Just (d, f, up)

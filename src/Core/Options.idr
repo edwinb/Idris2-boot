@@ -90,6 +90,7 @@ record Session where
   constructor MkSessionOpts
   noprelude : Bool
   nobanner : Bool
+  findipkg : Bool
   codegen : CG
   logLevel : Nat
   logTimings : Bool
@@ -138,7 +139,7 @@ defaultPPrint : PPrinter
 defaultPPrint = MkPPOpts False True False
 
 defaultSession : Session
-defaultSession = MkSessionOpts False False Chez 0 False False
+defaultSession = MkSessionOpts False False False Chez 0 False False
 
 defaultElab : ElabDirectives
 defaultElab = MkElabDirectives True True
