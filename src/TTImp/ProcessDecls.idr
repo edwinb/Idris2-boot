@@ -8,6 +8,7 @@ import Core.UnifyState
 
 import Parser.Support
 
+import TTImp.BindImplicits
 import TTImp.Elab.Check
 import TTImp.Parser
 import TTImp.ProcessData
@@ -65,6 +66,40 @@ processDecls nest env decls
     = do traverse_ (processDecl [] nest env) decls
          pure True -- TODO: False on error
 
+processTTImpDecls : {vars : _} ->
+                    {auto c : Ref Ctxt Defs} ->
+                    {auto m : Ref MD Metadata} ->
+                    {auto u : Ref UST UState} ->
+                    NestedNames vars -> Env Term vars -> List ImpDecl -> Core Bool
+processTTImpDecls {vars} nest env decls
+    = do traverse_ (\d => do d' <- bindNames d
+                             processDecl [] nest env d') decls
+         pure True -- TODO: False on error
+  where
+    bindConNames : ImpTy -> Core ImpTy
+    bindConNames (MkImpTy fc n ty)
+        = do ty' <- bindTypeNames [] vars ty
+             pure (MkImpTy fc n ty')
+
+    bindDataNames : ImpData -> Core ImpData
+    bindDataNames (MkImpData fc n t opts cons)
+        = do t' <- bindTypeNames [] vars t
+             cons' <- traverse bindConNames cons
+             pure (MkImpData fc n t' opts cons')
+    bindDataNames (MkImpLater fc n t)
+        = do t' <- bindTypeNames [] vars t
+             pure (MkImpLater fc n t')
+
+    -- bind implicits to make raw TTImp source a bit friendlier
+    bindNames : ImpDecl -> Core ImpDecl
+    bindNames (IClaim fc c vis opts (MkImpTy tfc n ty))
+        = do ty' <- bindTypeNames [] vars ty
+             pure (IClaim fc c vis opts (MkImpTy tfc n ty'))
+    bindNames (IData fc vis d)
+        = do d' <- bindDataNames d
+             pure (IData fc vis d')
+    bindNames d = pure d
+
 export
 processTTImpFile : {auto c : Ref Ctxt Defs} ->
                    {auto m : Ref MD Metadata} ->
@@ -78,7 +113,7 @@ processTTImpFile fname
                | Left err => do coreLift (putStrLn (show err))
                                 pure False
          logTime "Elaboration" $
-            catch (do processDecls (MkNested []) [] tti
+            catch (do processTTImpDecls (MkNested []) [] tti
                       Nothing <- checkDelayedHoles
                           | Just err => throw err
                       pure True)

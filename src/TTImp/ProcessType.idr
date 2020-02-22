@@ -103,7 +103,6 @@ processType : {vars : _} ->
               List FnOpt -> ImpTy -> Core ()
 processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
     = do n <- inCurrentNS n_in
-         ty_raw <- bindTypeNames [] vars ty_raw
 
          log 1 $ "Processing " ++ show n
          log 5 $ "Checking type decl " ++ show n ++ " : " ++ show ty_raw

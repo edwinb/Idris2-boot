@@ -160,8 +160,9 @@ mutual
                         (Implicit fc False)
                         !(traverse (desugarClause ps True) xs)
   desugarB side ps (PLocal fc xs scope)
-      = pure $ ILocal fc (concat !(traverse (desugarDecl ps) xs))
-                         !(desugar side (definedIn xs ++ ps) scope)
+      = let ps' = definedIn xs ++ ps in
+            pure $ ILocal fc (concat !(traverse (desugarDecl ps') xs))
+                             !(desugar side ps' scope)
   desugarB side ps (PApp pfc (PUpdate fc fs) rec)
       = pure $ IUpdate pfc !(traverse (desugarUpdate side ps) fs)
                            !(desugarB side ps rec)

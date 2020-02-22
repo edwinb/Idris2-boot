@@ -65,7 +65,6 @@ checkCon : {vars : _} ->
            ImpTy -> Core Constructor
 checkCon {vars} opts nest env vis tn (MkImpTy fc cn_in ty_raw)
     = do cn <- inCurrentNS cn_in
-         ty_raw <- bindTypeNames [] vars ty_raw
 
          defs <- get Ctxt
          -- Check 'cn' is undefined
