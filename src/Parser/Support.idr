@@ -238,11 +238,11 @@ constant
                                              Nothing => Nothing
                                              Just c' => Just (Ch c')
                            DoubleLit d => Just (Db d)
-                           Keyword "Int" => Just IntType
-                           Keyword "Integer" => Just IntegerType
-                           Keyword "String" => Just StringType
-                           Keyword "Char" => Just CharType
-                           Keyword "Double" => Just DoubleType
+                           Ident "Int" => Just IntType
+                           Ident "Integer" => Just IntegerType
+                           Ident "String" => Just StringType
+                           Ident "Char" => Just CharType
+                           Ident "Double" => Just DoubleType
                            _ => Nothing)
 
 export
@@ -330,6 +330,11 @@ holeName
                            HoleIdent str => Just str
                            _ => Nothing)
 
+reservedNames : List String
+reservedNames
+    = ["Type", "Int", "Integer", "String", "Char", "Double",
+       "Lazy", "Inf", "Force", "Delay"]
+
 export
 name : Rule Name
 name
@@ -338,16 +343,26 @@ name
              op <- operator
              symbol ")"
              pure (NS ns (UN op))) <|>
-           (pure (mkFullName ns))
+           (either (\n => fail ("Can't use reserved name " ++ n))
+                   pure (mkFullName ns))
   <|> do symbol "("
          op <- operator
          symbol ")"
          pure (UN op)
  where
-   mkFullName : List String -> Name
-   mkFullName [] = UN "NONE" -- Can't happen :)
-   mkFullName [n] = UN n
-   mkFullName (n :: ns) = NS ns (UN n)
+   reserved : String -> Bool
+   reserved n = n `elem` reservedNames
+
+   mkFullName : List String -> Either String Name
+   mkFullName [] = Right $ UN "NONE" -- Can't happen :)
+   mkFullName [n]
+       = if reserved n
+            then Left n
+            else Right (UN n)
+   mkFullName (n :: ns)
+       = if reserved n
+            then Left n
+            else Right (NS ns (UN n))
 
 export
 IndentInfo : Type

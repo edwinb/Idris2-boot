@@ -46,7 +46,7 @@ atom fname
          end <- location
          pure (PPrimVal (MkFC fname start end) x)
   <|> do start <- location
-         keyword "Type"
+         exactIdent "Type"
          end <- location
          pure (PType (MkFC fname start end))
   <|> do start <- location
@@ -685,22 +685,22 @@ mutual
   lazy : FileName -> IndentInfo -> Rule PTerm
   lazy fname indents
       = do start <- location
-           keyword "Lazy"
+           exactIdent "Lazy"
            tm <- simpleExpr fname indents
            end <- location
            pure (PDelayed (MkFC fname start end) LLazy tm)
     <|> do start <- location
-           keyword "Inf"
+           exactIdent "Inf"
            tm <- simpleExpr fname indents
            end <- location
            pure (PDelayed (MkFC fname start end) LInf tm)
     <|> do start <- location
-           keyword "Delay"
+           exactIdent "Delay"
            tm <- simpleExpr fname indents
            end <- location
            pure (PDelay (MkFC fname start end) tm)
     <|> do start <- location
-           keyword "Force"
+           exactIdent "Force"
            tm <- simpleExpr fname indents
            end <- location
            pure (PForce (MkFC fname start end) tm)
