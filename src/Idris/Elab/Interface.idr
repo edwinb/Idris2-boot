@@ -111,15 +111,16 @@ getMethToplevel : {auto c : Ref Ctxt Defs} ->
                   Name -> Name ->
                   (constraints : List (Maybe Name)) ->
                   (allmeths : List Name) ->
-                  (params : List Name) ->
+                  (params : List (Name, RawImp)) ->
                   (FC, RigCount, List FnOpt, Name, (Bool, RawImp)) ->
                   Core (List ImpDecl)
 getMethToplevel {vars} env vis iname cname constraints allmeths params
                 (fc, c, opts, n, (d, ty))
-    = do let ity = apply (IVar fc iname) (map (IVar fc) params)
+    = do let ity = apply (IVar fc iname) (map (IVar fc) (map fst params))
          -- Make the constraint application explicit for any method names
          -- which appear in other method types
-         let ty_constr = substNames vars (map applyCon allmeths) ty
+         let ty_constr =
+             bindPs params $ substNames vars (map applyCon allmeths) ty
          ty_imp <- bindTypeNames [] vars (bindIFace fc ity ty_constr)
          cn <- inCurrentNS n
          let tydecl = IClaim fc c vis (if d then [Inline, Invertible]
@@ -139,6 +140,13 @@ getMethToplevel {vars} env vis iname cname constraints allmeths params
          let fndef = IDef fc cn [fnclause]
          pure [tydecl, fndef]
   where
+    -- Bind the type parameters given explicitly - there might be information
+    -- in there that we can't infer after all
+    bindPs : List (Name, RawImp) -> RawImp -> RawImp
+    bindPs [] ty = ty
+    bindPs ((n, pty) :: ps) ty
+        = IPi (getFC pty) Rig0 Implicit (Just n) pty (bindPs ps ty)
+
     applyCon : Name -> (Name, RawImp)
     applyCon n = (n, IImplicitApp fc (IVar fc n)
                              (Just (UN "__con")) (IVar fc (UN "__con")))
@@ -295,7 +303,7 @@ elabInterface {vars} fc vis env nest constraints iname params dets mcon body
              fnsm <- traverse (getMethToplevel env vis iname conName
                                                (map fst constraints)
                                                meth_names
-                                               (map fst params)) meth_sigs
+                                               params) meth_sigs
              let fns = concat fnsm
              log 5 $ "Top level methods: " ++ show fns
              traverse (processDecl [] nest env) fns

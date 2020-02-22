@@ -65,7 +65,7 @@ export Show Name where
   show (PV n d) = "{P:" ++ show n ++ ":" ++ show d ++ "}"
   show (DN str n) = str
   show (Nested outer inner) = show outer ++ ":" ++ show inner
-  show (CaseBlock outer i) = "case block in " ++ show outer
+  show (CaseBlock outer i) = "case block in " ++ show outer ++ "(" ++ show i ++ ")"
   show (WithBlock outer i) = "with block in " ++ show outer
   show (Resolved x) = "$resolved" ++ show x
 

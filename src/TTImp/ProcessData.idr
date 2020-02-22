@@ -79,7 +79,7 @@ checkCon {vars} opts nest env vis tn (MkImpTy fc cn_in ty_raw)
          -- Check 'ty' returns something in the right family
          checkFamily fc cn tn env !(nf defs env ty)
          let fullty = abstractEnvType fc env ty
-         logTermNF 5 (show cn) [] fullty
+         logTermNF 5 ("Constructor " ++ show cn) [] fullty
 
          traverse_ addToSave (keys (getMetas ty))
          addToSave cn

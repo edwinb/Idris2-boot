@@ -28,8 +28,9 @@ data HoleInfo
 public export
 record PMDefInfo where
   constructor MkPMDefInfo
-  holeInfo : HoleInfo
-  alwaysReduce : Bool
+  holeInfo : HoleInfo -- data if it comes from a solved hole
+  alwaysReduce : Bool -- always reduce, even when quoting etc
+                 -- typically for inlinable metavariable solutions
 
 export
 defaultPI : PMDefInfo
@@ -38,8 +39,7 @@ defaultPI = MkPMDefInfo NotHole False
 public export
 data Def : Type where
     None : Def -- Not yet defined
-    PMDef : (pminfo : PMDefInfo) -> -- always reduce, even when quoting etc
-                 -- typically for inlinable metavariable solutions
+    PMDef : (pminfo : PMDefInfo) ->
             (args : List Name) ->
             (treeCT : CaseTree args) ->
             (treeRT : CaseTree args) ->
