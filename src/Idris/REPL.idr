@@ -367,6 +367,18 @@ processEdit (ExprSearch upd line name hints all)
                                        if upd
                                           then updateFile (proofSearch name res (cast (line - 1)))
                                           else pure $ DisplayEdit [res]
+              [(n, nidx, PMDef pi [] (STerm tm) _ _)] =>
+                  case holeInfo pi of
+                       NotHole => pure $ EditError "Not a searchable hole"
+                       SolvedHole locs =>
+                          do let (_ ** (env, tm')) = dropLams locs [] tm
+                             itm <- resugar env tm'
+                             let res = show (if brack
+                                                then addBracket replFC itm
+                                                else itm)
+                             if upd
+                                then updateFile (proofSearch name res (cast (line - 1)))
+                                else pure $ DisplayEdit [res]
               [] => pure $ EditError $ "Unknown name " ++ show name
               _ => pure $ EditError "Not a searchable hole"
   where
