@@ -88,7 +88,7 @@ elabRewrite loc env expected rulety
          -- if the rewritten expected type converts with the original,
          -- then the rewrite did nothing, which is an error
          when !(convert defs env rwexp_sc exptm) $
-                throw (RewriteNoChange loc env rulety exptm)
+             throw (RewriteNoChange loc env rulety exptm)
          pure (lemn, pred, predty)
 
 export

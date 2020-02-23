@@ -645,6 +645,18 @@ mutual
       = pure $ !(convGen q defs env x y) && !(allConv q defs env xs ys)
   allConv q defs env _ _ = pure False
 
+  chkSameDefs : Ref QVar Int -> Defs -> Env Term vars ->
+                Name -> Name ->
+                List (Closure vars) -> List (Closure vars) -> Core Bool
+  chkSameDefs q defs env n n' nargs nargs'
+     = do Just (PMDef _ args ct rt _) <- lookupDefExact n (gamma defs)
+               | _ => pure False
+          Just (PMDef _ args' ct' rt' _) <- lookupDefExact n' (gamma defs)
+               | _ => pure False
+          if (length args == length args' && eqTree rt rt')
+             then allConv q defs env nargs nargs'
+             else pure False
+
   -- If two names are standing for case blocks, check the blocks originate
   -- from the same place, and have the same scrutinee
   chkConvCaseBlock : FC -> Ref QVar Int -> Defs -> Env Term vars ->
@@ -655,6 +667,8 @@ mutual
               | _ => pure False
            NS _ (CaseBlock _ _) <- full (gamma defs) n'
               | _ => pure False
+           False <- chkSameDefs q defs env n n' nargs nargs'
+              | True => pure True
            -- both case operators. Due to the way they're elaborated, two
            -- blocks might arise from the same source but have different
            -- names. So we consider them the same if the scrutinees convert,

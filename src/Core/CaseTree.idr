@@ -61,6 +61,27 @@ mutual
     show (DefaultCase sc)
         = "_ => " ++ show sc
 
+mutual
+  export
+  eqTree : CaseTree vs -> CaseTree vs' -> Bool
+  eqTree (Case i _ _ alts) (Case i' _ _ alts')
+      = i == i && and (map Delay (zipWith eqAlt alts alts'))
+  eqTree (STerm t) (STerm t') = eqTerm t t'
+  eqTree (Unmatched _) (Unmatched _) = True
+  eqTree Impossible Impossible = True
+  eqTree _ _ = False
+
+  eqAlt : CaseAlt vs -> CaseAlt vs' -> Bool
+  eqAlt (ConCase n t args tree) (ConCase n' t' args' tree')
+      = n == n' && eqTree tree tree' -- assume arities match, since name does
+  eqAlt (DelayCase _ _ tree) (DelayCase _ _ tree')
+      = eqTree tree tree'
+  eqAlt (ConstCase c tree) (ConstCase c' tree')
+      = c == c' && eqTree tree tree'
+  eqAlt (DefaultCase tree) (DefaultCase tree')
+      = eqTree tree tree'
+  eqAlt _ _ = False
+
 export
 Show Pat where
   show (PAs _ n p) = show n ++ "@(" ++ show p ++ ")"
