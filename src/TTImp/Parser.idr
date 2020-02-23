@@ -65,14 +65,18 @@ visibility
     = visOption
   <|> pure Private
 
-fnOpt : Rule FnOpt
-fnOpt
+totalityOpt : Rule TotalReq
+totalityOpt
     = do keyword "partial"
          pure PartialOK
   <|> do keyword "total"
          pure Total
   <|> do keyword "covering"
-         pure Covering
+         pure CoveringOnly
+
+fnOpt : Rule FnOpt
+fnOpt = do x <- totalityOpt          
+           pure $ Totality x
 
 fnDirectOpt : Rule FnOpt
 fnDirectOpt

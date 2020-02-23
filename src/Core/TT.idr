@@ -509,6 +509,16 @@ Ord Visibility where
   compare Public Export = GT
 
 public export
+data TotalReq = Total | CoveringOnly | PartialOK
+
+export
+Eq TotalReq where
+    (==) Total Total = True
+    (==) CoveringOnly CoveringOnly = True
+    (==) PartialOK PartialOK = True
+    (==) _ _ = False
+
+public export
 data PartialReason
        = NotStrictlyPositive
        | BadCall (List Name)

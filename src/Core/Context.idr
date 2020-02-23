@@ -123,9 +123,6 @@ data Clause : Type where
                 (lhs : Term vars) -> (rhs : Term vars) -> Clause
 
 public export
-data TotalReq = Total | CoveringOnly | PartialOK
-
-public export
 data DefFlag
     = Inline
     | Invertible -- assume safe to cancel arguments in unification
@@ -141,13 +138,6 @@ data DefFlag
     | SetTotal TotalReq
     | BlockedHint -- a hint, but blocked for the moment (so don't use)
     | Macro
-
-export
-Eq TotalReq where
-    (==) Total Total = True
-    (==) CoveringOnly CoveringOnly = True
-    (==) PartialOK PartialOK = True
-    (==) _ _ = False
 
 export
 Eq DefFlag where

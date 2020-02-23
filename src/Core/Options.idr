@@ -2,6 +2,7 @@ module Core.Options
 
 import Core.Core
 import Core.Name
+import Core.TT
 import Utils.Binary
 
 import System.Info
