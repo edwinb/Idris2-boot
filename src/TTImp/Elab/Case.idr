@@ -327,9 +327,14 @@ checkCase rig elabinfo nest env fc scr scrty_exp alts exp
            -- Try checking at the given multiplicity; if that doesn't work,
            -- try checking at Rig1 (meaning that we're using a linear variable
            -- so the scrutinee should be linear)
+           let chrig = case rig of
+                            Rig0 => Rig0
+                            _ => RigW
+           log 5 $ "Checking " ++ show scr ++ " at " ++ show chrig
+
            (scrtm_in, gscrty, caseRig) <- handle
-              (do c <- check RigW elabinfo nest env scr (Just (gnf env scrtyv))
-                  pure (fst c, snd c, RigW))
+              (do c <- check chrig elabinfo nest env scr (Just (gnf env scrtyv))
+                  pure (fst c, snd c, chrig))
               (\err => case err of
                             LinearMisuse _ _ Rig1 _
                               => do c <- check Rig1 elabinfo nest env scr
@@ -338,7 +343,8 @@ checkCase rig elabinfo nest env fc scr scrty_exp alts exp
                             e => throw e)
            scrty <- getTerm gscrty
            logTermNF 5 "Scrutinee type" env scrty
-           checkConcrete !(getNF gscrty)
+           defs <- get Ctxt
+           checkConcrete !(nf defs env scrty)
            caseBlock rig elabinfo fc nest env scr scrtm_in scrty caseRig alts exp
   where
     -- For the moment, throw an error if we haven't been able to work out

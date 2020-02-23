@@ -296,7 +296,7 @@ mutual
                [IVar fc (UN "Unit"),
                 IVar fc (UN "MkUnit")]
   desugarB side ps (PIfThenElse fc x t e)
-      = pure $ ICase fc !(desugarB side ps x) (Implicit fc False)
+      = pure $ ICase fc !(desugarB side ps x) (IVar fc (UN "Bool"))
                    [PatClause fc (IVar fc (UN "True")) !(desugar side ps t),
                     PatClause fc (IVar fc (UN "False")) !(desugar side ps e)]
   desugarB side ps (PComprehension fc ret conds)
