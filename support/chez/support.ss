@@ -177,6 +177,20 @@
 (define (blodwen-create-directory dir)
   (blodwen-file-op (lambda () (mkdir dir) 0)))
 
+; Scheme only gives a primitive for reading all the files in a directory,
+; so this is faking the C interface!
+(define (blodwen-open-directory dir)
+  (blodwen-file-op (lambda () (box (directory-list dir)))))
+
+(define (blodwen-close-directory dir) '()) ; no-op, it's not really open
+
+(define (blodwen-next-dir-entry dir)
+  (let [(dlist (unbox dir))]
+    (if (null? dlist)
+      (either-left 255)
+      (begin (set-box! dir (cdr dlist))
+             (either-right (car dlist))))))
+
 ;; Threads
 
 (define blodwen-thread-data (make-thread-parameter #f))

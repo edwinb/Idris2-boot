@@ -2,6 +2,9 @@ module System.Directory
 
 import public System.File
 
+public export
+data DirPtr : Type where
+
 toFileError : Int -> FileError
 toFileError 1 = FileReadError
 toFileError 2 = FileWriteError
@@ -22,6 +25,19 @@ prim_changeDir : String -> PrimIO Int
 %foreign "scheme:blodwen-create-directory"
 prim_createDir : String -> PrimIO (Either Int ())
 
+%foreign "scheme:blodwen-open-directory"
+prim_openDir : String -> PrimIO (Either Int DirPtr)
+
+%foreign "scheme:blodwen-close-directory"
+prim_closeDir : DirPtr -> PrimIO ()
+
+%foreign "scheme:blodwen-next-dir-entry"
+prim_dirEntry : DirPtr -> PrimIO (Either Int String)
+
+export
+data Directory : Type where
+     MkDir : DirPtr -> Directory
+
 export
 createDir : String -> IO (Either FileError ())
 createDir dir
@@ -37,3 +53,19 @@ changeDir dir
 export
 currentDir : IO String
 currentDir = primIO prim_currentDir
+
+export
+dirOpen : String -> IO (Either FileError Directory)
+dirOpen d
+    = do res <- primIO (prim_openDir d)
+         fpure (map MkDir res)
+
+export
+dirClose : Directory -> IO ()
+dirClose (MkDir d) = primIO (prim_closeDir d)
+
+export
+dirEntry : Directory -> IO (Either FileError String)
+dirEntry (MkDir d)
+    = do res <- primIO (prim_dirEntry d)
+         fpure res
