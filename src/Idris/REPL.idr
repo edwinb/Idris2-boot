@@ -306,6 +306,23 @@ proofSearch n res Z (x :: xs) = replaceStr ("?" ++ show n) res x :: xs
 proofSearch n res (S k) (x :: xs) = x :: proofSearch n res k xs
 proofSearch n res _ [] = []
 
+addMadeLemma : Name -> String -> String -> Nat -> List String -> List String
+addMadeLemma n ty app line content
+    = addApp line [] (proofSearch n app line content)
+  where
+    -- Put n : ty in the first blank line
+    insertInBlank : List String -> List String
+    insertInBlank [] = [show n ++ " : " ++ ty ++ "\n\n"]
+    insertInBlank (x :: xs)
+        = if trim x == ""
+             then ("\n" ++ show n ++ " : " ++ ty ++ "\n") :: xs
+             else x :: insertInBlank xs
+
+    addApp : Nat -> List String -> List String -> List String
+    addApp Z acc rest = reverse (insertInBlank acc) ++ rest
+    addApp (S k) acc (x :: xs) = addApp k (x :: acc) xs
+    addApp (S k) acc [] = reverse acc
+
 processEdit : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               {auto s : Ref Syn SyntaxInfo} ->
@@ -416,7 +433,10 @@ processEdit (MakeLemma upd line name)
                      let pappstr = show (if brack
                                             then addBracket replFC papp
                                             else papp)
-                     pure $ MadeLemma name pty pappstr
+                     if upd
+                        then updateFile (addMadeLemma name (show pty) pappstr
+                                                      (cast (line - 1)))
+                        else pure $ MadeLemma name pty pappstr
               _ => pure $ EditError "Can't make lifted definition"
 processEdit (MakeCase upd line name)
     = pure $ EditError "Not implemented yet"
