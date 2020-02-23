@@ -3,7 +3,7 @@ Idris 2
 
 This is a pre-alpha implementation of Idris 2, the successor to Idris.
 
-*** Please note: To build, these requires Idris version 1.3.2 ***
+*** Please note: To build, this requires Idris version 1.3.2 ***
 
 Idris 2 is mostly backwards compatible with Idris 1, with some minor
 exceptions. The most notable user visible differences, which might cause Idris
@@ -26,6 +26,16 @@ exceptions. The most notable user visible differences, which might cause Idris
   Notably, elaborator reflection will exist, but most likely in a slightly
   different form because the internal details of the elaborator are different.
 + The `Prelude` is much smaller (and easier to replace with an alternative).
++ `let x = val in e` no longer computes with `x` in `e`, instead being
+  essentiall equivalent to `(\x => e) val`. This is to make the
+  behaviour of `let` consistent in the presence of `case` and `with` (where
+  it is hard to push the computation inside the `case`/`with` efficiently).
+  Instead, you can define functions locally with `let`, which do have
+  computational force, as follows:
+
+    let x : ?
+        x = val in
+        e
 
 Watch this space for more details and the rationale for the changes, as I
 get around to writing it...
