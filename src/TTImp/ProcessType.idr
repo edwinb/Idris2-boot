@@ -46,12 +46,8 @@ processFnOpt fc ndef (ForeignFn _)
     = setFlag fc ndef Inline -- if externally defined, inline when compiling
 processFnOpt fc ndef Invertible
     = setFlag fc ndef Invertible
-processFnOpt fc ndef (Totality Total)
-    = setFlag fc ndef (SetTotal Total)
-processFnOpt fc ndef (Totality Covering)
-    = setFlag fc ndef (SetTotal CoveringOnly)
-processFnOpt fc ndef (Totality PartialOK)
-    = setFlag fc ndef (SetTotal PartialOK)
+processFnOpt fc ndef (Totality tot)
+    = setFlag fc ndef (SetTotal tot)
 processFnOpt fc ndef Macro
     = setFlag fc ndef Macro
 
