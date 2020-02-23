@@ -566,7 +566,18 @@ mutual
                 List Name -> PDecl -> Core (List ImpDecl)
   desugarDecl ps (PClaim fc rig vis fnopts ty)
       = do opts <- traverse (desugarFnOpt ps) fnopts
+           opts <- if (isTotalityOption `any` opts)
+                   then pure opts
+                   else do PartialOK <- getDefaultTotalityOption
+                           | tot => pure (Totality tot :: opts)
+                           -- We assume PartialOK by default internally
+                           pure opts
            pure [IClaim fc rig vis opts !(desugarType ps ty)]
+        where
+          isTotalityOption : FnOpt -> Bool
+          isTotalityOption (Totality _) = True
+          isTotalityOption _            = False
+          
   desugarDecl ps (PDef fc clauses)
   -- The clauses won't necessarily all be from the same function, so split
   -- after desugaring, by function name, using collectDefs from RawImp
@@ -727,6 +738,8 @@ mutual
              StartExpr tm => pure [IPragma (\c, nest, env => throw (InternalError "%start not implemented"))] -- TODO!
              Overloadable n => pure [IPragma (\c, nest, env => setNameFlag fc n Overloadable)]
              Extension e => pure [IPragma (\c, nest, env => setExtension e)]
+             DefaultTotality tot => do setDefaultTotalityOption tot
+                                       pure []
 
   export
   desugar : {auto s : Ref Syn SyntaxInfo} ->

@@ -992,6 +992,10 @@ directive fname indents
          e <- extension
          atEnd indents
          pure (Extension e)
+  <|> do exactIdent "default"
+         tot <- totalityOpt
+         atEnd indents
+         pure (DefaultTotality tot)
 
 fix : Rule Fixity
 fix

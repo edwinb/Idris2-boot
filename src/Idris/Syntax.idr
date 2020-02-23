@@ -161,6 +161,7 @@ mutual
        StartExpr : PTerm -> Directive
        Overloadable : Name -> Directive
        Extension : LangExt -> Directive
+       DefaultTotality : TotalReq -> Directive
 
   public export
   data PField : Type where

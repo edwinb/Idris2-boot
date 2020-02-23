@@ -85,6 +85,7 @@ record ElabDirectives where
   constructor MkElabDirectives
   lazyActive : Bool
   unboundImplicits : Bool
+  totality : TotalReq
 
 public export
 record Session where
@@ -143,7 +144,7 @@ defaultSession : Session
 defaultSession = MkSessionOpts False False False Chez 0 False False
 
 defaultElab : ElabDirectives
-defaultElab = MkElabDirectives True True
+defaultElab = MkElabDirectives True True PartialOK
 
 export
 defaults : Options
