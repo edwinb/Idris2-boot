@@ -220,6 +220,10 @@ searchLocalWith {vars} fc rigc defaults trying depth def top env (prf, ty) targe
          nty <- nf defs env ty
          findPos defs prf id nty target
   where
+    ambig : Error -> Bool
+    ambig (AmbiguousSearch _ _ _) = True
+    ambig _ = False
+
     clearEnvType : {idx : Nat} -> .(IsVar name idx vs) ->
                    FC -> Env Term vs -> Env Term vs
     clearEnvType First fc (b :: env)
@@ -265,8 +269,9 @@ searchLocalWith {vars} fc rigc defaults trying depth def top env (prf, ty) targe
               (target : NF vars) ->
               Core (Term vars)
     findPos defs prf f nty@(NTCon pfc pn _ _ [xty, yty]) target
-        = tryUnify (findDirect defs prf f nty target)
-            (do fname <- maybe (throw (CantSolveGoal fc [] top))
+        = handleUnify (findDirect defs prf f nty target) (\e =>
+           if ambig e then throw e else
+             do fname <- maybe (throw (CantSolveGoal fc [] top))
                                pure
                                !fstName
                 sname <- maybe (throw (CantSolveGoal fc [] top))
@@ -276,21 +281,21 @@ searchLocalWith {vars} fc rigc defaults trying depth def top env (prf, ty) targe
                    then do empty <- clearDefs defs
                            xtytm <- quote empty env xty
                            ytytm <- quote empty env yty
-                           tryUnify
-                             (do xtynf <- evalClosure defs xty
+                           exactlyOne fc env top
+                            [(do xtynf <- evalClosure defs xty
                                  findPos defs prf
                                      (\arg => apply fc (Ref fc Func fname)
                                                         [xtytm,
                                                          ytytm,
                                                          f arg])
-                                     xtynf target)
+                                     xtynf target),
                              (do ytynf <- evalClosure defs yty
                                  findPos defs prf
                                      (\arg => apply fc (Ref fc Func sname)
                                                         [xtytm,
                                                          ytytm,
                                                          f arg])
-                                     ytynf target)
+                                     ytynf target)]
                    else throw (CantSolveGoal fc [] top))
     findPos defs prf f nty target
         = findDirect defs prf f nty target

@@ -48,3 +48,6 @@ TestSurprise1 gnu1 gnu2 = Guess
 
 TestSurprise2 : (f,g : Unit -> Gnu) -> String
 TestSurprise2 f g = Guess
+
+TestSurprise3 : (Unit -> Gnu, Unit -> Gnu) -> String
+TestSurprise3 f = Guess
