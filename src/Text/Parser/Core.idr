@@ -43,7 +43,7 @@ export %inline
         Grammar tok c1 a ->
         inf c1 (a -> Grammar tok c2 b) ->
         Grammar tok (c1 || c2) b
-(>>=) {c1 = False} = SeqEmpty {c2=c2}
+(>>=) {c1 = False} = SeqEmpty
 (>>=) {c1 = True}  = SeqEat
 
 ||| Sequence two grammars. If either consumes some input, the sequence is
@@ -75,7 +75,7 @@ export
 
 ||| Allows the result of a grammar to be mapped to a different value.
 export
-{c : Bool} -> Functor (Grammar tok c) where
+Functor (Grammar tok c) where
   map f (Empty val)  = Empty (f val)
   map f (Fail fatal msg) = Fail fatal msg
   map f (MustWork g) = MustWork (map f g)
