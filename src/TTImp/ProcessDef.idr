@@ -17,6 +17,7 @@ import Core.UnifyState
 import TTImp.BindImplicits
 import TTImp.Elab
 import TTImp.Elab.Check
+import TTImp.Impossible
 import TTImp.TTImp
 import TTImp.Unelab
 import TTImp.Utils
@@ -319,11 +320,6 @@ applyEnv env withname
                   \fc, nt => applyTo fc
                          (Ref fc nt (Resolved n')) env))
 
-getImpossibleTerm : {vars : _} ->
-                    {auto c : Ref Ctxt Defs} ->
-                    RawImp -> Core (Term vars)
-getImpossibleTerm tm = pure (Erased (getFC tm) False)
-
 -- Check a pattern clause, returning the component of the 'Case' expression it
 -- represents, or Nothing if it's an impossible clause
 export
@@ -333,7 +329,7 @@ checkClause : {vars : _} ->
               {auto u : Ref UST UState} ->
               (mult : RigCount) -> (hashit : Bool) ->
               Int -> List ElabOpt -> NestedNames vars -> Env Term vars ->
-              ImpClause -> Core (Either (Term vars) Clause)
+              ImpClause -> Core (Either RawImp Clause)
 checkClause mult hashit n opts nest env (ImpossibleClause fc lhs)
     = do lhs_raw <- lhsInCurrentNS nest lhs
          handleUnify
@@ -350,16 +346,14 @@ checkClause mult hashit n opts nest env (ImpossibleClause fc lhs)
                defs <- get Ctxt
                lhs <- normaliseHoles defs env lhstm
                if !(hasEmptyPat defs env lhs)
-                  then do lhs_p <- getImpossibleTerm lhs_raw
-                          pure (Left lhs_p)
+                  then pure (Left lhs_raw)
                   else throw (ValidCase fc env (Left lhs)))
            (\err =>
               case err of
                    ValidCase _ _ _ => throw err
                    _ => do defs <- get Ctxt
                            if !(impossibleErrOK defs err)
-                              then do lhs_p <- getImpossibleTerm lhs_raw
-                                      pure (Left lhs_p)
+                              then pure (Left lhs_raw)
                               else throw (ValidCase fc env (Right err)))
 checkClause {vars} mult hashit n opts nest env (PatClause fc lhs_in rhs)
     = do (_, (vars'  ** (sub', env', nest', lhstm', lhsty'))) <-
@@ -681,11 +675,21 @@ processDef opts nest env fc n_in cs_in
                                         else pure (Just tm)
                              _ => pure (Just tm))
 
+    getClause : {auto c : Ref Ctxt Defs} ->
+                Either RawImp Clause -> Core (Maybe Clause)
+    getClause (Left rawlhs)
+        = catch (do lhsp <- getImpossibleTerm rawlhs
+                    log 3 $ "Generated impossible LHS: " ++ show lhsp
+                    pure $ Just $ MkClause [] lhsp (Erased (getFC rawlhs) True))
+                (\e => pure Nothing)
+    getClause (Right c) = pure (Just c)
+
     checkCoverage : Int -> ClosedTerm -> RigCount ->
-                    List (Either (Term vs) Clause) ->
+                    List (Either RawImp Clause) ->
                     Core Covering
     checkCoverage n ty mult cs
-        = do let covcs = rights cs -- TODO: Make stand in LHS for impossible clauses
+        = do covcs' <- traverse getClause cs -- Make stand in LHS for impossible clauses
+             let covcs = mapMaybe id covcs'
              (_ ** ctree) <- getPMDef fc CompileTime (Resolved n) ty covcs
              missCase <- if any catchAll covcs
                             then do log 3 $ "Catch all case in " ++ show n

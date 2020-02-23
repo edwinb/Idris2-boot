@@ -33,6 +33,7 @@ idrisTests
        "basic031", "basic032", "basic033", "basic034", "basic035",
        -- Coverage checking
        "coverage001", "coverage002", "coverage003", "coverage004",
+       "coverage005",
        -- Error messages
        "error001", "error002", "error003", "error004", "error005",
        "error006", "error007", "error008", "error009", "error010",

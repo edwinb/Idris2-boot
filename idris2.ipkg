@@ -100,6 +100,7 @@ modules =
     TTImp.Elab.Rewrite,
     TTImp.Elab.Term,
     TTImp.Elab.Utils,
+    TTImp.Impossible,
     TTImp.Interactive.CaseSplit,
     TTImp.Interactive.ExprSearch,
     TTImp.Interactive.GenerateDef,
