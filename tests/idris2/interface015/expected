@@ -1,0 +1,9 @@
+1/1: Building gnu (gnu.idr)
+gnu.idr:47:27--49:1:While processing right hand side of Main.TestSurprise1 at gnu.idr:47:1--49:1:
+Multiple solutions found in search. Possible correct results:
+	gnu1
+	gnu2
+gnu.idr:50:21--51:1:While processing right hand side of Main.TestSurprise2 at gnu.idr:50:1--51:1:
+Multiple solutions found in search. Possible correct results:
+	f ()
+	g ()

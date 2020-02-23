@@ -213,16 +213,12 @@ searchLocalWith : {auto c : Ref Ctxt Defs} ->
                   (defaults : Bool) -> List (Term vars) ->
                   (depth : Nat) ->
                   (defining : Name) -> (topTy : ClosedTerm) ->
-                  Env Term vars -> List (Term vars, Term vars) ->
+                  Env Term vars -> (Term vars, Term vars) ->
                   (target : NF vars) -> Core (Term vars)
-searchLocalWith fc rigc defaults trying depth def top env [] target
-    = throw (CantSolveGoal fc [] top)
-searchLocalWith {vars} fc rigc defaults trying depth def top env ((prf, ty) :: rest) target
-    = tryUnify
-         (do defs <- get Ctxt
-             nty <- nf defs env ty
-             findPos defs prf id nty target)
-         (searchLocalWith fc rigc defaults trying depth def top env rest target)
+searchLocalWith {vars} fc rigc defaults trying depth def top env (prf, ty) target
+    = do defs <- get Ctxt
+         nty <- nf defs env ty
+         findPos defs prf id nty target
   where
     clearEnvType : {idx : Nat} -> .(IsVar name idx vs) ->
                    FC -> Env Term vs -> Env Term vs
@@ -308,8 +304,10 @@ searchLocal : {auto c : Ref Ctxt Defs} ->
               Env Term vars ->
               (target : NF vars) -> Core (Term vars)
 searchLocal fc rig defaults trying depth def top env target
-    = searchLocalWith fc rig defaults trying depth def top env
-                      (getAllEnv fc rig [] env) target
+    = let elabs = map (\t => searchLocalWith fc rig defaults trying depth def
+                                             top env t target)
+                      (getAllEnv fc rig [] env) in
+          exactlyOne fc env top elabs
 
 isPairNF : {auto c : Ref Ctxt Defs} ->
            Env Term vars -> NF vars -> Defs -> Core Bool
@@ -483,9 +481,11 @@ searchType {vars} fc rigc defaults trying depth def checkdets top env target
                                                    (NTCon tfc tyn t a args)
                              if defaults
                                 then tryGroups Nothing nty (hintGroups sd)
-                                else tryUnify
+                                else handleUnify
                                        (searchLocal fc rigc defaults trying' depth def top env nty)
-                                       (tryGroups Nothing nty (hintGroups sd))
+                                       (\e => if ambig e
+                                                 then throw e
+                                                 else tryGroups Nothing nty (hintGroups sd))
                      else throw (CantSolveGoal fc [] top)
               _ => do logNF 10 "Next target: " env nty
                       searchLocal fc rigc defaults trying' depth def top env nty
