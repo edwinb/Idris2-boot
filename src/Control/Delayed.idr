@@ -21,6 +21,7 @@ lazy = delayed LazyValue
 
 ||| Conditionally delay a value.
 export
-delay : (d : Bool) -> a -> delayed r d a
+delay : {r : DelayReason} -> (d : Bool) -> a -> delayed r d a
 delay False x = x
-delay True x = Delay x
+delay {r=Infinite}  True x = Delay x
+delay {r=LazyValue} True x = Delay x

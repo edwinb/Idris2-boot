@@ -1,5 +1,6 @@
 module Text.Parser.Core
 
+import Data.List
 import public Control.Delayed
 
 %default total
@@ -19,11 +20,12 @@ data Grammar : (tok : Type) -> (consumes : Bool) -> Type -> Type where
      NextIs : String -> (tok -> Bool) -> Grammar tok False tok
      EOF : Grammar tok False ()
 
-     Fail : Bool -> String -> Grammar tok c ty
+     Fail : {c : Bool} -> Bool -> String -> Grammar tok c ty
      Commit : Grammar tok False ()
      MustWork : Grammar tok c a -> Grammar tok c a
 
-     SeqEat : Grammar tok True a -> Inf (a -> Grammar tok c2 b) ->
+     SeqEat : {c2 : Bool} ->
+              Grammar tok True a -> Inf (a -> Grammar tok c2 b) ->
               Grammar tok True b
      SeqEmpty : {c1, c2 : Bool} ->
                 Grammar tok c1 a -> (a -> Grammar tok c2 b) ->
@@ -37,25 +39,26 @@ data Grammar : (tok : Type) -> (consumes : Bool) -> Type -> Type where
 ||| second is allowed to be recursive (because it means some input has been
 ||| consumed and therefore the input is smaller)
 export %inline
-(>>=) : {c1 : Bool} ->
+(>>=) : {c1, c2 : Bool} ->
         Grammar tok c1 a ->
         inf c1 (a -> Grammar tok c2 b) ->
         Grammar tok (c1 || c2) b
-(>>=) {c1 = False} = SeqEmpty
-(>>=) {c1 = True} = SeqEat
+(>>=) {c1 = False} = SeqEmpty {c2=c2}
+(>>=) {c1 = True}  = SeqEat
 
 ||| Sequence two grammars. If either consumes some input, the sequence is
 ||| guaranteed to consume input. This is an explicitly non-infinite version
 ||| of `>>=`.
 export
-seq : Grammar tok c1 a ->
+seq : {c1,c2 : Bool} ->
+      Grammar tok c1 a ->
       (a -> Grammar tok c2 b) ->
       Grammar tok (c1 || c2) b
 seq = SeqEmpty
 
 ||| Sequence a grammar followed by the grammar it returns.
 export
-join : {c1 : Bool} ->
+join : {c1,c2 : Bool} ->
        Grammar tok c1 (Grammar tok c2 a) ->
        Grammar tok (c1 || c2) a
 join {c1 = False} p = SeqEmpty p id
@@ -64,14 +67,15 @@ join {c1 = True} p = SeqEat p id
 ||| Give two alternative grammars. If both consume, the combination is
 ||| guaranteed to consume.
 export
-(<|>) : Grammar tok c1 ty ->
+(<|>) : {c1,c2 : Bool} -> 
+        Grammar tok c1 ty ->
         Grammar tok c2 ty ->
         Grammar tok (c1 && c2) ty
 (<|>) = Alt
 
 ||| Allows the result of a grammar to be mapped to a different value.
 export
-Functor (Grammar tok c) where
+{c : Bool} -> Functor (Grammar tok c) where
   map f (Empty val)  = Empty (f val)
   map f (Fail fatal msg) = Fail fatal msg
   map f (MustWork g) = MustWork (map f g)
@@ -90,7 +94,8 @@ Functor (Grammar tok c) where
 ||| from the first grammar to the value from the second grammar.
 ||| Guaranteed to consume if either grammar consumes.
 export
-(<*>) : Grammar tok c1 (a -> b) ->
+(<*>) : {c1, c2 : Bool} ->
+        Grammar tok c1 (a -> b) ->
         Grammar tok c2 a ->
         Grammar tok (c1 || c2) b
 (<*>) x y = SeqEmpty x (\f => map f y)
@@ -98,7 +103,8 @@ export
 ||| Sequence two grammars. If both succeed, use the value of the first one.
 ||| Guaranteed to consume if either grammar consumes.
 export
-(<*) : Grammar tok c1 a ->
+(<*) : {c1,c2 : Bool} ->
+       Grammar tok c1 a ->
        Grammar tok c2 b ->
        Grammar tok (c1 || c2) a
 (<*) x y = map const x <*> y
@@ -106,7 +112,8 @@ export
 ||| Sequence two grammars. If both succeed, use the value of the second one.
 ||| Guaranteed to consume if either grammar consumes.
 export
-(*>) : Grammar tok c1 a ->
+(*>) : {c1,c2 : Bool} ->
+       Grammar tok c1 a ->
        Grammar tok c2 b ->
        Grammar tok (c1 || c2) b
 (*>) x y = map (const id) x <*> y
@@ -114,7 +121,7 @@ export
 ||| Produce a grammar that can parse a different type of token by providing a
 ||| function converting the new token type into the original one.
 export
-mapToken : (a -> b) -> Grammar b c ty -> Grammar a c ty
+mapToken : {c : Bool} -> (a -> b) -> Grammar b c ty -> Grammar a c ty
 mapToken f (Empty val) = Empty val
 mapToken f (Terminal msg g) = Terminal msg (g . f)
 mapToken f (NextIs msg g) = SeqEmpty (NextIs msg (g . f)) (Empty . f)
@@ -149,11 +156,11 @@ terminal = Terminal
 
 ||| Always fail with a message
 export
-fail : String -> Grammar tok c ty
+fail : {c : Bool} -> String -> Grammar tok c ty
 fail = Fail False
 
 export
-fatalError : String -> Grammar tok c ty
+fatalError : {c : Bool} -> String -> Grammar tok c ty
 fatalError = Fail True
 
 ||| Succeed if the input is empty
@@ -169,16 +176,17 @@ commit = Commit
 
 ||| If the parser fails, treat it as a fatal error
 export
-mustWork : Grammar tok c ty -> Grammar tok c ty
+mustWork : {c : Bool} -> Grammar tok c ty -> Grammar tok c ty
 mustWork = MustWork
 
 data ParseResult : List tok -> (consumes : Bool) -> Type -> Type where
-     Failure : {xs : List tok} ->
+     Failure : {c : Bool} -> {xs : List tok} ->
                (committed : Bool) -> (fatal : Bool) ->
                (err : String) -> (rest : List tok) -> ParseResult xs c ty
      EmptyRes : (committed : Bool) ->
                 (val : ty) -> (more : List tok) -> ParseResult more False ty
-     NonEmptyRes : (committed : Bool) ->
+     NonEmptyRes : {c : Bool} -> {xs : List tok} ->
+                   (committed : Bool) ->
                    (val : ty) -> (more : List tok) ->
                    ParseResult (x :: xs ++ more) c ty
 
@@ -193,7 +201,7 @@ weakenRes {whatever=True} com' (EmptyRes com val xs) = EmptyRes com' val xs
 weakenRes {whatever=False} com' (EmptyRes com val xs) = EmptyRes com' val xs
 weakenRes com' (NonEmptyRes com val more) = NonEmptyRes com' val more
 
-shorter : (more : List tok) -> .(ys : List tok) ->
+shorter : (more : List tok) -> (ys : List tok) ->
           LTE (S (length more)) (S (length (ys ++ more)))
 shorter more [] = lteRefl
 shorter more (x :: xs) = LTESucc (lteSuccLeft (shorter more xs))
@@ -275,7 +283,7 @@ data ParseError tok = Error String (List tok)
 ||| returns a pair of the parse result and the unparsed tokens (the remaining
 ||| input).
 export
-parse : (act : Grammar tok c ty) -> (xs : List tok) ->
+parse : {c : Bool} -> (act : Grammar tok c ty) -> (xs : List tok) ->
         Either (ParseError tok) (ty, List tok)
 parse act xs
     = case doParse False xs act of
