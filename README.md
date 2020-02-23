@@ -33,9 +33,9 @@ exceptions. The most notable user visible differences, which might cause Idris
   Instead, you can define functions locally with `let`, which do have
   computational force, as follows:
 
-    let x : ?
-        x = val in
-        e
+      let x : ?
+          x = val in
+          e
 
 Watch this space for more details and the rationale for the changes, as I
 get around to writing it...
