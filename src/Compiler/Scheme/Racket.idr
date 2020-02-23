@@ -22,12 +22,12 @@ import System.Info
 findRacket : IO String
 findRacket =
   do env <- getEnv "RACKET"
-     pure $ fromMaybe "/usr/bin/env -S racket" env
+     pure $ fromMaybe "/usr/bin/env racket" env
 
 findRacoExe : IO String
 findRacoExe =
   do env <- getEnv "RACKET_RACO"
-     pure $ (fromMaybe "/usr/bin/env -S raco" env) ++ " exe"
+     pure $ (fromMaybe "/usr/bin/env raco" env) ++ " exe"
 
 schHeader : String -> String
 schHeader libs

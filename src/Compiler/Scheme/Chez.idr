@@ -26,7 +26,7 @@ findChez
             Just n => pure n
             Nothing => do e <- firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
                                     x <- ["chez", "chezscheme9.5", "scheme"]]
-                          pure $ fromMaybe "/usr/bin/env -S scheme" e
+                          pure $ fromMaybe "/usr/bin/env scheme" e
 
 -- Given the chez compiler directives, return a list of pairs of:
 --   - the library file name
