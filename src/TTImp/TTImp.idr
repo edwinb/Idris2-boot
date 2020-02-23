@@ -35,10 +35,10 @@ Weaken NestedNames where
 -- Higher level expressions (e.g. case, pattern matching let, where blocks,
 -- do notation, etc, should elaborate via this, perhaps in some local
 -- context).
-mutual
-  public export
-  data BindMode = PI RigCount | PATTERN | NONE
+public export
+data BindMode = PI RigCount | PATTERN | NONE
 
+mutual
   public export
   data RawImp : Type where
        IVar : FC -> Name -> RawImp
