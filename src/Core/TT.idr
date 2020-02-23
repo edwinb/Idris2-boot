@@ -468,6 +468,40 @@ Eq (Term vars) where
   (==) (TType _) (TType _) = True
   (==) _ _ = False
 
+-- Check equality, ignoring variable naming
+export
+eqTerm : Term vs -> Term vs' -> Bool
+eqTerm (Local _ _ idx _) (Local _ _ idx' _) = idx == idx'
+eqTerm (Ref _ _ n) (Ref _ _ n') = n == n'
+eqTerm (Meta _ _ i args) (Meta _ _ i' args')
+    = assert_total (i == i' && and (map Delay (zipWith eqTerm args args')))
+eqTerm (Bind _ _ b sc) (Bind _ _ b' sc')
+    = assert_total (eqBinder b b' && eqTerm sc sc')
+  where
+    eqBinder : Binder (Term vs) -> Binder (Term vs') -> Bool
+    eqBinder (Lam c p ty) (Lam c' p' ty')
+        = c == c' && p == p' && eqTerm ty ty'
+    eqBinder (Let c v ty) (Let c' v' ty')
+        = c == c' && eqTerm v v' && eqTerm ty ty'
+    eqBinder (Pi c p ty) (Pi c' p' ty')
+        = c == c' && p == p' && eqTerm ty ty'
+    eqBinder (PVar c p ty) (PVar c' p' ty')
+        = c == c' && p == p' && eqTerm ty ty'
+    eqBinder (PLet c v ty) (PLet c' v' ty')
+        = c == c' && eqTerm v v' && eqTerm ty ty'
+    eqBinder (PVTy c ty) (PVTy c' ty')
+        = c == c' && eqTerm ty ty'
+    eqBinder _ _ = False
+eqTerm (App _ f a) (App _ f' a') = eqTerm f f' && eqTerm a a'
+eqTerm (As _ _ a p) (As _ _ a' p') = eqTerm a a' && eqTerm p p'
+eqTerm (TDelayed _ _ t) (TDelayed _ _ t') = eqTerm t t'
+eqTerm (TDelay _ _ t x) (TDelay _ _ t' x') = eqTerm t t' && eqTerm x x'
+eqTerm (TForce _ _ t) (TForce _ _ t') = eqTerm t t'
+eqTerm (PrimVal _ c) (PrimVal _ c') = c == c'
+eqTerm (Erased _ i) (Erased _ i') = i == i'
+eqTerm (TType _) (TType _) = True
+eqTerm _ _ = False
+
 public export
 interface Weaken (tm : List Name -> Type) where
   weaken : tm vars -> tm (n :: vars)
