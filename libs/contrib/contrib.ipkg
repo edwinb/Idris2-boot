@@ -7,4 +7,5 @@ modules = Syntax.WithProof,
           Text.Token,
           Text.Quantity,
           Control.Delayed,
-          Text.Parser
+          Text.Parser,
+          Text.Lexer
