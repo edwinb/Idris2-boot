@@ -26,7 +26,7 @@ VALID_IDRIS_VERSION_REGEXP = "1.3.2.*"
 
 -include custom.mk
 
-.PHONY: ttimp idris2 prelude test base clean lib_clean check_version
+.PHONY: ttimp idris2 prelude test base clean lib_clean check_version idris2c dist/idris2.c
 
 all: idris2 libs test
 
@@ -93,3 +93,9 @@ install-libs: libs
 	make -C libs/base install IDRIS2=../../idris2
 	make -C libs/network install IDRIS2=../../idris2 IDRIS2_VERSION=${IDRIS2_VERSION}
 	make -C libs/contrib install IDRIS2=../../idris2
+
+dist/idris2.c:
+	idris --build idris2-mkc.ipkg
+	cat idris2.c dist/rts/idris_main.c > dist/idris2.c
+
+idris2c: dist/idris2.c
