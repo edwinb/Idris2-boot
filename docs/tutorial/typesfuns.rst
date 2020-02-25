@@ -15,7 +15,7 @@ manipulation, and ``Ptr`` which represents foreign pointers. There are
 also several data types declared in the library, including ``Bool``,
 with values ``True`` and ``False``. We can declare some constants with
 these types. Enter the following into a file ``Prims.idr`` and load it
-into the Idris interactive environment by typing ``idris Prims.idr``:
+into the Idris interactive environment by typing ``idris2 Prims.idr``:
 
 .. code-block:: idris
 
@@ -51,15 +51,14 @@ A library module ``prelude`` is automatically imported by every
 Idris program, including facilities for IO, arithmetic, data
 structures and various common functions. The prelude defines several
 arithmetic and comparison operators, which we can use at the prompt.
-Evaluating things at the prompt gives an answer, and the type of the
-answer. For example:
+Evaluating things at the prompt gives an answer, for example:
 
 ::
 
-    *prims> 6*6+6
-    42 : Integer
-    *prims> x == 6*6+6
-    True : Bool
+    Prims> 13+9*9
+    94 : Integer
+    Prims> x == 9*9+13
+    True
 
 All of the usual arithmetic and comparison operators are defined for
 the primitive types. They are overloaded using interfaces, as we
@@ -69,8 +68,8 @@ work on user defined types. Boolean expressions can be tested with the
 
 ::
 
-    *prims> if x == 6 * 6 + 6 then "The answer!" else "Not the answer"
-    "The answer!" : String
+    *prims> if x == 8 * 8 + 30 then "Yes!" else "No!"
+    "Yes!"
 
 Data Types
 ==========
@@ -107,8 +106,9 @@ symbols:
     :+-*\/=.?|&><!@$%^~#
 
 Some operators built from these symbols can't be user defined. These are
-``:``,  ``=>``,  ``->``,  ``<-``,  ``=``,  ``?=``,  ``|``,  ``**``,
-``==>``,  ``\``,  ``%``,  ``~``,  ``?``,  and ``!``.
+
+``%``, ``\``, ``:``, ``=``, ``|``, ``|||``, ``<-``, ``->``, ``=>``, ``?``,
+``!``, ``&``, ``**``, ``..``
 
 Functions
 =========
@@ -144,24 +144,10 @@ We can test these functions at the Idris prompt:
 
 ::
 
-    Idris> plus (S (S Z)) (S (S Z))
-    4 : Nat
-    Idris> mult (S (S (S Z))) (plus (S (S Z)) (S (S Z)))
-    12 : Nat
-
-.. note::
-
-   When displaying an element of ``Nat`` such as ``(S (S (S (S Z))))``,
-   Idris displays it as ``4``.
-   The result of ``plus (S (S Z)) (S (S Z))``
-   is actually ``(S (S (S (S Z))))``
-   which is the natural number ``4``.
-   This can be checked at the Idris prompt:
-
-::
-
-    Idris> (S (S (S (S Z))))
-    4 : Nat
+    Main> plus (S (S Z)) (S (S Z))
+    S (S (S (S Z)))
+    Main> mult (S (S (S Z))) (plus (S (S Z)) (S (S Z)))
+    S (S (S (S (S (S (S (S (S (S (S (S Z)))))))))))
 
 Like arithmetic operations, integer literals are also overloaded using
 interfaces, meaning that we can also test the functions as follows:
@@ -169,9 +155,9 @@ interfaces, meaning that we can also test the functions as follows:
 ::
 
     Idris> plus 2 2
-    4 : Nat
+    S (S (S (S Z)))
     Idris> mult 3 (plus 2 2)
-    12 : Nat
+    S (S (S (S (S (S (S (S (S (S (S (S Z)))))))))))
 
 You may wonder, by the way, why we have unary natural numbers when our
 computers have perfectly good integer arithmetic built in. The reason
@@ -226,30 +212,28 @@ outside the definition of ``foo``:
            isLT : MyLT
            isLT = if x < 20 then Yes else No
 
-In general, functions defined in a ``where`` clause need a type
-declaration just like any top level function. However, the type
-declaration for a function ``f`` *can* be omitted if:
-
-- ``f`` appears in the right hand side of the top level definition
-
-- The type of ``f`` can be completely determined from its first application
-
-
-So, for example, the following definitions are legal:
+Functions defined in a ``where`` clause need a type
+declaration just like any top level function. Here is another example
+of how this works in practice:
 
 .. code-block:: idris
 
     even : Nat -> Bool
     even Z = True
     even (S k) = odd k where
+      odd : Nat -> Bool
       odd Z = False
       odd (S k) = even k
-
+    
     test : List Nat
     test = [c (S 1), c Z, d (S Z)]
-      where c x = 42 + x
+      where c : Nat -> Nat
+            c x = 42 + x
+    
+            d : Nat -> Nat
             d y = c (y + 1 + z y)
-                  where z w = y + w
+                  where z : Nat -> Nat
+                        z w = y + w
 
 .. _sect-holes:
 
@@ -271,8 +255,8 @@ can check the type of ``greeting``:
 
 ::
 
-    *Hello> :t greeting
-    --------------------------------------
+    Main> :t greeting
+    -------------------------------------
     greeting : String
 
 Checking the type of a hole also shows the types of any variables in scope.
@@ -289,9 +273,9 @@ and the type of the variable ``k``:
 
 ::
 
-    *Even> :t even_rhs
-      k : Nat
-    --------------------------------------
+    Main> :t even_rhs
+       k : Nat
+    -------------------------------------
     even_rhs : Bool
 
 Holes are useful because they help us write functions *incrementally*.
@@ -399,23 +383,14 @@ following:
 
 ::
 
-    $ idris VBroken.idr --check
-    VBroken.idr:9:23-25:
-    When checking right hand side of Vect.++ with expected type
-            Vect (S k + m) a
-
-    When checking an application of constructor Vect.:::
-            Type mismatch between
-                    Vect (k + k) a (Type of xs ++ xs)
-            and
-                    Vect (plus k m) a (Expected type)
-
-            Specifically:
-                    Type mismatch between
-                            plus k k
-                    and
-                            plus k m
-
+    $ idris2 Vect.idr --check
+    1/1: Building Vect (Vect.idr)
+    Vect.idr:7:26--8:1:While processing right hand side of Main.++ at Vect.idr:7:1--8:1:
+    When unifying plus k k and plus k m
+    Mismatch between:
+            k
+    and
+            m
 
 This error message suggests that there is a length mismatch between
 two vectors — we needed a vector of length ``k + m``, but provided a
@@ -493,9 +468,9 @@ names, ``n`` and ``a``, which are not declared explicitly. These are
 
 .. code-block:: idris
 
-    index : {a:Type} -> {n:Nat} -> Fin n -> Vect n a -> a
+    index : forall a, n . Fin n -> Vect n a -> a
 
-Implicit arguments, given in braces ``{}`` in the type declaration,
+Implicit arguments, given with the `forall` declaration,
 are not given in applications of ``index``; their values can be
 inferred from the types of the ``Fin n`` and ``Vect n a``
 arguments. Any name beginning with a lower case letter which appears
@@ -515,71 +490,14 @@ could have declared the type of ``index`` as:
 
 .. code-block:: idris
 
-    index : (i:Fin n) -> (xs:Vect n a) -> a
+    index : (i : Fin n) -> (xs : Vect n a) -> a
 
 It is a matter of taste whether you want to do this — sometimes it can
 help document a function by making the purpose of an argument more
 clear.
 
-Furthermore, ``{}`` can be used to pattern match on the left hand side, i.e.
-``{var = pat}`` gets an implicit variable and attempts to pattern match on “pat”;
-For example:
-
-.. code-block:: idris
-
-    isEmpty : Vect n a -> Bool
-    isEmpty {n = Z} _   = True
-    isEmpty {n = S k} _ = False
-
-“``using``” notation
---------------------
-
-Sometimes it is useful to provide types of implicit arguments,
-particularly where there is a dependency ordering, or where the
-implicit arguments themselves have dependencies. For example, we may
-wish to state the types of the implicit arguments in the following
-definition, which defines a predicate on vectors (this is also defined
-in ``Data.Vect``, under the name ``Elem``):
-
-.. code-block:: idris
-
-    data IsElem : a -> Vect n a -> Type where
-       Here :  {x:a} ->   {xs:Vect n a} -> IsElem x (x :: xs)
-       There : {x,y:a} -> {xs:Vect n a} -> IsElem x xs -> IsElem x (y :: xs)
-
-An instance of ``IsElem x xs`` states that ``x`` is an element of
-``xs``.  We can construct such a predicate if the required element is
-``Here``, at the head of the vector, or ``There``, in the tail of the
-vector. For example:
-
-.. code-block:: idris
-
-    testVec : Vect 4 Int
-    testVec = 3 :: 4 :: 5 :: 6 :: Nil
-
-    inVect : IsElem 5 Main.testVec
-    inVect = There (There Here)
-
-.. important:: Implicit Arguments and Scope
-
-    Within the type signature the typechecker will treat all variables
-    that start with an lowercase letter **and** are not applied to
-    something else as an implicit variable. To get the above code
-    example to compile you will need to provide a qualified name for
-    ``testVec``. In the example above, we have assumed that the code
-    lives within the ``Main`` module.
-
-If the same implicit arguments are being used a lot, it can make a
-definition difficult to read. To avoid this problem, a ``using`` block
-gives the types and ordering of any implicit arguments which can
-appear within the block:
-
-.. code-block:: idris
-
-    using (x:a, y:a, xs:Vect n a)
-      data IsElem : a -> Vect n a -> Type where
-         Here  : IsElem x (x :: xs)
-         There : IsElem x xs -> IsElem x (y :: xs)
+There is much more to say about implicit arguments and how they can be used
+in practice. We will return to this in Section :ref:`sect-multiplicities`
 
 Note: Declaration Order and ``mutual`` blocks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

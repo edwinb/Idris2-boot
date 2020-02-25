@@ -9,6 +9,9 @@ Getting Started
 Prerequisites
 =============
 
+[NEEDS UPDATING BEFORE 0.1.0 RELEASE.
+Cover Chez Scheme as a default target, and future plans for multiple back ends.]
+
 Before installing Idris, you will need to make sure you have all
 of the necessary libraries and tools. You will need:
 
@@ -19,6 +22,8 @@ of the necessary libraries and tools. You will need:
 
 Downloading and Installing
 ==========================
+
+[NEEDS UPDATING BEFORE 0.1.0 RELEASE]
 
 The easiest way to install Idris, if you have all of the
 prerequisites, is to type:
@@ -53,13 +58,15 @@ following text:
 If you are familiar with Haskell, it should be fairly clear what the
 program is doing and how it works, but if not, we will explain the
 details later. You can compile the program to an executable by
-entering ``idris hello.idr -o hello`` at the shell prompt. This will
-create an executable called ``hello``, which you can run:
+entering ``idris hello.idr -o hello`` at the shell prompt. This will,
+by default, create a Chez Scheme executable called ``hello.so``, in the
+destination directory ``build/exec'' which you can run:
 
 ::
 
-    $ idris hello.idr -o hello
-    $ ./hello
+    $ idris2 hello.idr -o hello
+    compiling hello.ss with output to hello.so
+    $ ./build/exec/hello.so
     Hello world
 
 Please note that the dollar sign ``$`` indicates the shell prompt!
@@ -76,7 +83,9 @@ Some useful options to the Idris command are:
 The Interactive Environment
 ===========================
 
-Entering ``idris`` at the shell prompt starts up the interactive
+[NEED :? BEFORE RELEASE]
+
+Entering ``idris2`` at the shell prompt starts up the interactive
 environment. You should see something like the following:
 
 .. literalinclude:: ../listing/idris-prompt-start.txt
@@ -86,10 +95,11 @@ well as type checking of, expressions; theorem proving, compilation;
 editing; and various other operations. The command ``:?`` gives a list
 of supported commands. Below, we see an example run in
 which ``hello.idr`` is loaded, the type of ``main`` is checked and
-then the program is compiled to the executable ``hello``. Type
-checking a file, if successful, creates a bytecode version of the file
-(in this case ``hello.ibc``) to speed up loading in future. The
-bytecode is regenerated if the source file changes.
+then the program is compiled to the Chez scheme executable ``hello.so``,
+available in the destination directory ``build/exec/''. Type
+checking a file, if successful, creates a bytecode version of the file (in this
+case ``build/ttc/hello.ttc``) to speed up loading in future. The bytecode is
+regenerated if the source file changes.
 
 .. _run1:
 .. literalinclude:: ../listing/idris-prompt-helloworld.txt

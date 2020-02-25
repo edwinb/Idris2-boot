@@ -29,6 +29,7 @@ changes since Idris 1, see :ref:`updates-index`.
    typesfuns
    interfaces
    modules
+   multiplicities
    packages
    interp
    views
