@@ -123,9 +123,6 @@ data Clause : Type where
                 (lhs : Term vars) -> (rhs : Term vars) -> Clause
 
 public export
-data TotalReq = Total | CoveringOnly | PartialOK
-
-public export
 data DefFlag
     = Inline
     | Invertible -- assume safe to cancel arguments in unification
@@ -141,13 +138,6 @@ data DefFlag
     | SetTotal TotalReq
     | BlockedHint -- a hint, but blocked for the moment (so don't use)
     | Macro
-
-export
-Eq TotalReq where
-    (==) Total Total = True
-    (==) CoveringOnly CoveringOnly = True
-    (==) PartialOK PartialOK = True
-    (==) _ _ = False
 
 export
 Eq DefFlag where
@@ -1797,6 +1787,13 @@ setUnboundImplicits a
          put Ctxt (record { options->elabDirectives->unboundImplicits = a } defs)
 
 export
+setDefaultTotalityOption : {auto c : Ref Ctxt Defs} ->
+                TotalReq -> Core ()
+setDefaultTotalityOption tot
+    = do defs <- get Ctxt
+         put Ctxt (record { options->elabDirectives->totality = tot } defs)
+
+export
 isLazyActive : {auto c : Ref Ctxt Defs} ->
                Core Bool
 isLazyActive
@@ -1809,6 +1806,13 @@ isUnboundImplicits : {auto c : Ref Ctxt Defs} ->
 isUnboundImplicits
     = do defs <- get Ctxt
          pure (unboundImplicits (elabDirectives (options defs)))
+
+export
+getDefaultTotalityOption : {auto c : Ref Ctxt Defs} ->
+                  Core TotalReq
+getDefaultTotalityOption
+    = do defs <- get Ctxt
+         pure (totality (elabDirectives (options defs)))
 
 export
 setPair : {auto c : Ref Ctxt Defs} ->

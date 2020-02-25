@@ -921,6 +921,15 @@ extension
     = do exactIdent "Borrowing"
          pure Borrowing
 
+totalityOpt : Rule TotalReq
+totalityOpt
+    = do keyword "partial"
+         pure PartialOK
+  <|> do keyword "total"
+         pure Total
+  <|> do keyword "covering"
+         pure CoveringOnly
+
 directive : FileName -> IndentInfo -> Rule Directive
 directive fname indents
     = do exactIdent "hide"
@@ -983,6 +992,10 @@ directive fname indents
          e <- extension
          atEnd indents
          pure (Extension e)
+  <|> do exactIdent "default"
+         tot <- totalityOpt
+         atEnd indents
+         pure (DefaultTotality tot)
 
 fix : Rule Fixity
 fix
@@ -1048,16 +1061,11 @@ usingDecls fname indents
          ds <- assert_total (nonEmptyBlock (topDecl fname))
          end <- location
          pure (PUsing (MkFC fname start end) us (collectDefs (concat ds)))
-
+         
 fnOpt : Rule PFnOpt
-fnOpt
-    = do keyword "partial"
-         pure $ IFnOpt PartialOK
-  <|> do keyword "total"
-         pure $ IFnOpt Total
-  <|> do keyword "covering"
-         pure $ IFnOpt Covering
-
+fnOpt = do x <- totalityOpt          
+           pure $ IFnOpt (Totality x)
+           
 fnDirectOpt : FileName -> Rule PFnOpt
 fnDirectOpt fname
     = do exactIdent "hint"

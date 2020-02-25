@@ -187,9 +187,7 @@ mutual
        ForeignFn : List RawImp -> FnOpt
        -- assume safe to cancel arguments in unification
        Invertible : FnOpt
-       Total : FnOpt
-       Covering : FnOpt
-       PartialOK : FnOpt
+       Totality : TotalReq -> FnOpt
        Macro : FnOpt
 
   export
@@ -200,9 +198,9 @@ mutual
     show ExternFn = "%extern"
     show (ForeignFn cs) = "%foreign " ++ showSep " " (map show cs)
     show Invertible = "%invertible"
-    show Total = "total"
-    show Covering = "covering"
-    show PartialOK = "partial"
+    show (Totality Total) = "total"
+    show (Totality CoveringOnly) = "covering"
+    show (Totality PartialOK) = "partial"
     show Macro = "%macro"
 
   export
@@ -213,9 +211,7 @@ mutual
     ExternFn == ExternFn = True
     (ForeignFn xs) == (ForeignFn ys) = True -- xs == ys
     Invertible == Invertible = True
-    Total == Total = True
-    Covering == Covering = True
-    PartialOK == PartialOK = True
+    (Totality tot_lhs) == (Totality tot_rhs) = tot_lhs == tot_rhs
     Macro == Macro = True
     _ == _ = False
 
@@ -858,9 +854,9 @@ mutual
     toBuf b ExternFn = tag 3
     toBuf b (ForeignFn cs) = do tag 4; toBuf b cs
     toBuf b Invertible = tag 5
-    toBuf b Total = tag 6
-    toBuf b Covering = tag 7
-    toBuf b PartialOK = tag 8
+    toBuf b (Totality Total) = tag 6
+    toBuf b (Totality CoveringOnly) = tag 7
+    toBuf b (Totality PartialOK) = tag 8
     toBuf b Macro = tag 9
 
     fromBuf b
@@ -871,9 +867,9 @@ mutual
                3 => pure ExternFn
                4 => do cs <- fromBuf b; pure (ForeignFn cs)
                5 => pure Invertible
-               6 => pure Total
-               7 => pure Covering
-               8 => pure PartialOK
+               6 => pure (Totality Total)
+               7 => pure (Totality CoveringOnly)
+               8 => pure (Totality PartialOK)
                9 => pure Macro
                _ => corrupt "FnOpt"
 
