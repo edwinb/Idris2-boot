@@ -24,5 +24,6 @@ and yet to be updated, so use with caution!
 
    tutorial/index
    updates/updates
+   proofs/index
    faq/faq
    reference/index

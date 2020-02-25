@@ -98,14 +98,14 @@ by recursion on the first argument to ``plus``, namely ``n``.
 
     plusReducesZ : (n:Nat) -> n = plus n Z
     plusReducesZ Z = Refl
-    plusReducesZ (S k) = cong (plusReducesZ k)
+    plusReducesZ (S k) = cong S (plusReducesZ k)
 
 ``cong`` is a function defined in the library which states that equality
 respects function application:
 
 .. code-block:: idris
 
-    cong : {f : t -> u} -> a = b -> f a = f b
+    cong : (f : t -> u) -> a = b -> f a = f b
 
 We can do the same for the reduction behaviour of plus on successors:
 
@@ -113,9 +113,9 @@ We can do the same for the reduction behaviour of plus on successors:
 
     plusReducesS : (n:Nat) -> (m:Nat) -> S (plus n m) = plus n (S m)
     plusReducesS Z m = Refl
-    plusReducesS (S k) m = cong (plusReducesS k m)
+    plusReducesS (S k) m = cong S (plusReducesS k m)
 
-Even for trivial theorems like these, the proofs are a little tricky to
+Even for small theorems like these, the proofs are a little tricky to
 construct in one go. When things get even slightly more complicated, it
 becomes too much to think about to construct proofs in this “batch
 mode”.
@@ -137,8 +137,8 @@ previously (:ref:`sec-views`) we implemented ``natToBin`` using a function
 
     parity : (n:Nat) -> Parity n
 
-However, we didn't provide a definition for ``parity``. We might expect it
-to look something like the following:
+We provided a definition for ``parity``, but without explanation.  We might
+hope that it would look something like the following:
 
 .. code-block:: idris
 
@@ -153,13 +153,11 @@ Unfortunately, this fails with a type error:
 
 ::
 
-    When checking right hand side of with block in views.parity with expected type
-            Parity (S (S (j + j)))
-
-    Type mismatch between
-            Parity (S j + S j) (Type of Even)
+    With.idr:26:17--27:3:While processing right hand side of Main.with block in 2419 at With.idr:24:3--27:3:
+    Can't solve constraint between:
+            plus j (S j)
     and
-            Parity (S (S (plus j j))) (Expected type)
+            S (plus j j)
 
 The problem is that normalising ``S j + S j``, in the type of ``Even``
 doesn't result in what we need for the type of the right hand side of
@@ -236,10 +234,10 @@ the type of the equation we just used (as the type of ``_rewrite_rule``):
 
 .. code-block:: idris
 
-      j : Nat
-      p : Parity (S (plus j (S j)))
-      _rewrite_rule : S (plus j j) = plus j (S j)
-    --------------------------------------
+    Main> :t helpEven_rhs
+       j : Nat
+       p : Parity (S (plus j (S j)))
+    -------------------------------------
     helpEven_rhs : Parity (S (plus j (S j)))
 
 Using ``rewrite`` and another helper for the ``Odd`` case, we can complete
@@ -292,35 +290,29 @@ definitions is total:
 
 ::
 
-    *Theorems> :total empty1
-    possibly not total due to: empty1#hd
-        not total as there are missing cases
-    *Theorems> :total empty2
-    possibly not total due to recursive path empty2
+    Void> :total empty1
+    Void.empty1 is not covering due to call to function empty1:hd
+    Void> :total empty2
+    Void.empty2 is possibly not terminating due to recursive path Void.empty2
 
-Note the use of the word “possibly” — a totality check can, of course,
-never be certain due to the undecidability of the halting problem. The
-check is, therefore, conservative. It is also possible (and indeed
-advisable, in the case of proofs) to mark functions as total so that it
-will be a compile time error for the totality check to fail:
+Note the use of the word “possibly” — a totality check can never be certain due
+to the undecidability of the halting problem. The check is, therefore,
+conservative. It is also possible (and indeed advisable, in the case of proofs)
+to mark functions as total so that it will be a compile time error for the
+totality check to fail:
 
 .. code-block:: idris
 
     total empty2 : Void
     empty2 = empty2
 
-::
-
-    Type checking ./theorems.idr
-    theorems.idr:25:empty2 is possibly not total due to recursive path empty2
-
 Reassuringly, our proof in Section :ref:`sect-empty` that the zero and
 successor constructors are disjoint is total:
 
 .. code-block:: idris
 
-    *theorems> :total disjoint
-    Total
+    Main> :total disjoint
+    Main.disjoint is Total
 
 The totality check is, necessarily, conservative. To be recorded as
 total, a function ``f`` must:
@@ -337,6 +329,8 @@ total, a function ``f`` must:
 
 Directives and Compiler Flags for Totality
 ------------------------------------------
+
+[NOTE: Not all of this is implemented yet for Idris 2]
 
 By default, Idris allows all well-typed definitions, whether total or not.
 However, it is desirable for functions to be total as far as possible, as this

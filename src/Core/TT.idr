@@ -588,11 +588,11 @@ export
 Show PartialReason where
   show NotStrictlyPositive = "not strictly positive"
   show (BadCall [n])
-	   = "not terminating due to call to " ++ show n
+	   = "possibly not terminating due to call to " ++ show n
   show (BadCall ns)
-	   = "not terminating due to calls to " ++ showSep ", " (map show ns)
+	   = "possibly not terminating due to calls to " ++ showSep ", " (map show ns)
   show (RecPath ns)
-	   = "not terminating due to recursive path " ++ showSep " -> " (map show ns)
+	   = "possibly not terminating due to recursive path " ++ showSep " -> " (map show ns)
 
 public export
 data Terminating

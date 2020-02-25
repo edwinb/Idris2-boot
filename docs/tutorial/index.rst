@@ -35,7 +35,6 @@ changes since Idris 1, see :ref:`updates-index`.
    interp
    views
    theorems
-   provisional
    interactive
    syntax
    miscellany
