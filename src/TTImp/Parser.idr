@@ -116,7 +116,7 @@ getRight : Either a b -> Maybe b
 getRight (Left _) = Nothing
 getRight (Right v) = Just v
 
-bindSymbol : Rule PiInfo
+bindSymbol : Rule (PiInfo RawImp)
 bindSymbol
     = do symbol "->"
          pure Explicit
@@ -205,7 +205,7 @@ mutual
   getMult Nothing = pure RigW
   getMult _ = fatalError "Invalid multiplicity (must be 0 or 1)"
 
-  pibindAll : FC -> PiInfo -> List (RigCount, Maybe Name, RawImp) ->
+  pibindAll : FC -> PiInfo RawImp -> List (RigCount, Maybe Name, RawImp) ->
               RawImp -> RawImp
   pibindAll fc p [] scope = scope
   pibindAll fc p ((rig, n, ty) :: rest) scope
@@ -442,7 +442,7 @@ mutual
                pure (mkPi start end arg rest))
              <|> pure arg
     where
-      mkPi : FilePos -> FilePos -> RawImp -> List (PiInfo, RawImp) -> RawImp
+      mkPi : FilePos -> FilePos -> RawImp -> List (PiInfo RawImp, RawImp) -> RawImp
       mkPi start end arg [] = arg
       mkPi start end arg ((exp, a) :: as)
             = IPi (MkFC fname start end) RigW exp Nothing arg
@@ -575,7 +575,7 @@ fieldDecl fname indents
            atEnd indents
            pure fs
   where
-    fieldBody : PiInfo -> Rule (List IField)
+    fieldBody : PiInfo RawImp -> Rule (List IField)
     fieldBody p
         = do start <- location
              ns <- sepBy1 (symbol ",") unqualifiedName

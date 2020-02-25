@@ -188,6 +188,17 @@ mutual
       = let fc = getLoc tm in
             pure (Implicit fc False, gErased fc)
 
+  unelabPi : {auto c : Ref Ctxt Defs} ->
+             (umode : UnelabMode) ->
+             Env Term vars -> PiInfo (Term vars) ->
+             Core (PiInfo RawImp)
+  unelabPi umode env Explicit = pure Explicit
+  unelabPi umode env Implicit = pure Implicit
+  unelabPi umode env AutoImplicit = pure AutoImplicit
+  unelabPi umode env (DefImplicit t)
+      = do (t', _) <- unelabTy umode env t
+           pure (DefImplicit t')
+
   unelabBinder : {auto c : Ref Ctxt Defs} ->
                  (umode : UnelabMode) ->
                  FC -> Env Term vars -> (x : Name) ->
@@ -196,7 +207,8 @@ mutual
                  Core (RawImp, Glued vars)
   unelabBinder umode fc env x (Lam rig p ty) sctm sc scty
       = do (ty', _) <- unelabTy umode env ty
-           pure (ILam fc rig p (Just x) ty' sc,
+           p' <- unelabPi umode env p
+           pure (ILam fc rig p' (Just x) ty' sc,
                     gnf env (Bind fc x (Pi rig p ty) scty))
   unelabBinder umode fc env x (Let rig val ty) sctm sc scty
       = do (val', vty) <- unelabTy umode env val
@@ -205,9 +217,14 @@ mutual
                     gnf env (Bind fc x (Let rig val ty) scty))
   unelabBinder umode fc env x (Pi rig p ty) sctm sc scty
       = do (ty', _) <- unelabTy umode env ty
-           let nm = if used 0 sctm || rig /= RigW
+           p' <- unelabPi umode env p
+           let nm = if used 0 sctm || rig /= RigW || isDefImp p
                        then Just x else Nothing
-           pure (IPi fc rig p nm ty' sc, gType fc)
+           pure (IPi fc rig p' nm ty' sc, gType fc)
+    where
+      isDefImp : PiInfo t -> Bool
+      isDefImp (DefImplicit _) = True
+      isDefImp _ = False
   unelabBinder umode fc env x (PVar rig _ ty) sctm sc scty
       = do (ty', _) <- unelabTy umode env ty
            pure (sc, gnf env (Bind fc x (PVTy rig ty) scty))

@@ -119,7 +119,7 @@ bindNames arg tm
 -- either an implicit pi binding, if there's a name, or an autoimplicit type
 -- binding if the name just appears as part of the type
 getUsing : Name -> List (Int, Maybe Name, RawImp) -> 
-           List (Int, (RigCount, PiInfo, Maybe Name, RawImp))
+           List (Int, (RigCount, PiInfo RawImp, Maybe Name, RawImp))
 getUsing n [] = []
 getUsing n ((t, Just n', ty) :: us) -- implicit binder
     = if n == n'
@@ -133,11 +133,11 @@ getUsing n ((t, Nothing, ty) :: us) -- autoimplicit binder
              else getUsing n us
 
 getUsings : List Name -> List (Int, Maybe Name, RawImp) ->
-            List (Int, (RigCount, PiInfo, Maybe Name, RawImp))
+            List (Int, (RigCount, PiInfo RawImp, Maybe Name, RawImp))
 getUsings [] u = []
 getUsings (n :: ns) u = getUsing n u ++ getUsings ns u
 
-bindUsings : List (RigCount, PiInfo, Maybe Name, RawImp) -> RawImp -> RawImp
+bindUsings : List (RigCount, PiInfo RawImp, Maybe Name, RawImp) -> RawImp -> RawImp
 bindUsings [] tm = tm
 bindUsings ((rig, p, mn, ty) :: us) tm
     = IPi (getFC ty) rig p mn ty (bindUsings us tm)

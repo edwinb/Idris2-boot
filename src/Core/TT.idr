@@ -188,19 +188,31 @@ Show (PrimFn arity) where
   show BelieveMe = "believe_me"
 
 public export
-data PiInfo = Implicit | Explicit | AutoImplicit
+data PiInfo t = Implicit | Explicit | AutoImplicit | DefImplicit t
+
+-- There's few places where we need the default - it's just when checking if
+-- there's a default during elaboration - so often it's easier just to erase it
+-- to a normal implicit
+export
+forgetDef : PiInfo t -> PiInfo t'
+forgetDef Explicit = Explicit
+forgetDef Implicit = Implicit
+forgetDef AutoImplicit = AutoImplicit
+forgetDef (DefImplicit t) = Implicit
 
 export
-Show PiInfo where
+Show t => Show (PiInfo t) where
   show Implicit = "Implicit"
   show Explicit = "Explicit"
   show AutoImplicit = "AutoImplicit"
+  show (DefImplicit t) = "DefImplicit " ++ show t
 
 export
-Eq PiInfo where
+Eq t => Eq (PiInfo t) where
   (==) Implicit Implicit = True
   (==) Explicit Explicit = True
   (==) AutoImplicit AutoImplicit = True
+  (==) (DefImplicit t) (DefImplicit t') = t == t'
   (==) _ _ = False
 
 public export
@@ -259,15 +271,15 @@ rigMult a b = fromInt (toInt a * toInt b)
 public export
 data Binder : Type -> Type where
 	   -- Lambda bound variables with their implicitness
-     Lam : RigCount -> PiInfo -> (ty : type) -> Binder type
+     Lam : RigCount -> PiInfo type -> (ty : type) -> Binder type
 		 -- Let bound variables with their value
      Let : RigCount -> (val : type) -> (ty : type) -> Binder type
 		 -- Forall/pi bound variables with their implicitness
-     Pi : RigCount -> PiInfo -> (ty : type) -> Binder type
+     Pi : RigCount -> PiInfo type -> (ty : type) -> Binder type
 		 -- pattern bound variables. The PiInfo gives the implicitness at the
      -- point it was bound (Explicit if it was explicitly named in the
      -- program)
-     PVar : RigCount -> PiInfo -> (ty : type) -> Binder type
+     PVar : RigCount -> PiInfo type -> (ty : type) -> Binder type
 		 -- variable bound for an as pattern (Like a let, but no computational
      -- force, and only used on the lhs. Converted to a let on the rhs because
      -- we want the computational behaviour.)
@@ -325,11 +337,18 @@ setType (PLet c val _) ty = PLet c val ty
 setType (PVTy c _) ty = PVTy c ty
 
 export
+Functor PiInfo where
+  map func Explicit = Explicit
+  map func Implicit = Implicit
+  map func AutoImplicit = AutoImplicit
+  map func (DefImplicit t) = (DefImplicit (func t))
+
+export
 Functor Binder where
-  map func (Lam c x ty) = Lam c x (func ty)
+  map func (Lam c x ty) = Lam c (map func x) (func ty)
   map func (Let c val ty) = Let c (func val) (func ty)
-  map func (Pi c x ty) = Pi c x (func ty)
-  map func (PVar c p ty) = PVar c p (func ty)
+  map func (Pi c x ty) = Pi c (map func x) (func ty)
+  map func (PVar c p ty) = PVar c (map func p) (func ty)
   map func (PLet c val ty) = PLet c (func val) (func ty)
   map func (PVTy c ty) = PVTy c (func ty)
 
@@ -478,15 +497,22 @@ eqTerm (Meta _ _ i args) (Meta _ _ i' args')
 eqTerm (Bind _ _ b sc) (Bind _ _ b' sc')
     = assert_total (eqBinder b b' && eqTerm sc sc')
   where
+    eqPiInfo : PiInfo (Term vs) -> PiInfo (Term vs') -> Bool
+    eqPiInfo Explicit Explicit = True
+    eqPiInfo Implicit Implicit = True
+    eqPiInfo AutoImplicit AutoImplicit = True
+    eqPiInfo (DefImplicit t) (DefImplicit t') = eqTerm t t'
+    eqPiInfo _ _ = False
+
     eqBinder : Binder (Term vs) -> Binder (Term vs') -> Bool
     eqBinder (Lam c p ty) (Lam c' p' ty')
-        = c == c' && p == p' && eqTerm ty ty'
+        = c == c' && eqPiInfo p p' && eqTerm ty ty'
     eqBinder (Let c v ty) (Let c' v' ty')
         = c == c' && eqTerm v v' && eqTerm ty ty'
     eqBinder (Pi c p ty) (Pi c' p' ty')
-        = c == c' && p == p' && eqTerm ty ty'
+        = c == c' && eqPiInfo p p' && eqTerm ty ty'
     eqBinder (PVar c p ty) (PVar c' p' ty')
-        = c == c' && p == p' && eqTerm ty ty'
+        = c == c' && eqPiInfo p p' && eqTerm ty ty'
     eqBinder (PLet c v ty) (PLet c' v' ty')
         = c == c' && eqTerm v v' && eqTerm ty ty'
     eqBinder (PVTy c ty) (PVTy c' ty')
@@ -670,12 +696,19 @@ thin {outer} {inner} n (Bind fc x b scope)
     = let sc' = thin {outer = x :: outer} {inner} n scope in
           Bind fc x (thinBinder n b) sc'
   where
+    thinPi : (n : Name) -> PiInfo (Term (outer ++ inner)) ->
+             PiInfo (Term (outer ++ n :: inner))
+    thinPi n Explicit = Explicit
+    thinPi n Implicit = Implicit
+    thinPi n AutoImplicit = AutoImplicit
+    thinPi n (DefImplicit t) = DefImplicit (thin n t)
+
     thinBinder : (n : Name) -> Binder (Term (outer ++ inner)) ->
                  Binder (Term (outer ++ n :: inner))
-    thinBinder n (Lam c p ty) = Lam c p (thin n ty)
+    thinBinder n (Lam c p ty) = Lam c (thinPi n p) (thin n ty)
     thinBinder n (Let c val ty) = Let c (thin n val) (thin n ty)
-    thinBinder n (Pi c p ty) = Pi c p (thin n ty)
-    thinBinder n (PVar c p ty) = PVar c p (thin n ty)
+    thinBinder n (Pi c p ty) = Pi c (thinPi n p) (thin n ty)
+    thinBinder n (PVar c p ty) = PVar c (thinPi n p) (thin n ty)
     thinBinder n (PLet c val ty) = PLet c (thin n val) (thin n ty)
     thinBinder n (PVTy c ty) = PVTy c (thin n ty)
 thin n (App fc fn arg) = App fc (thin n fn) (thin n arg)
@@ -863,16 +896,24 @@ subInclude ns (KeepCons p) = KeepCons (subInclude ns p)
 
 mutual
   export
+  shrinkPi : PiInfo (Term vars) -> SubVars newvars vars ->
+             Maybe (PiInfo (Term newvars))
+  shrinkPi Explicit prf = pure Explicit
+  shrinkPi Implicit prf = pure Implicit
+  shrinkPi AutoImplicit prf = pure AutoImplicit
+  shrinkPi (DefImplicit t) prf = pure (DefImplicit !(shrinkTerm t prf))
+
+  export
   shrinkBinder : Binder (Term vars) -> SubVars newvars vars ->
                  Maybe (Binder (Term newvars))
   shrinkBinder (Lam c p ty) prf
-      = Just (Lam c p !(shrinkTerm ty prf))
+      = Just (Lam c !(shrinkPi p prf) !(shrinkTerm ty prf))
   shrinkBinder (Let c val ty) prf
       = Just (Let c !(shrinkTerm val prf) !(shrinkTerm ty prf))
   shrinkBinder (Pi c p ty) prf
-      = Just (Pi c p !(shrinkTerm ty prf))
+      = Just (Pi c !(shrinkPi p prf) !(shrinkTerm ty prf))
   shrinkBinder (PVar c p ty) prf
-      = Just (PVar c p !(shrinkTerm ty prf))
+      = Just (PVar c !(shrinkPi p prf) !(shrinkTerm ty prf))
   shrinkBinder (PLet c val ty) prf
       = Just (PLet c !(shrinkTerm val prf) !(shrinkTerm ty prf))
   shrinkBinder (PVTy c ty) prf

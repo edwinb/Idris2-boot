@@ -825,7 +825,7 @@ mutual
                     Core UnifyResult
   unifyBothBinders mode loc env xfc x (Pi cx ix tx) scx yfc y (Pi cy iy ty) scy
       = do defs <- get Ctxt
-           if ix /= iy || not (subRig cx cy)
+           if not (subRig cx cy)
              then convertError loc env
                     (NBind xfc x (Pi cx ix tx) scx)
                     (NBind yfc y (Pi cy iy ty) scy)
@@ -837,7 +837,7 @@ mutual
                   ct <- unify mode loc env tx ty
                   xn <- genVarName "x"
                   let env' : Env Term (x :: _)
-                           = Pi cy ix tx' :: env
+                           = Pi cy Explicit tx' :: env
                   case constraints ct of
                       [] => -- No constraints, check the scope
                          do tscx <- scx defs (toClosure defaultOpts env (Ref loc Bound xn))
@@ -862,7 +862,7 @@ mutual
                             pure (union ct cs')
   unifyBothBinders mode loc env xfc x (Lam cx ix tx) scx yfc y (Lam cy iy ty) scy
       = do defs <- get Ctxt
-           if ix /= iy || not (subRig cx cy)
+           if not (subRig cx cy)
              then convertError loc env
                     (NBind xfc x (Lam cx ix tx) scx)
                     (NBind yfc y (Lam cy iy ty) scy)
@@ -872,7 +872,7 @@ mutual
                   ct <- unify mode loc env tx ty
                   xn <- genVarName "x"
                   let env' : Env Term (x :: _)
-                           = Lam cx ix tx' :: env
+                           = Lam cx Explicit tx' :: env
                   txtm <- quote empty env tx
                   tytm <- quote empty env ty
 
@@ -1018,7 +1018,7 @@ mutual
                         case ety of
                              Just argty =>
                                do etay <- nf defs env
-                                             (Bind xfc x (Lam cx ix argty)
+                                             (Bind xfc x (Lam cx Explicit argty)
                                                      (App xfc
                                                           (weaken !(quote empty env tmy))
                                                           (Local xfc Nothing 0 First)))
@@ -1036,7 +1036,7 @@ mutual
                         case ety of
                              Just argty =>
                                do etax <- nf defs env
-                                             (Bind yfc y (Lam cy iy argty)
+                                             (Bind yfc y (Lam cy Explicit argty)
                                                      (App yfc
                                                           (weaken !(quote empty env tmx))
                                                           (Local yfc Nothing 0 First)))

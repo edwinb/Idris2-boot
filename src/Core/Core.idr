@@ -437,13 +437,21 @@ traverse_ f (x :: xs)
     = do f x
          traverse_ f xs
 
+namespace PiInfo
+  export
+  traverse : (a -> Core b) -> PiInfo a -> Core (PiInfo b)
+  traverse f Explicit = pure Explicit
+  traverse f Implicit = pure Implicit
+  traverse f AutoImplicit = pure AutoImplicit
+  traverse f (DefImplicit t) = pure (DefImplicit !(f t))
+
 namespace Binder
   export
   traverse : (a -> Core b) -> Binder a -> Core (Binder b)
-  traverse f (Lam c p ty) = pure $ Lam c p !(f ty)
+  traverse f (Lam c p ty) = pure $ Lam c !(traverse f p) !(f ty)
   traverse f (Let c val ty) = pure $ Let c !(f val) !(f ty)
-  traverse f (Pi c p ty) = pure $ Pi c p !(f ty)
-  traverse f (PVar c p ty) = pure $ PVar c p !(f ty)
+  traverse f (Pi c p ty) = pure $ Pi c !(traverse f p) !(f ty)
+  traverse f (PVar c p ty) = pure $ PVar c !(traverse f p) !(f ty)
   traverse f (PLet c val ty) = pure $ PLet c !(f val) !(f ty)
   traverse f (PVTy c ty) = pure $ PVTy c !(f ty)
 

@@ -22,9 +22,16 @@ mutual
   getMatch lhs (IVar _ n) (IVar loc n')
       = if n == n' then pure [] else matchFail loc
   getMatch lhs (IPi _ c p n arg ret) (IPi loc c' p' n' arg' ret')
-      = if c == c' && p == p' && n == n'
+      = if c == c' && samePiInfo p p' && n == n'
            then matchAll lhs [(arg, arg'), (ret, ret')]
            else matchFail loc
+    where
+      samePiInfo : PiInfo RawImp -> PiInfo RawImp -> Bool
+      samePiInfo Explicit Explicit = True
+      samePiInfo Implicit Implicit = True
+      samePiInfo AutoImplicit AutoImplicit = True
+      samePiInfo (DefImplicit _) (DefImplicit _) = True
+      samePiInfo _ _ = False
   -- TODO: Lam, Let, Case, Local, Update
   getMatch lhs (IApp _ f a) (IApp loc f' a')
       = matchAll lhs [(f, f'), (a, a')]
@@ -86,7 +93,7 @@ mutual
 -- Get the arguments for the rewritten pattern clause of a with by looking
 -- up how the argument names matched
 getArgMatch : FC -> Bool -> RawImp -> List (String, RawImp) ->
-              Maybe (PiInfo, Name) -> RawImp
+              Maybe (PiInfo RawImp, Name) -> RawImp
 getArgMatch ploc search warg ms Nothing = warg
 getArgMatch ploc True warg ms (Just (AutoImplicit, UN n))
     = case lookup n ms of
@@ -103,7 +110,7 @@ getArgMatch ploc search warg ms _ = Implicit ploc True
 export
 getNewLHS : {auto c : Ref Ctxt Defs} ->
             FC -> (drop : Nat) -> NestedNames vars ->
-            Name -> List (Maybe (PiInfo, Name)) ->
+            Name -> List (Maybe (PiInfo RawImp, Name)) ->
             RawImp -> RawImp -> Core RawImp
 getNewLHS ploc drop nest wname wargnames lhs_raw patlhs
     = do (mlhs_raw, wrest) <- dropWithArgs drop patlhs
@@ -137,7 +144,7 @@ getNewLHS ploc drop nest wname wargnames lhs_raw patlhs
 -- Find a 'with' application on the RHS and update it
 export
 withRHS : {auto c : Ref Ctxt Defs} ->
-          FC -> (drop : Nat) -> Name -> List (Maybe (PiInfo, Name)) ->
+          FC -> (drop : Nat) -> Name -> List (Maybe (PiInfo RawImp, Name)) ->
           RawImp -> RawImp ->
           Core RawImp
 withRHS fc drop wname wargnames tm toplhs

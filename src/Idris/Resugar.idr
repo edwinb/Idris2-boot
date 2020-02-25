@@ -144,7 +144,8 @@ mutual
   toPTerm p (IPi fc rig pt n arg ret)
       = do arg' <- toPTerm appPrec arg
            ret' <- toPTerm tyPrec ret
-           bracket p tyPrec (PPi fc rig pt n arg' ret')
+           pt' <- traverse (toPTerm argPrec) pt
+           bracket p tyPrec (PPi fc rig pt' n arg' ret')
   toPTerm p (ILam fc rig pt mn arg sc)
       = do let n = case mn of
                         Nothing => UN "_"
@@ -153,7 +154,8 @@ mutual
            arg' <- if imp then toPTerm tyPrec arg
                           else pure (PImplicit fc)
            sc' <- toPTerm p sc
-           bracket p startPrec (PLam fc rig pt (PRef fc n) arg' sc')
+           pt' <- traverse (toPTerm argPrec) pt
+           bracket p startPrec (PLam fc rig pt' (PRef fc n) arg' sc')
   toPTerm p (ILet fc rig n ty val sc)
       = do imp <- showImplicits
            ty' <- if imp then toPTerm startPrec ty
@@ -312,7 +314,8 @@ mutual
              IField -> Core PField
   toPField (MkIField fc c p n ty)
       = do ty' <- toPTerm startPrec ty
-           pure (MkField fc c p n ty')
+           p' <- traverse (toPTerm startPrec) p
+           pure (MkField fc c p' n ty')
 
   toPRecord : {auto c : Ref Ctxt Defs} ->
               {auto s : Ref Syn SyntaxInfo} ->

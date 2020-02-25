@@ -31,7 +31,7 @@ mkImpl fc n ps
          (UN ("__Impl_" ++ show n ++ "_" ++
           showSep "_" (map show ps)))
 
-bindConstraints : FC -> PiInfo ->
+bindConstraints : FC -> PiInfo RawImp ->
                   List (Maybe Name, RawImp) -> RawImp -> RawImp
 bindConstraints fc p [] ty = ty
 bindConstraints fc p ((n, ty) :: rest) sc
@@ -218,13 +218,13 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
   where
     -- For the method fields in the record, get the arguments we need to abstract
     -- over
-    getFieldArgs : Term vs -> List (Name, List (Name, RigCount, PiInfo))
+    getFieldArgs : Term vs -> List (Name, List (Name, RigCount, PiInfo RawImp))
     getFieldArgs (Bind _ x (Pi c p ty) sc)
         = (x, getArgs ty) :: getFieldArgs sc
       where
-        getArgs : Term vs' -> List (Name, RigCount, PiInfo)
+        getArgs : Term vs' -> List (Name, RigCount, PiInfo RawImp)
         getArgs (Bind _ x (Pi c p _) sc)
-            = (x, c, p) :: getArgs sc
+            = (x, c, forgetDef p) :: getArgs sc
         getArgs _ = []
     getFieldArgs _ = []
 
@@ -233,12 +233,12 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
     impsApply fn ((n, arg) :: ns)
         = impsApply (IImplicitApp fc fn (Just n) arg) ns
 
-    mkLam : List (Name, RigCount, PiInfo) -> RawImp -> RawImp
+    mkLam : List (Name, RigCount, PiInfo RawImp) -> RawImp -> RawImp
     mkLam [] tm = tm
     mkLam ((x, c, p) :: xs) tm
         = ILam fc c p (Just x) (Implicit fc False) (mkLam xs tm)
 
-    applyTo : FC -> RawImp -> List (Name, RigCount, PiInfo) -> RawImp
+    applyTo : FC -> RawImp -> List (Name, RigCount, PiInfo RawImp) -> RawImp
     applyTo fc tm [] = tm
     applyTo fc tm ((x, c, Explicit) :: xs)
         = applyTo fc (IApp fc tm (IVar fc x)) xs
@@ -246,12 +246,14 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
         = applyTo fc (IImplicitApp fc tm (Just x) (IVar fc x)) xs
     applyTo fc tm ((x, c, Implicit) :: xs)
         = applyTo fc (IImplicitApp fc tm (Just x) (IVar fc x)) xs
+    applyTo fc tm ((x, c, DefImplicit _) :: xs)
+        = applyTo fc (IImplicitApp fc tm (Just x) (IVar fc x)) xs
 
     -- When applying the method in the field for the record, eta expand
     -- the expected arguments based on the field type, so that implicits get
     -- inserted in the right place
     mkMethField : List (Name, RigCount, RawImp) ->
-                  List (Name, List (Name, RigCount, PiInfo)) ->
+                  List (Name, List (Name, RigCount, PiInfo RawImp)) ->
                   (Name, Name, List (String, String), RigCount, RawImp) -> RawImp
     mkMethField methImps fldTys (topn, n, upds, c, ty)
         = let argns = map applyUpdate (maybe [] id (lookup (dropNS topn) fldTys))
@@ -263,7 +265,8 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
                          (applyTo fc (IVar fc n) argns)
                          (map (\n => (n, IVar fc (UN (show n)))) imps))
       where
-        applyUpdate : (Name, RigCount, PiInfo) -> (Name, RigCount, PiInfo)
+        applyUpdate : (Name, RigCount, PiInfo RawImp) ->
+                      (Name, RigCount, PiInfo RawImp)
         applyUpdate (UN n, c, p)
             = maybe (UN n, c, p) (\n' => (UN n', c, p)) (lookup n upds)
         applyUpdate t = t

@@ -44,17 +44,17 @@ elabRecord {vars} eopts fc env nest vis tn params rcon fields
          let recTy = apply (IVar fc tn) (map (IVar fc) (map fst params))
          elabGetters conName recTy 0 [] [] conty
   where
-    jname : (Name, RawImp) -> (Maybe Name, RigCount, PiInfo, RawImp)
+    jname : (Name, RawImp) -> (Maybe Name, RigCount, PiInfo RawImp, RawImp)
     jname (n, t) = (Just n, Rig0, Implicit, t)
 
     fname : IField -> Name
     fname (MkIField fc c p n ty) = n
 
     farg : IField ->
-           (Maybe Name, RigCount, PiInfo, RawImp)
+           (Maybe Name, RigCount, PiInfo RawImp, RawImp)
     farg (MkIField fc c p n ty) = (Just n, c, p, ty)
 
-    mkTy : List (Maybe Name, RigCount, PiInfo, RawImp) ->
+    mkTy : List (Maybe Name, RigCount, PiInfo RawImp, RawImp) ->
            RawImp -> RawImp
     mkTy [] ret = ret
     mkTy ((n, c, imp, argty) :: args) ret

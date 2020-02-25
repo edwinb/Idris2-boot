@@ -56,7 +56,7 @@ mkIfaceData {vars} fc vis env constraints n conName ps dets meths
     bhere : (Maybe Name, RigCount, RawImp) -> (Maybe Name, RigCount, RawImp)
     bhere (n, c, t) = (n, c, IBindHere (getFC t) (PI Rig0) t)
 
-    mkTy : PiInfo ->
+    mkTy : PiInfo RawImp ->
            List (Maybe Name, RigCount, RawImp) -> RawImp -> RawImp
     mkTy imp [] ret = ret
     mkTy imp ((n, c, argty) :: args) ret

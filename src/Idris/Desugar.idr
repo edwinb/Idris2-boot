@@ -133,19 +133,24 @@ mutual
   desugarB side ps (PRef fc x) = pure $ IVar fc x
   desugarB side ps (PPi fc rig p mn argTy retTy)
       = let ps' = maybe ps (:: ps) mn in
-            pure $ IPi fc rig p mn !(desugarB side ps argTy)
-                                   !(desugarB side ps' retTy)
+            pure $ IPi fc rig !(traverse (desugar side ps') p)
+                              mn !(desugarB side ps argTy)
+                                 !(desugarB side ps' retTy)
   desugarB side ps (PLam fc rig p (PRef _ n@(UN _)) argTy scope)
-      = pure $ ILam fc rig p (Just n) !(desugarB side ps argTy)
-                                      !(desugar side (n :: ps) scope)
+      = pure $ ILam fc rig !(traverse (desugar side ps) p)
+                           (Just n) !(desugarB side ps argTy)
+                                    !(desugar side (n :: ps) scope)
   desugarB side ps (PLam fc rig p (PRef _ n@(MN _ _)) argTy scope)
-      = pure $ ILam fc rig p (Just n) !(desugarB side ps argTy)
-                                      !(desugar side (n :: ps) scope)
+      = pure $ ILam fc rig !(traverse (desugar side ps) p)
+                           (Just n) !(desugarB side ps argTy)
+                                    !(desugar side (n :: ps) scope)
   desugarB side ps (PLam fc rig p (PImplicit _) argTy scope)
-      = pure $ ILam fc rig p Nothing !(desugarB side ps argTy)
-                                     !(desugar side ps scope)
+      = pure $ ILam fc rig !(traverse (desugar side ps) p)
+                           Nothing !(desugarB side ps argTy)
+                                   !(desugar side ps scope)
   desugarB side ps (PLam fc rig p pat argTy scope)
-      = pure $ ILam fc rig p (Just (MN "lamc" 0)) !(desugarB side ps argTy) $
+      = pure $ ILam fc rig !(traverse (desugar side ps) p)
+                   (Just (MN "lamc" 0)) !(desugarB side ps argTy) $
                  ICase fc (IVar fc (MN "lamc" 0)) (Implicit fc False)
                      [!(desugarClause ps True (MkPatClause fc pat scope []))]
   desugarB side ps (PLet fc rig (PRef _ n) nTy nVal scope [])
@@ -503,8 +508,9 @@ mutual
                  Core IField
   desugarField ps (MkField fc rig p n ty)
       = do syn <- get Syn
-           pure (MkIField fc rig p n !(bindTypeNames (usingImpl syn)
-                                                     ps !(desugar AnyExpr ps ty)))
+           pure (MkIField fc rig !(traverse (desugar AnyExpr ps) p )
+                          n !(bindTypeNames (usingImpl syn)
+                          ps !(desugar AnyExpr ps ty)))
 
   -- Get the declaration to process on each pass of a mutual block
   -- Essentially: types on the first pass

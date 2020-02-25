@@ -42,9 +42,9 @@ mutual
   public export
   data RawImp : Type where
        IVar : FC -> Name -> RawImp
-       IPi : FC -> RigCount -> PiInfo -> Maybe Name ->
+       IPi : FC -> RigCount -> PiInfo RawImp -> Maybe Name ->
              (argTy : RawImp) -> (retTy : RawImp) -> RawImp
-       ILam : FC -> RigCount -> PiInfo -> Maybe Name ->
+       ILam : FC -> RigCount -> PiInfo RawImp -> Maybe Name ->
               (argTy : RawImp) -> (lamTy : RawImp) -> RawImp
        ILet : FC -> RigCount -> Name ->
               (nTy : RawImp) -> (nVal : RawImp) ->
@@ -253,7 +253,7 @@ mutual
 
   public export
   data IField : Type where
-       MkIField : FC -> RigCount -> PiInfo -> Name -> RawImp ->
+       MkIField : FC -> RigCount -> PiInfo RawImp -> Name -> RawImp ->
                   IField
 
   public export
@@ -461,7 +461,7 @@ implicitsAs defs ns tm = setAs (map Just (ns ++ map UN (findIBinds tm))) tm
                          pure (x :: ns')
         updateNs n [] = Nothing
 
-        findImps : List (Maybe Name) -> NF [] -> Core (List (Name, PiInfo))
+        findImps : List (Maybe Name) -> NF [] -> Core (List (Name, PiInfo RawImp))
         findImps ns (NBind fc x (Pi _ Explicit _) sc)
             = findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc False)))
         -- if the implicit was given, skip it
@@ -473,15 +473,19 @@ implicitsAs defs ns tm = setAs (map Just (ns ++ map UN (findIBinds tm))) tm
         findImps ns (NBind fc x (Pi _ p _) sc)
             = if Just x `elem` ns
                  then findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc False)))
-                 else pure $ (x, p) :: !(findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc False))))
+                 else pure $ (x, forgetDef p) :: !(findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc False))))
         findImps _ _ = pure []
 
-        impAs : FC -> List (Name, PiInfo) -> RawImp -> RawImp
+        impAs : FC -> List (Name, PiInfo RawImp) -> RawImp -> RawImp
         impAs loc' [] tm = tm
         impAs loc' ((UN n, AutoImplicit) :: ns) tm
             = impAs loc' ns $
                  IImplicitApp loc' tm (Just (UN n)) (IBindVar loc' n)
         impAs loc' ((n, Implicit) :: ns) tm
+            = impAs loc' ns $
+                 IImplicitApp loc' tm (Just n)
+                     (IAs loc' UseLeft n (Implicit loc' True))
+        impAs loc' ((n, DefImplicit t) :: ns) tm
             = impAs loc' ns $
                  IImplicitApp loc' tm (Just n)
                      (IAs loc' UseLeft n (Implicit loc' True))

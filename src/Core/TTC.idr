@@ -85,16 +85,18 @@ TTC RigCount where
              _ => corrupt "RigCount"
 
 export
-TTC PiInfo where
+TTC t => TTC (PiInfo t) where
   toBuf b Implicit = tag 0
   toBuf b Explicit = tag 1
   toBuf b AutoImplicit = tag 2
+  toBuf b (DefImplicit r) = do tag 3; toBuf b r
 
   fromBuf b
       = case !getTag of
              0 => pure Implicit
              1 => pure Explicit
              2 => pure AutoImplicit
+             3 => do t <- fromBuf b; pure (DefImplicit t)
              _ => corrupt "PiInfo"
 
 export

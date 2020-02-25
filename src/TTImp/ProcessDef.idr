@@ -259,15 +259,15 @@ checkLHS {vars} mult hashit n opts nest env fc lhs_in
          ext <- extendEnv env SubRefl nest lhstm_lin lhsty_lin
          pure (lhs, ext)
 
-plicit : Binder (Term vars) -> PiInfo
-plicit (Pi _ p _) = p
-plicit (PVar _ p _) = p
+plicit : Binder (Term vars) -> PiInfo RawImp
+plicit (Pi _ p _) = forgetDef p
+plicit (PVar _ p _) = forgetDef p
 plicit _ = Explicit
 
 bindNotReq : {vs : _} ->
              FC -> Int -> Env Term vs -> (sub : SubVars pre vs) ->
-             List (PiInfo, Name) ->
-             Term vs -> (List (PiInfo, Name), Term pre)
+             List (PiInfo RawImp, Name) ->
+             Term vs -> (List (PiInfo RawImp, Name), Term pre)
 bindNotReq fc i [] SubRefl ns tm = (ns, embed tm)
 bindNotReq fc i (b :: env) SubRefl ns tm
    = let tmptm = subst (Ref fc Bound (MN "arg" i)) tm
@@ -283,8 +283,8 @@ bindNotReq {vs = n :: _} fc i (b :: env) (DropCons p) ns tm
 
 bindReq : {vs : _} ->
           FC -> Env Term vs -> (sub : SubVars pre vs) ->
-          List (PiInfo, Name) ->
-          Term pre -> Maybe (List (PiInfo, Name), List Name, ClosedTerm)
+          List (PiInfo RawImp, Name) ->
+          Term pre -> Maybe (List (PiInfo RawImp, Name), List Name, ClosedTerm)
 bindReq {vs} fc env SubRefl ns tm
     = pure (ns, notLets [] _ env, abstractEnvType fc env tm)
   where
@@ -489,7 +489,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
     -- Rewrite the clauses in the block to use an updated LHS.
     -- 'drop' is the number of additional with arguments we expect (i.e.
     -- the things to drop from the end before matching LHSs)
-    mkClauseWith : (drop : Nat) -> Name -> List (Maybe (PiInfo, Name)) ->
+    mkClauseWith : (drop : Nat) -> Name -> List (Maybe (PiInfo RawImp, Name)) ->
                    RawImp -> ImpClause ->
                    Core ImpClause
     mkClauseWith drop wname wargnames lhs (PatClause ploc patlhs rhs)

@@ -143,7 +143,7 @@ bindUnsolved {vars} fc elabmode _
          log 5 $ "Bindable unsolved implicits: " ++ show (map fst bifs)
          traverse_ (mkImplicit defs (outerEnv est) (subEnv est)) (bindIfUnsolved est)
   where
-    makeBoundVar : Name -> RigCount -> PiInfo -> Env Term outer ->
+    makeBoundVar : Name -> RigCount -> PiInfo (Term vs) -> Env Term outer ->
                    SubVars outer vs -> SubVars outer vars ->
                    Term vs -> Core (Term vs)
     makeBoundVar n rig p env sub subvars expected
@@ -154,16 +154,17 @@ bindUnsolved {vars} fc elabmode _
                     do impn <- genVarName (nameRoot n)
                        tm <- metaVar fc rig env impn exp'
                        est <- get EST
-                       put EST (record { toBind $= ((impn, NameBinding rig p
+                       let p' : PiInfo (Term vars) = forgetDef p
+                       put EST (record { toBind $= ((impn, NameBinding rig p'
                                                              (embedSub subvars tm)
                                                              (embedSub subvars exp')) ::) } est)
                        pure (embedSub sub tm)
 
     mkImplicit : Defs -> Env Term outer -> SubVars outer vars ->
-                 (Name, RigCount, PiInfo, (vars' **
-                     (Env Term vars', Term vars', Term vars', SubVars outer vars'))) ->
+                 (Name, RigCount, (vars' **
+                     (Env Term vars', PiInfo (Term vars'), Term vars', Term vars', SubVars outer vars'))) ->
                  Core ()
-    mkImplicit defs outerEnv subEnv (n, rig, p, (vs ** (env, tm, exp, sub)))
+    mkImplicit defs outerEnv subEnv (n, rig, (vs ** (env, p, tm, exp, sub)))
         = do Just (Hole _ _) <- lookupDefExact n (gamma defs)
                   | _ => pure ()
              bindtm <- makeBoundVar n rig p outerEnv
@@ -257,7 +258,7 @@ bindImplVars {vars} fc mode gam env imps_in scope scty
                Bounds new -> (tm : Term vs) -> (ty : Term vs) ->
                (Term (new ++ vs), Term (new ++ vs))
     getBinds [] bs tm ty = (refsToLocals bs tm, refsToLocals bs ty)
-    getBinds ((n, metan, NameBinding c p _ bty) :: imps) bs tm ty
+    getBinds {new} ((n, metan, NameBinding c p _ bty) :: imps) bs tm ty
         = let (tm', ty') = getBinds imps (Add n metan bs) tm ty
               bty' = refsToLocals bs bty in
               case mode of
@@ -265,7 +266,7 @@ bindImplVars {vars} fc mode gam env imps_in scope scty
                       (Bind fc _ (Pi c Implicit bty') tm',
                        TType fc)
                    _ =>
-                      (Bind fc _ (PVar c p bty') tm',
+                      (Bind fc _ (PVar c (map (weakenNs new) p) bty') tm',
                        Bind fc _ (PVTy c bty') ty')
     getBinds ((n, metan, AsBinding c _ _ bty bpat) :: imps) bs tm ty
         = let (tm', ty') = getBinds imps (Add n metan bs) tm ty

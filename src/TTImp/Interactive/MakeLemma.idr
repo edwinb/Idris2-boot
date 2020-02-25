@@ -39,7 +39,7 @@ bindableArg p _ = False
 
 getArgs : {auto c : Ref Ctxt Defs} ->
           Env Term vars -> Nat -> Term vars ->
-          Core (List (Name, Maybe Name, PiInfo, RigCount, RawImp), RawImp)
+          Core (List (Name, Maybe Name, PiInfo RawImp, RigCount, RawImp), RawImp)
 getArgs {vars} env (S k) (Bind _ x (Pi c p ty) sc)
     = do ty' <- unelab env ty
          defs <- get Ctxt
@@ -59,18 +59,18 @@ getArgs env k ty
       = do ty' <- unelab env ty
            pure ([], ty')
 
-mkType : FC -> List (Name, Maybe Name, PiInfo, RigCount, RawImp) ->
+mkType : FC -> List (Name, Maybe Name, PiInfo RawImp, RigCount, RawImp) ->
          RawImp -> RawImp
 mkType loc [] ret = ret
 mkType loc ((_, n, p, c, ty) :: rest) ret
     = IPi loc c p n ty (mkType loc rest ret)
 
 mkApp : FC -> Name ->
-        List (Name, Maybe Name, PiInfo, RigCount, RawImp) -> RawImp
+        List (Name, Maybe Name, PiInfo RawImp, RigCount, RawImp) -> RawImp
 mkApp loc n args
     = apply (IVar loc n) (mapMaybe getArg args)
   where
-    getArg : (Name, Maybe Name, PiInfo, RigCount, RawImp) ->
+    getArg : (Name, Maybe Name, PiInfo RawImp, RigCount, RawImp) ->
              Maybe RawImp
     getArg (x, _, Explicit, _, _) = Just (IVar loc x)
     getArg _ = Nothing
