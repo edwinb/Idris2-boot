@@ -531,17 +531,18 @@ I/O
 Computer programs are of little use if they do not interact with the
 user or the system in some way. The difficulty in a pure language such
 as Idris — that is, a language where expressions do not have
-side-effects — is that I/O is inherently side-effecting. Therefore in
-Idris, such interactions are encapsulated in the type ``IO``:
+side-effects — is that I/O is inherently side-effecting. So, Idris provides
+a parameterised type ``IO`` which *describes* the interactions that the
+run-time system will perform when executing a function:
 
 .. code-block:: idris
 
-    data IO a -- IO operation returning a value of type a
+    data IO a -- description of an IO operation returning a value of type a
 
 We’ll leave the definition of ``IO`` abstract, but effectively it
 describes what the I/O operations to be executed are, rather than how
 to execute them. The resulting operations are executed externally, by
-the run-time system. We’ve already seen one IO program:
+the run-time system. We’ve already seen one I/O program:
 
 .. code-block:: idris
 
@@ -549,8 +550,8 @@ the run-time system. We’ve already seen one IO program:
     main = putStrLn "Hello world"
 
 The type of ``putStrLn`` explains that it takes a string, and returns
-an element of the unit type ``()`` via an I/O action. There is a
-variant ``putStr`` which outputs a string without a newline:
+an I/O action which produces an element of the unit type ``()``. There is a
+variant ``putStr`` which decribes the output of a string without a newline:
 
 .. code-block:: idris
 
@@ -563,8 +564,9 @@ We can also read strings from user input:
 
     getLine : IO String
 
-A number of other I/O operations are defined in the prelude, for
-example for reading and writing files, including:
+A number of other I/O operations are available. For example, by adding
+``import System.File`` to your program, you get access to functions for
+for reading and writing files, including:
 
 .. code-block:: idris
 
@@ -611,6 +613,14 @@ allows us to inject a value directly into an IO operation:
 As we will see later, ``do`` notation is more general than this, and
 can be overloaded.
 
+You can try executing ``greet`` at the Idris 2 REPL by running the command
+``:exec greet``:
+
+..
+    Main> :exec greet
+    What is your name? Edwin
+    Hello Edwin
+
 .. _sect-lazy:
 
 Laziness
@@ -626,11 +636,10 @@ not always the best approach. Consider the following function:
     ifThenElse True  t e = t
     ifThenElse False t e = e
 
-This function uses one of the ``t`` or ``e`` arguments, but not both
-(in fact, this is used to implement the ``if...then...else`` construct
-as we will see later). We would prefer if *only* the argument which was
-used was evaluated. To achieve this, Idris provides a ``Lazy``
-data type, which allows evaluation to be suspended:
+This function uses one of the ``t`` or ``e`` arguments, but not both.
+We would prefer if *only* the argument which was used was evaluated. To achieve
+this, Idris provides a ``Lazy`` primitive, which allows evaluation to be
+suspended. It is a primitive, but conceptually we can think of it as follows:
 
 .. code-block:: idris
 
@@ -651,22 +660,12 @@ without any explicit use of ``Force`` or ``Delay``:
     ifThenElse True  t e = t
     ifThenElse False t e = e
 
-Codata Types
-============
+Infinite data Types
+===================
 
-Codata types allow us to define infinite data structures by marking recursive
-arguments as potentially infinite. For
-a codata type ``T``, each of its constructor arguments of type ``T`` are transformed
-into an argument of type ``Inf T``. This makes each of the ``T`` arguments
-lazy, and allows infinite data structures of type ``T`` to be built. One
-example of a codata type is Stream, which is defined as follows.
-
-.. code-block:: idris
-
-    codata Stream : Type -> Type where
-      (::) : (e : a) -> Stream a -> Stream a
-
-This gets translated into the following by the compiler.
+Infinite data types (codata) allow us to define infinite data structures by
+marking recursive arguments as potentially infinite. One example of an
+infinite type is Stream, which is defined as follows.
 
 .. code-block:: idris
 
@@ -682,72 +681,13 @@ of ones.
     ones : Stream Nat
     ones = 1 :: ones
 
-It is important to note that codata does not allow the creation of infinite
-mutually recursive data structures. For example the following will create an
-infinite loop and cause a stack overflow.
-
-.. code-block:: idris
-
-    mutual
-      codata Blue a = B a (Red a)
-      codata Red a = R a (Blue a)
-
-    mutual
-      blue : Blue Nat
-      blue = B 1 red
-
-      red : Red Nat
-      red = R 1 blue
-
-    mutual
-      findB : (a -> Bool) -> Blue a -> a
-      findB f (B x r) = if f x then x else findR f r
-
-      findR : (a -> Bool) -> Red a -> a
-      findR f (R x b) = if f x then x else findB f b
-
-    main : IO ()
-    main = do printLn $ findB (== 1) blue
-
-To fix this we must add explicit ``Inf`` declarations to the constructor
-parameter types, since codata will not add it to constructor parameters of a
-**different** type from the one being defined. For example, the following
-outputs ``1``.
-
-.. code-block:: idris
-
-    mutual
-      data Blue : Type -> Type where
-       B : a -> Inf (Red a) -> Blue a
-
-      data Red : Type -> Type where
-       R : a -> Inf (Blue a) -> Red a
-
-    mutual
-      blue : Blue Nat
-      blue = B 1 red
-
-      red : Red Nat
-      red = R 1 blue
-
-    mutual
-      findB : (a -> Bool) -> Blue a -> a
-      findB f (B x r) = if f x then x else findR f r
-
-      findR : (a -> Bool) -> Red a -> a
-      findR f (R x b) = if f x then x else findB f b
-
-    main : IO ()
-    main = do printLn $ findB (== 1) blue
-
 Useful Data Types
 =================
 
 Idris includes a number of useful data types and library functions
 (see the ``libs/`` directory in the distribution, and the
 `documentation <https://www.idris-lang.org/documentation/>`_). This section
-describes a few of these. The functions described here are imported
-automatically by every Idris program, as part of ``Prelude.idr``.
+describes a few of these, and how to import them.
 
 ``List`` and ``Vect``
 ---------------------
@@ -762,6 +702,7 @@ We have already seen the ``List`` and ``Vect`` data types:
        Nil  : Vect Z a
        (::) : a -> Vect k a -> Vect (S k) a
 
+You can get access to ``Vect`` with ``import Data.Vect``.
 Note that the constructor names are the same for each — constructor
 names (in fact, names in general) can be overloaded, provided that
 they are declared in different namespaces (see Section
@@ -774,8 +715,10 @@ their type. As syntactic sugar, any type with the constructor names
 -  ``[1,2,3]`` means ``1 :: 2 :: 3 :: Nil``
 
 The library also defines a number of functions for manipulating these
-types. ``map`` is overloaded both for ``List`` and ``Vect`` and
-applies a function to every element of the list or vector.
+types. ``map`` is overloaded both for ``List`` and ``Vect`` (we'll see more
+details of precisely how later when we cover interfaces in
+Section :ref:`sect-interfaces`) and applies a function to every element of the
+list or vector.
 
 .. code-block:: idris
 
@@ -809,7 +752,7 @@ the vector:
 For more details of the functions available on ``List`` and
 ``Vect``, look in the library files:
 
--  ``libs/prelude/Prelude/List.idr``
+-  ``libs/base/Data/List.idr``
 
 -  ``libs/base/Data/List.idr``
 
@@ -822,7 +765,7 @@ Functions include filtering, appending, reversing, and so on.
 Aside: Anonymous functions and operator sections
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-There are actually neater ways to write the above expression. One way
+There are neater ways to write the above expression. One way
 would be to use an anonymous function:
 
 ::
@@ -849,8 +792,8 @@ to ``\x => 2 * x``.
 Maybe
 -----
 
-``Maybe`` describes an optional value. Either there is a value of the
-given type, or there isn’t:
+``Maybe``, defined in the Prelude, describes an optional value. Either there is
+a value of the given type, or there isn’t:
 
 .. code-block:: idris
 
@@ -918,12 +861,12 @@ on the value of the first element:
 
 .. code-block:: idris
 
-    data DPair : (a : Type) -> (P : a -> Type) -> Type where
-       MkDPair : {P : a -> Type} -> (x : a) -> P x -> DPair a P
+    data DPair : (a : Type) -> (p : a -> Type) -> Type where
+       MkDPair : {p : a -> Type} -> (x : a) -> p x -> DPair a p
 
-Again, there is syntactic sugar for this. ``(a : A ** P)`` is the type
-of a pair of A and P, where the name ``a`` can occur inside ``P``.
-``( a ** p )`` constructs a value of this type. For example, we can
+Again, there is syntactic sugar for this. ``(x : a ** p)`` is the type
+of a pair of A and P, where the name ``x`` can occur inside ``p``.
+``( x ** p )`` constructs a value of this type. For example, we can
 pair a number with a ``Vect`` of a particular length:
 
 .. code-block:: idris
@@ -931,15 +874,14 @@ pair a number with a ``Vect`` of a particular length:
     vec : (n : Nat ** Vect n Int)
     vec = (2 ** [3, 4])
 
-If you like, you can write it out the long way, the two are precisely
-equivalent:
+If you like, you can write it out the long way; the two are equivalent:
 
 .. code-block:: idris
 
     vec : DPair Nat (\n => Vect n Int)
     vec = MkDPair 2 [3, 4]
 
-The type checker could of course infer the value of the first element
+The type checker could infer the value of the first element
 from the length of the vector. We can write an underscore ``_`` in
 place of values which we expect the type checker to fill in, so the
 above definition could also be written as:
@@ -967,7 +909,7 @@ be:
 
     filter : (a -> Bool) -> Vect n a -> (p ** Vect p a)
 
-If the ``Vect`` is empty, the result is easy:
+If the ``Vect`` is empty, the result is:
 
 .. code-block:: idris
 
@@ -975,27 +917,28 @@ If the ``Vect`` is empty, the result is easy:
 
 In the ``::`` case, we need to inspect the result of a recursive call
 to ``filter`` to extract the length and the vector from the result. To
-do this, we use ``with`` notation, which allows pattern matching on
+do this, we use a ``case`` expression, which allows pattern matching on
 intermediate values:
 
 .. code-block:: idris
 
-    filter p (x :: xs) with (filter p xs)
-      | ( _ ** xs' ) = if (p x) then ( _ ** x :: xs' ) else ( _ ** xs' )
-
-We will see more on ``with`` notation later.
+    filter : (a -> Bool) -> Vect n a -> (p ** Vect p a)
+    filter p Nil = (_ ** [])
+    filter p (x :: xs)
+        = case filter p xs of
+               (_ ** xs') => if p x then (_ ** x :: xs')
+                                    else (_ ** xs')
 
 Dependent pairs are sometimes referred to as “Sigma types”.
 
 Records
 -------
 
-*Records* are data types which collect several values (the record's
-*fields*) together. Idris provides syntax for defining records and
-automatically generating field access and update functions. Unlike
-the syntax used for data structures, records in Idris follow a
-different syntax to that seen with Haskell. For example, we can
-represent a person’s name and age in a record:
+*Records* are data types which collect several values (the record's *fields*)
+together. Idris provides syntax for defining records and automatically
+generating field access and update functions. Unlike the syntax used for data
+structures, records in Idris follow a different syntax to that seen with
+Haskell. For example, we can represent a person’s name and age in a record:
 
 .. code-block:: idris
 
@@ -1007,12 +950,11 @@ represent a person’s name and age in a record:
     fred : Person
     fred = MkPerson "Fred" "Joe" "Bloggs" 30
 
-The constructor name is provided using the ``constructor`` keyword,
-and the *fields* are then given which are in an indented block
-following the `where` keyword (here, ``firstName``, ``middleName``,
-``lastName``, and ``age``). You can declare multiple fields on a
-single line, provided that they have the same type. The field names
-can be used to access the field values:
+The constructor name is provided using the ``constructor`` keyword, and the
+*fields* are then given which are in an indented block following the `where`
+keyword (here, ``firstName``, ``middleName``, ``lastName``, and ``age``). You
+can declare multiple fields on a single line, provided that they have the same
+type. The field names can be used to access the field values:
 
 ::
 
@@ -1072,6 +1014,7 @@ We could also use ``$=`` to define ``addStudent`` more concisely:
     addStudent' : Person -> Class -> Class
     addStudent' p c = record { students $= (p ::) } c
 
+
 Nested record update
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -1121,19 +1064,47 @@ the record with the size.  For example:
         students : Vect size Person
         className : String
 
-**Note** that it is no longer possible to use the ``addStudent``
-function from earlier, since that would change the size of the class. A
-function to add a student must now specify in the type that the
-size of the class has been increased by one. As the size is specified
-using natural numbers, the new value can be incremented using the
-``S`` constructor:
+In the case of ``addStudent`` earlier, we can still add a student to a
+``SizedClass`` since the size is implicit, and will be updated when a student
+is added:
 
 .. code-block:: idris
 
     addStudent : Person -> SizedClass n -> SizedClass (S n)
-    addStudent p c =  SizedClassInfo (p :: students c) (className c)
+    addStudent p c = record { students = p :: students c } c
+
+In fact, the dependent pair type we have just seen is, in practice, defined
+as a record, with fields ``fst`` and ``snd`` which allow projecting values
+out of the pair:
+
+.. code-block:: idris
+
+    record DPair a (p : a -> Type) where
+      constructor MkDPair
+      fst : a
+      snd : p fst
+
+It is possible to use record update syntax to update dependent fields, provided
+that all related fields are updated at once. For example:
+
+.. code-block:: idris
+
+    cons : t -> (x : Nat ** Vect x t) -> (x : Nat ** Vect x t)
+    cons val xs
+        = record { fst = S (fst xs),
+                   snd = (val :: snd xs) } xs
+
+Or even:
+
+.. code-block:: idris
+
+    cons' : t -> (x : Nat ** Vect x t) -> (x : Nat ** Vect x t)
+    cons' val
+        = record { fst $= S,
+                   snd $= (val ::) }
 
 .. _sect-more-expr:
+
 
 More Expressions
 ================
@@ -1149,7 +1120,7 @@ Intermediate values can be calculated using ``let`` bindings:
    mirror xs = let xs' = reverse xs in
                    xs ++ xs'
 
-We can do simple pattern matching in ``let`` bindings too. For
+We can do pattern matching in ``let`` bindings too. For
 example, we can extract fields from a record as follows, as well as by
 pattern matching at the top level:
 
@@ -1192,9 +1163,9 @@ function from the prelude.
 ``case`` expressions
 --------------------
 
-Another way of inspecting intermediate values of *simple* types is to
-use a ``case`` expression. The following function, for example, splits
-a string into two at a given character:
+Another way of inspecting intermediate values is to use a ``case`` expression.
+The following function, for example, splits a string into two at a given
+character:
 
 .. code-block:: idris
 
@@ -1230,18 +1201,6 @@ we get a default value:
     5 : Integer
     *UsefulTypes> lookup_default 4 [3,4,5,6] (-1)
     -1 : Integer
-
-**Restrictions:** The ``case`` construct is intended for simple
-analysis of intermediate expressions to avoid the need to write
-auxiliary functions, and is also used internally to implement pattern
-matching ``let`` and lambda bindings. It will *only* work if:
-
-- Each branch *matches* a value of the same type, and *returns* a
-  value of the same type.
-
-- The type of the result is “known”. i.e. the type of the expression
-  can be determined *without* type checking the ``case``-expression
-  itself.
 
 Totality
 ========

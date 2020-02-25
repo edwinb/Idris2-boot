@@ -13,3 +13,20 @@ data Fin : Nat -> Type where
 index : Fin n -> Vect n a -> a
 index FZ     (x :: xs) = x
 index (FS k) (x :: xs) = index k xs
+
+filter : (a -> Bool) -> Vect n a -> (p ** Vect p a)
+filter p Nil = (_ ** [])
+filter p (x :: xs)
+    = case filter p xs of
+           (_ ** xs') => if p x then (_ ** x :: xs')
+                                else (_ ** xs')
+
+cons : t -> (x : Nat ** Vect x t) -> (x : Nat ** Vect x t)
+cons val xs
+    = record { fst = S (fst xs),
+               snd = (val :: snd xs) } xs
+
+cons' : t -> (x : Nat ** Vect x t) -> (x : Nat ** Vect x t)
+cons' val
+    = record { fst $= S,
+               snd $= (val ::) }
