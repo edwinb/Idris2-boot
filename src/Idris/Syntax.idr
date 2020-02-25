@@ -216,6 +216,7 @@ mutual
                          Name ->
                          (params : List PTerm) ->
                          (implName : Maybe Name) ->
+                         (nusing : List Name) ->
                          Maybe (List PDecl) ->
                          PDecl
        PRecord : FC ->

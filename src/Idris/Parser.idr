@@ -1200,12 +1200,15 @@ implDecl fname indents
          cons <- constraints fname indents
          n <- name
          params <- many (simpleExpr fname indents)
+         nusing <- option [] (do keyword "using"
+                                 names <- some name
+                                 pure names)
          body <- optional (do keyword "where"
                               blockAfter col (topDecl fname))
          atEnd indents
          end <- location
          pure (PImplementation (MkFC fname start end)
-                         vis Single impls cons n params iname
+                         vis Single impls cons n params iname nusing
                          (map (collectDefs . concat) body))
 
 fieldDecl : FileName -> IndentInfo -> Rule (List PField)

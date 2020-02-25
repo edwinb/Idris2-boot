@@ -100,10 +100,11 @@ elabImplementation : {auto c : Ref Ctxt Defs} ->
                      Name ->
                      (ps : List RawImp) ->
                      (implName : Maybe Name) ->
+                     (nusing : List Name) ->
                      Maybe (List ImpDecl) ->
                      Core ()
 -- TODO: Refactor all these steps into separate functions
-elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
+elabImplementation {vars} fc vis pass env nest is cons iname ps impln nusing mbody
     = do let impName_in = maybe (mkImpl fc iname ps) id impln
          impName <- inCurrentNS impName_in
          syn <- get Syn
@@ -190,6 +191,17 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
                let impFn = IDef fc impName [PatClause fc ilhs irhs]
                log 5 $ "Implementation record: " ++ show impFn
 
+               -- If it's a named implementation, add it as a global hint while
+               -- elaborating the record and bodies
+               defs <- get Ctxt
+               let hs = openHints defs
+               maybe (pure ()) (\x => addOpenHint impName) impln
+
+               -- Also add the 'using' hints
+               log 10 $ "Open hints: " ++ (show (impName :: nusing))
+               traverse_ (\n => do n' <- checkUnambig fc n
+                                   addOpenHint n') nusing
+
                -- Make sure we don't use this name to solve parent constraints
                -- when elaborating the record, or we'll end up in a cycle!
                setFlag fc impName BlockedHint
@@ -202,12 +214,6 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln mbody
                --    case of dependencies)
 
                -- 5. Elaborate the method bodies
-
-               -- If it's a named implementation, add it as a global hint while
-               -- elaborating the bodies
-               defs <- get Ctxt
-               let hs = openHints defs
-               maybe (pure ()) (\x => addOpenHint impName) impln
 
                body' <- traverse (updateBody (map methNameUpdate fns)) body
                log 10 $ "Implementation body: " ++ show body'
