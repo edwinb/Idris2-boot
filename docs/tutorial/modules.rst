@@ -4,19 +4,17 @@
 Modules and Namespaces
 **********************
 
-[NOT UPDATED FOR IDRIS 2 YET]
-
 An Idris program consists of a collection of modules. Each module
 includes an optional ``module`` declaration giving the name of the
 module, a list of ``import`` statements giving the other modules which
 are to be imported, and a collection of declarations and definitions of
 types, interfaces and functions. For example, the listing below gives a
 module which defines a binary tree type ``BTree`` (in a file
-``Btree.idr``):
+``BTree.idr``):
 
 .. code-block:: idris
 
-    module Btree
+    module BTree
 
     public export
     data BTree a = Leaf
@@ -31,7 +29,7 @@ module which defines a binary tree type ``BTree`` (in a file
     export
     toList : BTree a -> List a
     toList Leaf = []
-    toList (Node l v r) = Btree.toList l ++ (v :: Btree.toList r)
+    toList (Node l v r) = BTree.toList l ++ (v :: BTree.toList r)
 
     export
     toTree : Ord a => List a -> BTree a
@@ -39,30 +37,30 @@ module which defines a binary tree type ``BTree`` (in a file
     toTree (x :: xs) = insert x (toTree xs)
 
 The modifiers ``export`` and ``public export`` say which names are visible
-from other modules. These are explained further below.
+from other namespaces. These are explained further below.
 
 Then, this gives a main program (in a file
-``bmain.idr``) which uses the ``Btree`` module to sort a list:
+``bmain.idr``) which uses the ``BTree`` module to sort a list:
 
 .. code-block:: idris
 
     module Main
 
-    import Btree
+    import BTree
 
     main : IO ()
     main = do let t = toTree [1,8,2,7,9,3]
-              print (Btree.toList t)
+              print (BTree.toList t)
 
 The same names can be defined in multiple modules: names are *qualified* with
-the name of the module. The names defined in the ``Btree`` module are, in full:
+the name of the module. The names defined in the ``BTree`` module are, in full:
 
-+ ``Btree.BTree``
-+ ``Btree.Leaf``
-+ ``Btree.Node``
-+ ``Btree.insert``
-+ ``Btree.toList``
-+ ``Btree.toTree``
++ ``BTree.BTree``
++ ``BTree.Leaf``
++ ``BTree.Node``
++ ``BTree.insert``
++ ``BTree.toList``
++ ``BTree.toTree``
 
 If names are otherwise unambiguous, there is no need to give the fully
 qualified name. Names can be disambiguated either by giving an explicit
@@ -81,23 +79,23 @@ Export Modifiers
 ================
 
 Idris allows for fine-grained control over the visibility of a
-module's contents. By default, all names defined in a module are kept
-private.  This aides in specification of a minimal interface and for
+namespace's contents. By default, all names defined in a namespace are kept
+private.  This aids in specification of a minimal interface and for
 internal details to be left hidden. Idris allows for functions,
 types, and interfaces to be marked as: ``private``, ``export``, or
 ``public export``. Their general meaning is as follows:
 
-- ``private`` meaning that it's not exported at all. This is the default.
+- ``private`` meaning that it is not exported at all. This is the default.
 
 - ``export`` meaning that its top level type is exported.
 
 - ``public export`` meaning that the entire definition is exported.
 
-A further restriction in modifying the visibility is that definitions
-must not refer to anything within a lower level of visibility. For
-example, ``public export`` definitions cannot use private names, and
-``export`` types cannot use private names. This is to prevent private
-names leaking into a module's interface.
+A further restriction in modifying the visibility is that definitions must not
+refer to anything within a lower level of visibility. For example, ``public
+export`` definitions cannot use ``private`` or ``export`` names, and ``export``
+types cannot use ``private`` names. This is to prevent private names leaking
+into a module's interface.
 
 Meaning for Functions
 ---------------------
@@ -113,7 +111,7 @@ Meaning for Functions
 .. note::
 
    Type synonyms in Idris are created by writing a function. When
-   setting the visibility for a module, it might be a good idea to
+   setting the visibility for a module, it is usually a good idea to
    ``public export`` all type synonyms if they are to be used outside
    the module. Otherwise, Idris won't know what the synonym is a
    synonym for.
@@ -143,38 +141,6 @@ For interfaces, the meanings are:
 - ``public export`` the interface name, method names and default
   definitions are exported
 
-``%access`` Directive
-----------------------
-
-The default export mode can be changed with the ``%access``
-directive, for example:
-
-.. code-block:: idris
-
-    module Btree
-
-    %access export
-
-    public export
-    data BTree a = Leaf
-                 | Node (BTree a) a (BTree a)
-
-    insert : Ord a => a -> BTree a -> BTree a
-    insert x Leaf = Node Leaf x Leaf
-    insert x (Node l v r) = if (x < v) then (Node (insert x l) v r)
-                                       else (Node l v (insert x r))
-
-    toList : BTree a -> List a
-    toList Leaf = []
-    toList (Node l v r) = Btree.toList l ++ (v :: Btree.toList r)
-
-    toTree : Ord a => List a -> BTree a
-    toTree [] = Leaf
-    toTree (x :: xs) = insert x (toTree xs)
-
-In this case, any function with no access modifier will be exported as
-``export``, rather than left ``private``.
-
 Propagating Inner Module API's
 -------------------------------
 
@@ -203,16 +169,18 @@ wish to overload names within the same module:
 
     module Foo
 
-    namespace x
+    namespace X
+      export
       test : Int -> Int
       test x = x * 2
 
-    namespace y
+    namespace Y
+      export
       test : String -> String
       test x = x ++ x
 
 This (admittedly contrived) module defines two functions with fully
-qualified names ``Foo.x.test`` and ``Foo.y.test``, which can be
+qualified names ``Foo.X.test`` and ``Foo.Y.test``, which can be
 disambiguated by their types:
 
 ::
@@ -221,6 +189,10 @@ disambiguated by their types:
     6 : Int
     *Foo> test "foo"
     "foofoo" : String
+
+The export rules, ``public export`` and ``export``, are *per namespace*,
+not *per file*, so the two ``test`` definitions above need the ``export``
+flag to be visible outside their own namespaces.
 
 Parameterised blocks
 ====================
@@ -272,5 +244,5 @@ which can be inferred by the type checker:
 
 ::
 
-    *params> show (append _ _ (MkVects _ [1,2,3] [4,5,6]))
-    "[1, 2, 3, 4, 5, 6]" : String
+    Main> show (append _ _ (MkVects _ [1,2,3] [4,5,6]))
+    "[1, 2, 3, 4, 5, 6]"
