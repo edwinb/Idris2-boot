@@ -4,16 +4,14 @@
 Interactive Editing
 *******************
 
-[NOT UPDATED FOR IDRIS 2 YET]
-
 By now, we have seen several examples of how Idris’ dependent type
 system can give extra confidence in a function’s correctness by giving
 a more precise description of its intended behaviour in its *type*. We
-have also seen an example of how the type system can help with EDSL
+have also seen an example of how the type system can help with embedded DSL
 development by allowing a programmer to describe the type system of an
 object language. However, precise types give us more than verification
-of programs — we can also exploit types to help write programs which
-are *correct by construction*.
+of programs — we can also use the type system to help write programs which
+are *correct by construction*, interactively.
 
 The Idris REPL provides several commands for inspecting and
 modifying parts of programs, based on their types, such as case
@@ -21,9 +19,9 @@ splitting on a pattern variable, inspecting the type of a
 hole, and even a basic proof search mechanism. In this
 section, we explain how these features can be exploited by a text
 editor, and specifically how to do so in `Vim
-<https://github.com/idris-hackers/idris-vim>`_. An interactive mode
+<https://github.com/edwinb/idris2-vim>`_. An interactive mode
 for `Emacs <https://github.com/idris-hackers/idris-mode>`_ is also
-available.
+available (though not yet updated for Idris 2).
 
 Editing at the REPL
 ===================
@@ -44,17 +42,15 @@ alternative form, which *updates* the source file in-place:
 
     :command! [line number] [name]
 
-When the REPL is loaded, it also starts a background process which
-accepts and responds to REPL commands, using ``idris --client``. For
-example, if we have a REPL running elsewhere, we can execute commands
-such as:
+It is also possible to invoke Idris in a mode which runs a REPL command,
+displays the result, then exits, using ``idris2 --client``. For example:
 
 ::
 
-    $ idris --client ':t plus'
-    Prelude.Nat.plus : Nat -> Nat -> Nat
-    $ idris --client '2+2'
-    4 : Integer
+    $ idris2 --client ':t plus'
+    Prelude.plus : Nat -> Nat -> Nat
+    $ idris2 --client '2+2'
+    4
 
 A text editor can take advantage of this, along with the editing
 commands, in order to provide interactive editing support.
@@ -178,7 +174,7 @@ surprisingly, there is only one possibility if we try to solve ``:ps
 
 .. code-block:: idris
 
-    f x y :: (vzipWith f xs ys)
+    f x y :: vzipWith f xs ys
 
 This works because ``vzipWith`` has a precise enough type: The
 resulting vector has to be non-empty (a ``::``); the first element
@@ -227,7 +223,7 @@ interactive editing support using the commands described above.
 Interactive editing is achieved using the following editor commands,
 each of which update the buffer directly:
 
-- ``\d`` adds a template definition for the name declared on the
+- ``\a`` adds a template definition for the name declared on the
    current line (using ``:addclause``).
 
 - ``\c`` case splits the variable at the cursor (using
@@ -238,11 +234,8 @@ each of which update the buffer directly:
 
 - ``\w`` adds a ``with`` clause (using ``:makewith``).
 
-- ``\o`` invokes a proof search to solve the hole under the
+- ``\s`` invokes a proof search to solve the hole under the
    cursor (using ``:proofsearch``).
-
-- ``\p`` invokes a proof search with additional hints to solve the
-   hole under the cursor (using ``:proofsearch``).
 
 There are also commands to invoke the type checker and evaluator:
 
@@ -256,4 +249,8 @@ There are also commands to invoke the type checker and evaluator:
 
 Corresponding commands are also available in the Emacs mode. Support
 for other editors can be added in a relatively straightforward manner
-by using ``idris –client``.
+by using ``idris2 -–client``.
+More sophisticated support can be added by using the IDE protocol (yet to
+be documented for Idris 2, but which mostly extends to protocol documented for 
+`Idris 1 <http://docs.idris-lang.org/en/latest/reference/ide-protocol.html>`_.
+

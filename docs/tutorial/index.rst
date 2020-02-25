@@ -36,6 +36,5 @@ changes since Idris 1, see :ref:`updates-index`.
    views
    theorems
    interactive
-   syntax
    miscellany
    conclusions

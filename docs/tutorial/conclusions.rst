@@ -7,6 +7,9 @@ Further Reading
 Further information about Idris programming, and programming with
 dependent types in general, can be obtained from various sources:
 
+-  `Type-Driven Development with Idris <https://www.manning.com/books/type-driven-development-with-idris>`_
+   by Edwin Brady, available from `Manning <https://www.manning.com>`_.
+
 -  The Idris web site (http://www.idris-lang.org/) and by asking
    questions on the mailing list.
 
@@ -21,8 +24,8 @@ dependent types in general, can be obtained from various sources:
    -  https://github.com/idris-lang/Idris-dev/wiki/Language-Features
 
 - Examining the prelude and exploring the ``samples`` in the
-   distribution. The Idris source can be found online at:
-   https://github.com/idris-lang/Idris-dev.
+   distribution. The Idris 2 source can be found online at:
+   https://github.com/edwinb/Idris2.
 
 -  Existing projects on the ``Idris Hackers`` web space:
    http://idris-hackers.github.io.
