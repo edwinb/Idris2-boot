@@ -4,8 +4,6 @@
 Example: The Well-Typed Interpreter
 ***********************************
 
-[NOT UPDATED FOR IDRIS 2 YET]
-
 In this section, we’ll use the features we’ve seen so far to write a
 larger example, an interpreter for a simple functional programming
 language, with variables, function application, binary operators and
@@ -38,17 +36,15 @@ We're going to define a representation of our language in such a way
 that only well-typed programs can be represented. We'll index the
 representations of expressions by their type, **and** the types of
 local variables (the context). The context can be represented using
-the ``Vect`` data type, and as it will be used regularly it will be
-represented as an implicit argument. To do so we define everything in
-a ``using`` block (keep in mind that everything after this point needs
-to be indented so as to be inside the ``using`` block):
+the ``Vect`` data type, so we'll need to import ``Data.Vect`` at the top of our
+source file:
 
 .. code-block:: idris
 
-    using (G:Vect n Ty)
+    import Data.Vect
 
-Expressions are indexed by the types of the local variables, and the type of
-the expression itself:
+Expressions are indexed by the types of the local
+variables, and the type of the expression itself:
 
 .. code-block:: idris
 
@@ -59,28 +55,23 @@ The full representation of expressions is:
 .. code-block:: idris
 
     data HasType : (i : Fin n) -> Vect n Ty -> Ty -> Type where
-        Stop : HasType FZ (t :: G) t
-        Pop  : HasType k G t -> HasType (FS k) (u :: G) t
+        Stop : HasType FZ (t :: ctxt) t
+        Pop  : HasType k ctxt t -> HasType (FS k) (u :: ctxt) t
 
     data Expr : Vect n Ty -> Ty -> Type where
-        Var : HasType i G t -> Expr G t
-        Val : (x : Integer) -> Expr G TyInt
-        Lam : Expr (a :: G) t -> Expr G (TyFun a t)
-        App : Expr G (TyFun a t) -> Expr G a -> Expr G t
+        Var : HasType i ctxt t -> Expr ctxt t
+        Val : (x : Integer) -> Expr ctxt TyInt
+        Lam : Expr (a :: ctxt) t -> Expr ctxt (TyFun a t)
+        App : Expr ctxt (TyFun a t) -> Expr ctxt a -> Expr ctxt t
         Op  : (interpTy a -> interpTy b -> interpTy c) ->
-              Expr G a -> Expr G b -> Expr G c
-        If  : Expr G TyBool ->
-              Lazy (Expr G a) ->
-              Lazy (Expr G a) -> Expr G a
+              Expr ctxt a -> Expr ctxt b -> Expr ctxt c
+        If  : Expr ctxt TyBool ->
+              Lazy (Expr ctxt a) ->
+              Lazy (Expr ctxt a) -> Expr ctxt a
 
 The code above makes use of the ``Vect`` and ``Fin`` types from the
-Idris standard library. We import them because they are not provided
-in the prelude:
-
-.. code-block:: idris
-
-    import Data.Vect
-    import Data.Fin
+base libraries. ``Fin`` is available as part of ``Data.Vect``. Throughout,
+``ctxt`` refers to the local variable context.
 
 Since expressions are indexed by their type, we can read the typing
 rules of the language from the definitions of the constructors. Let us
@@ -88,14 +79,14 @@ look at each constructor in turn.
 
 We use a nameless representation for variables — they are *de Bruijn
 indexed*. Variables are represented by a proof of their membership in
-the context, ``HasType i G T``, which is a proof that variable ``i``
-in context ``G`` has type ``T``. This is defined as follows:
+the context, ``HasType i ctxt T``, which is a proof that variable ``i``
+in context ``ctxt`` has type ``T``. This is defined as follows:
 
 .. code-block:: idris
 
     data HasType : (i : Fin n) -> Vect n Ty -> Ty -> Type where
-        Stop : HasType FZ (t :: G) t
-        Pop  : HasType k G t -> HasType (FS k) (u :: G) t
+        Stop : HasType FZ (t :: ctxt) t
+        Pop  : HasType k ctxt t -> HasType (FS k) (u :: ctxt) t
 
 We can treat *Stop* as a proof that the most recently defined variable
 is well-typed, and *Pop n* as a proof that, if the ``n``\ th most
@@ -106,7 +97,7 @@ the ``Var`` constructor:
 
 .. code-block:: idris
 
-    Var : HasType i G t -> Expr G t
+    Var : HasType i ctxt t -> Expr ctxt t
 
 So, in an expression ``\x. \y. x y``, the variable ``x`` would have a
 de Bruijn index of 1, represented as ``Pop Stop``, and ``y 0``,
@@ -117,7 +108,7 @@ A value carries a concrete representation of an integer:
 
 .. code-block:: idris
 
-    Val : (x : Integer) -> Expr G TyInt
+    Val : (x : Integer) -> Expr ctxt TyInt
 
 A lambda creates a function. In the scope of a function of type ``a ->
 t``, there is a new local variable of type ``a``, which is expressed
@@ -125,14 +116,14 @@ by the context index:
 
 .. code-block:: idris
 
-    Lam : Expr (a :: G) t -> Expr G (TyFun a t)
+    Lam : Expr (a :: ctxt) t -> Expr ctxt (TyFun a t)
 
 Function application produces a value of type ``t`` given a function
 from ``a`` to ``t`` and a value of type ``a``:
 
 .. code-block:: idris
 
-    App : Expr G (TyFun a t) -> Expr G a -> Expr G t
+    App : Expr ctxt (TyFun a t) -> Expr ctxt a -> Expr ctxt t
 
 We allow arbitrary binary operators, where the type of the operator
 informs what the types of the arguments must be:
@@ -140,7 +131,7 @@ informs what the types of the arguments must be:
 .. code-block:: idris
 
     Op : (interpTy a -> interpTy b -> interpTy c) ->
-         Expr G a -> Expr G b -> Expr G c
+         Expr ctxt a -> Expr ctxt b -> Expr ctxt c
 
 Finally, ``If`` expressions make a choice given a boolean. Each branch
 must have the same type, and we will evaluate the branches lazily so
@@ -148,10 +139,10 @@ that only the branch which is taken need be evaluated:
 
 .. code-block:: idris
 
-    If : Expr G TyBool ->
-         Lazy (Expr G a) ->
-         Lazy (Expr G a) ->
-         Expr G a
+    If : Expr ctxt TyBool ->
+         Lazy (Expr ctxt a) ->
+         Lazy (Expr ctxt a) ->
+         Expr ctxt a
 
 Writing the Interpreter
 =======================
@@ -169,9 +160,9 @@ environment:
 
     data Env : Vect n Ty -> Type where
         Nil  : Env Nil
-        (::) : interpTy a -> Env G -> Env (a :: G)
+        (::) : interpTy a -> Env ctxt -> Env (a :: ctxt)
 
-    lookup : HasType i G t -> Env G -> interpTy t
+    lookup : HasType i ctxt t -> Env ctxt -> interpTy t
     lookup Stop    (x :: xs) = x
     lookup (Pop k) (x :: xs) = lookup k xs
 
@@ -181,7 +172,7 @@ specific environment:
 
 .. code-block:: idris
 
-    interp : Env G -> Expr G t -> interpTy t
+    interp : Env ctxt -> Expr ctxt t -> interpTy t
 
 The complete interpreter is defined as follows, for reference. For
 each constructor, we translate it into the corresponding Idris value:
@@ -246,7 +237,7 @@ We can make some simple test functions. Firstly, adding two inputs
 
 .. code-block:: idris
 
-    add : Expr G (TyFun TyInt (TyFun TyInt TyInt))
+    add : Expr ctxt (TyFun TyInt (TyFun TyInt TyInt))
     add = Lam (Lam (Op (+) (Var Stop) (Var (Pop Stop))))
 
 More interestingly, a factorial function ``fact``
@@ -255,7 +246,7 @@ can be written as:
 
 .. code-block:: idris
 
-    fact : Expr G (TyFun TyInt TyInt)
+    fact : Expr ctxt (TyFun TyInt TyInt)
     fact = Lam (If (Op (==) (Var Stop) (Val 0))
                    (Val 1)
                    (Op (*) (App fact (Op (-) (Var Stop) (Val 1)))
@@ -278,7 +269,6 @@ Here, ``cast`` is an overloaded function which converts a value from
 one type to another if possible. Here, it converts a string to an
 integer, giving 0 if the input is invalid. An example run of this
 program at the Idris interactive environment is:
-
 
 .. _factrun:
 .. literalinclude:: ../listing/idris-prompt-interp.txt
