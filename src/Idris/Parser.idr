@@ -1007,7 +1007,7 @@ directive fname indents
          e <- extension
          atEnd indents
          pure (Extension e)
-  <|> do exactIdent "default"
+  <|> do keyword "default"
          tot <- totalityOpt
          atEnd indents
          pure (DefaultTotality tot)
