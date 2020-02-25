@@ -4,8 +4,6 @@
 Interfaces
 **********
 
-[NOT UPDATED FOR IDRIS 2 YET]
-
 We often want to define functions which work across several different
 data types. For example, we would like arithmetic operators to work on
 ``Int``, ``Integer`` and ``Double`` at the very least. We would like
@@ -43,7 +41,7 @@ For example, the ``Show`` implementation for ``Nat`` could be defined as:
 
 ::
 
-    Idris> show (S (S (S Z)))
+    Main> show (S (S (S Z)))
     "sssZ" : String
 
 Only one implementation of an interface can be given for a type — implementations may
@@ -59,15 +57,19 @@ going to use it to convert each element to a ``String``:
 
     Show a => Show (Vect n a) where
         show xs = "[" ++ show' xs ++ "]" where
-            show' : Vect n a -> String
+            show' : forall n . Vect n a -> String
             show' Nil        = ""
             show' (x :: Nil) = show x
             show' (x :: xs)  = show x ++ ", " ++ show' xs
 
+Note that we need the explicit ``forall n .`` in the ``show'`` function
+because otherwise the ``n`` is already in scope, and fixed to the value of
+the top level ``n``.
+
 Default Definitions
 ===================
 
-The library defines an ``Eq`` interface which provides methods for
+The Prelude defines an ``Eq`` interface which provides methods for
 comparing values for equality or inequality, with implementations for all of
 the built-in types:
 
@@ -153,6 +155,17 @@ separated list, for example:
 
     sortAndShow : (Ord a, Show a) => List a -> String
     sortAndShow xs = show (sort xs)
+
+Constraints are, like types, first class objects in the language. You can
+see this at the REPL:
+
+::
+
+    Main> :t Ord
+    Prelude.Ord : Type -> Type
+
+So, ``(Ord a, Show a)`` is an ordinary pair of ``Type``s, with two constraints
+as the first and second element of the pair.
 
 Note: Interfaces and ``mutual`` blocks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -254,10 +267,10 @@ are both available, or return ``Nothing`` if one or both are not ("fail fast"). 
 
 ::
 
-    *Interfaces> m_add (Just 20) (Just 22)
-    Just 42 : Maybe Int
-    *Interfaces> m_add (Just 20) Nothing
-    Nothing : Maybe Int
+    Main> m_add (Just 82) (Just 22)
+    Just 94
+    Main> m_add (Just 82) Nothing
+    Nothing
 
 Pattern Matching Bind
 ~~~~~~~~~~~~~~~~~~~~~
@@ -299,10 +312,10 @@ we could try pattern matching on values of the form ``Just x_ok``:
 .. code-block:: idris
 
     readNumbers : IO (Maybe (Nat, Nat))
-    readNumbers =
-      do Just x_ok <- readNumber
-         Just y_ok <- readNumber
-         pure (Just (x_ok, y_ok))
+    readNumbers
+      = do Just x_ok <- readNumber
+           Just y_ok <- readNumber
+           pure (Just (x_ok, y_ok))
 
 There is still a problem, however, because we've now omitted the case for
 ``Nothing`` so ``readNumbers`` is no longer total! We can add the ``Nothing``
@@ -311,10 +324,12 @@ case back as follows:
 .. code-block:: idris
 
     readNumbers : IO (Maybe (Nat, Nat))
-    readNumbers =
-      do Just x_ok <- readNumber | Nothing => pure Nothing
-         Just y_ok <- readNumber | Nothing => pure Nothing
-         pure (Just (x_ok, y_ok))
+    readNumbers
+      = do Just x_ok <- readNumber 
+                | Nothing => pure Nothing
+           Just y_ok <- readNumber 
+                | Nothing => pure Nothing
+           pure (Just (x_ok, y_ok))
 
 The effect of this version of ``readNumbers`` is identical to the first (in
 fact, it is syntactic sugar for it and directly translated back into that form).
@@ -356,13 +371,13 @@ For example, the expression:
 
 .. code-block:: idris
 
-    let y = 42 in f !(g !(print y) !x)
+    let y = 94 in f !(g !(print y) !x)
 
 is lifted to:
 
 .. code-block:: idris
 
-    let y = 42 in do y' <- print y
+    let y = 94 in do y' <- print y
                      x' <- x
                      g' <- g y' x'
                      f g'
@@ -530,6 +545,15 @@ to handle errors:
     runEval env e = case eval e of
         MkEval envFn => envFn env
 
+For example:
+
+::
+
+    InterpE> runEval [("x", 10), ("y",84)] (Add (Var "x") (Var "y"))
+    Just 94
+    InterpE> runEval [("x", 10), ("y",84)] (Add (Var "x") (Var "z"))
+    Nothing
+
 Named Implementations
 =====================
 
@@ -556,16 +580,16 @@ Given the following list:
     testList : List Nat
     testList = [3,4,1]
 
-We can sort it using the default ``Ord`` implementation, then the named
+We can sort it using the default ``Ord`` implementation, by using the ``sort``
+function available with ``import Data.List``, then we can try with the named
 implementation ``myord`` as follows, at the Idris prompt:
 
 ::
 
-    *named_impl> show (sort testList)
-    "[sO, sssO, ssssO]" : String
-    *named_impl> show (sort @{myord} testList)
-    "[ssssO, sssO, sO]" : String
-
+    Main> show (sort testList)
+    "[1, 3, 4]"
+    Main> show (sort @{myord} testList)
+    "[4, 3, 1]"
 
 Sometimes, we also need access to a named parent implementation. For example,
 the prelude defines the following ``Semigroup`` interface:

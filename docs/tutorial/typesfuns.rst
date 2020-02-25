@@ -192,9 +192,8 @@ indented further than the outer function.
 
     Any names which are visible in the outer scope are also visible in
     the ``where`` clause (unless they have been redefined, such as ``xs``
-    here). A name which appears only in the type will be in scope in the
-    ``where`` clause if it is a *parameter* to one of the types, i.e. it
-    is fixed across the entire structure.
+    here). A name which appears in the type will be in scope in the
+    ``where`` clause.
 
 As well as functions, ``where`` blocks can include local data
 declarations, such as the following where ``MyLT`` is not accessible
@@ -496,8 +495,10 @@ It is a matter of taste whether you want to do this — sometimes it can
 help document a function by making the purpose of an argument more
 clear.
 
-There is much more to say about implicit arguments and how they can be used
-in practice. We will return to this in Section :ref:`sect-multiplicities`
+The names of implicit arguments are in scope in the body of the function,
+although they cannot be used at run time. There is much more to say about
+implicit arguments - we will discuss the question of what is available at run
+time, among other things, in Section :ref:`sect-multiplicities`
 
 Note: Declaration Order and ``mutual`` blocks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

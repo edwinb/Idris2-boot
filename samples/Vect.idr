@@ -30,3 +30,11 @@ cons' : t -> (x : Nat ** Vect x t) -> (x : Nat ** Vect x t)
 cons' val
     = record { fst $= S,
                snd $= (val ::) }
+
+Show a => Show (Vect n a) where
+    show xs = "[" ++ show' xs ++ "]" where
+        show' : forall n . Vect n a -> String
+        show' Nil        = ""
+        show' (x :: Nil) = show x
+        show' (x :: xs)  = show x ++ ", " ++ show' xs
+
