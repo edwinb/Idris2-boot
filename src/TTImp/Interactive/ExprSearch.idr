@@ -94,7 +94,10 @@ mkCandidates fc f (args :: argss)
          mkCandidates fc (App fc f arg) argss
 
 explicit : ArgInfo vars -> Bool
-explicit ai = plicit ai == Explicit
+explicit ai
+    = case plicit ai of
+           Explicit => True
+           _ => False
 
 -- Apply the name to arguments and see if the result unifies with the target
 -- type, then try to automatically solve any holes which were generated.

@@ -27,6 +27,21 @@ dropName n nest = record { names $= drop } nest
         = if x == n then drop xs
              else (x, y) :: drop xs
 
+checkPiInfo : {vars : _} ->
+              {auto c : Ref Ctxt Defs} ->
+              {auto m : Ref MD Metadata} ->
+              {auto u : Ref UST UState} ->
+              {auto e : Ref EST (EState vars)} ->
+              RigCount -> ElabInfo -> NestedNames vars -> Env Term vars ->
+              PiInfo RawImp -> (expTy : Maybe (Glued vars)) ->
+              Core (PiInfo (Term vars))
+checkPiInfo rig elabinfo nest env Explicit exp = pure Explicit
+checkPiInfo rig elabinfo nest env Implicit exp = pure Implicit
+checkPiInfo rig elabinfo nest env AutoImplicit exp = pure AutoImplicit
+checkPiInfo rig elabinfo nest env (DefImplicit t) exp
+    = do (tv, _) <- check rig elabinfo nest env t exp
+         pure (DefImplicit tv)
+
 export
 checkPi : {vars : _} ->
           {auto c : Ref Ctxt Defs} ->
@@ -36,7 +51,7 @@ checkPi : {vars : _} ->
           RigCount -> ElabInfo ->
           NestedNames vars -> Env Term vars ->
           FC ->
-          RigCount -> PiInfo -> (n : Name) ->
+          RigCount -> PiInfo RawImp -> (n : Name) ->
           (argTy : RawImp) -> (retTy : RawImp) ->
           (expTy : Maybe (Glued vars)) ->
           Core (Term vars, Glued vars)
@@ -44,12 +59,13 @@ checkPi rig elabinfo nest env fc rigf info n argTy retTy expTy
     = do let pirig = getRig (elabMode elabinfo)
          (tyv, tyt) <- check pirig elabinfo nest env argTy
                              (Just (gType fc))
-         let env' : Env Term (n :: _) = Pi rigf info tyv :: env
+         info' <- checkPiInfo rigf elabinfo nest env info (Just (gnf env tyv))
+         let env' : Env Term (n :: _) = Pi rigf info' tyv :: env
          let nest' = weaken (dropName n nest)
          (scopev, scopet) <-
             inScope fc env' (\e' =>
               check {e=e'} pirig elabinfo nest' env' retTy (Just (gType fc)))
-         checkExp rig elabinfo env fc (Bind fc n (Pi rigf info tyv) scopev) (gType fc) expTy
+         checkExp rig elabinfo env fc (Bind fc n (Pi rigf info' tyv) scopev) (gType fc) expTy
   where
     -- Might want to match on the LHS, so use the context rig, otherwise
     -- it's always erased
@@ -74,7 +90,7 @@ inferLambda : {vars : _} ->
               RigCount -> ElabInfo ->
               NestedNames vars -> Env Term vars ->
               FC ->
-              RigCount -> PiInfo -> (n : Name) ->
+              RigCount -> PiInfo RawImp -> (n : Name) ->
               (argTy : RawImp) -> (scope : RawImp) ->
               (expTy : Maybe (Glued vars)) ->
               Core (Term vars, Glued vars)
@@ -82,17 +98,18 @@ inferLambda rig elabinfo nest env fc rigl info n argTy scope expTy
     = do rigb_in <- findLamRig expTy
          let rigb = min rigb_in rigl
          (tyv, tyt) <- check Rig0 elabinfo nest env argTy (Just (gType fc))
-         let env' : Env Term (n :: _) = Lam rigb info tyv :: env
+         info' <- checkPiInfo rigl elabinfo nest env info (Just (gnf env tyv))
+         let env' : Env Term (n :: _) = Lam rigb info' tyv :: env
          let nest' = weaken (dropName n nest)
          (scopev, scopet) <- inScope fc env' (\e' =>
                                 check {e=e'} rig elabinfo
                                       nest' env' scope Nothing)
-         let lamty = gnf env (Bind fc n (Pi rigb info tyv) !(getTerm scopet))
+         let lamty = gnf env (Bind fc n (Pi rigb info' tyv) !(getTerm scopet))
          logGlue 5 "Inferred lambda type" env lamty
          maybe (pure ())
                (logGlueNF 5 "Expected lambda type" env) expTy
          checkExpP rig True elabinfo env fc
-                  (Bind fc n (Lam rigb info tyv) scopev)
+                  (Bind fc n (Lam rigb info' tyv) scopev)
                   lamty expTy
 
 getTyNF : {auto c : Ref Ctxt Defs} ->
@@ -113,7 +130,7 @@ checkLambda : {vars : _} ->
               RigCount -> ElabInfo ->
               NestedNames vars -> Env Term vars ->
               FC ->
-              RigCount -> PiInfo -> (n : Name) ->
+              RigCount -> PiInfo RawImp -> (n : Name) ->
               (argTy : RawImp) -> (scope : RawImp) ->
               (expTy : Maybe (Glued vars)) ->
               Core (Term vars, Glued vars)
@@ -129,8 +146,9 @@ checkLambda rig_in elabinfo nest env fc rigl info n argTy scope (Just expty_in)
               Bind bfc bn (Pi c _ pty) psc =>
                  do (tyv, tyt) <- check Rig0 elabinfo nest env
                                         argTy (Just (gType fc))
+                    info' <- checkPiInfo rigl elabinfo nest env info (Just (gnf env tyv))
                     let rigb = min rigl c
-                    let env' : Env Term (n :: _) = Lam rigb info tyv :: env
+                    let env' : Env Term (n :: _) = Lam rigb info' tyv :: env
                     convertP True fc elabinfo env (gnf env tyv) (gnf env pty)
                     let nest' = weaken (dropName n nest)
                     (scopev, scopet) <-
@@ -140,11 +158,11 @@ checkLambda rig_in elabinfo nest env fc rigl info n argTy scope (Just expty_in)
                     logTermNF 10 "Lambda type" env exptynf
                     logGlueNF 10 "Got scope type" env' scopet
                     checkExpP rig True elabinfo env fc
-                             (Bind fc n (Lam rigb info tyv) scopev)
+                             (Bind fc n (Lam rigb info' tyv) scopev)
                              (gnf env
-                                  (Bind fc n (Pi rigb info tyv) !(getTerm scopet)))
+                                  (Bind fc n (Pi rigb info' tyv) !(getTerm scopet)))
                              (Just (gnf env
-                                       (Bind fc bn (Pi rigb info pty) psc)))
+                                       (Bind fc bn (Pi rigb info' pty) psc)))
               _ => inferLambda rig elabinfo nest env fc rigl info n argTy scope (Just expty_in)
 
 weakenExp : Env Term (x :: vars) ->

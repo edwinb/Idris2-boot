@@ -377,7 +377,7 @@ mutual
   getMult Nothing = pure RigW
   getMult _ = fatalError "Invalid multiplicity (must be 0 or 1)"
 
-  pibindAll : FC -> PiInfo -> List (RigCount, Maybe Name, PTerm) ->
+  pibindAll : FC -> PiInfo PTerm -> List (RigCount, Maybe Name, PTerm) ->
               PTerm -> PTerm
   pibindAll fc p [] scope = scope
   pibindAll fc p ((rig, n, ty) :: rest) scope
@@ -414,7 +414,7 @@ mutual
                     rig <- getMult rigc
                     pure (rig, Just n, ty))
 
-  bindSymbol : Rule PiInfo
+  bindSymbol : Rule (PiInfo PTerm)
   bindSymbol
       = do symbol "->"
            pure Explicit
@@ -445,6 +445,20 @@ mutual
            scope <- typeExpr pdef fname indents
            end <- location
            pure (pibindAll (MkFC fname start end) AutoImplicit binders scope)
+
+  defaultImplicitPi : FileName -> IndentInfo -> Rule PTerm
+  defaultImplicitPi fname indents
+      = do start <- location
+           symbol "{"
+           keyword "default"
+           commit
+           t <- simpleExpr fname indents
+           binders <- pibindList fname start indents
+           symbol "}"
+           symbol "->"
+           scope <- typeExpr pdef fname indents
+           end <- location
+           pure (pibindAll (MkFC fname start end) (DefImplicit t) binders scope)
 
   forall_ : FileName -> IndentInfo -> Rule PTerm
   forall_ fname indents
@@ -709,6 +723,7 @@ mutual
   binder fname indents
       = let_ fname indents
     <|> autoImplicitPi fname indents
+    <|> defaultImplicitPi fname indents
     <|> forall_ fname indents
     <|> implicitPi fname indents
     <|> explicitPi fname indents
@@ -726,7 +741,7 @@ mutual
                pure (mkPi start end arg rest))
              <|> pure arg
     where
-      mkPi : FilePos -> FilePos -> PTerm -> List (PiInfo, PTerm) -> PTerm
+      mkPi : FilePos -> FilePos -> PTerm -> List (PiInfo PTerm, PTerm) -> PTerm
       mkPi start end arg [] = arg
       mkPi start end arg ((exp, a) :: as)
             = PPi (MkFC fname start end) RigW exp Nothing arg
@@ -921,6 +936,15 @@ extension
     = do exactIdent "Borrowing"
          pure Borrowing
 
+totalityOpt : Rule TotalReq
+totalityOpt
+    = do keyword "partial"
+         pure PartialOK
+  <|> do keyword "total"
+         pure Total
+  <|> do keyword "covering"
+         pure CoveringOnly
+
 directive : FileName -> IndentInfo -> Rule Directive
 directive fname indents
     = do exactIdent "hide"
@@ -983,6 +1007,10 @@ directive fname indents
          e <- extension
          atEnd indents
          pure (Extension e)
+  <|> do keyword "default"
+         tot <- totalityOpt
+         atEnd indents
+         pure (DefaultTotality tot)
 
 fix : Rule Fixity
 fix
@@ -1048,16 +1076,11 @@ usingDecls fname indents
          ds <- assert_total (nonEmptyBlock (topDecl fname))
          end <- location
          pure (PUsing (MkFC fname start end) us (collectDefs (concat ds)))
-
+         
 fnOpt : Rule PFnOpt
-fnOpt
-    = do keyword "partial"
-         pure $ IFnOpt PartialOK
-  <|> do keyword "total"
-         pure $ IFnOpt Total
-  <|> do keyword "covering"
-         pure $ IFnOpt Covering
-
+fnOpt = do x <- totalityOpt          
+           pure $ IFnOpt (Totality x)
+           
 fnDirectOpt : FileName -> Rule PFnOpt
 fnDirectOpt fname
     = do exactIdent "hint"
@@ -1177,12 +1200,15 @@ implDecl fname indents
          cons <- constraints fname indents
          n <- name
          params <- many (simpleExpr fname indents)
+         nusing <- option [] (do keyword "using"
+                                 names <- some name
+                                 pure names)
          body <- optional (do keyword "where"
                               blockAfter col (topDecl fname))
          atEnd indents
          end <- location
          pure (PImplementation (MkFC fname start end)
-                         vis Single impls cons n params iname
+                         vis Single impls cons n params iname nusing
                          (map (collectDefs . concat) body))
 
 fieldDecl : FileName -> IndentInfo -> Rule (List PField)
@@ -1197,7 +1223,7 @@ fieldDecl fname indents
            atEnd indents
            pure fs
   where
-    fieldBody : PiInfo -> Rule (List PField)
+    fieldBody : PiInfo PTerm -> Rule (List PField)
     fieldBody p
         = do start <- location
              m <- multiplicity

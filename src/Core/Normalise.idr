@@ -492,23 +492,37 @@ mutual
       = do args' <- quoteArgs q defs bounds env args
            pure $ Meta fc n i args'
 
+  quotePi : {bound : _} ->
+            Ref QVar Int -> Defs -> Bounds bound ->
+            Env Term free -> PiInfo (NF free) ->
+            Core (PiInfo (Term (bound ++ free)))
+  quotePi q defs bounds env Explicit = pure Explicit
+  quotePi q defs bounds env Implicit = pure Implicit
+  quotePi q defs bounds env AutoImplicit = pure AutoImplicit
+  quotePi q defs bounds env (DefImplicit t)
+      = do t' <- quoteGenNF q defs bounds env t
+           pure (DefImplicit t')
+
   quoteBinder : {bound : _} ->
                 Ref QVar Int -> Defs -> Bounds bound ->
                 Env Term free -> Binder (NF free) ->
                 Core (Binder (Term (bound ++ free)))
   quoteBinder q defs bounds env (Lam r p ty)
       = do ty' <- quoteGenNF q defs bounds env ty
-           pure (Lam r p ty')
+           p' <- quotePi q defs bounds env p
+           pure (Lam r p' ty')
   quoteBinder q defs bounds env (Let r val ty)
       = do val' <- quoteGenNF q defs bounds env val
            ty' <- quoteGenNF q defs bounds env ty
            pure (Let r val' ty')
   quoteBinder q defs bounds env (Pi r p ty)
       = do ty' <- quoteGenNF q defs bounds env ty
-           pure (Pi r p ty')
+           p' <- quotePi q defs bounds env p
+           pure (Pi r p' ty')
   quoteBinder q defs bounds env (PVar r p ty)
       = do ty' <- quoteGenNF q defs bounds env ty
-           pure (PVar r p ty')
+           p' <- quotePi q defs bounds env p
+           pure (PVar r p' ty')
   quoteBinder q defs bounds env (PLet r val ty)
       = do val' <- quoteGenNF q defs bounds env val
            ty' <- quoteGenNF q defs bounds env ty
@@ -724,11 +738,11 @@ mutual
   convBinders : Ref QVar Int -> Defs -> Env Term vars ->
                 Binder (NF vars) -> Binder (NF vars) -> Core Bool
   convBinders q defs env (Pi cx ix tx) (Pi cy iy ty)
-      = if ix /= iy || not (subRig cx cy)
+      = if not (subRig cx cy)
            then pure False
            else convGen q defs env tx ty
   convBinders q defs env (Lam cx ix tx) (Lam cy iy ty)
-      = if ix /= iy || cx /= cy
+      = if cx /= cy
            then pure False
            else convGen q defs env tx ty
   convBinders q defs env bx by
@@ -752,14 +766,14 @@ mutual
     convGen q defs env tmx@(NBind fc x (Lam c ix tx) scx) tmy
         = do empty <- clearDefs defs
              etay <- nf defs env
-                        (Bind fc x (Lam c ix !(quote empty env tx))
+                        (Bind fc x (Lam c !(traverse (quote empty env) ix) !(quote empty env tx))
                            (App fc (weaken !(quote empty env tmy))
                                 (Local fc Nothing _ First)))
              convGen q defs env tmx etay
     convGen q defs env tmx tmy@(NBind fc y (Lam c iy ty) scy)
         = do empty <- clearDefs defs
              etax <- nf defs env
-                        (Bind fc y (Lam c iy !(quote empty env ty))
+                        (Bind fc y (Lam c !(traverse (quote empty env) iy) !(quote empty env ty))
                            (App fc (weaken !(quote empty env tmx))
                                 (Local fc Nothing _ First)))
              convGen q defs env etax tmy

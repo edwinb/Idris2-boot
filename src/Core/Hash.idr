@@ -72,10 +72,11 @@ Hashable RigCount where
   hashWithSalt h RigW = hashWithSalt h 2
 
 export
-Hashable PiInfo where
+Hashable t => Hashable (PiInfo t) where
   hashWithSalt h Implicit = hashWithSalt h 0
   hashWithSalt h Explicit = hashWithSalt h 1
   hashWithSalt h AutoImplicit = hashWithSalt h 2
+  hashWithSalt h (DefImplicit t) = h `hashWithSalt` 3 `hashWithSalt` t
 
 export
 Hashable ty => Hashable (Binder ty) where

@@ -42,9 +42,9 @@ mutual
   public export
   data RawImp : Type where
        IVar : FC -> Name -> RawImp
-       IPi : FC -> RigCount -> PiInfo -> Maybe Name ->
+       IPi : FC -> RigCount -> PiInfo RawImp -> Maybe Name ->
              (argTy : RawImp) -> (retTy : RawImp) -> RawImp
-       ILam : FC -> RigCount -> PiInfo -> Maybe Name ->
+       ILam : FC -> RigCount -> PiInfo RawImp -> Maybe Name ->
               (argTy : RawImp) -> (lamTy : RawImp) -> RawImp
        ILet : FC -> RigCount -> Name ->
               (nTy : RawImp) -> (nVal : RawImp) ->
@@ -187,9 +187,7 @@ mutual
        ForeignFn : List RawImp -> FnOpt
        -- assume safe to cancel arguments in unification
        Invertible : FnOpt
-       Total : FnOpt
-       Covering : FnOpt
-       PartialOK : FnOpt
+       Totality : TotalReq -> FnOpt
        Macro : FnOpt
 
   export
@@ -200,9 +198,9 @@ mutual
     show ExternFn = "%extern"
     show (ForeignFn cs) = "%foreign " ++ showSep " " (map show cs)
     show Invertible = "%invertible"
-    show Total = "total"
-    show Covering = "covering"
-    show PartialOK = "partial"
+    show (Totality Total) = "total"
+    show (Totality CoveringOnly) = "covering"
+    show (Totality PartialOK) = "partial"
     show Macro = "%macro"
 
   export
@@ -213,9 +211,7 @@ mutual
     ExternFn == ExternFn = True
     (ForeignFn xs) == (ForeignFn ys) = True -- xs == ys
     Invertible == Invertible = True
-    Total == Total = True
-    Covering == Covering = True
-    PartialOK == PartialOK = True
+    (Totality tot_lhs) == (Totality tot_rhs) = tot_lhs == tot_rhs
     Macro == Macro = True
     _ == _ = False
 
@@ -257,7 +253,7 @@ mutual
 
   public export
   data IField : Type where
-       MkIField : FC -> RigCount -> PiInfo -> Name -> RawImp ->
+       MkIField : FC -> RigCount -> PiInfo RawImp -> Name -> RawImp ->
                   IField
 
   public export
@@ -465,7 +461,7 @@ implicitsAs defs ns tm = setAs (map Just (ns ++ map UN (findIBinds tm))) tm
                          pure (x :: ns')
         updateNs n [] = Nothing
 
-        findImps : List (Maybe Name) -> NF [] -> Core (List (Name, PiInfo))
+        findImps : List (Maybe Name) -> NF [] -> Core (List (Name, PiInfo RawImp))
         findImps ns (NBind fc x (Pi _ Explicit _) sc)
             = findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc False)))
         -- if the implicit was given, skip it
@@ -477,15 +473,19 @@ implicitsAs defs ns tm = setAs (map Just (ns ++ map UN (findIBinds tm))) tm
         findImps ns (NBind fc x (Pi _ p _) sc)
             = if Just x `elem` ns
                  then findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc False)))
-                 else pure $ (x, p) :: !(findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc False))))
+                 else pure $ (x, forgetDef p) :: !(findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc False))))
         findImps _ _ = pure []
 
-        impAs : FC -> List (Name, PiInfo) -> RawImp -> RawImp
+        impAs : FC -> List (Name, PiInfo RawImp) -> RawImp -> RawImp
         impAs loc' [] tm = tm
         impAs loc' ((UN n, AutoImplicit) :: ns) tm
             = impAs loc' ns $
                  IImplicitApp loc' tm (Just (UN n)) (IBindVar loc' n)
         impAs loc' ((n, Implicit) :: ns) tm
+            = impAs loc' ns $
+                 IImplicitApp loc' tm (Just n)
+                     (IAs loc' UseLeft n (Implicit loc' True))
+        impAs loc' ((n, DefImplicit t) :: ns) tm
             = impAs loc' ns $
                  IImplicitApp loc' tm (Just n)
                      (IAs loc' UseLeft n (Implicit loc' True))
@@ -858,9 +858,9 @@ mutual
     toBuf b ExternFn = tag 3
     toBuf b (ForeignFn cs) = do tag 4; toBuf b cs
     toBuf b Invertible = tag 5
-    toBuf b Total = tag 6
-    toBuf b Covering = tag 7
-    toBuf b PartialOK = tag 8
+    toBuf b (Totality Total) = tag 6
+    toBuf b (Totality CoveringOnly) = tag 7
+    toBuf b (Totality PartialOK) = tag 8
     toBuf b Macro = tag 9
 
     fromBuf b
@@ -871,9 +871,9 @@ mutual
                3 => pure ExternFn
                4 => do cs <- fromBuf b; pure (ForeignFn cs)
                5 => pure Invertible
-               6 => pure Total
-               7 => pure Covering
-               8 => pure PartialOK
+               6 => pure (Totality Total)
+               7 => pure (Totality CoveringOnly)
+               8 => pure (Totality PartialOK)
                9 => pure Macro
                _ => corrupt "FnOpt"
 

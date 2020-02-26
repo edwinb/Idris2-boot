@@ -34,9 +34,9 @@ mutual
        -- Direct (more or less) translations to RawImp
 
        PRef : FC -> Name -> PTerm
-       PPi : FC -> RigCount -> PiInfo -> Maybe Name ->
+       PPi : FC -> RigCount -> PiInfo PTerm -> Maybe Name ->
              (argTy : PTerm) -> (retTy : PTerm) -> PTerm
-       PLam : FC -> RigCount -> PiInfo -> PTerm ->
+       PLam : FC -> RigCount -> PiInfo PTerm -> PTerm ->
               (argTy : PTerm) -> (scope : PTerm) -> PTerm
        PLet : FC -> RigCount -> (pat : PTerm) ->
               (nTy : PTerm) -> (nVal : PTerm) -> (scope : PTerm) ->
@@ -161,10 +161,11 @@ mutual
        StartExpr : PTerm -> Directive
        Overloadable : Name -> Directive
        Extension : LangExt -> Directive
+       DefaultTotality : TotalReq -> Directive
 
   public export
   data PField : Type where
-       MkField : FC -> RigCount -> PiInfo -> Name -> (ty : PTerm) -> PField
+       MkField : FC -> RigCount -> PiInfo PTerm -> Name -> (ty : PTerm) -> PField
 
   -- For noting the pass we're in when desugaring a mutual block
   -- TODO: Decide whether we want mutual blocks!
@@ -215,6 +216,7 @@ mutual
                          Name ->
                          (params : List PTerm) ->
                          (implName : Maybe Name) ->
+                         (nusing : List Name) ->
                          Maybe (List PDecl) ->
                          PDecl
        PRecord : FC ->
@@ -378,6 +380,10 @@ mutual
         = "{auto " ++ showCount rig ++ "_ : " ++ showPrec d arg ++ "} -> " ++ showPrec d ret
     showPrec d (PPi _ rig AutoImplicit (Just n) arg ret)
         = "{auto " ++ showCount rig ++ showPrec d n ++ " : " ++ showPrec d arg ++ "} -> " ++ showPrec d ret
+    showPrec d (PPi _ rig (DefImplicit t) Nothing arg ret) -- shouldn't happen
+        = "{default " ++ showPrec App t ++ " " ++ showCount rig ++ "_ : " ++ showPrec d arg ++ "} -> " ++ showPrec d ret
+    showPrec d (PPi _ rig (DefImplicit t) (Just n) arg ret)
+        = "{default " ++ showPrec App t ++ " " ++ showCount rig ++ showPrec d n ++ " : " ++ showPrec d arg ++ "} -> " ++ showPrec d ret
     showPrec d (PLam _ rig _ n (PImplicit _) sc)
         = "\\" ++ showCount rig ++ showPrec d n ++ " => " ++ showPrec d sc
     showPrec d (PLam _ rig _ n ty sc)
