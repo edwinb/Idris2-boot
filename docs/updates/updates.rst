@@ -427,7 +427,7 @@ variable ``x``:
              putStrLn (greet "Bye")
 
 These ``let`` blocks can be used anywhere (in the middle of ``do`` blocks
-as above, but in any function, or in type declarations).
+as above, but also in any function, or in type declarations).
 ``where`` blocks are now elaborated by translation into a local ``let``.
 
 However, Idris no longer attempts to infer types for functions defined in
@@ -461,10 +461,10 @@ to define our own version of ``Show`` for ``Vect``, will fail to type check:
         showBody [x] = show x
         showBody (x :: xs) = show x ++ ", " ++ showBody xs
 
-This fails because ``n`` is in scope already in the type declaration for
-``showBody``, and so the first clause ``showBody []`` will fail to type check
-because ``[]`` has length ``Z``, not ``n``. We can fix this by locally
-binding ``n``:
+This fails because ``n`` is in scope already, from the type of ``showVect``,
+in the type declaration for ``showBody``, and so the first clause ``showBody
+[]`` will fail to type check because ``[]`` has length ``Z``, not ``n``. We can
+fix this by locally binding ``n``:
 
 .. code-block:: idris
 
@@ -532,17 +532,17 @@ the ``case``. Somewhat contrived, but the following is valid:
     info : {n : _} -> Vect n a -> (Vect n a, Nat)
     info xs
         = case xs of
-               [] => ([], n)
+               [] => (xs, n)
                (y :: ys) => (xs, n)
 
 
 Record updates
 --------------
 
-Dependent record updates work, provided that as all relevant fields are updated
-at the same time. Dependent record update is implemented via ``case`` blocks
-rather than by generating a specific update function for each field as in
-Idris 1, so you will no longer get mystifying errors when trying to update
+Dependent record updates work, provided that all relevant fields are updated
+at the same time. Dependent record update is implemented via dependent ``case``
+blocks rather than by generating a specific update function for each field as
+in Idris 1, so you will no longer get mystifying errors when trying to update
 dependent records!
 
 For example, we can wrap a vector in a record, with an explicit length
@@ -556,7 +556,7 @@ field:
       length : Nat
       content : Vect len a
 
-Then, we can safely update the ``content``, provided we update then ``length``
+Then, we can safely update the ``content``, provided we update the ``length``
 correspondingly:
 
 .. code-block:: idris
@@ -568,8 +568,8 @@ correspondingly:
 Generate definition
 -------------------
 
-A new feature of the IDE protocol, generating complete definitions from a
-type signature. You can try this at the REPL, for example, given our
+A new feature of the IDE protocol supports generating complete definitions from
+a type signature. You can try this at the REPL, for example, given our
 favourite introductory example...
 
 .. code-block:: idris
@@ -585,8 +585,8 @@ follows:
     append [] ys = ys
     append (x :: xs) ys = x :: append xs ys
 
-This is a fairly simple brute force search, which tries searching for a valid
-right hand side, and case splitting on the left if that fails, but is
+This works by a fairly simple brute force search, which tries searching for a
+valid right hand side, and case splitting on the left if that fails, but is
 remarkably effective in a lot of situations. Some other examples which work:
 
 .. code-block:: idris
@@ -603,10 +603,10 @@ This is available in the IDE protocol via the ``generate-def`` command.
 Chez Scheme target
 ------------------
 
-The default code generator is, for the moment, 
-`Chez Scheme <https://www.scheme.com/>`_. A Racket code generator is also available. There is not yet
-a way to plug in code generators as in Idris 1, but this is coming. To change
-code generate, you can use the ``:set cg`` command:
+The default code generator is, for the moment, `Chez Scheme
+<https://www.scheme.com/>`_. A Racket code generator is also available. There
+is not yet a way to plug in code generators as in Idris 1, but this is coming.
+To change the code generator, you can use the ``:set cg`` command:
 
 ::
 
