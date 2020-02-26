@@ -4,6 +4,9 @@ fiveIsFive = Refl
 twoPlusTwo : 2 + 2 = 4
 twoPlusTwo = Refl
 
+-- twoPlusTwoBad : 2 + 2 = 5
+-- twoPlusTwoBad = Refl
+
 disjoint : (n : Nat) -> Z = S n -> Void
 disjoint n prf = replace {p = disjointTy} prf ()
   where

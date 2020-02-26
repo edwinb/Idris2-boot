@@ -4,20 +4,19 @@
 Theorem Proving
 ***************
 
-[NOT UPDATED FOR IDRIS 2 YET]
-
 Equality
 ========
 
 Idris allows propositional equalities to be declared, allowing theorems about
-programs to be stated and proved. Equality is built in, but conceptually
-has the following definition:
+programs to be stated and proved. An equality type is defined as follows in the
+Prelude:
 
 .. code-block:: idris
 
-    data (=) : a -> b -> Type where
-       Refl : x = x
+    data Equal : a -> b -> Type where
+         Refl : Equal x x
 
+As a notational convenience, ``Equal x y`` can be written as ``x = y``.
 Equalities can be proposed between any values of any types, but the only
 way to construct a proof of equality is if values actually are equal.
 For example:
@@ -30,28 +29,44 @@ For example:
     twoPlusTwo : 2 + 2 = 4
     twoPlusTwo = Refl
 
+If we try...
+
+.. code-block:: idris
+
+    twoPlusTwoBad : 2 + 2 = 5
+    twoPlusTwoBad = Refl
+
+...then we'll get an error:
+
+::
+
+    Proofs.idr:8:17--10:1:While processing right hand side of Main.twoPlusTwoBad at Proofs.idr:8:1--10:1:
+    When unifying 4 = 4 and (fromInteger 2 + fromInteger 2) = (fromInteger 5)
+    Mismatch between:
+            4
+    and
+            5
+
 .. _sect-empty:
 
 The Empty Type
 ==============
 
-There is an empty type, :math:`\bot`, which has no constructors. It is
-therefore impossible to construct an element of the empty type, at least
-without using a partially defined or general recursive function (see
-Section :ref:`sect-totality` for more details). We can therefore use the
-empty type to prove that something is impossible, for example zero is
+There is an empty type, ``Void``, which has no constructors. It is therefore
+impossible to construct a canonical element of the empty type. We can therefore
+use the empty type to prove that something is impossible, for example zero is
 never equal to a successor:
 
 .. code-block:: idris
 
     disjoint : (n : Nat) -> Z = S n -> Void
-    disjoint n p = replace {P = disjointTy} p ()
+    disjoint n prf = replace {p = disjointTy} prf ()
       where
         disjointTy : Nat -> Type
         disjointTy Z = ()
         disjointTy (S k) = Void
 
-There is no need to worry too much about how this function works —
+Don't worry if you don't get all the details of how this works just yet -
 essentially, it applies the library function ``replace``, which uses an
 equality proof to transform a predicate. Here we use it to transform a
 value of a type which can exist, the empty tuple, to a value of a type
@@ -65,8 +80,8 @@ contradiction.
 
     void : Void -> a
 
-Simple Theorems
-===============
+Proving Theorems
+================
 
 When type checking dependent types, the type itself gets *normalised*.
 So imagine we want to prove the following theorem about the reduction
@@ -83,7 +98,7 @@ concerned here, is merely a program with a precise enough type to
 guarantee a particular property of interest.
 
 We won’t go into details here, but the Curry-Howard correspondence [1]_
-explains this relationship. The proof itself is trivial, because
+explains this relationship. The proof itself is immediate, because
 ``plus Z n`` normalises to ``n`` by the definition of ``plus``:
 
 .. code-block:: idris
@@ -106,6 +121,22 @@ respects function application:
 .. code-block:: idris
 
     cong : (f : t -> u) -> a = b -> f a = f b
+
+To see more detail on what's going on, we can replace the recursive call to
+``plusReducesZ`` with a hole:
+
+.. code-block:: idris
+    
+    plusReducesZ (S k) = cong S ?help
+
+Then inspecting the type of the hole at the REPL shows us:
+
+::
+
+    Main> :t help
+       k : Nat
+    -------------------------------------
+    help : k = (plus k Z)
 
 We can do the same for the reduction behaviour of plus on successors:
 
@@ -138,7 +169,7 @@ previously (:ref:`sec-views`) we implemented ``natToBin`` using a function
     parity : (n:Nat) -> Parity n
 
 We provided a definition for ``parity``, but without explanation.  We might
-hope that it would look something like the following:
+have hoped that it would look something like the following:
 
 .. code-block:: idris
 
