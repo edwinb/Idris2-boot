@@ -13,8 +13,6 @@ The Section :ref:`typedd-index` describes how these changes affect the code
 in the book `Type-Driven Development with Idris <https://www.manning.com/books/type-driven-development-with-idris>`_
 by Edwin Brady, available from `Manning <https://www.manning.com>`_.
 
-[NOT YET COMPLETE]
-
 .. note::
    The documentation for Idris has been published under the Creative
    Commons CC0 License. As such to the extent possible under law, *The
