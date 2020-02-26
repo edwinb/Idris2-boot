@@ -24,6 +24,7 @@ and yet to be updated, so use with caution!
 
    tutorial/index
    updates/updates
+   typedd/typedd
    proofs/index
    faq/faq
    reference/index
