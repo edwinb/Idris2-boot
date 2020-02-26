@@ -17,6 +17,9 @@ disjoint n prf = replace {p = disjointTy} prf ()
 plusReduces : (n:Nat) -> plus Z n = n
 plusReduces n = Refl
 
+plusReducesR : (n:Nat) -> plus n Z = n
+plusReducesR n = Refl
+
 plusReducesZ : (n:Nat) -> n = plus n Z
 plusReducesZ Z = Refl
 plusReducesZ (S k) = cong S (plusReducesZ k)

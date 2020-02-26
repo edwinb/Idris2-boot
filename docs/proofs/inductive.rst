@@ -52,13 +52,14 @@ function capturing all such inductive definitions:
 
 .. code-block:: idris
 
-    nat_induction : (P : Nat -> Type) ->             -- Property to show
-                    (P Z) ->                         -- Base case
-                    ((k : Nat) -> P k -> P (S k)) -> -- Inductive step
-                    (x : Nat) ->                     -- Show for all x
-                    P x
-    nat_induction P p_Z p_S Z = p_Z
-    nat_induction P p_Z p_S (S k) = p_S k (nat_induction P p_Z p_S k)
+    nat_induction :
+        (prop : Nat -> Type) ->                -- Property to show
+        (prop Z) ->                            -- Base case
+        ((k : Nat) -> prop k -> prop (S k)) -> -- Inductive step
+        (x : Nat) ->                           -- Show for all x
+        prop x
+    nat_induction prop p_Z p_S Z = p_Z
+    nat_induction prop p_Z p_S (S k) = p_S k (nat_induction prop p_Z p_S k)
 
 Using ``nat_induction``, we can implement an equivalent inductive
 version of ``plus``:
@@ -78,16 +79,16 @@ To prove that ``plus n m = plus m n`` for all natural numbers ``n`` and
 induction on ``n``, or vice versa. We can sketch an outline of a proof;
 performing induction on ``n``, we have:
 
--  Property ``P`` is ``\x => plus x m = plus m x``.
+-  Property ``prop`` is ``\x => plus x m = plus m x``.
 
--  Show that ``P`` holds in the base case and inductive step:
+-  Show that ``prop`` holds in the base case and inductive step:
 
-   -  | Base case: ``P Z``, i.e.
+   -  | Base case: ``prop Z``, i.e.
       | ``plus Z m = plus m Z``, which reduces to
       | ``m = plus m Z`` due to the definition of ``plus``.
 
-   -  | Inductive step: Inductively, we know that ``P k`` holds for a specific, fixed ``k``, i.e.
-      | ``plus k m = plus m k`` (the induction hypothesis). Given this, show ``P (S k)``, i.e.
+   -  | Inductive step: Inductively, we know that ``prop k`` holds for a specific, fixed ``k``, i.e.
+      | ``plus k m = plus m k`` (the induction hypothesis). Given this, show ``prop (S k)``, i.e.
       | ``plus (S k) m = plus m (S k)``, which reduces to
       | ``S (plus k m) = plus m (S k)``. From the induction hypothesis, we can rewrite this to
       | ``S (plus m k) = plus m (S k)``.

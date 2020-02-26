@@ -102,7 +102,11 @@ sugarApp tm@(PApp fc (PApp _ (PRef _ (UN "DPair")) l) rb)
 sugarApp (PApp fc (PApp _ (PRef _ (UN "MkDPair")) l) r)
     = PDPair fc (unbracket l) (PImplicit fc) (unbracket r)
 sugarApp (PApp fc (PApp _ (PRef _ (UN "Equal")) l) r)
-    = PEq fc l r
+    = PEq fc (unbracket l) (unbracket r)
+sugarApp (PApp fc (PApp _ (PRef _ (UN "===")) l) r)
+    = PEq fc (unbracket l) (unbracket r)
+sugarApp (PApp fc (PApp _ (PRef _ (UN "~=~")) l) r)
+    = PEq fc (unbracket l) (unbracket r)
 sugarApp (PRef fc (UN "Nil")) = PList fc []
 sugarApp (PRef fc (UN "Unit")) = PUnit fc
 sugarApp (PRef fc (UN "MkUnit")) = PUnit fc

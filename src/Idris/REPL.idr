@@ -312,7 +312,7 @@ addMadeLemma n ty app line content
   where
     -- Put n : ty in the first blank line
     insertInBlank : List String -> List String
-    insertInBlank [] = [show n ++ " : " ++ ty ++ "\n\n"]
+    insertInBlank [] = [show n ++ " : " ++ ty ++ "\n"]
     insertInBlank (x :: xs)
         = if trim x == ""
              then ("\n" ++ show n ++ " : " ++ ty ++ "\n") :: xs

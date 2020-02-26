@@ -41,8 +41,8 @@ getArgs : {auto c : Ref Ctxt Defs} ->
           Env Term vars -> Nat -> Term vars ->
           Core (List (Name, Maybe Name, PiInfo RawImp, RigCount, RawImp), RawImp)
 getArgs {vars} env (S k) (Bind _ x (Pi c p ty) sc)
-    = do ty' <- unelab env ty
-         defs <- get Ctxt
+    = do defs <- get Ctxt
+         ty' <- unelab env !(normalise defs env ty)
          let x' = UN !(uniqueName defs (map nameRoot vars) (nameRoot x))
          (sc', ty) <- getArgs (Pi c p ty :: env) k (renameTop x' sc)
          -- Don't need to use the name if it's not used in the scope type
@@ -56,7 +56,8 @@ getArgs {vars} env (S k) (Bind _ x (Pi c p ty) sc)
                      else Implicit
          pure ((x, mn, p', c, ty') :: sc', ty)
 getArgs env k ty
-      = do ty' <- unelab env ty
+      = do defs <- get Ctxt
+           ty' <- unelab env !(normalise defs env ty)
            pure ([], ty')
 
 mkType : FC -> List (Name, Maybe Name, PiInfo RawImp, RigCount, RawImp) ->

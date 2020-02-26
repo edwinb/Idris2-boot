@@ -4,9 +4,7 @@
 Theorem Proving
 ###############
 
-A tutorial on theorem proving in Idris. 
-
-NOT YET UPDATED FOR IDRIS 2!
+A tutorial on theorem proving in Idris 2. 
 
 .. note::
 
@@ -25,6 +23,3 @@ NOT YET UPDATED FOR IDRIS 2!
    inductive
    patterns
    propositional
-   interactive
-   interactiveOld
-

@@ -20,11 +20,11 @@ the prompt, the read-eval-print loop):
 
 .. code-block:: idris
 
-    Idris> \m => plus Z m
-    \m => m : Nat -> Nat
+    Main> \m => plus Z m
+    \m => m
 
     Idris> \k,m => plus (S k) m
-    \k => \m => S (plus k m) : Nat -> Nat -> Nat
+    \k => \m => S (plus k m)
 
 Note that unlike many other language REPLs, the Idris REPL performs
 evaluation on *open* terms, meaning that it can reduce terms which
@@ -47,17 +47,14 @@ we must *prove* them.
 Equality Proofs
 ===============
 
-Idris has a built-in propositional equality type, conceptually defined
-as follows:
+Idris defines a propositional equality type as follows:
 
 .. code-block:: idris
 
-    data (=) : a -> b -> Type where
-       Refl : x = x
+    data Equal : a -> b -> Type where
+       Refl : Equal x x
 
-Note that this must be built-in, rather than defined in the library,
-because ``=`` is a reserved operator — you cannot define this directly
-in your own code.
+As syntactic sugar, ``Equal x y`` can be written as ``x = y``.
 
 It is *propositional* equality, where the type states that any two
 values in different types ``a`` and ``b`` may be proposed to be equal.
@@ -87,11 +84,11 @@ error:
 
 ::
 
-    When elaborating right hand side of four_eq_five:
-    Type mismatch between
-            x = x (Type of Refl)
+    When unifying 4 = 4 and (fromInteger 4) = (fromInteger 5)
+    Mismatch between:
+            4
     and
-            4 = 5 (Expected type)
+            5
 
 Type checking equality proofs
 -----------------------------
@@ -131,13 +128,12 @@ equalities between values in different types:
 
 .. code-block:: idris
 
-    idris_not_php : 2 = "2"
+    idris_not_php : Z = "Z"
 
-Obviously, in Idris the type ``2 = "2"`` is uninhabited, and one might
-wonder why it is useful to be able to propose equalities between values
-in different types. However, with dependent types, such equalities can
-arise naturally. For example, if two vectors are equal, their lengths
-must be equal:
+The type ``Z = "Z"`` is uninhabited, and one might wonder why it is useful to
+be able to propose equalities between values in different types. However, with
+dependent types, such equalities can arise naturally. For example, if two
+vectors are equal, their lengths must be equal:
 
 .. code-block:: idris
 
