@@ -3,11 +3,13 @@
 Type Driven Development with Idris: Updates Required
 ====================================================
 
-The code in the book "Type Driven Development with Idris" by Edwin Brady,
-published by Manning, will mostly work in Idris 2, with some small changes
-as detailed in this document. The updated code is also [going to be] part
-of the test suite (see `tests/typedd-book <https://github.com/edwinb/Idris2/tree/master/tests/typedd-book>`_
-in the Idris 2 source).
+The code in the book `Type-Driven Development with Idris
+<https://www.manning.com/books/type-driven-development-with-idris>`_ by Edwin
+Brady, available from `Manning <https://www.manning.com>`_,  will mostly work
+in Idris 2, with some small changes as detailed in this document. The updated
+code is also [going to be] part of the test suite (see `tests/typedd-book
+<https://github.com/edwinb/Idris2/tree/master/tests/typedd-book>`_ in the Idris
+2 source).
 
 Chapter 1
 ---------
