@@ -1,15 +1,16 @@
 module Text.Parser
 
 import Data.Bool.Extra
+import Data.List
 
 import public Text.Parser.Core
 import public Text.Quantity
 import public Text.Token
 
-%access export
 %default total
 
 ||| Parse a terminal based on a kind of token.
+export
 match : (Eq k, TokenKind k) =>
         (kind : k) ->
         Grammar (Token k) True (TokType kind)
@@ -20,6 +21,7 @@ match kind = terminal "Unrecognised input" $
 
 ||| Optionally parse a thing, with a default value if the grammar doesn't
 ||| match. May match the empty input.
+export
 option : {c : Bool} ->
          (def : a) -> (p : Grammar tok c a) ->
          Grammar tok False a
@@ -28,14 +30,18 @@ option {c = True} def p = p <|> pure def
 
 ||| Optionally parse a thing.
 ||| To provide a default value, use `option` instead.
-optional : (p : Grammar tok c a) ->
+export
+optional : {c : Bool} ->
+           (p : Grammar tok c a) ->
            Grammar tok False (Maybe a)
 optional p = option Nothing (map Just p)
 
 ||| Try to parse one thing or the other, producing a value that indicates
 ||| which option succeeded. If both would succeed, the left option
 ||| takes priority.
-choose : (l : Grammar tok c1 a) ->
+export
+choose : {c1, c2 : Bool} -> 
+         (l : Grammar tok c1 a) ->
          (r : Grammar tok c2 b) ->
          Grammar tok (c1 && c2) (Either a b)
 choose l r = map Left l <|> map Right r
@@ -43,6 +49,7 @@ choose l r = map Left l <|> map Right r
 ||| Produce a grammar by applying a function to each element of a container,
 ||| then try each resulting grammar until the first one succeeds. Fails if the
 ||| container is empty.
+export
 choiceMap : {c : Bool} ->
             (a -> Grammar tok c b) ->
             Foldable t => t a ->
@@ -53,23 +60,29 @@ choiceMap {c} f xs = foldr (\x, acc => rewrite sym (andSameNeutral c) in
 
 ||| Try each grammar in a container until the first one succeeds.
 ||| Fails if the container is empty.
-choice : Foldable t => t (Grammar tok c a) ->
+export
+choice : Foldable t => 
+         {c : Bool} ->
+         t (Grammar tok c a) ->
          Grammar tok c a
-choice = choiceMap id
+choice {c} = choiceMap {c=c} id
 
 mutual
   ||| Parse one or more things
+  export
   some : Grammar tok True a ->
          Grammar tok True (List a)
   some p = pure (!p :: !(many p))
 
   ||| Parse zero or more things (may match the empty input)
+  export
   many : Grammar tok True a ->
          Grammar tok False (List a)
   many p = option [] (some p)
 
 ||| Parse one or more instances of `p`, returning the parsed items and proof
 ||| that the resulting list is non-empty.
+export
 some' : (p : Grammar tok True a) ->
         Grammar tok True (xs : List a ** NonEmpty xs)
 some' p = pure (!p :: !(many p) ** IsNonEmpty)
@@ -84,6 +97,7 @@ mutual
                       (\xs => pure (x :: xs))
 
   ||| Parse `p`, repeated as specified by `q`, returning the list of values.
+  export
   count : (q : Quantity) ->
           (p : Grammar tok True a) ->
           Grammar tok (isSucc (min q)) (List a)
@@ -97,6 +111,7 @@ mutual
 mutual
   ||| Parse one or more instances of `p` until `end` succeeds, returning the
   ||| list of values from `p`. Guaranteed to consume input.
+  export
   someTill : {c : Bool} ->
              (end : Grammar tok c e) ->
              (p : Grammar tok True a) ->
@@ -107,6 +122,7 @@ mutual
 
   ||| Parse zero or more instances of `p` until `end` succeeds, returning the
   ||| list of values from `p`. Guaranteed to consume input if `end` consumes.
+  export
   manyTill : {c : Bool} ->
              (end : Grammar tok c e) ->
              (p : Grammar tok True a) ->
@@ -117,6 +133,7 @@ mutual
 ||| Parse one or more instances of `p` until `end` succeeds, returning the
 ||| list of values from `p`, along with a proof that the resulting list is
 ||| non-empty.
+export
 someTill' : {c : Bool} ->
             (end : Grammar tok c e) ->
             (p : Grammar tok True a) ->
@@ -129,7 +146,9 @@ someTill' end p
 mutual
   ||| Parse one or more instance of `skip` until `p` is encountered,
   ||| returning its value.
-  afterSome : (skip : Grammar tok True s) ->
+  export
+  afterSome : {c : Bool} ->
+              (skip : Grammar tok True s) ->
               (p : Grammar tok c a) ->
               Grammar tok True a
   afterSome skip p = do skip
@@ -137,6 +156,7 @@ mutual
 
   ||| Parse zero or more instance of `skip` until `p` is encountered,
   ||| returning its value.
+  export
   afterMany : {c : Bool} ->
               (skip : Grammar tok True s) ->
               (p : Grammar tok c a) ->
@@ -145,6 +165,7 @@ mutual
                                  p <|> afterSome skip p
 
 ||| Parse one or more things, each separated by another thing.
+export
 sepBy1 : {c : Bool} ->
          (sep : Grammar tok True s) ->
          (p : Grammar tok c a) ->
@@ -154,13 +175,16 @@ sepBy1 {c} sep p = rewrite sym (orFalseNeutral c) in
 
 ||| Parse zero or more things, each separated by another thing. May
 ||| match the empty input.
-sepBy : (sep : Grammar tok True s) ->
+export
+sepBy : {c : Bool} ->
+        (sep : Grammar tok True s) ->
         (p : Grammar tok c a) ->
         Grammar tok False (List a)
 sepBy sep p = option [] $ sepBy1 sep p
 
 ||| Parse one or more instances of `p` separated by `sep`, returning the
 ||| parsed items and proof that the resulting list is non-empty.
+export
 sepBy1' : {c : Bool} ->
          (sep : Grammar tok True s) ->
          (p : Grammar tok c a) ->
@@ -172,6 +196,7 @@ sepBy1' {c} sep p
 
 ||| Parse one or more instances of `p` separated by and optionally terminated by
 ||| `sep`.
+export
 sepEndBy1 : {c : Bool} ->
             (sep : Grammar tok True s) ->
             (p : Grammar tok c a) ->
@@ -181,7 +206,9 @@ sepEndBy1 {c} sep p = rewrite sym (orFalseNeutral c) in
 
 ||| Parse zero or more instances of `p`, separated by and optionally terminated
 ||| by `sep`. Will not match a separator by itself.
-sepEndBy : (sep : Grammar tok True s) ->
+export
+sepEndBy : {c : Bool} ->
+           (sep : Grammar tok True s) ->
            (p : Grammar tok c a) ->
            Grammar tok False (List a)
 sepEndBy sep p = option [] $ sepEndBy1 sep p
@@ -189,6 +216,7 @@ sepEndBy sep p = option [] $ sepEndBy1 sep p
 ||| Parse zero or more instances of `p`, separated by and optionally terminated
 ||| by `sep`, returning the parsed items and a proof that the resulting list
 ||| is non-empty.
+export
 sepEndBy1' : {c : Bool} ->
              (sep : Grammar tok True s) ->
              (p : Grammar tok c a) ->
@@ -197,6 +225,7 @@ sepEndBy1' {c} sep p = rewrite sym (orFalseNeutral c) in
                                sepBy1' sep p <* optional sep
 
 ||| Parse one or more instances of `p`, separated and terminated by `sep`.
+export
 endBy1 : {c : Bool} ->
          (sep : Grammar tok True s) ->
          (p : Grammar tok c a) ->
@@ -204,13 +233,16 @@ endBy1 : {c : Bool} ->
 endBy1 {c} sep p = some $ rewrite sym (orTrueTrue c) in
                                   p <* sep
 
-endBy : (sep : Grammar tok True s) ->
+export
+endBy : {c : Bool} ->
+        (sep : Grammar tok True s) ->
         (p : Grammar tok c a) ->
         Grammar tok False (List a)
 endBy sep p = option [] $ endBy1 sep p
 
 ||| Parse zero or more instances of `p`, separated and terminated by `sep`,
 ||| returning the parsed items and a proof that the resulting list is non-empty.
+export
 endBy1' : {c : Bool} ->
           (sep : Grammar tok True s) ->
           (p : Grammar tok c a) ->
@@ -219,7 +251,9 @@ endBy1' {c} sep p = some' $ rewrite sym (orTrueTrue c) in
                                     p <* sep
 
 ||| Parse an instance of `p` that is between `left` and `right`.
-between : (left : Grammar tok True l) ->
+export
+between : {c : Bool} ->
+          (left : Grammar tok True l) ->
           (right : Grammar tok True r) ->
           (p : Grammar tok c a) ->
           Grammar tok True a
