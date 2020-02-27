@@ -27,7 +27,7 @@ exceptions. The most notable user visible differences, which might cause Idris
   different form because the internal details of the elaborator are different.
 + The `Prelude` is much smaller (and easier to replace with an alternative).
 + `let x = val in e` no longer computes with `x` in `e`, instead being
-  essentiall equivalent to `(\x => e) val`. This is to make the
+  essentially equivalent to `(\x => e) val`. This is to make the
   behaviour of `let` consistent in the presence of `case` and `with` (where
   it is hard to push the computation inside the `case`/`with` efficiently).
   Instead, you can define functions locally with `let`, which do have
