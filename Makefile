@@ -14,8 +14,8 @@ ifeq ($(shell git status >/dev/null 2>&1; echo $$?), 0)
     endif
 endif
 
-IDRIS2_VERSION_TAG:=${MAJOR}.${MINOR}.${PATCH}${VER_TAG}
-IDRIS2_VERSION:=${MAJOR}.${MINOR}.${PATCH}
+IDRIS2_VERSION := ${MAJOR}.${MINOR}.${PATCH}
+IDRIS2_VERSION_TAG := ${IDRIS2_VERSION}${VER_TAG}
 
 PREFIX ?= ${HOME}/.idris2
 export IDRIS2_PATH = ${CURDIR}/libs/prelude/build/ttc:${CURDIR}/libs/base/build/ttc
@@ -37,6 +37,15 @@ check_version:
 idris2: src/YafflePaths.idr check_version
 	@echo "Building Idris 2 version: $(IDRIS2_VERSION_TAG)"
 	idris --build idris2.ipkg
+
+dist/idris2.c: src/YafflePaths.idr check_version
+	@echo "Building Idris 2 version: $(IDRIS2_VERSION_TAG)"
+	idris --build idris2-mkc.ipkg
+	@cat idris2.c dist/rts/idris_main.c > dist/idris2.c
+	@rm -f idris2.c
+
+idris2c: dist/idris2.c
+	make -C dist
 
 src/YafflePaths.idr:
 	echo 'module YafflePaths; export yversion : ((Nat,Nat,Nat), String); yversion = ((${MAJOR},${MINOR},${PATCH}), "${GIT_SHA1}")' > src/YafflePaths.idr
@@ -60,8 +69,9 @@ libs : prelude base network contrib
 clean: clean-libs
 	make -C src clean
 	make -C tests clean
+	make -C dist clean
 	rm -f runtests
-	rm -f idris2
+	rm -f idris2 dist/idris2.c
 
 clean-libs:
 	make -C libs/prelude clean
@@ -93,9 +103,3 @@ install-libs: libs
 	make -C libs/base install IDRIS2=../../idris2
 	make -C libs/network install IDRIS2=../../idris2 IDRIS2_VERSION=${IDRIS2_VERSION}
 	make -C libs/contrib install IDRIS2=../../idris2
-
-dist/idris2.c:
-	idris --build idris2-mkc.ipkg
-	cat idris2.c dist/rts/idris_main.c > dist/idris2.c
-
-idris2c: dist/idris2.c

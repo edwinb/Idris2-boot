@@ -3,8 +3,12 @@
 *.ttc
 *.ttm
 
+*.dSYM
+
 idris2
 runtests
+
+dist/idris2.c
 
 docs/_build/
 

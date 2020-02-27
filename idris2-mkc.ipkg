@@ -1,6 +1,6 @@
 package idris2
 
-modules = 
+modules =
     Compiler.Common,
     Compiler.CompileExpr,
     Compiler.Inline,
@@ -130,4 +130,3 @@ executable = idris2.c
 opts = "--partial-eval -S"
 
 main = Idris.Main
-
