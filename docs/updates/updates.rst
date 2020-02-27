@@ -554,7 +554,7 @@ field:
       constructor MkVect
       purpose : String
       length : Nat
-      content : Vect len a
+      content : Vect length a
 
 Then, we can safely update the ``content``, provided we update the ``length``
 correspondingly:
@@ -562,7 +562,7 @@ correspondingly:
 .. code-block:: idris
 
     addEntry : String -> WrapVect String -> WrapVect String
-    addEntry val = record { len $= S,
+    addEntry val = record { length $= S,
                             content $= (val :: ) }
 
 Generate definition
