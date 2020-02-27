@@ -33,7 +33,9 @@ printWithStatus status msg
          case idemode opts of
               REPL _ => coreLift $ putStrLn msg
               IDEMode i _ f =>
-                do let m = SExpList [SymbolAtom status, toSExp msg ]
+                do let m = SExpList [SymbolAtom status, toSExp msg,
+                                     -- highlighting; currently blank
+                                     SExpList []]
                    send f (SExpList [SymbolAtom "return", m, toSExp i])
 
 export
