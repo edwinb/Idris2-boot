@@ -2,4 +2,10 @@ package contrib
 
 modules = Syntax.WithProof,
           Syntax.PreorderReasoning,
-          Data.List.TailRec
+          Data.List.TailRec,
+          Data.Bool.Extra,
+          Text.Token,
+          Text.Quantity,
+          Control.Delayed,
+          Text.Parser,
+          Text.Lexer
