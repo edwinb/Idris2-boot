@@ -1,6 +1,10 @@
 package base
 
-modules = Control.Monad.Identity,
+modules = Control.App,
+          Control.App.Console,
+          Control.App.FileIO,
+
+          Control.Monad.Identity,
           Control.Monad.State,
           Control.Monad.Trans,
           Control.WellFounded,

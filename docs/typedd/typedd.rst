@@ -79,6 +79,8 @@ In ``DataStore.idr`` and ``DataStoreHoles.idr``, add ``import Data.Strings`` and
 ``import System.REPL``. Also in ``DataStore.idr``, the ``schema`` argument to
 ``display`` is required for matching, so change the type to:
 
+.. code-block:: idris
+
     display : {schema : _} -> SchemaType schema -> String
 
 In ``TypeFuns.idr`` add ``import Data.Strings``
@@ -88,6 +90,8 @@ Chapter 7
 
 ``Abs`` is now a separate interface from ``Neg``. So, change the type of ``eval``
 to include ``Abs`` specifically:
+
+.. code-block:: idris
 
     eval : (Abs num, Neg num, Integral num) => Expr num -> num
 
@@ -158,6 +162,8 @@ In ``Hangman.idr``:
 + ``guesses`` and ``letters`` are implicit arguments to ``game``, but are used by the
   definition, so add them to its type:
 
+.. code-block:: idris
+
     game : {guesses : _} -> {letters : _} ->
            WordState (S guesses) (S letters) -> IO Finished
 
@@ -215,6 +221,8 @@ tests/typedd-book/chapter10/SnocList.idr for the full details.
 Also, in ``snocListHelp``, ``input`` is used at run time so needs to be bound
 in the type:
 
+.. code-block:: idris
+
     snocListHelp : {input : _} ->
                    (snoc : SnocList input) -> (rest : List a) -> SnocList (input +
 
@@ -266,6 +274,8 @@ In ``TestStore.idr``:
   mean the function
 + In ``filterKeys``, there is an error in the ``SNil`` case, which wasn't caught
   because of the type of ``SNil`` above. It should be:
+
+.. code-block:: idris
 
       filterKeys test DataStore.empty | SNil = []
 

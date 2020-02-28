@@ -261,7 +261,12 @@ It will postpone resolution if a name can't be resolved immediately, but unlike
 Idris 1, it won't attempt significant backtracking
 
 If you get an ambiguous name error, generally the best approach is to
-give the namespace explicitly.
+give the namespace explicitly. You can also rebind names locally:
+
+.. code-block:: idris
+
+    Main> let (::) = Prelude.(::) in [1,2,3]
+    [1, 2, 3]
 
 One difficulty which remains is resolving ambiguous names where one possibility
 is an interface method, and another is a concrete top level function.
