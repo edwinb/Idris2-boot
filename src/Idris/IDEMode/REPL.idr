@@ -26,6 +26,7 @@ import Idris.Version
 
 import Idris.IDEMode.Parser
 import Idris.IDEMode.Commands
+import Idris.IDEMode.SyntaxHighlight
 
 import TTImp.Interactive.CaseSplit
 import TTImp.Elab
@@ -115,6 +116,7 @@ getInput f
                 do inp <- getNChars f (cast num)
                    pure (pack inp)
 
+
 process : {auto c : Ref Ctxt Defs} ->
           {auto u : Ref UST UState} ->
           {auto s : Ref Syn SyntaxInfo} ->
@@ -124,7 +126,7 @@ process : {auto c : Ref Ctxt Defs} ->
 process (Interpret cmd)
     = interpret cmd
 process (LoadFile fname _)
-    = Idris.REPL.process (Load fname)
+    = Idris.REPL.process (Load fname) >>= outputSyntaxHighlighting fname
 process (TypeOf n Nothing)
     = Idris.REPL.process (Check (PRef replFC (UN n)))
 process (TypeOf n (Just (l, c)))
@@ -179,9 +181,7 @@ idePutStrLn outf i msg
 
 printIDEWithStatus : File -> Integer -> String -> SExp -> Core ()
 printIDEWithStatus outf i status msg
-    = do let m = SExpList [SymbolAtom status, toSExp msg,
-                           -- highlighting; currently blank
-                           SExpList []]
+    = do let m = SExpList [SymbolAtom status, toSExp msg]
          send outf (SExpList [SymbolAtom "return", m, toSExp i])
 
 printIDEResult : File -> Integer -> SExp -> Core ()
