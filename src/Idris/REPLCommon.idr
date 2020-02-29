@@ -20,7 +20,7 @@ iputStrLn msg
     = do opts <- get ROpts
          case idemode opts of
               REPL False => coreLift $ putStrLn msg
-              _ => pure ()
+              REPL _ => pure ()
               IDEMode i _ f =>
                 send f (SExpList [SymbolAtom "write-string",
                                  toSExp msg, toSExp i])
@@ -32,7 +32,7 @@ printWithStatus status msg
     = do opts <- get ROpts
          case idemode opts of
               REPL _ => coreLift $ putStrLn msg
-              _ => core ()
+              _ => pure ()
 
 export
 printResult : {auto o : Ref ROpts REPLOpts} ->
