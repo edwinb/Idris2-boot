@@ -26,6 +26,7 @@ and yet to be updated, so use with caution!
    updates/updates
    typedd/typedd
    app/index
+   ffi/ffi
    proofs/index
    faq/faq
    reference/index

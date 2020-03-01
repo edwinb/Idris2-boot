@@ -276,55 +276,98 @@ mkArgList i (S k)
 
 data NArgs : Type where
      User : Name -> List (Closure []) -> NArgs
+     Struct : String -> List (String, Closure []) -> NArgs
      NUnit : NArgs
      NPtr : NArgs
      NIORes : Closure [] -> NArgs
 
-getNArgs : Name -> List (Closure []) -> NArgs
-getNArgs (NS _ (UN "IORes")) [arg] = NIORes arg
-getNArgs (NS _ (UN "Ptr")) [arg] = NPtr
-getNArgs (NS _ (UN "AnyPtr")) [] = NPtr
-getNArgs (NS _ (UN "Unit")) [] = NUnit
-getNArgs n args = User n args
+getPArgs : Defs -> Closure [] -> Core (String, Closure [])
+getPArgs defs cl
+    = do NDCon fc _ _ _ args <- evalClosure defs cl
+             | nf => throw (GenericMsg (getLoc nf) "Badly formed struct type")
+         case reverse args of
+              (tydesc :: n :: _) =>
+                  do NPrimVal _ (Str n') <- evalClosure defs n
+                         | nf => throw (GenericMsg (getLoc nf) "Unknown field name")
+                     pure (n', tydesc)
+              _ => throw (GenericMsg fc "Badly formed struct type")
+
+getFieldArgs : Defs -> Closure [] -> Core (List (String, Closure []))
+getFieldArgs defs cl
+    = do NDCon fc _ _ _ args <- evalClosure defs cl
+             | nf => throw (GenericMsg (getLoc nf) "Badly formed struct type")
+         case args of
+              -- cons
+              [_, t, rest] =>
+                  do rest' <- getFieldArgs defs rest
+                     (n, ty) <- getPArgs defs t
+                     pure ((n, ty) :: rest')
+              -- nil
+              _ => pure []
+
+getNArgs : Defs -> Name -> List (Closure []) -> Core NArgs
+getNArgs defs (NS _ (UN "IORes")) [arg] = pure $ NIORes arg
+getNArgs defs (NS _ (UN "Ptr")) [arg] = pure NPtr
+getNArgs defs (NS _ (UN "AnyPtr")) [] = pure NPtr
+getNArgs defs (NS _ (UN "Unit")) [] = pure NUnit
+getNArgs defs (NS _ (UN "Struct")) [n, args]
+    = do NPrimVal _ (Str n') <- evalClosure defs n
+             | nf => throw (GenericMsg (getLoc nf) "Unknown name for struct")
+         pure (Struct n' !(getFieldArgs defs args))
+getNArgs defs n args = pure $ User n args
 
 nfToCFType : {auto c : Ref Ctxt Defs} ->
-             NF [] -> Core CFType
-nfToCFType (NPrimVal _ IntType) = pure CFInt
-nfToCFType (NPrimVal _ StringType) = pure CFString
-nfToCFType (NPrimVal _ DoubleType) = pure CFDouble
-nfToCFType (NPrimVal _ CharType) = pure CFChar
-nfToCFType (NPrimVal _ WorldType) = pure CFWorld
-nfToCFType (NBind fc _ (Pi _ _ ty) sc)
+             FC -> (inStruct : Bool) -> NF [] -> Core CFType
+nfToCFType _ _ (NPrimVal _ IntType) = pure CFInt
+nfToCFType _ False (NPrimVal _ StringType) = pure CFString
+nfToCFType fc True (NPrimVal _ StringType) 
+    = throw (GenericMsg fc "String not allowed in a foreign struct")
+nfToCFType _ _ (NPrimVal _ DoubleType) = pure CFDouble
+nfToCFType _ _ (NPrimVal _ CharType) = pure CFChar
+nfToCFType _ _ (NPrimVal _ WorldType) = pure CFWorld
+nfToCFType _ False (NBind fc _ (Pi _ _ ty) sc)
     = do defs <- get Ctxt
-         sty <- nfToCFType ty
+         sty <- nfToCFType fc False ty
          sc' <- sc defs (toClosure defaultOpts [] (Erased fc False))
-         tty <- nfToCFType sc'
+         tty <- nfToCFType fc False sc'
          pure (CFFun sty tty)
-nfToCFType (NTCon fc n _ _ args)
+nfToCFType _ True (NBind fc _ _ _)
+    = throw (GenericMsg fc "Function types not allowed in a foreign struct")
+nfToCFType _ s (NTCon fc n _ _ args)
     = do defs <- get Ctxt
-         case getNArgs !(toFullNames n) args of
+         case !(getNArgs defs !(toFullNames n) args) of
               User un uargs =>
                 do nargs <- traverse (evalClosure defs) uargs
-                   cargs <- traverse nfToCFType nargs
+                   cargs <- traverse (nfToCFType fc s) nargs
                    pure (CFUser n cargs)
+              Struct n fs => 
+                do fs' <- traverse
+                             (\ (n, ty) =>
+                                    do tynf <- evalClosure defs ty
+                                       tycf <- nfToCFType fc True tynf
+                                       pure (n, tycf)) fs
+                   pure (CFStruct n fs')
               NUnit => pure CFUnit
               NPtr => pure CFPtr
               NIORes uarg =>
                 do narg <- evalClosure defs uarg
-                   carg <- nfToCFType narg
+                   carg <- nfToCFType fc s narg
                    pure (CFIORes carg)
-nfToCFType t = throw (GenericMsg (getLoc t) "Can't marshal type for foreign call")
+nfToCFType fc s t
+    = do defs <- get Ctxt
+         ty <- quote defs [] t
+         throw (GenericMsg (getLoc t) ("Can't marshal type for foreign call " ++ show ty))
 
 getCFTypes : {auto c : Ref Ctxt Defs} ->
              List CFType -> NF [] ->
              Core (List CFType, CFType)
 getCFTypes args (NBind fc _ (Pi _ _ ty) sc)
-    = do aty <- nfToCFType ty
+    = do aty <- nfToCFType fc False ty
          defs <- get Ctxt
          sc' <- sc defs (toClosure defaultOpts [] (Erased fc False))
          getCFTypes (aty :: args) sc'
 getCFTypes args t
-    = pure (reverse args, !(nfToCFType t))
+    = pure (reverse args, !(nfToCFType (getLoc t) False t))
 
 toCDef : {auto c : Ref Ctxt Defs} ->
          NameTags -> Name -> ClosedTerm -> Def ->

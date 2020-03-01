@@ -123,6 +123,21 @@ mutual
       -- throw (InternalError ("C FFI calls must be to statically known functions (" ++ show fn ++ ")"))
   chezExtPrim i vs GetStr [world]
       = pure $ mkWorld "(get-line (current-input-port))"
+  chezExtPrim i vs GetField [CPrimVal _ (Str s), _, _, struct,
+                             CPrimVal _ (Str fld), _]
+      = do structsc <- schExp chezExtPrim chezString 0 vs struct
+           pure $ "(ftype-ref " ++ s ++ " (" ++ fld ++ ") " ++ structsc ++ ")"
+  chezExtPrim i vs GetField [_,_,_,_,_,_]
+      = pure "(error \"bad setField\")"
+  chezExtPrim i vs SetField [CPrimVal _ (Str s), _, _, struct,
+                             CPrimVal _ (Str fld), _, val, world]
+      = do structsc <- schExp chezExtPrim chezString 0 vs struct
+           valsc <- schExp chezExtPrim chezString 0 vs val
+           pure $ mkWorld $
+              "(ftype-set! " ++ s ++ " (" ++ fld ++ ") " ++ structsc ++
+              " " ++ valsc ++ ")"
+  chezExtPrim i vs SetField [_,_,_,_,_,_,_,_]
+      = pure "(error \"bad setField\")"
   chezExtPrim i vs SysCodegen []
       = pure $ "\"chez\""
   chezExtPrim i vs prim args
@@ -130,6 +145,9 @@ mutual
 
 -- Reference label for keeping track of loaded external libraries
 data Loaded : Type where
+
+-- Label for noting which struct types are declared
+data Structs : Type where
 
 cftySpec : FC -> CFType -> Core String
 cftySpec fc CFUnit = pure "void"
@@ -140,6 +158,7 @@ cftySpec fc CFChar = pure "char"
 cftySpec fc CFPtr = pure "void*"
 cftySpec fc (CFFun s t) = pure "void*"
 cftySpec fc (CFIORes t) = cftySpec fc t
+cftySpec fc (CFStruct n t) = pure $ "(* " ++ n ++ ")"
 cftySpec fc t = throw (GenericMsg fc ("Can't pass argument of type " ++ show t ++
                          " to foreign function"))
 
@@ -241,16 +260,34 @@ mkArgs i [] = []
 mkArgs i (CFWorld :: cs) = (MN "farg" i, False) :: mkArgs i cs
 mkArgs i (c :: cs) = (MN "farg" i, True) :: mkArgs (i + 1) cs
 
+mkStruct : {auto s : Ref Structs (List String)} ->
+           CFType -> Core String
+mkStruct (CFStruct n flds)
+    = do strs <- get Structs
+         if n `elem` strs
+            then pure ""
+            else do put Structs (n :: strs)
+                    pure $ "(define-ftype " ++ n ++ " (struct\n\t"
+                           ++ showSep "\n\t" !(traverse showFld flds) ++ "))\n"
+  where
+    showFld : (String, CFType) -> Core String
+    showFld (n, ty) = pure $ "[" ++ n ++ " " ++ !(cftySpec emptyFC ty) ++ "]"
+mkStruct _ = pure ""
+
 schFgnDef : {auto c : Ref Ctxt Defs} ->
             {auto l : Ref Loaded (List String)} ->
+            {auto s : Ref Structs (List String)} ->
             FC -> Name -> CDef -> Core (String, String)
 schFgnDef fc n (MkForeign cs args ret)
     = do let argns = mkArgs 0 args
          let allargns = map fst argns
          let useargns = map fst (filter snd argns)
+         argStrs <- traverse mkStruct args
+         retStr <- mkStruct ret
          (load, body) <- useCC fc cs (zip useargns args) ret
          defs <- get Ctxt
          pure (load,
+                concat argStrs ++ retStr ++
                 "(define " ++ schName !(full (gamma defs) n) ++
                 " (lambda (" ++ showSep " " (map schName allargns) ++ ") " ++
                 body ++ "))\n")
@@ -258,6 +295,7 @@ schFgnDef _ _ _ = pure ("", "")
 
 getFgnCall : {auto c : Ref Ctxt Defs} ->
              {auto l : Ref Loaded (List String)} ->
+             {auto s : Ref Structs (List String)} ->
              Name -> Core (String, String)
 getFgnCall n
     = do defs <- get Ctxt
@@ -278,6 +316,7 @@ compileToSS c tm outfile
          (ns, tags) <- findUsedNames tm
          defs <- get Ctxt
          l <- newRef {t = List String} Loaded ["libc", "libc 6"]
+         s <- newRef {t = List String} Structs []
          fgndefs <- traverse getFgnCall ns
          compdefs <- traverse (getScheme chezExtPrim chezString defs) ns
          let code = concat (map snd fgndefs) ++ concat compdefs

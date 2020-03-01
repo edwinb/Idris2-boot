@@ -65,6 +65,7 @@ data CFType : Type where
      CFWorld : CFType
      CFFun : CFType -> CFType -> CFType
      CFIORes : CFType -> CFType
+     CFStruct : String -> List (String, CFType) -> CFType
      CFUser : Name -> List CFType -> CFType
 
 public export
@@ -129,6 +130,7 @@ Show CFType where
   show CFWorld = "%World"
   show (CFFun s t) = show s ++ " -> " ++ show t
   show (CFIORes t) = "IORes " ++ show t
+  show (CFStruct n args) = "struct " ++ show n ++ " " ++ showSep " " (map show args)
   show (CFUser n args) = show n ++ " " ++ showSep " " (map show args)
 
 export

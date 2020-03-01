@@ -39,5 +39,6 @@ modules = Control.App,
           System.Concurrency.Raw,
           System.Directory,
           System.File,
+          System.FFI,
           System.Info,
           System.REPL

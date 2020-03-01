@@ -161,6 +161,7 @@ data ExtPrim = CCall | SchemeCall | PutStr | GetStr
              | FileOpen | FileClose | FileReadLine | FileWriteLine | FileEOF
              | NewIORef | ReadIORef | WriteIORef
              | NewArray | ArrayGet | ArraySet
+             | GetField | SetField
              | Stdin | Stdout | Stderr
              | VoidElim
              | SysOS | SysCodegen
@@ -183,6 +184,8 @@ Show ExtPrim where
   show NewArray = "NewArray"
   show ArrayGet = "ArrayGet"
   show ArraySet = "ArraySet"
+  show GetField = "GetField"
+  show SetField = "SetField"
   show Stdin = "Stdin"
   show Stdout = "Stdout"
   show Stderr = "Stderr"
@@ -209,6 +212,8 @@ toPrim pn@(NS _ n)
             (n == UN "prim__newArray", NewArray),
             (n == UN "prim__arrayGet", ArrayGet),
             (n == UN "prim__arraySet", ArraySet),
+            (n == UN "prim__getField", GetField),
+            (n == UN "prim__setField", SetField),
             (n == UN "prim__stdin", Stdin),
             (n == UN "prim__stdout", Stdout),
             (n == UN "prim__stderr", Stderr),
