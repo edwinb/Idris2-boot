@@ -96,6 +96,12 @@ tryYaffle (Yaffle f :: _) = do yaffleMain f []
                                pure True
 tryYaffle (c :: cs) = tryYaffle cs
 
+tryTTM : List CLOpt -> Core Bool
+tryTTM [] = pure False
+tryTTM (Metadata f :: _) = do dumpTTM f
+                              pure True
+tryTTM (c :: cs) = tryTTM cs
+
 
 banner : String
 banner = "     ____    __     _         ___                                           \n" ++
@@ -110,6 +116,8 @@ banner = "     ____    __     _         ___                                     
 stMain : List CLOpt -> Core ()
 stMain opts
     = do False <- tryYaffle opts
+            | True => pure ()
+         False <- tryTTM opts
             | True => pure ()
          defs <- initDefs
          c <- newRef Ctxt defs
