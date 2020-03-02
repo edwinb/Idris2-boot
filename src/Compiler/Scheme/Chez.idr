@@ -263,15 +263,18 @@ mkArgs i (c :: cs) = (MN "farg" i, True) :: mkArgs (i + 1) cs
 mkStruct : {auto s : Ref Structs (List String)} ->
            CFType -> Core String
 mkStruct (CFStruct n flds)
-    = do strs <- get Structs
+    = do defs <- traverse mkStruct (map snd flds)
+         strs <- get Structs
          if n `elem` strs
-            then pure ""
+            then pure (concat defs)
             else do put Structs (n :: strs)
-                    pure $ "(define-ftype " ++ n ++ " (struct\n\t"
+                    pure $ concat defs ++ "(define-ftype " ++ n ++ " (struct\n\t"
                            ++ showSep "\n\t" !(traverse showFld flds) ++ "))\n"
   where
     showFld : (String, CFType) -> Core String
     showFld (n, ty) = pure $ "[" ++ n ++ " " ++ !(cftySpec emptyFC ty) ++ "]"
+mkStruct (CFIORes t) = mkStruct t
+mkStruct (CFFun a b) = do mkStruct a; mkStruct b
 mkStruct _ = pure ""
 
 schFgnDef : {auto c : Ref Ctxt Defs} ->

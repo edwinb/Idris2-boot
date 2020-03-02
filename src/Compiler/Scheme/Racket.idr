@@ -67,6 +67,20 @@ mutual
   racketPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String
   racketPrim i vs CCall [ret, fn, args, world]
       = throw (InternalError ("Can't compile C FFI calls to Racket yet"))
+  racketPrim i vs GetField [CPrimVal _ (Str s), _, _, struct,
+                             CPrimVal _ (Str fld), _]
+      = do structsc <- schExp racketPrim racketString 0 vs struct
+           pure $ "(" ++ s ++ "-" ++ fld ++ " " ++ structsc ++ ")"
+  racketPrim i vs GetField [_,_,_,_,_,_]
+      = pure "(error \"bad setField\")"
+  racketPrim i vs SetField [CPrimVal _ (Str s), _, _, struct,
+                             CPrimVal _ (Str fld), _, val, world]
+      = do structsc <- schExp racketPrim racketString 0 vs struct
+           valsc <- schExp racketPrim racketString 0 vs val
+           pure $ mkWorld $
+                "(set-" ++ s ++ "-" ++ fld ++ "! " ++ structsc ++ " " ++ valsc ++ ")"
+  racketPrim i vs SetField [_,_,_,_,_,_,_,_]
+      = pure "(error \"bad setField\")"
   racketPrim i vs SysCodegen []
       = pure $ "\"racket\""
   racketPrim i vs prim args
@@ -74,6 +88,9 @@ mutual
 
 -- Reference label for keeping track of loaded external libraries
 data Loaded : Type where
+
+-- Label for noting which struct types are declared
+data Structs : Type where
 
 cftySpec : FC -> CFType -> Core String
 cftySpec fc CFUnit = pure "_void"
@@ -83,6 +100,7 @@ cftySpec fc CFDouble = pure "_double"
 cftySpec fc CFChar = pure "_int8"
 cftySpec fc CFPtr = pure "_pointer"
 cftySpec fc (CFIORes t) = cftySpec fc t
+cftySpec fc (CFStruct n t) = pure $ "_" ++ n ++ "-pointer"
 cftySpec fc (CFFun s t) = funTySpec [s] t
   where
     funTySpec : List CFType -> CFType -> Core String
@@ -221,16 +239,36 @@ mkArgs i [] = []
 mkArgs i (CFWorld :: cs) = (MN "farg" i, False) :: mkArgs i cs
 mkArgs i (c :: cs) = (MN "farg" i, True) :: mkArgs (i + 1) cs
 
+mkStruct : {auto s : Ref Structs (List String)} ->
+           CFType -> Core String
+mkStruct (CFStruct n flds)
+    = do defs <- traverse mkStruct (map snd flds)
+         strs <- get Structs
+         if n `elem` strs
+            then pure (concat defs)
+            else do put Structs (n :: strs)
+                    pure $ concat defs ++ "(define-cstruct _" ++ n ++ " ("
+                           ++ showSep "\n\t" !(traverse showFld flds) ++ "))\n"
+  where
+    showFld : (String, CFType) -> Core String
+    showFld (n, ty) = pure $ "[" ++ n ++ " " ++ !(cftySpec emptyFC ty) ++ "]"
+mkStruct (CFIORes t) = mkStruct t
+mkStruct (CFFun a b) = do mkStruct a; mkStruct b
+mkStruct _ = pure ""
+
 schFgnDef : {auto c : Ref Ctxt Defs} ->
             {auto l : Ref Loaded (List String)} ->
+            {auto s : Ref Structs (List String)} ->
             FC -> Name -> CDef -> Core (String, String)
 schFgnDef fc n (MkForeign cs args ret)
     = do let argns = mkArgs 0 args
          let allargns = map fst argns
          let useargns = map fst (filter snd argns)
+         argStrs <- traverse mkStruct args
+         retStr <- mkStruct ret
          (load, body) <- useCC fc cs (zip useargns args) ret
          defs <- get Ctxt
-         pure (load,
+         pure (concat argStrs ++ retStr ++ load,
                 "(define " ++ schName !(full (gamma defs) n) ++
                 " (lambda (" ++ showSep " " (map schName allargns) ++ ") " ++
                 body ++ "))\n")
@@ -238,6 +276,7 @@ schFgnDef _ _ _ = pure ("", "")
 
 getFgnCall : {auto c : Ref Ctxt Defs} ->
              {auto l : Ref Loaded (List String)} ->
+             {auto s : Ref Structs (List String)} ->
              Name -> Core (String, String)
 getFgnCall n
     = do defs <- get Ctxt
@@ -254,6 +293,7 @@ compileToRKT c tm outfile
     = do (ns, tags) <- findUsedNames tm
          defs <- get Ctxt
          l <- newRef {t = List String} Loaded []
+         s <- newRef {t = List String} Structs []
          fgndefs <- traverse getFgnCall ns
          compdefs <- traverse (getScheme racketPrim racketString defs) ns
          let code = concat (map snd fgndefs) ++ concat compdefs
@@ -271,8 +311,7 @@ compileToRKT c tm outfile
 compileExpr : Ref Ctxt Defs ->
               ClosedTerm -> (outfile : String) -> Core (Maybe String)
 compileExpr c tm outfile
-    = do tmp <- coreLift $ tmpName
-         let outn = tmp ++ ".rkt"
+    = do let outn = outfile ++ ".rkt"
          compileToRKT c tm outn
          raco <- coreLift findRacoExe
          ok <- coreLift $ system (raco ++ " -o " ++ outfile ++ " " ++ outn)
