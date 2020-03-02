@@ -176,10 +176,12 @@ Callbacks
 
 It is often useful in C for a function to take a *callback*, that is a function
 which is called after doing some work. For example, we can write a function
-which takes callback that takes a ``char*`` and an ``int`` and returns a
+which takes a callback that takes a ``char*`` and an ``int`` and returns a
 ``char*``, in C, as follows (added to ``smallc.c`` above):
 
 ::
+
+    typedef char*(*StringFn)(char*, int);
 
     char* applyFn(char* x, int y, StringFn f) {
         printf("Applying callback to %s %d\n", x, y);
