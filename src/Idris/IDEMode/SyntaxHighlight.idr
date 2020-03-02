@@ -99,17 +99,17 @@ outputNameSyntax (fc, (name, _, term)) =
                  (Ref fc Func name) => Just Function
                  (Ref fc (DataCon tag arity) name) => Just Data
                  (Ref fc (TyCon tag arity) name) => Just Typ
-                 (Meta fc x y xs) => Nothing
+                 (Meta fc x y xs) => Just Bound
                  (Bind fc x b scope) => Just Bound
-                 (App fc fn arg) => Nothing
-                 (As fc x as pat) => Nothing
+                 (App fc fn arg) => Just Bound
+                 (As fc x as pat) => Just Bound
                  (TDelayed fc x y) => Nothing
                  (TDelay fc x ty arg) => Nothing
                  (TForce fc x y) => Nothing
-                 (PrimVal fc c) => Nothing
+                 (PrimVal fc c) => Just Typ
                  (Erased fc imp) => Just Bound
                  (TType fc) => Just Typ
-      hilite = F.map (\ d => MkHighlight fc name False "" d "" "" "") dec
+      hilite = F.map (\ d => MkHighlight fc name False "" d "" (show term) "") dec
   in maybe (pure ()) outputHighlight hilite
 
 export
@@ -120,6 +120,6 @@ outputSyntaxHighlighting : {auto m : Ref MD Metadata} ->
                            Core REPLResult
 outputSyntaxHighlighting fname loadResult = do
   allNames <- filter (inFile fname) . names <$> get MD
-  decls <- filter (inFile fname) . tydecls <$> get MD
-  _ <- traverse outputNameSyntax (allNames ++ decls)
+--  decls <- filter (inFile fname) . tydecls <$> get MD
+  _ <- traverse outputNameSyntax allNames -- ++ decls)
   pure loadResult
