@@ -3,4 +3,4 @@
 *.o
 *.obj
 
-idris2
+/idris2
