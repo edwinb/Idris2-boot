@@ -21,10 +21,11 @@ following general form:
     %foreign [specifiers]
     name : t
 
-The specifier is an Idris ``String`` says in which language the foreign
+The specifier is an Idris ``String`` which says in which language the foreign
 function is written, what it's called, and where to find it. There may be more
-than one specifier, and a code generator is free to choose specifier it
-understands. In general, a specifier has the form "Language:name,library". For
+than one specifier, and a code generator is free to choose any specifier it
+understands - or even ignore the specifiers completely and use their own
+approach. In general, a specifier has the form "Language:name,library". For
 example, in C:
 
 .. code-block:: idris
