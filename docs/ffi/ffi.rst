@@ -82,7 +82,7 @@ the system library paths) we can run this at the REPL:
     Main> :exec main
     94
 
-Note that it is the programmers responsibility to make sure that the
+Note that it is the programmer's responsibility to make sure that the
 Idris function and C function have corresponding types. There is no way for
 the machine to check this! If you get it wrong, you will get unpredictable
 behaviour.
@@ -90,7 +90,7 @@ behaviour.
 Since ``add`` has no side effects, we've given it a return type of ``Int``.
 But what if the function has some effect on the outside world, like
 ``addWithMessage``? In this case, we use ``PrimIO Int`` to say that it
-return a primitive IO action:
+returns a primitive IO action:
 
 .. code-block:: idris
 
@@ -115,7 +115,7 @@ So, we can extend our program as follows:
   main : IO ()
   main
       = do printLn (add 70 24)
-           primIO $ prim_addWithMessage "Sum" 70 24
+           addWithMessage "Sum" 70 24
            pure ()
 
 It is up to the programmer to declare which functions are pure, and which have
@@ -177,7 +177,7 @@ Callbacks
 It is often useful in C for a function to take a *callback*, that is a function
 which is called after doing some work. For example, we can write a function
 which takes callback that takes a ``char*`` and an ``int`` and returns a
-``int*``, in C, as follows (added to ``smallc.c`` above):
+``char*``, in C, as follows (added to ``smallc.c`` above):
 
 ::
 
@@ -232,8 +232,8 @@ but we can do so using ``toPrim : IO a -> PrimIO a``:
     applyFnIO : String -> Int -> (String -> Int -> IO String) -> IO String
     applyFnIO c i f = primIO $ prim_applyFnIO c i (\s, i => toPrim $ f s i)
   
-For example, the above ``pluralise`` example, but printing a message in the
-callback:
+For example, we can extend the above ``pluralise`` example to print a message
+in the callback:
 
 .. code-block:: idris
 
