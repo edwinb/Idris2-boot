@@ -1,18 +1,7 @@
-**************************
-Foreign Function Interface
-**************************
+************
+FFI Overview
+************
 
-Idris 2 is designed to support multiple code generators. The default target is
-Chez Scheme, with a Racket code generator also supported. However, the
-intention is, as with Idris 1, to support multiple targets on multiple platforms,
-including e.g. JavaScript, JVM, .NET, and others yet to be invented.
-This makes the design of a foreign function interface (FFI), which calls
-functions in other languages, a little challenging, since ideally it will
-support all possible targets!
-
-To this end, the Idris 2 FFI aims to be flexible and adaptable, while still
-supporting most common requirements without too much need for "glue" code in
-the foreign language.
 Foreign functions are declared with the ``%foreign`` directive, which takes the
 following general form:
 
@@ -167,6 +156,43 @@ Return types can be any of the above, plus:
 
 * ``()``
 * ``PrimIO t``, where ``t`` is a valid return type other than a ``PrimIO``.
+
+Handling ``String`` leads to some complications, for a number of reasons:
+
+* Strings can have multiple encodings. In the Idris run time, Strings are
+  encoded as UTF-8, but C makes no assumptions.
+* It is not always clear who is responsible for freeing a ``String`` allocated
+  by a C function.
+* In C, strings can be ``NULL``, but Idris strings always have a value.
+
+So, when passing ``String`` to and from C, remember the following:
+
+* A ``char*`` returned by a C function will be copied to the Idris heap, and
+  the Idris run time immediately calls ``free`` with the returned ``char*``.
+* If a ``char*`` might be ``NULL`` in ``C``, use ``Ptr String`` rather than
+  ``String``.
+
+When using ``Ptr String``, the value will be passed as a ``void*``, and
+therefore not accessible directly by Idris code. This is to protect against
+accidentally trying to use ``NULL`` as a ``String``. You can nevertheless
+work with them and convert to ``String`` via foreign functions of the following
+form:
+
+::
+
+    char* getString(void *p) {
+        return (char*)p;
+    }
+
+    void* mkString(char* str) {
+        return (void*)str;
+    }
+
+    int isNullString(void* str) {
+        return str == NULL;
+    }
+
+For an example, see the sample :ref:`sect-readline` bindings.
 
 Additionally, foreign functions can take *callbacks*, and take and return
 C ``struct`` pointers.
@@ -378,4 +404,4 @@ can convert between a ``void*`` and a ``char*`` in C:
 .. code-block:: idris
 
     %foreign (pfn "getString")
-    getStr : Ptr String -> String
+    getString : Ptr String -> String
