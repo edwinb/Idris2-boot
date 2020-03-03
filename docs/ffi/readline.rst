@@ -33,7 +33,6 @@ completion:
 ::
 
     typedef char *rl_compentry_func_t (const char *, int);
-
     rl_compentry_func_t * rl_completion_entry_function;
 
 A completion function takes a ``String``, which is the text to complete, and
@@ -89,7 +88,7 @@ pointer (see Section :ref:`sect-ffi-string`):
 
 We also need to provide a way to check whether the returned ``Ptr String`` is 
 ``NULL``. To do so, we'll write some glue code to convert back and forth
-between ``Ptr String`` and ``String, in a file ``idris_readline.c`` and a
+between ``Ptr String`` and ``String``, in a file ``idris_readline.c`` and a
 corresponding header ``idris_readline.h``. In ``idris_readline.h`` we have:
 
 ::
@@ -119,9 +118,17 @@ Correspondingly, in ``idris_readline.c``:
         return NULL;
     }
 
-Now, we can use ``prim_readline`` as follows, with a safe API:
+Now, we can use ``prim_readline`` as follows, with a safe API, checking
+whether the result it returns is ``NULL`` or a concrete ``String``:
 
 .. code-block:: idris
+
+    %foreign (rlib "isNullString")
+    prim_isNullString : Ptr String -> Int
+
+    export
+    isNullString : Ptr String -> Bool
+    isNullString str = if prim_isNullString str == 0 then False else True
 
     export
     readline : String -> IO (Maybe String)
@@ -195,7 +202,7 @@ The function returns ``Nothing`` if there are no more completions, or
 ``Just str`` for some ``str`` if there is another one for the current
 input.
 
-We might hope that it's as simple as defining a function to assign the
+We might hope that it's a matter of defining a function to assign the
 completion function...
 
 ::
@@ -222,8 +229,9 @@ the Readline library expects ``NULL`` when there are no more completions:
                       Just str => pure (mkString str)
 
 So, we turn ``Nothing`` into ``nullString`` and ``Just str`` into ``mkString
-str``. Unfortunately, this doesn't quite work. Let's try it for the most basic
-completion function that returns one completion no matter what the input:
+str``. Unfortunately, this doesn't quite work. To see what goes wrong, let's
+try it for the most basic completion function that returns one completion no
+matter what the input:
 
 .. code-block:: idris
 
@@ -240,13 +248,16 @@ completion function first:
     main = do setCompletionFn testComplete
               echoLoop
 
-Unfortunately, when we try running it, and hitting TAB before entering
-anything, things go wrong:
+We see that there is a problem when we try running it, and hitting TAB before
+entering anything:
 
 ::
 
     Main> :exec main
     > free(): invalid pointer
+
+The Idris code which sets up the completion is fine, but there is a problem
+with the memory allocation in the C glue code.
 
 This problem arises because we haven't thought carefully enough about which
 parts of our program are responsible for allocating and freeing strings.
