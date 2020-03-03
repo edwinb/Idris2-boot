@@ -1,3 +1,4 @@
-cc --shared struct.c -fPIC -o libstruct.so
+make all > /dev/null
 $1 --no-banner Struct.idr < input
-rm -rf build libstruct.* 
+rm -rf build
+make clean > /dev/null
