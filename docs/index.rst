@@ -23,6 +23,7 @@ and yet to be updated, so use with caution!
    :maxdepth: 1
 
    tutorial/index
+   backends/index
    updates/updates
    typedd/typedd
    app/index
