@@ -1,5 +1,5 @@
 libcb : String -> String
-libcb f = "C:" ++ f ++", libcb.so"
+libcb f = "C:" ++ f ++", libcb"
 
 %foreign libcb "add"
 add : Int -> Int -> Int
