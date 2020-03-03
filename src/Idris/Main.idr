@@ -69,6 +69,8 @@ updatePaths
                         "idris2-" ++ showVersion False version ++ dirSep ++ "support")
          addLibDir (dir_prefix (dirs (options defs)) ++ dirSep ++
                         "idris2-" ++ showVersion False version ++ dirSep ++ "lib")
+         cwd <- coreLift $ currentDir
+         addLibDir cwd
 
 updateREPLOpts : {auto o : Ref ROpts REPLOpts} ->
                  Core ()

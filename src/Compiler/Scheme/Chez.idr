@@ -174,7 +174,7 @@ cCall fc cfn clib args ret
                            copyLib (fname, fullname)
                            put Loaded (clib :: loaded)
                            pure $ "(load-shared-object \""
-                                    ++ escapeQuotes fullname
+                                    ++ escapeQuotes fname
                                     ++ "\")\n"
          argTypes <- traverse (\a => cftySpec fc (snd a)) args
          retType <- cftySpec fc ret
@@ -309,6 +309,12 @@ getFgnCall n
                              throw (InternalError ("No compiled definition for " ++ show n))
                           Just d => schFgnDef (location def) n d
 
+startChez : String -> String -> String
+startChez target ext
+    = "#!/bin/sh\n\n" ++
+      "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`dirname $0`/" ++ target ++ "_app\n" ++
+      "`dirname $0`/" ++ target ++ "_app/" ++ target ++ "." ++ ext ++ " $*\n"
+
 ||| Compile a TT expression to Chez Scheme
 compileToSS : Ref Ctxt Defs ->
               ClosedTerm -> (outfile : String) -> Core ()
@@ -349,27 +355,36 @@ compileToSO ssFile
          coreLift $ system tmpFile
          pure ()
 
+makeSh : String -> String -> Core ()
+makeSh outfile ext
+    = do Right () <- coreLift $ writeFile outfile (startChez outfile ext)
+            | Left err => throw (FileErr outfile err)
+         pure ()
+
 ||| Chez Scheme implementation of the `compileExpr` interface.
-compileExpr : Ref Ctxt Defs ->
+compileExpr : Bool -> Ref Ctxt Defs ->
               ClosedTerm -> (outfile : String) -> Core (Maybe String)
-compileExpr c tm outfile
-    = do let outSs = outfile ++ ".ss"
+compileExpr makeitso c tm outfile
+    = do coreLift $ mkdirs [outfile ++ "_app"]
+         coreLift $ changeDir (outfile ++ "_app")
+         let outSs = outfile ++ ".ss"
          compileToSS c tm outSs
-         compileToSO outSs
-         pure (Just (outfile ++ ".so"))
+         when makeitso $ compileToSO outSs
+         coreLift $ changeDir ".."
+         makeSh outfile (if makeitso then "so" else "ss")
+         coreLift $ chmod outfile 0o755
+         pure (Just outfile)
 
 ||| Chez Scheme implementation of the `executeExpr` interface.
 ||| This implementation simply runs the usual compiler, saving it to a temp file, then interpreting it.
 executeExpr : Ref Ctxt Defs -> ClosedTerm -> Core ()
 executeExpr c tm
-    = do tmp <- coreLift $ tmpName
-         let outn = tmp ++ ".ss"
-         compileToSS c tm outn
-         chez <- coreLift findChez
-         coreLift $ system outn
+    = do compileExpr False c tm "_tmpchez"
+         cwd <- coreLift $ currentDir
+         coreLift $ system (cwd ++ dirSep ++ "_tmpchez")
          pure ()
 
 ||| Codegen wrapper for Chez scheme implementation.
 export
 codegenChez : Codegen
-codegenChez = MkCG compileExpr executeExpr
+codegenChez = MkCG (compileExpr True) executeExpr

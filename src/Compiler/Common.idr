@@ -47,7 +47,14 @@ compile {c} cg tm out
 export
 execute : {auto c : Ref Ctxt Defs} ->
           Codegen -> ClosedTerm -> Core ()
-execute {c} cg = executeExpr cg c
+execute {c} cg tm
+    = do makeExecDirectory
+         cwd <- coreLift $ currentDir
+         d <- getDirs
+         coreLift $ changeDir (exec_dir d)
+         executeExpr cg c tm
+         coreLift $ changeDir cwd
+         pure ()
 
 -- ||| Recursively get all calls in a function definition
 getAllDesc : List Name -> -- calls to check

@@ -135,7 +135,7 @@ pathSep = if isWindows then ';' else ':'
 defaultDirs : Dirs
 defaultDirs = MkDirs "." Nothing "build" 
                      ("build" ++ dirSep ++ "exec") 
-                     "/usr/local" ["."] ["."] []
+                     "/usr/local" ["."] [] []
 
 defaultPPrint : PPrinter
 defaultPPrint = MkPPOpts False True False
