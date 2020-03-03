@@ -138,6 +138,8 @@ use that instead:
     %foreign (libsmall "addWithMessage")
     prim_addWithMessage : String -> Int -> Int -> PrimIO Int
 
+.. _sect-ffi-string:
+
 Primitive FFI Types
 -------------------
 
@@ -196,6 +198,8 @@ For an example, see the sample :ref:`sect-readline` bindings.
 
 Additionally, foreign functions can take *callbacks*, and take and return
 C ``struct`` pointers.
+
+.. _sect-callbacks:
 
 Callbacks
 ---------

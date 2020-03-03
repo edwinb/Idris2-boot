@@ -49,6 +49,8 @@ record PkgDesc where
   postbuild : Maybe (FC, String) -- Script to run after building
   preinstall : Maybe (FC, String) -- Script to run after building, before installing
   postinstall : Maybe (FC, String) -- Script to run after installing
+  preclean : Maybe (FC, String) -- Script to run before cleaning
+  postclean : Maybe (FC, String) -- Script to run after cleaning
 
 Show PkgDesc where
   show pkg = "Package: " ++ name pkg ++ "\n" ++
@@ -70,7 +72,9 @@ Show PkgDesc where
              maybe "" (\m => "Prebuild: " ++ snd m ++ "\n") (prebuild pkg) ++
              maybe "" (\m => "Postbuild: " ++ snd m ++ "\n") (postbuild pkg) ++
              maybe "" (\m => "Preinstall: " ++ snd m ++ "\n") (preinstall pkg) ++
-             maybe "" (\m => "Postinstall: " ++ snd m ++ "\n") (postinstall pkg)
+             maybe "" (\m => "Postinstall: " ++ snd m ++ "\n") (postinstall pkg) ++
+             maybe "" (\m => "Preclean: " ++ snd m ++ "\n") (preclean pkg) ++
+             maybe "" (\m => "Postclean: " ++ snd m ++ "\n") (postclean pkg)
 
 initPkgDesc : String -> PkgDesc
 initPkgDesc pname
@@ -78,6 +82,7 @@ initPkgDesc pname
                 Nothing Nothing Nothing Nothing Nothing
                 [] []
                 Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
+                Nothing Nothing
 
 data DescField : Type where
   PVersion     : FC -> String -> DescField
@@ -99,6 +104,8 @@ data DescField : Type where
   PPostbuild   : FC -> String -> DescField
   PPreinstall  : FC -> String -> DescField
   PPostinstall : FC -> String -> DescField
+  PPreclean    : FC -> String -> DescField
+  PPostclean   : FC -> String -> DescField
 
 field : String -> Rule DescField
 field fname
@@ -118,6 +125,8 @@ field fname
     <|> strField PPostbuild "postbuild"
     <|> strField PPreinstall "preinstall"
     <|> strField PPostinstall "postinstall"
+    <|> strField PPreclean "preclean"
+    <|> strField PPostclean "postclean"
     <|> do exactIdent "depends"; symbol "="
            ds <- sepBy1 (symbol ",") unqualifiedName
            pure (PDepends ds)
@@ -189,6 +198,8 @@ addField (PPrebuild fc e)    pkg = pure $ record { prebuild = Just (fc, e) } pkg
 addField (PPostbuild fc e)   pkg = pure $ record { postbuild = Just (fc, e) } pkg
 addField (PPreinstall fc e)  pkg = pure $ record { preinstall = Just (fc, e) } pkg
 addField (PPostinstall fc e) pkg = pure $ record { postinstall = Just (fc, e) } pkg
+addField (PPreclean fc e)    pkg = pure $ record { preclean = Just (fc, e) } pkg
+addField (PPostclean fc e)   pkg = pure $ record { postclean = Just (fc, e) } pkg
 
 addFields : {auto c : Ref Ctxt Defs} ->
             List DescField -> PkgDesc -> Core PkgDesc
@@ -343,6 +354,7 @@ clean : {auto c : Ref Ctxt Defs} ->
 clean pkg
     = do defs <- get Ctxt
          let build = build_dir (dirs (options defs))
+         runScript (preclean pkg)
          let toClean = mapMaybe (\ks => [| MkPair (tail' ks) (head' ks) |]) $
                        maybe (map fst (modules pkg))
                              (\m => fst m :: map fst (modules pkg))
@@ -360,6 +372,7 @@ clean pkg
                        (\ks => map concat . traverse (deleteBin builddir ks))
                        pkgTrie
          deleteFolder builddir []
+         runScript (postclean pkg)
   where
   delete : String -> Core ()
   delete path = do True <- coreLift $ fRemove path
