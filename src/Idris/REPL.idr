@@ -464,6 +464,7 @@ data REPLResult : Type where
   ErrorsBuildingFile : String -> List Error -> REPLResult
   NoFileLoaded : REPLResult
   ChangedDirectory : String -> REPLResult
+  WorkingDirectory : String -> REPLResult
   CompilationFailed: REPLResult
   Compiled : String -> REPLResult
   ProofFound : PTerm -> REPLResult
@@ -604,6 +605,9 @@ process (Load f)
 process (CD dir)
     = do setWorkingDir dir
          pure (ChangedDirectory dir)
+process CWD
+    = do dir <- getWorkingDir
+         pure (WorkingDirectory dir)
 process Edit
     = do opts <- get ROpts
          case mainfile opts of
@@ -813,7 +817,8 @@ mutual
   displayResult  (ErrorLoadingFile x err) = printError $ "Error loading file " ++ x ++ ": " ++ show err
   displayResult  (ErrorsBuildingFile x errs) = printError $ "Error(s) building file " ++ x -- messages already displayed while building
   displayResult  NoFileLoaded = printError "No file can be reloaded"
-  displayResult  (ChangedDirectory dir) = printResult ("Changed directory to " ++ dir)
+  displayResult  (ChangedDirectory dir) = printResult ("Changed working directory to '" ++ dir ++ "'")
+  displayResult  (WorkingDirectory dir) = printResult ("Current working directory is '" ++ dir ++ "'")
   displayResult  CompilationFailed = printError "Compilation failed"
   displayResult  (Compiled f) = printResult $ "File " ++ f ++ " written"
   displayResult  (ProofFound x) = printResult $ show x

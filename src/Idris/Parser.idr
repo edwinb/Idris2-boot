@@ -1076,11 +1076,11 @@ usingDecls fname indents
          ds <- assert_total (nonEmptyBlock (topDecl fname))
          end <- location
          pure (PUsing (MkFC fname start end) us (collectDefs (concat ds)))
-         
+
 fnOpt : Rule PFnOpt
-fnOpt = do x <- totalityOpt          
+fnOpt = do x <- totalityOpt
            pure $ IFnOpt (Totality x)
-           
+
 fnDirectOpt : FileName -> Rule PFnOpt
 fnDirectOpt fname
     = do exactIdent "hint"
@@ -1518,6 +1518,8 @@ nonEmptyCommand
          pure (DebugInfo n)
   <|> do symbol ":"; replCmd ["q", "quit", "exit"]
          pure Quit
+  <|> do symbol ":"; replCmd ["cwd"]
+         pure CWD
   <|> do symbol ":"; exactIdent "set"
          opt <- setOption True
          pure (SetOpt opt)
