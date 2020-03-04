@@ -300,7 +300,7 @@ mkCase {c} {u} fn orig lhs_raw
                -- be an erased name in a case block (which will be bound elsewhere
                -- once split and turned into a pattern)
                (lhs, _) <- elabTerm {c} {m} {u}
-                                    fn (InLHS Rig0) [] (MkNested [])
+                                    fn (InLHS erased) [] (MkNested [])
                                     [] (IBindHere (getFC lhs_raw) PATTERN lhs_raw)
                                     Nothing
                put Ctxt defs -- reset the context, we don't want any updates

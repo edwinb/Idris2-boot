@@ -73,15 +73,16 @@ TTC Name where
 
 export
 TTC RigCount where
-  toBuf b Rig0 = tag 0
-  toBuf b Rig1 = tag 1
-  toBuf b RigW = tag 2
+  toBuf b = elimSemi
+              (tag 0)
+              (tag 1)
+              (const $ tag 2)
 
   fromBuf b
       = case !getTag of
-             0 => pure Rig0
-             1 => pure Rig1
-             2 => pure RigW
+             0 => pure erased
+             1 => pure linear
+             2 => pure top
              _ => corrupt "RigCount"
 
 export
@@ -946,7 +947,7 @@ TTC GlobalDef where
                                         mul vars vis
                                         tot fl refs refsR inv c True def cdef Nothing sc)
               else pure (MkGlobalDef loc name (Erased loc False) [] [] []
-                                     RigW [] Public unchecked [] refs refsR
+                                     top [] Public unchecked [] refs refsR
                                      False False True def cdef Nothing [])
 
 TTC Transform where

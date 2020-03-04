@@ -137,7 +137,7 @@ findLinear top bound rig tm
            _ => pure []
     where
       accessible : NameType -> RigCount -> RigCount
-      accessible Func r = if top then r else Rig0
+      accessible Func r = if top then r else erased
       accessible _ r = r
 
       findLinArg : RigCount -> NF [] -> List (Term vars) ->
@@ -148,15 +148,15 @@ findLinear top bound rig tm
           = findLinArg rig ty (p :: as)
       findLinArg rig (NBind _ x (Pi c _ _) sc) (Local {name=a} fc _ idx prf :: as)
           = do defs <- get Ctxt
-               if idx < bound
+               if Prelude.Interfaces.(<) idx bound
                  then do sc' <- sc defs (toClosure defaultOpts [] (Ref fc Bound x))
-                         pure $ (a, rigMult c rig) ::
+                         pure $ (a, c |*| rig) ::
                                     !(findLinArg rig sc' as)
                  else do sc' <- sc defs (toClosure defaultOpts [] (Ref fc Bound x))
                          findLinArg rig sc' as
       findLinArg rig (NBind fc x (Pi c _ _) sc) (a :: as)
           = do defs <- get Ctxt
-               pure $ !(findLinear False bound (rigMult c rig) a) ++
+               pure $ !(findLinear False bound (c |*| rig) a) ++
                       !(findLinArg rig !(sc defs (toClosure defaultOpts [] (Ref fc Bound x))) as)
       findLinArg rig ty (a :: as)
           = pure $ !(findLinear False bound rig a) ++ !(findLinArg rig ty as)
@@ -195,13 +195,13 @@ combineLinear loc ((n, count) :: cs)
     lookupAll n ((n', c) :: cs)
        = if n == n' then c :: lookupAll n cs else lookupAll n cs
 
+    -- Those combine rules are obtuse enough that they are worth investigating
     combine : RigCount -> RigCount -> Core RigCount
-    combine Rig1 Rig1 = throw (LinearUsed loc 2 n)
-    combine Rig1 RigW = throw (LinearUsed loc 2 n)
-    combine RigW Rig1 = throw (LinearUsed loc 2 n)
-    combine RigW RigW = pure RigW
-    combine Rig0 c = pure c
-    combine c Rig0 = pure c
+    combine l r = if l |+| r == top && not (isErased $ l `glb` r) && (l `glb` r) /= top
+                     then throw (LinearUsed loc 2 n)
+                     -- if everything is fine, return the linearity that has the
+                     -- highest bound
+                     else pure (l `lub` r)
 
     combineAll : RigCount -> List RigCount -> Core RigCount
     combineAll c [] = pure c
@@ -244,7 +244,7 @@ checkLHS {vars} mult hashit n opts nest env fc lhs_in
          defs <- get Ctxt
          lhstm <- normaliseLHS defs (letToLam env) lhstm
          lhsty <- normaliseHoles defs env lhsty
-         linvars_in <- findLinear True 0 Rig1 lhstm
+         linvars_in <- findLinear True 0 linear lhstm
          logTerm 10 "Checked LHS term after normalise" lhstm
          log 5 $ "Linearity of names in " ++ show n ++ ": " ++
                  show linvars_in
@@ -359,9 +359,7 @@ checkClause mult hashit n opts nest env (ImpossibleClause fc lhs)
 checkClause {vars} mult hashit n opts nest env (PatClause fc lhs_in rhs)
     = do (_, (vars'  ** (sub', env', nest', lhstm', lhsty'))) <-
              checkLHS mult hashit n opts nest env fc lhs_in
-         let rhsMode = case mult of
-                            Rig0 => InType
-                            _ => InExpr
+         let rhsMode = if isErased mult then InType else InExpr
          log 5 $ "Checking RHS " ++ show rhs
          logEnv 5 "In env" env'
 
@@ -387,9 +385,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
     = do (lhs, (vars'  ** (sub', env', nest', lhspat, reqty))) <-
              checkLHS mult hashit n opts nest env fc lhs_in
          let wmode
-               = case mult of
-                      Rig0 => InType -- treat as used in type only
-                      _ => InExpr
+               = if isErased mult then InType else InExpr
 
          (wval, gwvalTy) <- wrapError (InRHS fc !(getFullName (Resolved n))) $
                 elabTermSub n wmode opts nest' env' env sub' wval_raw Nothing
@@ -418,7 +414,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
          -- Abstracting over 'wval' in the scope of bNotReq in order
          -- to get the 'magic with' behaviour
          let wargn = MN "warg" 0
-         let scenv = Pi RigW Explicit wvalTy :: wvalEnv
+         let scenv = Pi top Explicit wvalTy :: wvalEnv
 
          let bnr = bindNotReq fc 0 env' withSub [] reqty
          let notreqns = fst bnr
@@ -428,7 +424,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
                             (Local fc (Just False) _ First)
                             !(nf defs scenv
                                  (weaken {n=wargn} notreqty))
-         let bNotReq = Bind fc wargn (Pi RigW Explicit wvalTy) wtyScope
+         let bNotReq = Bind fc wargn (Pi top Explicit wvalTy) wtyScope
 
          let Just (reqns, envns, wtype) = bindReq fc env' withSub [] bNotReq
              | Nothing => throw (InternalError "Impossible happened: With abstraction failure #4")
@@ -444,7 +440,7 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
          log 5 $ "Argument names " ++ show wargNames
 
          wname <- genWithName n
-         widx <- addDef wname (newDef fc wname (if mult == Rig0 then Rig0 else RigW)
+         widx <- addDef wname (newDef fc wname (if isErased mult then erased else top)
                                       vars wtype Private None)
          let rhs_in = apply (IVar fc wname)
                         (map (IVar fc) envns ++
@@ -553,7 +549,7 @@ mkRunTime n
          Just gdef <- lookupCtxtExact n (gamma defs)
               | _ => pure ()
          -- If it's erased at run time, don't build the tree
-         when (not (multiplicity gdef == Rig0)) $ do
+         when (not (isErased $ multiplicity gdef)) $ do
            let PMDef r cargs tree_ct _ pats = definition gdef
                 | _ => pure () -- not a function definition
            let ty = type gdef
@@ -569,9 +565,9 @@ mkRunTime n
     toClause : FC -> (vars ** (Env Term vars, Term vars, Term vars)) ->
                Core Clause
     toClause fc (_ ** (env, lhs, rhs))
-        = do lhs_erased <- linearCheck fc Rig1 True env lhs
+        = do lhs_erased <- linearCheck fc linear True env lhs
              rhs' <- applySpecialise env rhs
-             rhs_erased <- linearCheck fc Rig1 True env rhs'
+             rhs_erased <- linearCheck fc linear True env rhs'
              pure $ MkClause env lhs_erased rhs_erased
 
 compileRunTime : {auto c : Ref Ctxt Defs} ->
@@ -605,9 +601,9 @@ processDef opts nest env fc n_in cs_in
               | _ => throw (AlreadyDefined fc n)
          let ty = type gdef
          let hashit = visibility gdef == Public
-         let mult = if multiplicity gdef == Rig0
-                       then Rig0
-                       else Rig1
+         let mult = if isErased (multiplicity gdef)
+                       then erased
+                       else linear
          nidx <- resolveName n
          cs <- traverse (checkClause mult hashit nidx opts nest env) cs_in
          let pats = map toPats (rights cs)

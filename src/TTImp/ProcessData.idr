@@ -91,7 +91,7 @@ checkCon {vars} opts nest env vis tn_in tn (MkImpTy fc cn_in ty_raw)
          ty <-
              wrapError (InCon fc cn) $
                    checkTerm !(resolveName cn) InType opts nest env
-                              (IBindHere fc (PI Rig0) ty_raw)
+                              (IBindHere fc (PI erased) ty_raw)
                               (gType fc)
 
          -- Check 'ty' returns something in the right family
@@ -197,12 +197,18 @@ getDetags fc tys
 -- If exactly one argument is unerased, return its position
 getRelevantArg : Defs -> Nat -> Maybe Nat -> Bool -> NF [] ->
                  Core (Maybe (Bool, Nat))
-getRelevantArg defs i rel world (NBind fc _ (Pi Rig0 _ _) sc)
-    = getRelevantArg defs (1 + i) rel world
-           !(sc defs (toClosure defaultOpts [] (Erased fc False)))
--- %World is never inspected, so might as well be deleted from data types,
--- although it needs care when compiling to ensure that the function that
--- returns the IO/%World type isn't erased
+getRelevantArg defs i rel world (NBind fc _ (Pi rig _ val) sc)
+    = branchZero (getRelevantArg defs (1 + i) rel world
+                              !(sc defs (toClosure defaultOpts [] (Erased fc False))))
+                 (case val of
+                       -- %World is never inspected, so might as well be deleted from data types,
+                       -- although it needs care when compiling to ensure that the function that
+                       -- returns the IO/%World type isn't erased
+                       (NPrimVal _ WorldType) =>
+                           getRelevantArg defs (1 + i) rel False
+                               !(sc defs (toClosure defaultOpts [] (Erased fc False)))
+                       _ => pure Nothing)
+                 rig
 getRelevantArg defs i rel world (NBind fc _ (Pi _ _ (NPrimVal _ WorldType)) sc)
     = getRelevantArg defs (1 + i) rel False
            !(sc defs (toClosure defaultOpts [] (Erased fc False)))
@@ -249,7 +255,7 @@ processData {vars} eopts nest env fc vis (MkImpLater dfc n_in ty_raw)
          (ty, _) <-
              wrapError (InCon fc n) $
                     elabTerm !(resolveName n) InType eopts nest env
-                              (IBindHere fc (PI Rig0) ty_raw)
+                              (IBindHere fc (PI erased) ty_raw)
                               (Just (gType dfc))
          let fullty = abstractEnvType dfc env ty
          logTermNF 5 ("data " ++ show n) [] fullty
@@ -258,7 +264,7 @@ processData {vars} eopts nest env fc vis (MkImpLater dfc n_in ty_raw)
          arity <- getArity defs [] fullty
 
          -- Add the type constructor as a placeholder
-         tidx <- addDef n (newDef fc n Rig1 vars fullty vis
+         tidx <- addDef n (newDef fc n linear vars fullty vis
                           (TCon 0 arity [] [] defaultFlags [] [] Nothing))
          addMutData (Resolved tidx)
          defs <- get Ctxt
@@ -283,7 +289,7 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
          (ty, _) <-
              wrapError (InCon fc n) $
                     elabTerm !(resolveName n) InType eopts nest env
-                              (IBindHere fc (PI Rig0) ty_raw)
+                              (IBindHere fc (PI erased) ty_raw)
                               (Just (gType dfc))
          let fullty = abstractEnvType dfc env ty
 
@@ -311,7 +317,7 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
 
          -- Add the type constructor as a placeholder while checking
          -- data constructors
-         tidx <- addDef n (newDef fc n Rig1 vars fullty vis
+         tidx <- addDef n (newDef fc n linear vars fullty vis
                           (TCon 0 arity [] [] defaultFlags [] [] Nothing))
          case vis of
               Private => pure ()
@@ -325,7 +331,6 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
 
          let ddef = MkData (MkCon dfc n arity fullty) cons
          addData vars vis tidx ddef
-         findNewtype cons
 
          -- Type is defined mutually with every data type undefined at the
          -- point it was declared, and every data type undefined right now

@@ -118,17 +118,17 @@ bindNames arg tm
 -- if the name is part of the using decls, add the relevant binder for it:
 -- either an implicit pi binding, if there's a name, or an autoimplicit type
 -- binding if the name just appears as part of the type
-getUsing : Name -> List (Int, Maybe Name, RawImp) -> 
+getUsing : Name -> List (Int, Maybe Name, RawImp) ->
            List (Int, (RigCount, PiInfo RawImp, Maybe Name, RawImp))
 getUsing n [] = []
 getUsing n ((t, Just n', ty) :: us) -- implicit binder
     = if n == n'
-         then (t, (Rig0, Implicit, Just n, ty)) :: getUsing n us
+         then (t, (erased, Implicit, Just n, ty)) :: getUsing n us
          else getUsing n us
 getUsing n ((t, Nothing, ty) :: us) -- autoimplicit binder
     = let ns = nub (findIBindVars ty) in
           if n `elem` ns
-             then (t, (RigW, AutoImplicit, Nothing, ty)) ::
+             then (t, (top, AutoImplicit, Nothing, ty)) ::
                       getUsing n us
              else getUsing n us
 
@@ -183,5 +183,5 @@ piBindNames loc env tm
     piBind : List String -> RawImp -> RawImp
     piBind [] ty = ty
     piBind (n :: ns) ty
-       = IPi loc Rig0 Implicit (Just (UN n)) (Implicit loc False) (piBind ns ty)
+       = IPi loc erased Implicit (Just (UN n)) (Implicit loc False) (piBind ns ty)
 

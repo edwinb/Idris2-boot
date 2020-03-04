@@ -51,15 +51,15 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
                       -- at private names in the nested namespace
                       put Ctxt (record { currentNS = cns,
                                          nestedNS = newns :: nns } defs)
-  where    
+  where
     paramTelescope : List (Maybe Name, RigCount, PiInfo RawImp, RawImp)
     paramTelescope = map jname params
       where
-        jname : (Name, RigCount, PiInfo RawImp, RawImp) 
+        jname : (Name, RigCount, PiInfo RawImp, RawImp)
              -> (Maybe Name, RigCount, PiInfo RawImp, RawImp)
         -- Record type parameters are implicit in the constructor
         -- and projections
-        jname (n, _, _, t) = (Just n, Rig0, Implicit, t)
+        jname (n, _, _, t) = (Just n, erased, Implicit, t)
 
     fname : IField -> Name
     fname (MkIField fc c p n ty) = n
@@ -102,7 +102,7 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
 
     -- Generate getters from the elaborated record constructor type
     elabGetters : {vs : _} ->
-                  Name -> 
+                  Name ->
                   (done : Nat) -> -- number of explicit fields processed
                   List (Name, RawImp) -> -- names to update in types
                     -- (for dependent records, where a field's type may depend
@@ -125,7 +125,7 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
                    gty <- bindTypeNames []
                                  (map fst params ++ map fname fields ++ vars) $
                                     mkTy paramTelescope $
-                                      IPi fc RigW Explicit (Just rname) recTy ty'
+                                      IPi fc top Explicit (Just rname) recTy ty'
                    log 5 $ "Projection " ++ show gname ++ " : " ++ show gty
                    let lhs_exp
                           = apply (IVar fc con)
@@ -141,13 +141,13 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
                                              (IBindVar fc (nameRoot fldName)))
                    log 5 $ "Projection LHS " ++ show lhs
                    processDecl [] nest env
-                       (IClaim fc (if rc == Rig0
-                                      then Rig0
-                                      else RigW) vis [] (MkImpTy fc gname gty))
+                       (IClaim fc (if isErased rc
+                                      then erased
+                                      else top) vis [] (MkImpTy fc gname gty))
                    processDecl [] nest env
                        (IDef fc gname [PatClause fc lhs (IVar fc fldName)])
                    let upds' = (n, IApp fc (IVar fc gname) (IVar fc rname)) :: upds
-                   elabGetters con 
+                   elabGetters con
                                (if imp == Explicit
                                    then S done else done)
                                upds' (b :: tyenv) sc

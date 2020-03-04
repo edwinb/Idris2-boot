@@ -358,7 +358,7 @@ parameters (defs : Defs, topopts : EvalOpts)
        --   + It's inlinable and we're in 'tcInline'
         = if alwaysReduce r
              || (not (holesOnly opts || argHolesOnly opts || tcInline opts))
-             || (meta && rigd /= Rig0)
+             || (meta && not (isErased rigd))
              || (meta && holesOnly opts)
              || (tcInline opts && elem TCInline flags)
              then case argsFromStack args stk of
@@ -715,8 +715,8 @@ mutual
 
   -- Comparing multiplicities when converting pi binders
   subRig : RigCount -> RigCount -> Bool
-  subRig Rig1 RigW = True -- we can pass a linear function if a general one is expected
-  subRig x y = x == y -- otherwise, the multiplicities need to match up
+  subRig x y = (isLinear x && isRigOther y) ||
+               x == y
 
   convBinders : Ref QVar Int -> Defs -> Env Term vars ->
                 Binder (NF vars) -> Binder (NF vars) -> Core Bool

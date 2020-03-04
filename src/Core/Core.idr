@@ -162,14 +162,16 @@ Show Error where
                    " in " ++ showRel ctx ++ " context"
      where
        showRig : RigCount -> String
-       showRig Rig0 = "irrelevant"
-       showRig Rig1 = "linear"
-       showRig RigW = "unrestricted"
+       showRig = elimSemi
+         "linear"
+         "irrelevant"
+         (const "unrestricted")
 
        showRel : RigCount -> String
-       showRel Rig0 = "irrelevant"
-       showRel Rig1 = "relevant"
-       showRel RigW = "non-linear"
+       showRel = elimSemi
+         "relevant"
+         "irrelevant"
+         (const "non-linear")
   show (BorrowPartial fc env t arg)
       = show fc ++ ":" ++ show t ++ " borrows argument " ++ show arg ++
                    " so must be fully applied"

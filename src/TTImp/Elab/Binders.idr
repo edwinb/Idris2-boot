@@ -72,16 +72,16 @@ checkPi rig elabinfo nest env fc rigf info n argTy retTy expTy
     -- it's always erased
     getRig : ElabMode -> RigCount
     getRig (InLHS _) = rig
-    getRig _ = Rig0
+    getRig _ = erased
 
 findLamRig : {auto c : Ref Ctxt Defs} ->
              Maybe (Glued vars) -> Core RigCount
-findLamRig Nothing = pure RigW
+findLamRig Nothing = pure top
 findLamRig (Just expty)
     = do tynf <- getNF expty
          case tynf of
               NBind _ _ (Pi c _ _) sc => pure c
-              _ => pure RigW
+              _ => pure top
 
 inferLambda : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
@@ -97,8 +97,8 @@ inferLambda : {vars : _} ->
               Core (Term vars, Glued vars)
 inferLambda rig elabinfo nest env fc rigl info n argTy scope expTy
     = do rigb_in <- findLamRig expTy
-         let rigb = min rigb_in rigl
-         (tyv, tyt) <- check Rig0 elabinfo nest env argTy (Just (gType fc))
+         let rigb = rigb_in `glb` rigl
+         (tyv, tyt) <- check erased elabinfo nest env argTy (Just (gType fc))
          info' <- checkPiInfo rigl elabinfo nest env info (Just (gnf env tyv))
          let env' : Env Term (n :: _) = Lam rigb info' tyv :: env
          let nest' = weaken (dropName n nest)
@@ -136,19 +136,19 @@ checkLambda : {vars : _} ->
               (expTy : Maybe (Glued vars)) ->
               Core (Term vars, Glued vars)
 checkLambda rig_in elabinfo nest env fc rigl info n argTy scope Nothing
-    = let rig = if rig_in == Rig0 then Rig0 else Rig1 in
+    = let rig = if isErased rig_in then erased else linear in
           inferLambda rig elabinfo nest env fc rigl info n argTy scope Nothing
 checkLambda rig_in elabinfo nest env fc rigl info n argTy scope (Just expty_in)
-    = do let rig = if rig_in == Rig0 then Rig0 else Rig1
+    = do let rig = the RigCount $ if isErased rig_in then erased else linear
          expty <- getTerm expty_in
          exptynf <- getTyNF env expty
          defs <- get Ctxt
          case exptynf of
               Bind bfc bn (Pi c _ pty) psc =>
-                 do (tyv, tyt) <- check Rig0 elabinfo nest env
+                 do (tyv, tyt) <- check erased elabinfo nest env
                                         argTy (Just (gType fc))
                     info' <- checkPiInfo rigl elabinfo nest env info (Just (gnf env tyv))
-                    let rigb = min rigl c
+                    let rigb = rigl `glb` c
                     let env' : Env Term (n :: _) = Lam rigb info' tyv :: env
                     convertP True fc elabinfo env (gnf env tyv) (gnf env pty)
                     let nest' = weaken (dropName n nest)
@@ -186,28 +186,34 @@ checkLet : {vars : _} ->
            (nTy : RawImp) -> (nVal : RawImp) -> (scope : RawImp) ->
            (expTy : Maybe (Glued vars)) ->
            Core (Term vars, Glued vars)
-checkLet rigc_in elabinfo nest env fc rigl n nTy nVal scope expty
-    = do let rigc = if rigc_in == Rig0 then Rig0 else Rig1
-         (tyv, tyt) <- check Rig0 elabinfo nest env nTy (Just (gType fc))
+checkLet rigc_in elabinfo nest env fc rigl n nTy nVal scope expty {vars}
+    = do let rigc = the RigCount $ if isErased rigc_in then erased else linear
+         (tyv, tyt) <- check erased elabinfo nest env nTy (Just (gType fc))
          -- Try checking at the given multiplicity; if that doesn't work,
          -- try checking at Rig1 (meaning that we're using a linear variable
          -- so the resulting binding should be linear)
          -- Also elaborate any case blocks in the value via runDelays
          -- (0 is the highest priority delays only)
          (valv, valt, rigb) <- handle
-              (do c <- runDelays 0 $ check (rigMult rigl rigc)
+              (do c <- runDelays 0 $ check (rigl |*| rigc)
                              (record { preciseInf = True } elabinfo)
                              nest env nVal (Just (gnf env tyv))
-                  pure (fst c, snd c, rigMult rigl rigc))
+                  pure (fst c, snd c, rigl |*| rigc))
               (\err => case err of
-                            LinearMisuse _ _ Rig1 _
-                              => do c <- runDelays 0 $ check Rig1 elabinfo
-                                               nest env nVal (Just (gnf env tyv))
-                                    pure (fst c, snd c, Rig1)
-                            e => do c <- check (rigMult rigl rigc)
+                            (LinearMisuse _ _ r _)
+                              => branchOne
+                                   (do c <- runDelays 0 $ check linear elabinfo
+                                                nest env nVal (Just (gnf env tyv))
+                                       pure (fst c, snd c, linear))
+                                   (do c <- check (rigl |*| rigc)
+                                                elabinfo -- without preciseInf
+                                                nest env nVal (Just (gnf env tyv))
+                                       pure (fst c, snd c, rigMult rigl rigc))
+                                   r
+                            _ => do c <- check (rigl |*| rigc)
                                                elabinfo -- without preciseInf
                                                nest env nVal (Just (gnf env tyv))
-                                    pure (fst c, snd c, rigMult rigl rigc))
+                                    pure (fst c, snd c, rigl |*| rigc))
          let env' : Env Term (n :: _) = Lam rigb Explicit tyv :: env
          let nest' = weaken (dropName n nest)
          expScope <- weakenExp env' expty

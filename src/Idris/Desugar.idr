@@ -107,7 +107,7 @@ bindBangs : List (Name, FC, RawImp) -> RawImp -> RawImp
 bindBangs [] tm = tm
 bindBangs ((n, fc, btm) :: bs) tm
     = bindBangs bs $ IApp fc (IApp fc (IVar fc (UN ">>=")) btm)
-                          (ILam fc RigW Explicit (Just n)
+                          (ILam fc top Explicit (Just n)
                                 (Implicit fc False) tm)
 
 idiomise : FC -> RawImp -> RawImp
@@ -180,7 +180,7 @@ mutual
       = pure $ IUpdate pfc !(traverse (desugarUpdate side ps) fs)
                            !(desugarB side ps rec)
   desugarB side ps (PUpdate fc fs)
-      = desugarB side ps (PLam fc RigW Explicit (PRef fc (MN "rec" 0)) (PImplicit fc)
+      = desugarB side ps (PLam fc top Explicit (PRef fc (MN "rec" 0)) (PImplicit fc)
                             (PApp fc (PUpdate fc fs) (PRef fc (MN "rec" 0))))
   desugarB side ps (PApp fc x y)
       = pure $ IApp fc !(desugarB side ps x) !(desugarB side ps y)
@@ -213,11 +213,11 @@ mutual
            -- so check that first, otherwise desugar as a lambda
            case lookup (nameRoot op) (prefixes syn) of
                 Nothing =>
-                   desugarB side ps (PLam fc RigW Explicit (PRef fc (MN "arg" 0)) (PImplicit fc)
+                   desugarB side ps (PLam fc top Explicit (PRef fc (MN "arg" 0)) (PImplicit fc)
                                (POp fc op (PRef fc (MN "arg" 0)) arg))
                 Just prec => desugarB side ps (PPrefixOp fc op arg)
   desugarB side ps (PSectionR fc arg op)
-      = desugarB side ps (PLam fc RigW Explicit (PRef fc (MN "arg" 0)) (PImplicit fc)
+      = desugarB side ps (PLam fc top Explicit (PRef fc (MN "arg" 0)) (PImplicit fc)
                  (POp fc op arg (PRef fc (MN "arg" 0))))
   desugarB side ps (PSearch fc depth) = pure $ ISearch fc depth
   desugarB side ps (PPrimVal fc (BI x))
@@ -290,14 +290,14 @@ mutual
            pure $ IAlternative fc (UniqueDefault pval)
                   [apply (IVar fc dpairname)
                       [Implicit nfc False,
-                       ILam nfc RigW Explicit (Just (UN n)) (Implicit nfc False) r'],
+                       ILam nfc top Explicit (Just (UN n)) (Implicit nfc False) r'],
                    pval]
   desugarB side ps (PDPair fc (PRef nfc (UN n)) ty r)
       = do ty' <- desugarB side ps ty
            r' <- desugarB side ps r
            pure $ apply (IVar fc dpairname)
                         [ty',
-                         ILam nfc RigW Explicit (Just (UN n)) ty' r']
+                         ILam nfc top Explicit (Just (UN n)) ty' r']
   desugarB side ps (PDPair fc l (PImplicit _) r)
       = do l' <- desugarB side ps l
            r' <- desugarB side ps r
@@ -380,13 +380,13 @@ mutual
            rest' <- expandDo side ps topfc rest
            gam <- get Ctxt
            pure $ IApp fc (IApp fc (IVar fc (UN ">>=")) tm')
-                          (ILam fc RigW Explicit Nothing
+                          (ILam fc top Explicit Nothing
                                 (Implicit fc False) rest')
   expandDo side ps topfc (DoBind fc n tm :: rest)
       = do tm' <- desugar side ps tm
            rest' <- expandDo side ps topfc rest
            pure $ IApp fc (IApp fc (IVar fc (UN ">>=")) tm')
-                     (ILam fc RigW Explicit (Just n)
+                     (ILam fc top Explicit (Just n)
                            (Implicit fc False) rest')
   expandDo side ps topfc (DoBindPat fc pat exp alts :: rest)
       = do pat' <- desugar LHS ps pat
@@ -396,7 +396,7 @@ mutual
            let ps' = newps ++ ps
            rest' <- expandDo side ps' topfc rest
            pure $ IApp fc (IApp fc (IVar fc (UN ">>=")) exp')
-                    (ILam fc RigW Explicit (Just (MN "_" 0))
+                    (ILam fc top Explicit (Just (MN "_" 0))
                           (Implicit fc False)
                           (ICase fc (IVar fc (MN "_" 0))
                                (Implicit fc False)
@@ -600,7 +600,7 @@ mutual
           isTotalityOption : FnOpt -> Bool
           isTotalityOption (Totality _) = True
           isTotalityOption _            = False
-          
+
   desugarDecl ps (PDef fc clauses)
   -- The clauses won't necessarily all be from the same function, so split
   -- after desugaring, by function name, using collectDefs from RawImp
@@ -660,7 +660,7 @@ mutual
            -- Look for bindable names in all the constraints and parameters
            let mnames = map dropNS (definedIn body)
            let bnames = if !isUnboundImplicits
-                        then 
+                        then
                         concatMap (findBindableNames True
                                       (ps ++ mnames ++ map fst params) [])
                                   (map snd cons') ++
@@ -700,7 +700,7 @@ mutual
            let _ = the (List RawImp) params'
            -- Look for bindable names in all the constraints and parameters
            let bnames = if !isUnboundImplicits
-                        then  
+                        then
                         concatMap (findBindableNames True ps []) (map snd cons') ++
                         concatMap (findBindableNames True ps []) params'
                         else []
@@ -720,7 +720,7 @@ mutual
                                                 body')]
 
   desugarDecl ps (PRecord fc vis tn params conname_in fields)
-      = do params' <- traverse (\ (n,c,p,tm) => 
+      = do params' <- traverse (\ (n,c,p,tm) =>
                           do tm' <- desugar AnyExpr ps tm
                              p'  <- mapDesugarPiInfo ps p
                              pure (n, c, p', tm'))
@@ -755,16 +755,16 @@ mutual
       mkConName : Name -> Name
       mkConName (NS ns (UN n)) = NS ns (DN n (MN ("__mk" ++ n) 0))
       mkConName n = DN (show n) (MN ("__mk" ++ show n) 0)
-      
-      mapDesugarPiInfo : {auto s : Ref Syn SyntaxInfo} -> {auto c : Ref Ctxt Defs} 
-                  -> {auto u : Ref UST UState} -> {auto m : Ref MD Metadata} 
+
+      mapDesugarPiInfo : {auto s : Ref Syn SyntaxInfo} -> {auto c : Ref Ctxt Defs}
+                  -> {auto u : Ref UST UState} -> {auto m : Ref MD Metadata}
                   -> List Name -> PiInfo PTerm -> Core (PiInfo RawImp)
       mapDesugarPiInfo ps Implicit         = pure   Implicit
       mapDesugarPiInfo ps Explicit         = pure   Explicit
       mapDesugarPiInfo ps AutoImplicit     = pure   AutoImplicit
-      mapDesugarPiInfo ps (DefImplicit tm) = pure $ DefImplicit 
+      mapDesugarPiInfo ps (DefImplicit tm) = pure $ DefImplicit
                                                   !(desugar AnyExpr ps tm)
-  
+
 
   desugarDecl ps (PFixity fc Prefix prec (UN n))
       = do syn <- get Syn
@@ -792,7 +792,7 @@ mutual
              Hide n => pure [IPragma (\c, nest, env => hide fc n)]
              Logging i => pure [ILog i]
              LazyOn a => pure [IPragma (\c, nest, env => lazyActive a)]
-             UnboundImplicits a => do 
+             UnboundImplicits a => do
                setUnboundImplicits a
                pure [IPragma (\c, nest, env => setUnboundImplicits a)]
              AmbigDepth n => pure [IPragma (\c, nest, env => setAmbigLimit n)]

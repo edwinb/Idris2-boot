@@ -80,9 +80,10 @@ isHole def
            _ => Nothing
 
 showCount : RigCount -> String
-showCount Rig0 = " 0 "
-showCount Rig1 = " 1 "
-showCount RigW = "   "
+showCount = elimSemi
+                 " 0 "
+                 " 1 "
+                 (const "   ")
 
 impBracket : Bool -> String -> String
 impBracket False str = str
@@ -106,7 +107,7 @@ showEnv defs env fn (S args) (Bind fc x (Let c val ty) sc)
 showEnv defs env fn (S args) (Bind fc x b sc)
     = do ity <- resugar env !(normalise defs env (binderType b))
          let pre = if showName x
-                      then showCount (multiplicity b) ++
+                      then REPL.showCount (multiplicity b) ++
                            impBracket (implicitBind b) (tidy x ++ " : " ++ show ity) ++ "\n"
                       else ""
          (envstr, ret) <- showEnv defs (b :: env) fn args sc
@@ -500,7 +501,7 @@ execExp ctm
          inidx <- resolveName (UN "[input]")
          (tm, ty) <- elabTerm inidx InExpr [] (MkNested [])
                                  [] ttimp Nothing
-         tm_erased <- linearCheck replFC Rig1 True [] tm
+         tm_erased <- linearCheck replFC linear True [] tm
          execute !findCG tm_erased
          pure $ Executed ctm
 
@@ -517,7 +518,7 @@ compileExp ctm outfile
          ttimp <- desugar AnyExpr [] (PApp replFC (PRef replFC (UN "unsafePerformIO")) ctm)
          (tm, gty) <- elabTerm inidx InExpr [] (MkNested [])
                                [] ttimp Nothing
-         tm_erased <- linearCheck replFC Rig1 True [] tm
+         tm_erased <- linearCheck replFC linear True [] tm
          ok <- compile !findCG tm_erased outfile
          maybe (pure CompilationFailed)
                (pure . Compiled)
@@ -647,7 +648,7 @@ process (ProofSearch n_in)
          [(n, i, ty)] <- lookupTyName n_in (gamma defs)
               | [] => throw (UndefinedName replFC n_in)
               | ns => throw (AmbiguousName replFC (map fst ns))
-         tm <- search replFC RigW False 1000 n ty []
+         tm <- search replFC top False 1000 n ty []
          itm <- resugar [] !(normaliseHoles defs [] tm)
          pure $ ProofFound itm
 process (Missing n)

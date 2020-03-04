@@ -281,9 +281,9 @@ doubleTy = predTy DoubleType DoubleType
 
 believeMeTy : ClosedTerm
 believeMeTy
-    = Bind emptyFC (UN "a") (Pi Rig0 Explicit (TType emptyFC)) $
-      Bind emptyFC (UN "b") (Pi Rig0 Explicit (TType emptyFC)) $
-      Bind emptyFC (UN "x") (Pi RigW Explicit (Local emptyFC Nothing _ (Later First))) $
+    = Bind emptyFC (UN "a") (Pi erased Explicit (TType emptyFC)) $
+      Bind emptyFC (UN "b") (Pi erased Explicit (TType emptyFC)) $
+      Bind emptyFC (UN "x") (Pi top Explicit (Local emptyFC Nothing _ (Later First))) $
       Local emptyFC Nothing _ (Later First)
 
 castTo : Constant -> Vect 1 (NF vars) -> Maybe (NF vars)
