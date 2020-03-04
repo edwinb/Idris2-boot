@@ -1747,11 +1747,8 @@ setWorkingDir dir
          put Ctxt (record { options->dirs->working_dir = cdir } defs)
 
 export
-getWorkingDir : {auto c : Ref Ctxt Defs} -> Core String
-getWorkingDir
-    = do defs <- get Ctxt
-         cdir <- coreLift $ currentDir
-         pure cdir
+getWorkingDir : Core String
+getWorkingDir = coreLift $ currentDir
 
 export
 setPrefix : {auto c : Ref Ctxt Defs} -> String -> Core ()
