@@ -157,7 +157,8 @@ schOp BelieveMe [_,_,x] = x
 
 ||| Extended primitives for the scheme backend, outside the standard set of primFn
 public export
-data ExtPrim = CCall | SchemeCall | PutStr | GetStr
+data ExtPrim = CCall | SchemeCall
+             | PutStr | GetStr | PutChar | GetChar
              | FileOpen | FileClose | FileReadLine | FileWriteLine | FileEOF
              | NewIORef | ReadIORef | WriteIORef
              | NewArray | ArrayGet | ArraySet
@@ -173,6 +174,8 @@ Show ExtPrim where
   show SchemeCall = "SchemeCall"
   show PutStr = "PutStr"
   show GetStr = "GetStr"
+  show PutChar = "PutChar"
+  show GetChar = "GetChar"
   show FileOpen = "FileOpen"
   show FileClose = "FileClose"
   show FileReadLine = "FileReadLine"
@@ -201,6 +204,8 @@ toPrim pn@(NS _ n)
             (n == UN "prim__cCall", CCall),
             (n == UN "prim__putStr", PutStr),
             (n == UN "prim__getStr", GetStr),
+            (n == UN "prim__putChar", PutChar),
+            (n == UN "prim__getChar", GetChar),
             (n == UN "prim__open", FileOpen),
             (n == UN "prim__close", FileClose),
             (n == UN "prim__readLine", FileReadLine),
@@ -341,6 +346,10 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
       = pure $ "(display " ++ !(schExp i vs arg) ++ ") " ++ mkWorld (schConstructor 0 []) -- code for MkUnit
   schExtCommon i vs GetStr [world]
       = pure $ mkWorld "(blodwen-get-line (current-input-port))"
+  schExtCommon i vs PutChar [arg, world]
+      = pure $ "(display " ++ !(schExp i vs arg) ++ ") " ++ mkWorld (schConstructor 0 []) -- code for MkUnit
+  schExtCommon i vs GetChar [world]
+      = pure $ mkWorld "(blodwen-get-char (current-input-port))"
   schExtCommon i vs FileOpen [file, mode, bin, world]
       = pure $ mkWorld $ fileOp $ "(blodwen-open "
                                       ++ !(schExp i vs file) ++ " "

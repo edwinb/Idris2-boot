@@ -14,8 +14,8 @@
 (define blodwen-or (lambda (x y) (bitwise-ior x y)))
 (define blodwen-xor (lambda (x y) (bitwise-xor x y)))
 
-(define cast-num 
-  (lambda (x) 
+(define cast-num
+  (lambda (x)
     (if (number? x) x 0)))
 (define destroy-prefix
   (lambda (x)
@@ -30,14 +30,14 @@
 (define get-tag (lambda (x) (vector-ref x 0)))
 (define string-reverse (lambda (x)
   (list->string (reverse (string->list x)))))
-(define (string-substr off len s) 
+(define (string-substr off len s)
     (let* ((l (string-length s))
           (b (max 0 off))
           (x (max 0 len))
           (end (min l (+ b x))))
           (substring s b end)))
 
-(define either-left 
+(define either-left
   (lambda (x)
     (vector 0 #f #f x)))
 
@@ -111,10 +111,10 @@
 ;; Files : Much of the following adapted from idris-chez, thanks to Niklas
 ;; Larsson
 
-;; All the file operations are implemented as primitives which return 
+;; All the file operations are implemented as primitives which return
 ;; Either Int x, where the Int is an error code
 (define (blodwen-error-code x)
-    (cond 
+    (cond
         ((eq? x (lookup-errno 'ENOENT)) 3)
         ((eq? x (lookup-errno 'EACCES)) 4)
         ((eq? x (lookup-errno 'EEXIST)) 5)
@@ -123,11 +123,11 @@
 ;; If the file operation raises an error, catch it and return an appropriate
 ;; error code
 (define (blodwen-file-op op)
-  (with-handlers 
+  (with-handlers
        ([exn:fail:filesystem:errno?
           (lambda (exn) (either-left (blodwen-error-code
                                 (car (exn:fail:filesystem:errno-errno exn)))))]
-        [exn:fail:filesystem? 
+        [exn:fail:filesystem?
           (lambda (exn) (either-left 255))]
         )
       (either-right (op))))
@@ -139,7 +139,7 @@
 (define (blodwen-open file mode bin)
     (define tc (if (= bin 1) #f (make-transcoder (utf-8-codec))))
     (define bm (buffer-mode line))
-    (case mode 
+    (case mode
         (("r") (open-file-input-port file (file-options) bm tc))
         (("w") (open-file-output-port file (file-options no-fail) bm tc))
         (("wx") (open-file-output-port file (file-options) bm tc))
@@ -152,7 +152,7 @@
 
 
 (define (blodwen-close-port p)
-    (cond 
+    (cond
       ((input-port? p) (close-input-port p))
       ((output-port? p) (close-output-port p))))
 
@@ -162,6 +162,14 @@
             (if (eof-object? str)
                 ""
                 (string-append str "\n")))
+        void))
+
+(define (blodwen-get-char p)
+    (if (port? p)
+        (let ((char (read-char p)))
+            (if (eof-object? char)
+                #\nul
+                char))
         void))
 
 (define (blodwen-eof p)
@@ -235,6 +243,6 @@
     (if (null? args)
         (vector 0 '())
         (vector 1 '() (car args) (blodwen-build-args (cdr args)))))
-    (blodwen-build-args 
+    (blodwen-build-args
       (cons (path->string (find-system-path 'run-file))
             (vector->list (current-command-line-arguments)))))
