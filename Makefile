@@ -27,7 +27,7 @@ endif
 IDRIS2_VERSION := ${MAJOR}.${MINOR}.${PATCH}
 IDRIS2_VERSION_TAG := ${IDRIS2_VERSION}${VER_TAG}
 
-export IDRIS2_PATH = ${CURDIR}/libs/prelude/build/ttc:${CURDIR}/libs/base/build/ttc
+export IDRIS2_PATH = ${CURDIR}/libs/prelude/build/ttc:${CURDIR}/libs/base/build/ttc:${CURDIR}/libs/network/build/ttc
 export IDRIS2_DATA = ${CURDIR}/support
 
 IDRIS_VERSION := $(shell idris --version)
