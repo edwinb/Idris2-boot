@@ -8,11 +8,11 @@
 /idris2
 /runtests
 
-dist/idris2.c
+/dist/idris2.c
 
-docs/_build/
+/docs/_build/
 
-libs/**/build
-tests/**/output
+/libs/**/build
+/tests/**/output
 
-src/YafflePaths.idr
+/src/YafflePaths.idr

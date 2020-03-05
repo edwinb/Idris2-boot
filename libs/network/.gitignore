@@ -1,5 +1,5 @@
 
-network-tests
+/network-tests
 
 *.o
 *.so
