@@ -3,7 +3,6 @@
 *.ipkg
 Makefile
 config.mk
-lib-tests
 expected
 input
 run

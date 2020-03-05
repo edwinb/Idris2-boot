@@ -50,7 +50,6 @@ test: build test.c
 	$(CC) -o network-tests -L. -I. test.c $(DYLIBTARGET)
 	LD_LIBRARY_PATH=. ./network-tests
 	@rm -f ./network-tests
-	./lib-tests
 
 $(OBJS): $(HDRS)
 
