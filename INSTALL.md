@@ -1,8 +1,31 @@
 # Installation
 
-Idris 2 is built using Idris, and provides support for three default code
-generation targets: Chez, Chicken, and Racket.  It requires at least Idris
-version 1.3.2 (see https://www.idris-lang.org/download)
+Idris 2 is built using Idris, and provides support for two default code
+generation targets: Chez Scheme, and Racket. To build from source, it requires
+at least Idris version 1.3.2 (see https://www.idris-lang.org/download). You
+can also build from the generated C.
+
+## Quick summary:
+
+You need a C compiler (default is clang) and Chez Scheme, and optionally
+Idris 1.3.2 to build from source.
+
+* If you have Idris 1.3.2 installed:
+
+    make install
+
+* If not, and the generated C is available in `dist`, you can install directly
+  from the generated C:
+
+    make install-fromc
+
+The generated C is available in source distributions. It will not be available
+if you have cloned directly from https://github.com/edwinb/Idris2
+
+The above commands will build the executable, build the libraries, run the
+tests (if Idris 1 is available), then if all is well, install everything. The
+default installation directory is `$HOME/.idris2`. You can change this by
+setting the `PREFIX` variable in the `Makefile`.
 
 ## Idris
 

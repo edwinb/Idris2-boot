@@ -1,0 +1,15 @@
+*.idr
+*.yaff
+*.ipkg
+Makefile
+config.mk
+lib-tests
+expected
+input
+run
+*.c
+*.h
+*.rst
+*.py
+*.md
+*.bat

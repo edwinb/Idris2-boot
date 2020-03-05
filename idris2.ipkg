@@ -126,11 +126,8 @@ modules =
     Yaffle.REPL
 
 sourcedir = src
-executable = idris2
--- opts = "--cg-opt -O2 --partial-eval"
--- opts = "--cg-opt -pg --partial-eval"
-opts = "--partial-eval"
--- opts = "--partial-eval --cg-opt -lws2_32" -- windows
+executable = idris2.c
+opts = "--partial-eval -S"
 
 main = Idris.Main
 

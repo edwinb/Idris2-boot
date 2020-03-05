@@ -38,7 +38,8 @@ readDataFile fname
     = do d <- getDirs
          let fs = map (\p => p ++ dirSep ++ fname) (data_dirs d)
          Just f <- firstAvailable fs
-            | Nothing => throw (InternalError ("Can't find data file " ++ fname))
+            | Nothing => throw (InternalError ("Can't find data file " ++ fname ++
+                                               " in any of " ++ show fs))
          Right d <- coreLift $ readFile f
             | Left err => throw (FileErr f err)
          pure d

@@ -32,6 +32,9 @@ import YafflePaths
 %default covering
 %flag C "-g"
 
+yprefix : String
+yprefix = unsafePerformIO (foreign FFI_C "getIdris2_prefix" (IO String))
+
 findInput : List CLOpt -> Maybe String
 findInput [] = Nothing
 findInput (InputFile f :: fs) = Just f
@@ -42,8 +45,10 @@ findInput (_ :: fs) = findInput fs
 updatePaths : {auto c : Ref Ctxt Defs} ->
               Core ()
 updatePaths
-    = do setPrefix yprefix
-         defs <- get Ctxt
+    = do bprefix <- coreLift $ getEnv "IDRIS2_PREFIX"
+         case bprefix of
+              Just p => setPrefix p
+              Nothing => setPrefix yprefix
          bpath <- coreLift $ getEnv "IDRIS2_PATH"
          case bpath of
               Just path => do traverse addExtraDir (map trim (split (==pathSep) path))
@@ -63,6 +68,7 @@ updatePaths
          -- any conflicts. In particular, that means that setting IDRIS2_PATH
          -- for the tests means they test the local version not the installed
          -- version
+         defs <- get Ctxt
          addPkgDir "prelude"
          addPkgDir "base"
          addDataDir (dir_prefix (dirs (options defs)) ++ dirSep ++
