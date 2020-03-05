@@ -262,6 +262,7 @@ pruneByType env target alts
                 -- if there's any concrete matches, drop the non-concrete
                 -- matches marked as '%allow_overloads' from the possible set
                    then do keep <- filterCore (notOverloadable defs) matches
+                           log 10 $ "Keep " ++ show keep
                            pure (map snd keep)
                    else pure (map snd matches)
          if isNil res

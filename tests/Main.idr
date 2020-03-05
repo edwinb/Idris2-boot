@@ -72,7 +72,7 @@ idrisTests
        -- Records, access and dependent update
        "record001", "record002",
        -- Miscellaneous regressions
-       "reg001", "reg002", "reg003", "reg004", "reg005",
+       "reg001", "reg002", "reg003", "reg004", "reg005", "reg006",
        -- Totality checking
        "total001", "total002", "total003", "total004", "total005",
        "total006",

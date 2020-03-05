@@ -562,6 +562,7 @@ getFn (IApp _ f arg) = getFn f
 getFn (IWithApp _ f arg) = getFn f
 getFn (IImplicitApp _ f _ _) = getFn f
 getFn (IAs _ _ _ f) = getFn f
+getFn (IMustUnify _ _ f) = getFn f
 getFn f = f
 
 -- Everything below is TTC instances
