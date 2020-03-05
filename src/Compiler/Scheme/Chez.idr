@@ -19,14 +19,20 @@ import System.Info
 
 %default covering
 
+
+pathLookup : IO String
+pathLookup
+    = do path <- getEnv "PATH"
+         let pathList = split (== ':') $ fromMaybe "/usr/bin:/usr/local/bin" path
+         let candidates = [p ++ "/" ++ x | p <- pathList,
+                                           x <- ["chez", "chezscheme9.5", "scheme"]]
+         e <- firstExists candidates
+         pure $ fromMaybe "/usr/bin/env scheme" e
+
 findChez : IO String
 findChez
-    = do env <- getEnv "CHEZ"
-         case env of
-            Just n => pure n
-            Nothing => do e <- firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
-                                    x <- ["chez", "chezscheme9.5", "scheme"]]
-                          pure $ fromMaybe "/usr/bin/env scheme" e
+    = do Just chez <- getEnv "CHEZ" | Nothing => pathLookup
+         pure chez
 
 -- Given the chez compiler directives, return a list of pairs of:
 --   - the library file name

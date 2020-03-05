@@ -145,13 +145,18 @@ firstExists : List String -> IO (Maybe String)
 firstExists [] = pure Nothing
 firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
 
+pathLookup : IO (Maybe String)
+pathLookup = do
+  path <- getEnv "PATH"
+  let pathList = split (== ':') $ fromMaybe "/usr/bin:/usr/local/bin" path
+  let candidates = [p ++ "/" ++ x | p <- pathList,
+                                    x <- ["chez", "chezscheme9.5", "scheme"]]
+  firstExists candidates
+
 findChez : IO (Maybe String)
 findChez
-    = do env <- getEnv "CHEZ"
-         case env of
-            Just n => pure $ Just n
-            Nothing => firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
-                                    x <- ["chez", "chezscheme9.5", "scheme"]]
+    = do Just chez <- getEnv "CHEZ" | Nothing => pathLookup
+         pure $ Just chez
 
 runChezTests : String -> List String -> IO (List Bool)
 runChezTests prog tests
