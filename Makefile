@@ -8,6 +8,12 @@ export CC=clang # clang compiles the output much faster than gcc!
 
 ##################################################################
 
+ifeq ($(shell uname -s), Darwin)
+	sed_edit_in_place:='-i ""'
+else
+	sed_edit_in_place:='-i'
+endif
+
 # current Idris2 version components
 MAJOR=0
 MINOR=0
@@ -54,7 +60,7 @@ idris2: dist/idris2.c idris2-fromc
 # (Also replaces the first line of the generated C with the proper prefix)
 #
 idris2-fromc:
-	sed -i '1 s|^.*$$|char* idris2_prefix = "${PREFIX}";|' dist/idris2.c
+	sed ${sed_edit_in_place} '1 s|^.*$$|char* idris2_prefix = "${PREFIX}";|' dist/idris2.c
 	make -C dist
 	@cp dist/idris2 ./idris2
 
