@@ -115,7 +115,7 @@ fnameModified : String -> Core Integer
 fnameModified fname
     = do Right f <- coreLift $ openFile fname Read
              | Left err => throw (FileErr fname err)
-         Right t <- coreLift $ fileModifiedTime f
+         Right t <- coreLift $ fileModifiedTime32 f
              | Left err => do coreLift $ closeFile f
                               throw (FileErr fname err)
          coreLift $ closeFile f

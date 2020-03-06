@@ -157,6 +157,24 @@ addPrelude imps
        then prelude :: imps
        else imps
 
+-- The Idris distributed versions don't work on 32 bit systems since they work
+-- with a signed number internally. Oops!
+-- Fix it here, since the fix in Idris makes the RTS incompatible with the
+-- one we're distributing separately here.
+do_getFileModifiedTime : Ptr -> IO Integer
+do_getFileModifiedTime h =
+   do vm <- getMyVM
+      MkRaw i <- foreign FFI_C "fileModifiedTime32" (Ptr -> Ptr -> IO (Raw Integer)) vm h
+      pure i
+
+export
+fileModifiedTime32 : File -> IO (Either FileError Integer)
+fileModifiedTime32 (FHandle h)
+    = do s <- do_getFileModifiedTime h
+         if (s == -1)
+            then Left <$> getFileError
+            else pure (Right s)
+
 -- Get a file's modified time. If it doesn't exist, return 0 (that is, it
 -- was last modified at the dawn of time so definitely out of date for
 -- rebuilding purposes...)
@@ -164,7 +182,7 @@ modTime : String -> Core Integer
 modTime fname
     = do Right f <- coreLift $ openFile fname Read
              | Left err => pure 0 -- Beginning of Time :)
-         Right t <- coreLift $ fileModifiedTime f
+         Right t <- coreLift $ fileModifiedTime32 f
              | Left err => do coreLift $ closeFile f
                               pure 0
          coreLift $ closeFile f

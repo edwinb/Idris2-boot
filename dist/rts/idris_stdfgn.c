@@ -86,6 +86,18 @@ VAL fileModifiedTime(void* h) {
     }
 }
 
+VAL fileModifiedTime32(VM* vm, void* h) {
+    FILE* f = (FILE*)h;
+    int fd = fileno(f);
+
+    struct stat buf;
+    if (fstat(fd, &buf) == 0) {
+        return MKBIGUI(vm, buf.st_mtime);
+    } else {
+        return MKBIGI(-1);
+    }
+}
+
 VAL fileStatusTime(void* h) {
     FILE* f = (FILE*)h;
     int fd = fileno(f);
