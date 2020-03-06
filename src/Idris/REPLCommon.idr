@@ -32,7 +32,7 @@ printWithStatus status msg
     = do opts <- get ROpts
          case idemode opts of
               REPL _ => coreLift $ putStrLn msg
-              _ => pure ()
+              _      => pure () -- this function should never be called in IDE Mode
 
 export
 printResult : {auto o : Ref ROpts REPLOpts} ->
