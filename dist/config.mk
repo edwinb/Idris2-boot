@@ -1,5 +1,5 @@
 RANLIB          ?=ranlib
-CFLAGS          :=-O2 -Wall -std=c99 -pipe -fdata-sections -ffunction-sections -D_POSIX_C_SOURCE=200809L -DHAS_PTHREAD $(CFLAGS)
+CFLAGS          :=-O2 -Wall -std=c99 -pipe -fdata-sections -ffunction-sections -D_POSIX_C_SOURCE=200809L $(CFLAGS)
 
 ifneq (, $(findstring bsd, $(MACHINE)))
 	GMP_INCLUDE_DIR      :=
