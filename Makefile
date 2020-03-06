@@ -13,13 +13,13 @@ MACHINE := $(shell $(CC) -dumpmachine)
 ifneq (, $(findstring darwin, $(MACHINE)))
 	OS := darwin
 else ifneq (, $(findstring cygwin, $(MACHINE)))
-        OS := windows
+	OS := windows
 else ifneq (, $(findstring mingw, $(MACHINE)))
-        OS := windows
+	OS := windows
 else ifneq (, $(findstring windows, $(MACHINE)))
-        OS := windows
+	OS := windows
 else
-        OS := unix
+	OS := unix
 endif
 
 # current Idris2 version components
