@@ -14,8 +14,8 @@
 (define blodwen-or (lambda (x y) (bitwise-or x y)))
 (define blodwen-xor (lambda (x y) (bitwise-xor x y)))
 
-(define cast-num 
-  (lambda (x) 
+(define cast-num
+  (lambda (x)
     (if (number? x) x 0)))
 (define destroy-prefix
   (lambda (x)
@@ -30,14 +30,14 @@
 (define get-tag (lambda (x) (vector-ref x 0)))
 (define string-reverse (lambda (x)
   (list->string (reverse (string->list x)))))
-(define (string-substr off len s) 
+(define (string-substr off len s)
     (let* ((l (string-length s))
           (b (max 0 off))
           (x (max 0 len))
           (end (min l (+ b x))))
           (substring s b end)))
 
-(define either-left 
+(define either-left
   (lambda (x)
     (vector 0 #f #f x)))
 
@@ -54,7 +54,7 @@
 ;; Files: Much of the following adapted from idris-chez, thanks to Niklas
 ;; Larsson
 
-;; All the file operations are implemented as primitives which return 
+;; All the file operations are implemented as primitives which return
 ;; Either Int x, where the Int is an error code
 
 ;; If the file operation raises an error, catch it and return an appropriate
@@ -72,13 +72,13 @@
     0)
 
 (define (blodwen-open file mode bin)
-    (cond 
+    (cond
         ((string=? mode "r") (open-input-file file))
         ((string=? mode "w") (open-output-file file))
         (else (abort "I haven't worked that one out yet, sorry..."))))
 
 (define (blodwen-close-port p)
-    (cond 
+    (cond
       ((input-port? p) (close-input-port p))
       ((output-port? p) (close-output-port p))))
 
@@ -88,6 +88,14 @@
             (if (eof-object? str)
                 ""
                 (string-append str "\n")))
+        void))
+
+(define (blodwen-get-char p)
+    (if (port? p)
+        (let ((char (read-char p)))
+            (if (eof-object? char)
+                #\nul
+                char))
         void))
 
 (define (blodwen-eof p)
@@ -112,7 +120,7 @@
 (define (blodwen-thisthread) (current-thread))
 
 (define (blodwen-condition) (make-condition-variable))
-(define (blodwen-condition-wait c m) 
+(define (blodwen-condition-wait c m)
   (mutex-unlock! m c)
   (mutex-lock! m)) ;; lock again, for consistency with other CGs
 (define (blodwen-condition-wait-timeout c m t) (mutex-unlock! m c t))

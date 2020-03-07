@@ -14,8 +14,8 @@
 (define blodwen-or (lambda (x y) (logor x y)))
 (define blodwen-xor (lambda (x y) (logxor x y)))
 
-(define cast-num 
-  (lambda (x) 
+(define cast-num
+  (lambda (x)
     (if (number? x) x 0)))
 (define destroy-prefix
   (lambda (x)
@@ -30,14 +30,14 @@
 (define get-tag (lambda (x) (vector-ref x 0)))
 (define string-reverse (lambda (x)
   (list->string (reverse (string->list x)))))
-(define (string-substr off len s) 
+(define (string-substr off len s)
     (let* ((l (string-length s))
           (b (max 0 off))
           (x (max 0 len))
           (end (min l (+ b x))))
           (substring s b end)))
 
-(define either-left 
+(define either-left
   (lambda (x)
     (vector 0 #f #f x)))
 
@@ -109,10 +109,10 @@
 ;; Files: Much of the following adapted from idris-chez, thanks to Niklas
 ;; Larsson
 
-;; All the file operations are implemented as primitives which return 
+;; All the file operations are implemented as primitives which return
 ;; Either Int x, where the Int is an error code:
 (define (blodwen-error-code x)
-    (cond 
+    (cond
         ((i/o-read-error? x) 1)
         ((i/o-write-error? x) 2)
         ((i/o-file-does-not-exist-error? x) 3)
@@ -136,7 +136,7 @@
 (define (blodwen-open file mode bin)
     (define tc (if (= bin 1) #f (make-transcoder (utf-8-codec))))
     (define bm (buffer-mode line))
-    (case mode 
+    (case mode
         (("r") (open-file-input-port file (file-options) bm tc))
         (("w") (open-file-output-port file (file-options no-fail) bm tc))
         (("wx") (open-file-output-port file (file-options) bm tc))
@@ -151,10 +151,15 @@
     (when (port? p) (close-port p)))
 
 (define (blodwen-get-line p)
-    (if (and (port? p) (not (port-eof? p))) 
+    (if (and (port? p) (not (port-eof? p)))
         (let ((str (get-line p)))
             (string-append str "\n"))
         ""))
+
+(define (blodwen-get-char p)
+    (if (and (port? p) (not (port-eof? p)))
+        (get-char p)
+        #\nul))
 
 (define (blodwen-file-size p)
     (port-length p))
@@ -216,7 +221,7 @@
 (define (blodwen-condition-broadcast c) (condition-broadcast c))
 
 (define (blodwen-sleep s) (sleep (make-time 'time-duration 0 s)))
-(define (blodwen-usleep s) 
+(define (blodwen-usleep s)
   (let ((sec (div s 1000000))
         (micro (mod s 1000000)))
        (sleep (make-time 'time-duration (* 1000 micro) sec))))

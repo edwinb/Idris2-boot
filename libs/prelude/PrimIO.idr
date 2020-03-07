@@ -36,6 +36,8 @@ io_bind (MkIO fn)
 
 %extern prim__putStr : String -> (1 x : %World) -> IORes ()
 %extern prim__getStr : (1 x : %World) -> IORes String
+%extern prim__putChar : Char -> (1 x : %World) -> IORes ()
+%extern prim__getChar : (1 x : %World) -> IORes Char
 
 -- A pointer representing a given parameter type
 -- The parameter is a phantom type, to help differentiate between
@@ -76,17 +78,35 @@ export %inline
 cCall : (ret : Type) -> String -> FArgList -> IO ret
 cCall ret fn args = primIO (prim__cCall ret fn args)
 
+||| Output a string to stdout without a trailing newline
 export
 putStr : String -> IO ()
 putStr str = primIO (prim__putStr str)
 
+||| Output a string to stdout with a trailing newline
 export
 putStrLn : String -> IO ()
 putStrLn str = putStr (prim__strAppend str "\n")
 
+||| Read one line of input from stdin, without the trailing newline
 export
 getLine : IO String
 getLine = primIO prim__getStr
+
+||| Write a single character to stdout
+export
+putChar : Char -> IO ()
+putChar c = primIO (prim__putChar c)
+
+||| Write a single character to stdout, with a trailing newline
+export
+putCharLn : Char -> IO ()
+putCharLn c = putStrLn (prim__cast_CharString c)
+
+||| Read a single character from stdin
+export
+getChar : IO Char
+getChar = primIO prim__getChar
 
 export
 fork : (1 prog : IO ()) -> IO ThreadID
@@ -94,7 +114,7 @@ fork (MkIO act) = schemeCall ThreadID "blodwen-thread" [act]
 
 export
 prim_fork : (1 prog : PrimIO ()) -> PrimIO ThreadID
-prim_fork act w = prim__schemeCall ThreadID "blodwen-thread" [act] w 
+prim_fork act w = prim__schemeCall ThreadID "blodwen-thread" [act] w
 
 unsafeCreateWorld : (1 f : (1 x : %World) -> a) -> a
 unsafeCreateWorld f = f %MkWorld
