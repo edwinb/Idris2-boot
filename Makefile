@@ -8,6 +8,20 @@ export CC=clang # clang compiles the output much faster than gcc!
 
 ##################################################################
 
+MACHINE := $(shell $(CC) -dumpmachine)
+
+ifneq (, $(findstring darwin, $(MACHINE)))
+	OS := darwin
+else ifneq (, $(findstring cygwin, $(MACHINE)))
+	OS := windows
+else ifneq (, $(findstring mingw, $(MACHINE)))
+	OS := windows
+else ifneq (, $(findstring windows, $(MACHINE)))
+	OS := windows
+else
+	OS := unix
+endif
+
 # current Idris2 version components
 MAJOR=0
 MINOR=0
@@ -54,7 +68,11 @@ idris2: dist/idris2.c idris2-fromc
 # (Also replaces the first line of the generated C with the proper prefix)
 #
 idris2-fromc:
-	sed -i '1 s|^.*$$|char* idris2_prefix = "${PREFIX}";|' dist/idris2.c
+ifeq ($(OS), darwin)
+	@sed -i '' '1 s|^.*$$|char* idris2_prefix = "${PREFIX}";|' dist/idris2.c
+else
+	@sed -i '1 s|^.*$$|char* idris2_prefix = "${PREFIX}";|' dist/idris2.c
+endif
 	make -C dist
 	@cp dist/idris2 ./idris2
 
