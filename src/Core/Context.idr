@@ -1747,6 +1747,10 @@ setWorkingDir dir
          put Ctxt (record { options->dirs->working_dir = cdir } defs)
 
 export
+getWorkingDir : Core String
+getWorkingDir = coreLift $ currentDir
+
+export
 setPrefix : {auto c : Ref Ctxt Defs} -> String -> Core ()
 setPrefix dir
     = do defs <- get Ctxt
@@ -2105,4 +2109,3 @@ logTime : {auto c : Ref Ctxt Defs} ->
 logTime str act
     = do opts <- getSession
          logTimeWhen (logTimings opts) str act
-

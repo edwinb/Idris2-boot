@@ -95,6 +95,7 @@ makeIDECommand (Check term)           = Right $ TypeOf (show term) Nothing
 makeIDECommand (Load file)            = Right $ LoadFile file Nothing
 makeIDECommand (Editing (TypeAt line col name)) = Right $ TypeOf (show name) (Just (cast line, cast col))
 makeIDECommand (CD x) = Right $ Interpret (":cd " ++ x)
+makeIDECommand CWD = Right $ Interpret ":cwd"
 makeIDECommand ShowVersion = Right Version
 makeIDECommand _ = Left $ "Don't know how to interpret command"
 -- makeIDECommand (Editing (CaseSplit x y z)) = ?makeIDECommand_rhs_1
