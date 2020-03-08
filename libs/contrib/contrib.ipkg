@@ -8,4 +8,6 @@ modules = Syntax.WithProof,
           Text.Quantity,
           Control.Delayed,
           Text.Parser,
-          Text.Lexer
+          Text.Lexer,
+          Text.Parser.Core,
+          Text.Lexer.Core
