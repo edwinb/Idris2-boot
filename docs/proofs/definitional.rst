@@ -141,17 +141,17 @@ Definitional and Propositional Equalities
 We have seen that  we can 'prove' a type by finding a way to construct a term.
 In the case of equality types there is only one constructor which is ``Refl``.
 We have also seen that each side of the equation does not have to be identical
-like '2=2'. It is enough that both sides are *definitionaly equal* like this:
+like '2=2'. It is enough that both sides are *definitionally equal* like this:
 
 .. code-block:: idris
 
    onePlusOne : 1+1=2
    onePlusOne = Refl
 
-Both sides of this equation nomalise to 2 and so Refl matches and the
+Both sides of this equation normalise to 2 and so Refl matches and the
 proposition is proved.
 
-We don't have to stick to terms, we can also use symbolic parameters so the
+We don't have to stick to terms; we can also use symbolic parameters so the
 following type checks:
 
 .. code-block:: idris
@@ -159,15 +159,15 @@ following type checks:
    varIdentity : m = m
    varIdentity = Refl
 
-If a proposition/equality type is not definitionaly equal but is still true
-then it is *propositionaly equal*. In this case we may still be able to prove
+If a proposition/equality type is not definitionally equal but is still true
+then it is *propositionally equal*. In this case we may still be able to prove
 it but some steps in the proof may require us to add something into the terms
 or at least to take some sideways steps to get to a proof.
 
 Especially when working with equalities containing variable terms (inside
 functions) it can be hard to know which equality types are definitionally equal,
 in this example ``plusReducesL`` is *definitionally equal* but ``plusReducesR`` is
-not (although it is *propositionaly equal*). The only difference between
+not (although it is *propositionally equal*). The only difference between
 them is the order of the operands.
 
 .. code-block:: idris
@@ -207,4 +207,4 @@ definitional equality is built in
     Main> 1+1
     2
 
-In the following pages we discuss how to resolve propositionaly equalies.
+In the following pages we discuss how to resolve propositional equalities.
