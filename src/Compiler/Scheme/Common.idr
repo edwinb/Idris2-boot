@@ -237,7 +237,10 @@ schConstant : (String -> String) -> Constant -> String
 schConstant _ (I x) = show x
 schConstant _ (BI x) = show x
 schConstant schString (Str x) = schString x
-schConstant _ (Ch x) = "#\\" ++ cast x
+schConstant _ (Ch x)
+   = if (the Int (cast x) >= 32 && the Int (cast x) < 127)
+        then "#\\" ++ cast x
+        else "(integer->char " ++ show (the Int (cast x)) ++ ")"
 schConstant _ (Db x) = show x
 schConstant _ WorldVal = "#f"
 schConstant _ IntType = "#t"

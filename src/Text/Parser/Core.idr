@@ -31,7 +31,7 @@ data Grammar : (tok : Type) -> (consumes : Bool) -> Type -> Type where
                 Grammar tok c1 a -> (a -> Grammar tok c2 b) ->
                 Grammar tok (c1 || c2) b
      Alt : {c1, c2 : Bool} ->
-           Grammar tok c1 ty -> Grammar tok c2 ty ->
+           Grammar tok c1 ty -> Lazy (Grammar tok c2 ty) ->
            Grammar tok (c1 && c2) ty
 
 ||| Sequence two grammars. If either consumes some input, the sequence is
@@ -69,7 +69,7 @@ join {c1 = True} p = SeqEat p id
 export
 (<|>) : {c1,c2 : Bool} -> 
         Grammar tok c1 ty ->
-        Grammar tok c2 ty ->
+        Lazy (Grammar tok c2 ty) ->
         Grammar tok (c1 && c2) ty
 (<|>) = Alt
 

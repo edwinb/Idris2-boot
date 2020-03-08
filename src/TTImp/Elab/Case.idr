@@ -202,7 +202,6 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
                    = maybe (App fc applyEnv scrtm)
                            (const applyEnv)
                            splitOn
-         setFlag fc casen Inline
 
          let alts' = map (updateClause casen splitOn nest env) alts
          log 2 $ "Generated alts: " ++ show alts'
