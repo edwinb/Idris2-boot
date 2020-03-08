@@ -86,16 +86,16 @@ export
 export
 (<*>) : {c1, c2 : _} ->
         Grammar tok c1 (a -> b) ->
-        Grammar tok c2 a ->
+        Lazy (Grammar tok c2 a) ->
         Grammar tok (c1 || c2) b
-(<*>) x y = SeqEmpty x (\f => map f y)
+(<*>) x y = SeqEmpty x (\f => map f (Force y))
 
 ||| Sequence two grammars. If both succeed, use the value of the first one.
 ||| Guaranteed to consume if either grammar consumes.
 export
 (<*) : {c1, c2 : _} ->
        Grammar tok c1 a ->
-       Grammar tok c2 b ->
+       Lazy (Grammar tok c2 b) ->
        Grammar tok (c1 || c2) a
 (<*) x y = map const x <*> y
 
@@ -104,7 +104,7 @@ export
 export
 (*>) : {c1, c2 : _} ->
        Grammar tok c1 a ->
-       Grammar tok c2 b ->
+       Lazy (Grammar tok c2 b) ->
        Grammar tok (c1 || c2) b
 (*>) x y = map (const id) x <*> y
 
