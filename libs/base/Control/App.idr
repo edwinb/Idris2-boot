@@ -67,7 +67,7 @@ prim_app_bind : (1 act : PrimApp a) -> (1 k : a -> PrimApp b) -> PrimApp b
 prim_app_bind fn k w
     = let MkAppRes x' w' = fn w in k x' w'
 
-toPrimApp : IO a -> PrimApp a
+toPrimApp : (1 act : IO a) -> PrimApp a
 toPrimApp x 
     = \w => case toPrim x w of
                  MkIORes r w => MkAppRes r w
@@ -123,6 +123,9 @@ bindApp1 {u=Any} (MkApp1 fn)
 
 absurdWith1 : (1 w : b) -> OneOf e NoThrow -> any
 absurdWith1 w (First p) impossible
+
+absurdWithVoid : (1 w : b) -> OneOf [Void] t -> any
+absurdWithVoid w (First p) impossible
 
 absurdWith2 : (1 x : a) -> (1 w : b) -> OneOf e NoThrow -> any
 absurdWith2 x w (First p) impossible
@@ -207,20 +210,21 @@ get tag @{MkState r}
           MkAppRes (Right val)
 
 export
-put : (0 tag : _) -> State tag t e => t -> App {l} e ()
+put : (0 tag : _) -> State tag t e => (1 val : t) -> App {l} e ()
 put tag @{MkState r} val
     = MkApp $
           prim_app_bind (toPrimApp $ writeIORef r val) $ \val =>
           MkAppRes (Right ())
 
 export
-modify : (0 tag : _) -> State tag t e => (t -> t) -> App {l} e ()
+modify : (0 tag : _) -> State tag t e => (1 p : t -> t) -> App {l} e ()
 modify tag f
-    = do x <- get tag
-         put tag (f x)
+    = let (>>=) = bindL in
+          do x <- get tag
+             put tag (f x)
 
 export
-new : t -> (State tag t e => App {l} e a) -> App {l} e a
+new : t -> (1 p : State tag t e => App {l} e a) -> App {l} e a
 new val prog
     = MkApp $
          prim_app_bind (toPrimApp $ newIORef val) $ \ref =>
@@ -297,6 +301,14 @@ run (MkApp prog)
                         Right res => MkAppRes res
                         Left (First err) => absurd err) w of
                 MkAppRes r w => MkIORes r w
+
+export
+noThrow : App Init a -> App Init {l=NoThrow} a
+noThrow (MkApp prog)
+    = MkApp $ \w =>
+              case prog w of
+                   MkAppRes (Left err) w => absurdWithVoid w err
+                   MkAppRes (Right res) w => MkAppRes (Right res) w
 
 public export
 interface PrimIO e where
