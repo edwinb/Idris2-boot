@@ -83,6 +83,11 @@ toPrimApp1 x
                           One => MkApp1Res1 r w
                           Any => MkApp1ResW r w
 
+prim_app1_bind : (1 act : PrimApp1 Any a) ->
+                 (1 k : a -> PrimApp1 u b) -> PrimApp1 u b
+prim_app1_bind fn k w
+    = let MkApp1ResW x' w' = fn w in k x' w'
+
 export
 data App : {default MayThrow l : Path} ->
            (es : List Error) -> Type -> Type where
@@ -337,6 +342,14 @@ HasErr Void e => PrimIO e where
                MkAppRes (Right ())
 
 infix 5 @@
+
+export
+new1 :  t -> (1 p : State tag t e => App1 {u} e a) -> App1 {u} e a
+new1 val prog
+    = MkApp1 $ prim_app1_bind (toPrimApp1 $ newIORef val) $ \ref =>
+        let st = MkState ref
+            MkApp1 res = prog @{st} in
+            res
 
 public export
 data Res : (a : Type) -> (a -> Type) -> Type where
