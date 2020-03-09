@@ -588,7 +588,7 @@ mutual
                 c' = case u of
                           Use0 => Rig0
                           Use1 => Rig1 -- ignore usage elsewhere, we checked here
-                          UseUnknown => Rig0 -- don't know, need to update hole types
+                          UseUnknown => c -- don't know, assumed unchanged and update hole types
                           UseKeep => c -- matched here, so count usage elsewhere
                           UseAny => c in -- no constraint, so leave alone
                 Bind bfc n (Pi c' e ty) sc'

@@ -158,13 +158,6 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
          -- Update environment so that linear bindings which were used
          -- (esp. in the scrutinee!) are set to 0 in the case type
          let env = updateMults (linearUsed est) env
-
-         -- The 'pre_env' is the environment we apply any local (nested)
-         -- names to. Here *all* the names have multiplicity 0 (we're
-         -- going to abstract over them all again, in case the case block
-         -- does any refining of their types/values)
-         let pre_env = mkLocalEnv env
-
          defs <- get Ctxt
 
          -- if the scrutinee is ones of the arguments in 'env' we should
