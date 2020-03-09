@@ -668,7 +668,13 @@ mutual
                         then unifyHoleApp swap mode loc env mname mref margs margs' tmnf
                         else postponePatVar swap mode loc env mname mref margs margs' tmnf
                 Just (newvars ** (locs, submv)) =>
-                  do tm <- quote empty env tmnf
+                  do Just hdef <- lookupCtxtExact (Resolved mref) (gamma defs)
+                         | _ => postponePatVar swap mode loc env mname mref margs margs' tmnf
+                     let Hole _ _ = definition hdef
+                         | _ => postponeS swap loc "Delayed hole" env
+                                          (NApp loc (NMeta mname mref margs) margs')
+                                          tmnf
+                     tm <- quote empty env tmnf
                      case shrinkTerm tm submv of
                           Just stm => solveHole fc mode env mname mref
                                                 margs margs' locs submv
