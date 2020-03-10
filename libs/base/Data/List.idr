@@ -97,6 +97,40 @@ public export
 nub : Eq a => List a -> List a
 nub = nubBy (==)
 
+||| The deleteBy function behaves like delete, but takes a user-supplied equality predicate.
+public export
+deleteBy : (a -> a -> Bool) -> a -> List a -> List a
+deleteBy _  _ []      = []
+deleteBy eq x (y::ys) = if x `eq` y then ys else y :: deleteBy eq x ys
+
+||| `delete x` removes the first occurrence of `x` from its list argument. For
+||| example,
+|||
+|||````idris example
+|||delete 'a' ['b', 'a', 'n', 'a', 'n', 'a']
+|||````
+|||
+||| It is a special case of deleteBy, which allows the programmer to supply
+||| their own equality test.
+public export
+delete : Eq a => a -> List a -> List a
+delete = deleteBy (==)
+
+||| The unionBy function returns the union of two lists by user-supplied equality predicate.
+public export
+unionBy : (a -> a -> Bool) -> List a -> List a -> List a
+unionBy eq xs ys = xs ++ foldl (flip (deleteBy eq)) (nubBy eq ys) xs
+
+||| Compute the union of two lists according to their `Eq` implementation.
+|||
+||| ```idris example
+||| union ['d', 'o', 'g'] ['c', 'o', 'w']
+||| ```
+|||
+public export
+union : Eq a => List a -> List a -> List a
+union = unionBy (==)
+
 public export
 span : (a -> Bool) -> List a -> (List a, List a)
 span p []      = ([], [])
