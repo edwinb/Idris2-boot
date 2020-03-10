@@ -773,7 +773,13 @@ mutual
                                           (yargs ++ yargs')
               else do xlocs <- localsIn xargs
                       ylocs <- localsIn yargs
-                      if (xlocs >= ylocs || mode == InMatch) && not (pv xn)
+                      -- Solve the one with the bigger context, and if they're
+                      -- equal, the one that's applied to fewest things (because
+                      -- then they arguments get substituted in)
+                      let xbigger = xlocs > ylocs
+                                      || (xlocs == ylocs &&
+                                           length xargs' <= length yargs')
+                      if (xbigger || mode == InMatch) && not (pv xn)
                         then unifyApp False mode loc env xfc (NMeta xn xi xargs) xargs'
                                             (NApp yfc (NMeta yn yi yargs) yargs')
                         else unifyApp True mode loc env yfc (NMeta yn yi yargs) yargs'

@@ -1,6 +1,6 @@
 1/1: Building CaseInf (CaseInf.idr)
 CaseInf.idr:7:24--9:1:While processing right hand side of Main.test3bad at CaseInf.idr:6:1--9:1:
-While processing right hand side of Main.case block in 1153(179) at CaseInf.idr:7:14--9:1:
+While processing right hand side of Main.case block in 1160(179) at CaseInf.idr:7:14--9:1:
 When unifying Integer and Nat
 Mismatch between:
 	Integer

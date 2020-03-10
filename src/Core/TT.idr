@@ -949,6 +949,39 @@ mutual
   shrinkTerm (Erased fc i) prf = Just (Erased fc i)
   shrinkTerm (TType fc) prf = Just (TType fc)
 
+varEmbedSub : SubVars small vars ->
+              {idx : Nat} -> .(IsVar n idx small) ->
+              Var vars
+varEmbedSub SubRefl y = MkVar y
+varEmbedSub (DropCons prf) y
+    = let MkVar y' = varEmbedSub prf y in
+          MkVar (Later y')
+varEmbedSub (KeepCons prf) First = MkVar First
+varEmbedSub (KeepCons prf) (Later p)
+    = let MkVar p' = varEmbedSub prf p in
+          MkVar (Later p')
+
+export
+embedSub : SubVars small vars -> Term small -> Term vars
+embedSub sub (Local fc x idx y)
+    = let MkVar y' = varEmbedSub sub y in Local fc x _ y'
+embedSub sub (Ref fc x name) = Ref fc x name
+embedSub sub (Meta fc x y xs)
+    = Meta fc x y (map (embedSub sub) xs)
+embedSub sub (Bind fc x b scope)
+    = Bind fc x (map (embedSub sub) b) (embedSub (KeepCons sub) scope)
+embedSub sub (App fc fn arg)
+    = App fc (embedSub sub fn) (embedSub sub arg)
+embedSub sub (As fc s nm pat)
+    = As fc s (embedSub sub nm) (embedSub sub pat)
+embedSub sub (TDelayed fc x y) = TDelayed fc x (embedSub sub y)
+embedSub sub (TDelay fc x t y)
+    = TDelay fc x (embedSub sub t) (embedSub sub y)
+embedSub sub (TForce fc r x) = TForce fc r (embedSub sub x)
+embedSub sub (PrimVal fc c) = PrimVal fc c
+embedSub sub (Erased fc i) = Erased fc i
+embedSub sub (TType fc) = TType fc
+
 namespace Bounds
   public export
   data Bounds : List Name -> Type where
