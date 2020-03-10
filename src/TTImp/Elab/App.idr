@@ -99,6 +99,7 @@ getVarType rigc nest env fc x
                              do checkVisibleNS fc (fullname ndef) (visibility ndef)
                                 logTerm 10 ("Type of " ++ show n') tyenv
                                 logTerm 10 ("Expands to") tm
+                                log 10 $ "Arg length " ++ show arglen
                                 pure (tm, arglen, gnf env tyenv)
     where
       useVars : List (Term vars) -> Term vars -> Term vars
@@ -619,7 +620,10 @@ checkApp rig elabinfo nest env fc (IVar fc' n) expargs impargs exp
                           " to " ++ show expargs ++ "\n\tFunction type " ++
                           (show !(toFullNames fnty)) ++ "\n\tExpected app type "
                                 ++ show exptyt))
-        checkAppWith rig elabinfo nest env fc ntm nty (Just n, arglen) expargs impargs False exp
+        let fn = case lookup n (names nest) of
+                      Just (Just n', _) => n'
+                      _ => n
+        checkAppWith rig elabinfo nest env fc ntm nty (Just fn, arglen) expargs impargs False exp
   where
     isPrimName : List Name -> Name -> Bool
     isPrimName [] fn = False

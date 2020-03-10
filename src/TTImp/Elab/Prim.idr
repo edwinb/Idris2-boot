@@ -1,4 +1,4 @@
-module TTImp.Elab.App
+module TTImp.Elab.Prim
 
 import Core.TT
 

@@ -225,7 +225,7 @@ push ofc n b tm = Bind ofc n b tm
 -- We only do this for variables named 'PV', since they are the unbound
 -- implicits, and we don't want to move any given by the programmer
 liftImps : BindMode -> (Term vars, Term vars) -> (Term vars, Term vars)
-liftImps (PI _) (tm, TType) = (liftImps' tm, TType)
+liftImps (PI _) (tm, TType fc) = (liftImps' tm, TType fc)
   where
     liftImps' : Term vars -> Term vars
     liftImps' (Bind fc (PV n i) (Pi c Implicit ty) sc)
