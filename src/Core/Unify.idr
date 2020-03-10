@@ -982,7 +982,14 @@ mutual
   unifyNoEta mode loc env x y
       = do defs <- get Ctxt
            empty <- clearDefs defs
-           unifyIfEq False loc env x y
+           unifyIfEq (isDelay x || isDelay y) loc env x y
+    where
+      -- If one of them is a delay, and they're not equal, we'd better
+      -- postpone and come back to it so we can insert the implicit
+      -- Force/Delay later
+      isDelay : NF vars -> Bool
+      isDelay (NDelayed _ _ _) = True
+      isDelay _ = False
 
   -- Try to get the type of the application inside the given term, to use in
   -- eta expansion. If there's no application, return Nothing
