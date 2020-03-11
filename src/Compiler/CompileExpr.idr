@@ -127,10 +127,10 @@ getZBranch (x :: xs) = tryZBranch x <+> getZBranch xs
 natHackTree : CExp vars -> CExp vars
 natHackTree (CConCase fc sc alts def)
    = if any natBranch alts
-        then let def' = maybe def Just (getSBranch sc alts) in
-                 case getZBranch alts of
-                      Nothing => maybe (CCrash fc "No branches") id def'
-                      Just zalt => CConstCase fc sc [MkConstAlt (BI 0) zalt] def'
+        then let defb = maybe (CCrash fc "Nat case not covered") id def
+                 scase = maybe defb id (getSBranch sc alts)
+                 zcase = maybe defb id (getZBranch alts) in
+                 CConstCase fc sc [MkConstAlt (BI 0) zcase] (Just scase)
         else CConCase fc sc alts def
 natHackTree t = t
 
