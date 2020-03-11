@@ -20,7 +20,7 @@ Chapter 2
 ---------
 
 The Prelude is smaller than Idris 1, and many functions have been moved to
-the base libraries instead. So: 
+the base libraries instead. So:
 
 In ``Average.idr``, add:
 
@@ -60,7 +60,7 @@ For the reasons described above:
 .. code-block:: idris
 
     tryIndex : {n : _} -> Integer -> Vect n a -> Maybe a
-    
+
 Chapter 5
 ---------
 
@@ -205,7 +205,7 @@ what it allows to unify. So, ``x`` and ``xs`` need to be explicit arguments to
     data SnocList : List a -> Type where
          Empty : SnocList []
          Snoc : (x, xs : _) -> (rec : SnocList xs) -> SnocList (xs ++ [x])
-  
+
 Correspondingly, they need to be explicit when matching. For example:
 
 .. code-block:: idris
@@ -239,7 +239,7 @@ recursive with application in Idris 1 probably shouldn't have allowed this!
       isSuffix [] input2 | (Empty, s) = True
       isSuffix input1 [] | (s, Empty) = False
       isSuffix (xs ++ [x]) (ys ++ [y]) | (Snoc xsrec, Snoc ysrec)
-         = if x == y 
+         = if x == y
               then isSuffix xs ys | (xsrec, ysrec)
               else False
 
@@ -248,7 +248,7 @@ know about looking inside pairs.
 
 In ``DataStore.idr``: Well this is embarrassing - I've no idea how Idris 1 lets
 this through! I think perhaps it's too "helpful" when solving unification
-problems. To fix it, add an extra parameter ``scheme`` to ``StoreView``, and change
+problems. To fix it, add an extra parameter ``schema`` to ``StoreView``, and change
 the type of ``SNil`` to be explicit that the ``empty`` is the function defined in
 ``DataStore``. Also add ``entry`` and ``store`` as explicit arguments to ``SAdd``:
 
@@ -282,8 +282,6 @@ In ``TestStore.idr``:
 Chapter 11
 ----------
 
-Remove ``%default total`` throughout - it's not yet implemented.
-
 In ``Streams.idr`` add ``import Data.Stream`` for ``iterate``.
 
 In ``Arith.idr`` and ``ArithTotal.idr``, the ``Divides`` view now has explicit
@@ -306,8 +304,6 @@ export ``(>>=)`` from the namespaces ``CommandDo`` and ``ConsoleDo``.
 Chapter 12
 ----------
 
-Remove ``%default total`` throughout, at least until it's implemented.
-
 For reasons described above: In ``ArithState.idr``, add ``import Data.Strings``.
 Also the ``(>>=)`` operators need to be set as ``export`` since they are in their
 own namespaces, and in ``getRandom``, ``DivBy`` needs to take additional
@@ -316,15 +312,140 @@ arguments ``div`` and ``rem``.
 Chapter 13
 ----------
 
-TODO
+In ``StackIO.idr``:
+
++ ``tryAdd`` pattern matches on ``height``, so it needs to be written in its
+  type:
+
+.. code-block:: idris
+
+    tryAdd : {height : _} -> StackIO height
+
++ ``height`` is also an implicit argument to ``stackCalc``, but is used by the
+  definition, so add it to its type:
+
+.. code-block:: idris
+
+    stackCalc : {height : _} -> StackIO height
+
++ In ``StackDo`` namespace, export ``(>>=)``:
+
+.. code-block:: idris
+
+    namespace StackDo
+      export
+      (>>=) : StackCmd a height1 height2 ->
+              (a -> Inf (StackIO height2)) -> StackIO height1
+              (>>=) = Do
+
+In ``Vending.idr``:
+
++ Add ``import Data.Strings`` and change ``cast`` to ``stringToNatOrZ`` in ``strToInput``
++ In ``MachineCmd`` type, add an implicit argument to ``(>>=)`` data constructor:
+
+.. code-block:: idris
+
+    (>>=) : {state2 : _} ->
+            MachineCmd a state1 state2 ->
+            (a -> MachineCmd b state2 state3) ->
+            MachineCmd b state1 state3
+
++ In ``MachineIO`` type, add an implicit argument to ``Do`` data constructor:
+
+.. code-block:: idris
+
+    data MachineIO : VendState -> Type where
+      Do : {state1 : _} ->
+           MachineCmd a state1 state2 ->
+           (a -> Inf (MachineIO state2)) -> MachineIO state1
+
++ ``runMachine`` pattern matches on ``inState``, so it needs to be written in its
+  type:
+
+.. code-block:: idris
+
+    runMachine : {inState : _} -> MachineCmd ty inState outState -> IO ty
+
++ In ``MachineDo`` namespace, add an implicit argument to ``(>>=)`` and export it:
+
+.. code-block:: idris
+
+    namespace MachineDo
+      export
+      (>>=) : {state1 : _} ->
+              MachineCmd a state1 state2 ->
+              (a -> Inf (MachineIO state2)) -> MachineIO state1
+      (>>=) = Do
+
++ ``vend`` and ``refill`` pattern match on ``pounds`` and ``chocs``, so they need to be written in
+  their type:
+
+.. code-block:: idris
+
+    vend : {pounds : _} -> {chocs : _} -> MachineIO (pounds, chocs)
+    refill: {pounds : _} -> {chocs : _} -> (num : Nat) -> MachineIO (pounds, chocs)
+
++ ``pounds`` and ``chocs`` are implicit arguments to ``machineLoop``, but are used by the
+  definition, so add them to its type:
+
+.. code-block:: idris
+
+    machineLoop : {pounds : _} -> {chocs : _} -> MachineIO (pounds, chocs)
 
 Chapter 14
 ----------
 
-TODO
+In ``ATM.idr``:
+
++ Add ``import Data.Strings`` and change ``cast`` to ``stringToNatOrZ`` in ``runATM``
+
+In ``ATM.idr``, add:
+
+.. code-block:: idris
+
+    import Data.Strings -- for `toUpper`
+    import Data.List -- for `nub`
+
++ In ``Loop`` namespace, export ``GameLoop`` type and its data constructors:
+
+.. code-block:: idris
+
+    namespace Loop
+      public export
+      data GameLoop : (ty : Type) -> GameState -> (ty -> GameState) -> Type where
+        (>>=) : GameCmd a state1 state2_fn ->
+                ((res : a) -> Inf (GameLoop b (state2_fn res) state3_fn)) ->
+                GameLoop b state1 state3_fn
+        Exit : GameLoop () NotRunning (const NotRunning)
+
++ ``letters`` and ``guesses`` are used by ``gameLoop``, so they need to be written in its type:
+
+.. code-block:: idris
+
+    gameLoop : {letters : _} -> {guesses : _} ->
+               GameLoop () (Running (S guesses) (S letters)) (const NotRunning)
+
++ In ``Game`` type, add an implicit argument ``letters`` to ``InProgress`` data constructor:
+
+.. code-block:: idris
+
+    data Game : GameState -> Type where
+      GameStart : Game NotRunning
+      GameWon : (word : String) -> Game NotRunning
+      GameLost : (word : String) -> Game NotRunning
+      InProgress : {letters : _} -> (word : String) -> (guesses : Nat) ->
+                   (missing : Vect letters Char) -> Game (Running guesses letters)
+
++ ``removeElem`` pattern matches on ``n``, so it needs to be written in its type:
+
+.. code-block:: idris
+
+    removeElem : {n : _} ->
+                 (value : a) -> (xs : Vect (S n) a) ->
+                 {auto prf : Elem value xs} ->
+                 Vect n a
 
 Chapter 15
 ----------
 
 TODO
-

@@ -25,14 +25,14 @@ explicit about how an operation handles failure. Also, if we do
 want to support exceptions, we also want to explain how exceptions and linearity
 (see Section :ref:`sect-multiplicites`) interact.
 
-In this tutorial, we describe a parameterised type ``App`` and a related 
+In this tutorial, we describe a parameterised type ``App`` and a related
 parameterised type ``App1``, which together allow us to structure larger
 applications, taking into account both exceptions and linearity. The aims of
 ``App`` and ``App1`` are that they should:
 
 * make it possible to express what interactions a function does, in its type,
   without too much notational overhead.
-* have little or no performance overhead compared to writing in \texttt{IO}.
+* have little or no performance overhead compared to writing in *IO*.
 * be compatible with other libraries and techniques for describing effects,
   such as algebraic effects or monad transformers.
 * be sufficiently easy to use and performant that it can be the basis of
@@ -47,4 +47,3 @@ programs, then show how to extend it with exceptions, state, and other
 interfaces.
 
 [To be continued...]
-

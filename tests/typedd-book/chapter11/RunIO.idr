@@ -1,4 +1,4 @@
--- %default total
+%default total
 
 data RunIO : Type -> Type where
      Quit : a -> RunIO a
