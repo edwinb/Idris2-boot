@@ -367,7 +367,8 @@ updateCGDirectives : {auto c : Ref Ctxt Defs} ->
                      List (CG, String) -> Core ()
 updateCGDirectives cgs
     = do defs <- get Ctxt
-         put Ctxt (record { cgdirectives $= (cgs ++) } defs)
+         let cgs' = nub (cgs ++ cgdirectives defs)
+         put Ctxt (record { cgdirectives = cgs' } defs)
 
 getNSas : (String, (List String, Bool, List String)) ->
           (List String, List String)
