@@ -552,24 +552,27 @@ getFirstArgType (p :: _) = argType p
 -- If so, it's okay to match on it
 sameType : {auto i : Ref PName Int} ->
            {auto c : Ref Ctxt Defs} ->
-           FC -> Name ->
+           FC -> Phase -> Name ->
            Env Term ns -> List (NamedPats ns (p :: ps)) ->
            Core ()
-sameType fc fn env [] = pure ()
-sameType {ns} fc fn env (p :: xs)
+sameType fc phase fn env [] = pure ()
+sameType {ns} fc phase fn env (p :: xs)
     = do defs <- get Ctxt
          case getFirstArgType p of
               Known _ t => sameTypeAs !(nf defs env t) (map getFirstArgType xs)
-              _ => throw (CaseCompile fc fn DifferingTypes)
+              ty => throw (CaseCompile fc fn DifferingTypes)
   where
     firstPat : NamedPats ns (np :: nps) -> Pat
     firstPat (pinf :: _) = pat pinf
 
-    headEq : NF ns -> NF ns -> Bool
-    headEq (NTCon _ n _ _ _) (NTCon _ n' _ _ _) = n == n'
-    headEq (NPrimVal _ c) (NPrimVal _ c') = c == c'
-    headEq (NType _) (NType _) = True
-    headEq _ _ = False
+    headEq : NF ns -> NF ns -> Phase -> Bool
+    headEq (NTCon _ n _ _ _) (NTCon _ n' _ _ _) _ = n == n'
+    headEq (NPrimVal _ c) (NPrimVal _ c') _ = c == c'
+    headEq (NType _) (NType _) _ = True
+    headEq (NApp _ (NRef _ n) _) (NApp _ (NRef _ n') _) RunTime = n == n'
+    headEq (NErased _ _) _ RunTime = True
+    headEq _ (NErased _ _) RunTime = True
+    headEq _ _ _ = False
 
     sameTypeAs : NF ns -> List (ArgType ns) -> Core ()
     sameTypeAs ty [] = pure ()
@@ -578,7 +581,7 @@ sameType {ns} fc fn env (p :: xs)
                 -- Can't match on erased thing
     sameTypeAs ty (Known c t :: xs)
           = do defs <- get Ctxt
-               if headEq ty !(nf defs env t)
+               if headEq ty !(nf defs env t) phase
                   then sameTypeAs ty xs
                   else throw (CaseCompile fc fn DifferingTypes)
     sameTypeAs ty _ = throw (CaseCompile fc fn DifferingTypes)
@@ -652,11 +655,11 @@ countDiff xs = length (distinct [] (map getFirstCon xs))
 
 getScore : {auto i : Ref PName Int} ->
            {auto c : Ref Ctxt Defs} ->
-           FC -> Name ->
+           FC -> Phase -> Name ->
            List (NamedPats ns (p :: ps)) ->
            Core (Either CaseError ())
-getScore fc name npss
-    = do catch (do sameType fc name (mkEnv fc ns) npss
+getScore fc phase name npss
+    = do catch (do sameType fc phase name (mkEnv fc ns) npss
                    pure (Right ()))
                (\err => case err of
                              CaseCompile _ _ err => pure (Left err)
@@ -666,21 +669,21 @@ getScore fc name npss
 -- same family, or all variables, or all the same type constructor.
 pickNext : {auto i : Ref PName Int} ->
            {auto c : Ref Ctxt Defs} ->
-           FC -> Name -> List (NamedPats ns (p :: ps)) ->
+           FC -> Phase -> Name -> List (NamedPats ns (p :: ps)) ->
            Core (Var (p :: ps))
 -- last possible variable
-pickNext {ps = []} fc fn npss
+pickNext {ps = []} fc phase fn npss
     = if samePat npss
          then pure (MkVar First)
-         else do Right () <- getScore fc fn npss
+         else do Right () <- getScore fc phase fn npss
                        | Left err => throw (CaseCompile fc fn err)
                  pure (MkVar First)
-pickNext {ps = q :: qs} fc fn npss
+pickNext {ps = q :: qs} fc phase fn npss
     = if samePat npss
          then pure (MkVar First)
-         else  case !(getScore fc fn npss) of
+         else  case !(getScore fc phase fn npss) of
                     Right () => pure (MkVar First)
-                    _ => do (MkVar var) <- pickNext fc fn (map tail npss)
+                    _ => do (MkVar var) <- pickNext fc phase fn (map tail npss)
                             pure (MkVar (Later var))
 
 moveFirst : {idx : Nat} -> .(el : IsVar name idx ps) -> NamedPats ns ps ->
@@ -707,7 +710,7 @@ mutual
   -- inspect next has a concrete type that is the same in all cases, and
   -- has the most distinct constructors (via pickNext)
   match {todo = (_ :: _)} fc fn phase clauses err
-      = do MkVar next <- pickNext fc fn (map getNPs clauses)
+      = do MkVar next <- pickNext fc phase fn (map getNPs clauses)
            let clauses' = map (shuffleVars next) clauses
            let ps = partition phase clauses'
            maybe (pure (Unmatched "No clauses"))

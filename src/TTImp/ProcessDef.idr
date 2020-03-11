@@ -528,6 +528,7 @@ mkRunTime n
          let ty = type gdef
          (rargs ** tree_rt) <- getPMDef (location gdef) RunTime n ty
                                         !(traverse (toClause (location gdef)) pats)
+         log 5 $ "Runtime tree for " ++ show (fullname gdef) ++ ": " ++ show tree_rt
          let Just Refl = nameListEq cargs rargs
                  | Nothing => throw (InternalError "WAT")
          addDef n (record { definition = PMDef r cargs tree_ct tree_rt pats
@@ -537,8 +538,9 @@ mkRunTime n
     toClause : FC -> (vars ** (Env Term vars, Term vars, Term vars)) ->
                Core Clause
     toClause fc (_ ** (env, lhs, rhs))
-        = do rhs_erased <- linearCheck fc Rig1 True env rhs
-             pure $ MkClause env lhs rhs_erased
+        = do lhs_erased <- linearCheck fc Rig1 True env lhs
+             rhs_erased <- linearCheck fc Rig1 True env rhs
+             pure $ MkClause env lhs_erased rhs_erased
 
 compileRunTime : {auto c : Ref Ctxt Defs} ->
                  {auto u : Ref UST UState} ->
