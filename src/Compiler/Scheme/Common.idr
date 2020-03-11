@@ -307,8 +307,8 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
         = pure $ schOp op !(schArgs i vs args)
     schExp i vs (CExtPrim fc p args)
         = schExtPrim i vs (toPrim p) args
-    schExp i vs (CForce fc t) = pure $ "(force " ++ !(schExp i vs t) ++ ")"
-    schExp i vs (CDelay fc t) = pure $ "(delay " ++ !(schExp i vs t) ++ ")"
+    schExp i vs (CForce fc t) = pure $ "(" ++ !(schExp i vs t) ++ ")"
+    schExp i vs (CDelay fc t) = pure $ "(lambda () " ++ !(schExp i vs t) ++ ")"
     schExp i vs (CConCase fc sc alts def)
         = do tcode <- schExp (i+1) vs sc
              defc <- maybe (pure Nothing) (\v => pure (Just !(schExp i vs v))) def
