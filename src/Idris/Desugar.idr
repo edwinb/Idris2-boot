@@ -347,6 +347,7 @@ mutual
       = pure (ISetFieldApp p !(desugarB side ps v))
 
   expandList : {auto s : Ref Syn SyntaxInfo} ->
+               {auto b : Ref Bang BangData} ->
                {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
                {auto m : Ref MD Metadata} ->
@@ -354,7 +355,7 @@ mutual
   expandList side ps fc [] = pure (IVar fc (UN "Nil"))
   expandList side ps fc (x :: xs)
       = pure $ apply (IVar fc (UN "::"))
-                [!(desugar side ps x), !(expandList side ps fc xs)]
+                [!(desugarB side ps x), !(expandList side ps fc xs)]
 
   expandDo : {auto s : Ref Syn SyntaxInfo} ->
              {auto c : Ref Ctxt Defs} ->
