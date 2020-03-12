@@ -555,7 +555,7 @@ convertWithLazy withLazy prec fc elabinfo env x y
                        _ => InTerm prec in
           catch
             (do let lazy = !isLazyActive && withLazy
-                logGlueNF 5 "Unifying" env x
+                logGlueNF 5 ("Unifying " ++ show withLazy) env x
                 logGlueNF 5 "....with" env y
                 vs <- if isFromTerm x && isFromTerm y
                          then do xtm <- getTerm x
@@ -639,9 +639,9 @@ checkExpP rig prec elabinfo env fc tm got (Just exp)
                        dumpConstraints 5 False
                        case addLazy vs of
                             NoLazy => pure (ctm, got)
-                            AddForce r => pure (TForce fc r tm, got)
+                            AddForce r => pure (TForce fc r tm, exp)
                             AddDelay r => do ty <- getTerm got
-                                             pure (TDelay fc r ty tm, got)
+                                             pure (TDelay fc r ty tm, exp)
 checkExpP rig prec elabinfo env fc tm got Nothing = pure (tm, got)
 
 export
