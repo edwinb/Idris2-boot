@@ -552,7 +552,7 @@ convertWithLazy withLazy prec fc elabinfo env x y
     = let umode : UnifyMode
                 = case elabMode elabinfo of
                        InLHS _ => InLHS
-                       _ => InTerm prec in
+                       _ => InTerm (Top prec) in
           catch
             (do let lazy = !isLazyActive && withLazy
                 logGlueNF 5 ("Unifying " ++ show withLazy) env x

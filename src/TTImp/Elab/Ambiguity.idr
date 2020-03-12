@@ -305,7 +305,7 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
                            pure mexpected
          let solvemode = case elabMode elabinfo of
                               InLHS c => InLHS
-                              _ => InTerm False
+                              _ => InTerm (Top False)
          delayOnFailure fc rig env expected ambiguous $
              \delayed =>
                do solveConstraints solvemode Normal
@@ -349,7 +349,7 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
                                   pure mexpected
                 let solvemode = case elabMode elabinfo of
                                       InLHS c => InLHS
-                                      _ => InTerm False
+                                      _ => InTerm (Top False)
                 delayOnFailure fc rig env expected ambiguous $
                      \delayed =>
                        do defs <- get Ctxt

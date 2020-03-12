@@ -306,11 +306,11 @@ searchLocalWith {vars} fc rig opts env ((p, pty) :: rest) ty topty defining
              if usableLocal fc env nty
                 then
                   tryUnify -- try with no arguments first
-                    (do ures <- unify (InTerm True) fc env ty nty
+                    (do ures <- unify inTerm fc env ty nty
                         let [] = constraints ures
                             | _ => throw (InternalError "Can't use directly")
                         pure (mkCandidates fc (f prf) []))
-                    (do ures <- unify (InTerm True) fc env ty appTy
+                    (do ures <- unify inTerm fc env ty appTy
                         let [] = constraints ures
                             | _ => pure []
                         args' <- traverse (searchIfHole fc opts defining topty env)

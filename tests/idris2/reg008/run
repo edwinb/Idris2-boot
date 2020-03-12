@@ -1,0 +1,3 @@
+$1 --check Vending.idr --debug-elab-check
+
+rm -rf build

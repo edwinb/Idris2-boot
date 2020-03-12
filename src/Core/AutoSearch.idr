@@ -76,7 +76,7 @@ searchIfHole fc defaults trying ispair (S depth) def top env arg
 
          argdef <- searchType fc rig defaults trying depth def False top' env
                               !(normaliseScope defs env (argType arg))
-         vs <- unify (InTerm True) fc env (metaApp arg) argdef
+         vs <- unify inTerm fc env (metaApp arg) argdef
          let [] = constraints vs
               | _ => throw (CantSolveGoal fc [] top)
          pure ()
@@ -244,7 +244,7 @@ searchLocalWith {vars} fc rigc defaults trying depth def top env (prf, ty) targe
         = do (args, appTy) <- mkArgs fc rigc env ty
              logNF 10 "Trying" env ty
              logNF 10 "For target" env target
-             ures <- unify (InTerm True) fc env target appTy
+             ures <- unify inTerm fc env target appTy
              let [] = constraints ures
                  | _ => throw (CantSolveGoal fc [] top)
              -- We can only use the local if its type is not an unsolved hole
@@ -348,7 +348,7 @@ searchName fc rigc defaults trying depth def top env target (n, ndef)
          nty <- nf defs env (embed ty)
          logNF 10 ("Searching Name " ++ show n) env nty
          (args, appTy) <- mkArgs fc rigc env nty
-         ures <- unify (InTerm True) fc env target appTy
+         ures <- unify inTerm fc env target appTy
          let [] = constraints ures
              | _ => throw (CantSolveGoal fc [] top)
          ispair <- isPairNF env nty defs
