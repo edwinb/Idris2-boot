@@ -1,15 +1,15 @@
 0 notE : Bool -> Bool
-notE b = case b of
+notE b = case not b of
 	True => False
 	False => True
 
 1 notL : Bool -> Bool
-notL b = case b of
+notL b = case not b of
 	True => False
 	False => True
 
 notR : Bool -> Bool
-notR b = case b of
+notR b = case not b of
 	True => False
 	False => True
 
