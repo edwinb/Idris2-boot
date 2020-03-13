@@ -32,6 +32,8 @@ idrisTests
        "basic026", "basic027", "basic028", "basic029", "basic030",
        "basic031", "basic032", "basic033", "basic034", "basic035",
        "basic036",
+       -- Case expressions
+       "case001",
        -- Coverage checking
        "coverage001", "coverage002", "coverage003", "coverage004",
        "coverage005",
