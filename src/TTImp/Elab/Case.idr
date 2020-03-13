@@ -12,6 +12,7 @@ import Core.Value
 import TTImp.Elab.Check
 import TTImp.Elab.Delayed
 import TTImp.Elab.ImplicitBind
+import TTImp.Elab.Utils
 import TTImp.TTImp
 import TTImp.Utils
 
@@ -139,10 +140,11 @@ caseBlock : {vars : _} ->
             RawImp -> -- original scrutinee
             Term vars -> -- checked scrutinee
             Term vars -> -- its type
+            NF vars ->   -- its type in NF
             RigCount -> -- its multiplicity
             List ImpClause -> Maybe (Glued vars) ->
             Core (Term vars, Glued vars)
-caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
+caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty scrtyNF caseRig alts expected
     = do -- TODO (or to decide): Blodwen allowed ambiguities in the scrutinee
          -- to be delayed, but now I think it's better to have simpler
          -- resolution rules, and not delay
@@ -179,9 +181,14 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
 
          (caseretty, _) <- bindImplicits fc (implicitMode elabinfo) defs env
                                          fullImps caseretty_in (TType fc)
+
+         let scrutRig =
+               if !(detagSafe defs scrtyNF)
+                 then caseRig
+                 else max caseRig Rig1
          let casefnty
                = abstractFullEnvType fc (allow splitOn env)
-                            (maybe (Bind fc scrn (Pi caseRig Explicit scrty)
+                            (maybe (Bind fc scrn (Pi scrutRig Explicit scrty)
                                        (weaken caseretty))
                                    (const caseretty) splitOn)
 
@@ -341,10 +348,11 @@ checkCase rig elabinfo nest env fc scr scrty_exp alts exp
                                     pure (fst c, snd c, Rig1)
                             e => throw e)
            scrty <- getTerm gscrty
+           scrtyNF <- getNF gscrty
            logTermNF 5 "Scrutinee type" env scrty
            defs <- get Ctxt
            checkConcrete !(nf defs env scrty)
-           caseBlock rig elabinfo fc nest env scr scrtm_in scrty caseRig alts exp
+           caseBlock rig elabinfo fc nest env scr scrtm_in scrty scrtyNF caseRig alts exp
   where
     -- For the moment, throw an error if we haven't been able to work out
     -- the type of the case scrutinee, because we'll need it to build the

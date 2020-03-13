@@ -9,7 +9,8 @@ import Core.Value
 
 import TTImp.TTImp
 
-detagSafe : Defs -> NF [] -> Core Bool
+export
+detagSafe : Defs -> NF vars -> Core Bool
 detagSafe defs (NTCon _ n _ _ args)
     = do Just (TCon _ _ _ _ _ _ _ (Just detags)) <- lookupDefExact n (gamma defs)
               | _ => pure False
@@ -18,7 +19,7 @@ detagSafe defs (NTCon _ n _ _ args)
   where
     -- if any argument positions are in the detaggable set, and unerased, then
     -- detagging is safe
-    notErased : Nat -> List Nat -> List (NF []) -> Bool
+    notErased : Nat -> List Nat -> List (NF vars) -> Bool
     notErased i [] _ = True -- Don't need an index available
     notErased i ns [] = False
     notErased i ns (NErased _ True :: rest)
