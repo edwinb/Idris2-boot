@@ -182,6 +182,19 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty scrtyNF caseRig alts 
          (caseretty, _) <- bindImplicits fc (implicitMode elabinfo) defs env
                                          fullImps caseretty_in (TType fc)
 
+         -- https://github.com/edwinb/Idris2/issues/229#issuecomment-598552431
+         --
+         -- Normally, the scrutinee will be inspected at least once
+         -- (constructor tags for the case split), so the quantity of the
+         -- scrutinee should probably be `max caseRig Rig1`. I don't think
+         -- it should be `caseRig + Rig1` because the constructor tags are
+         -- not consumed by the RHSes again so a full-blown sum is not
+         -- necessary here. For primitives, the RHSes consume nothing so
+         -- this still holds.
+         --
+         -- However, if you split on something detaggable, like Refl, you don't
+         -- even consume the tag, so the appropriate quantity
+         -- would be caseRig, I think.
          let scrutRig =
                if !(detagSafe defs scrtyNF)
                  then caseRig
