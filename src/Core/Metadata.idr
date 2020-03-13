@@ -203,7 +203,7 @@ TTC TTMFile where
       = do hdr <- fromBuf b
            when (hdr /= "TTM") $ corrupt "TTM header"
            ver <- fromBuf b
-           checkTTCVersion ver ttcVersion
+           checkTTCVersion "" ver ttcVersion -- maybe change the interface to get the filename
            md <- fromBuf b
            pure (MkTTMFile ver md)
 

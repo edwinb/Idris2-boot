@@ -13,8 +13,7 @@ import System
 
 public export
 data TTCErrorMsg
-    = FormatOlder
-    | FormatNewer
+    = Format String Int Int
     | EndOfBuffer String
     | Corrupt String
 
@@ -107,8 +106,9 @@ data Error
 
 export
 Show TTCErrorMsg where
-  show FormatOlder = "TTC data is in an older format"
-  show FormatNewer = "TTC data is in a newer format"
+  show (Format file ver exp) =
+    let age = if ver < exp then "older" else "newer" in
+        "TTC data is in an " ++ age ++ " format, file: " ++ file ++ ", expected version: " ++ show exp ++ ", actual version: " ++ show ver
   show (EndOfBuffer when) = "End of buffer when reading " ++ when
   show (Corrupt ty) = "Corrupt TTC data for " ++ ty
 
