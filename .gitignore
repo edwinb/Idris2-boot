@@ -14,5 +14,6 @@
 
 /libs/**/build
 /tests/**/output
+/tests/**/*.so
 
 /src/YafflePaths.idr
