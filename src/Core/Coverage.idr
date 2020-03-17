@@ -308,3 +308,83 @@ getNonCoveringRefs fc n
                                 IsCovering => pure False
                                 _ => pure True
                _ => pure False
+
+-- Does the second term match against the first?
+-- 'Erased' matches against anything, we assume that's a Rig0 argument that
+-- we don't care about
+match : Term vs -> Term vs -> Bool
+match (Local _ _ i _) _ = True
+match (Ref _ Bound n) _ = True
+match (Ref _ _ n) (Ref _ _ n') = n == n'
+match (App _ f a) (App _ f' a') = match f f' && match a a'
+match (As _ _ _ p) (As _ _ _ p') = match p p'
+match (As _ _ _ p) p' = match p p'
+match (TDelayed _ _ t) (TDelayed _ _ t') = match t t'
+match (TDelay _ _ _ t) (TDelay _ _ _ t') = match t t'
+match (TForce _ _ t) (TForce _ _ t') = match t t'
+match (PrimVal _ c) (PrimVal _ c') = c == c'
+match (Erased _ _) _ = True
+match _ (Erased _ _) = True
+match (TType _) (TType _) = True
+match _ _ = False
+
+-- Erase according to argument position
+eraseApps : {auto c : Ref Ctxt Defs} ->
+            Term vs -> Core (Term vs)
+eraseApps {vs} tm
+    = case getFnArgs tm of
+           (Ref fc Bound n, args) => 
+                do args' <- traverse eraseApps args
+                   pure (apply fc (Ref fc Bound n) args')
+           (Ref fc nt n, args) =>
+                do defs <- get Ctxt
+                   mgdef <- lookupCtxtExact n (gamma defs)
+                   let eargs = maybe [] eraseArgs mgdef
+                   args' <- traverse eraseApps (dropPos fc 0 eargs args)
+                   pure (apply fc (Ref fc nt n) args')
+           (tm, args) =>
+                do args' <- traverse eraseApps args
+                   pure (apply (getLoc tm) tm args')
+  where
+    dropPos : FC -> Nat -> List Nat -> List (Term vs) -> List (Term vs)
+    dropPos fc i ns [] = []
+    dropPos fc i ns (x :: xs)
+        = if i `elem` ns
+             then Erased fc False :: dropPos fc (S i) ns xs
+             else x :: dropPos fc (S i) ns xs
+
+-- if tm would be matched by trylhs, then it's not an impossible case
+-- because we've already got it. Ignore anything in erased position.
+clauseMatches : {auto c : Ref Ctxt Defs} ->
+                Env Term vars -> Term vars ->
+                ClosedTerm -> Core Bool
+clauseMatches env tm trylhs 
+    = let lhs = !(eraseApps (close (getLoc tm) env tm)) in
+          pure $ match !(toResolvedNames lhs) !(toResolvedNames trylhs)
+  where
+    mkSubstEnv : FC -> Int -> Env Term vars -> SubstEnv vars []
+    mkSubstEnv fc i [] = Nil
+    mkSubstEnv fc i (v :: vs)
+       = Ref fc Bound (MN "cov" i) :: mkSubstEnv fc (i + 1) vs
+
+    close : FC -> Env Term vars -> Term vars -> ClosedTerm
+    close {vars} fc env tm
+        = substs (mkSubstEnv fc 0 env)
+              (rewrite appendNilRightNeutral vars in tm)
+
+export
+checkMatched : {auto c : Ref Ctxt Defs} ->
+               List Clause -> ClosedTerm -> Core (Maybe ClosedTerm)
+checkMatched cs ulhs
+    = tryClauses cs !(eraseApps ulhs)
+  where
+    tryClauses : List Clause -> ClosedTerm -> Core (Maybe ClosedTerm)
+    tryClauses [] ulhs
+        = do logTermNF 10 "Nothing matches" [] ulhs
+             pure $ Just ulhs
+    tryClauses (MkClause env lhs _ :: cs) ulhs
+        = if !(clauseMatches env lhs ulhs)
+             then do logTermNF 10 "Yes" env lhs
+                     pure Nothing -- something matches, discared it
+             else do logTermNF 10 "No match" env lhs
+                     tryClauses cs ulhs

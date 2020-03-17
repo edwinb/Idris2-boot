@@ -505,7 +505,6 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
         = do newlhs <- getNewLHS ploc drop nest wname wargnames lhs patlhs
              pure (ImpossibleClause ploc newlhs)
 
-
 nameListEq : (xs : List Name) -> (ys : List Name) -> Maybe (xs = ys)
 nameListEq [] [] = Just Refl
 nameListEq (x :: xs) (y :: ys) with (nameEq x y)
@@ -701,11 +700,14 @@ processDef opts nest env fc n_in cs_in
                         pure ("Initially missing in " ++
                                  show !(getFullName (Resolved n)) ++ ":\n" ++
                                 showSep "\n" (map show mc)))
+             -- Filter out the ones which are impossible
              missImp <- traverse (checkImpossible n mult) missCase
-             let miss = mapMaybe id missImp
+             -- Filter out the ones which are actually matched (perhaps having
+             -- come up due to some overlapping patterns)
+             missMatch <- traverse (checkMatched covcs) (mapMaybe id missImp)
+             let miss = mapMaybe id missMatch
              if isNil miss
                 then do [] <- getNonCoveringRefs fc (Resolved n)
                            | ns => toFullNames (NonCoveringCall ns)
                         pure IsCovering
                 else pure (MissingCases miss)
-

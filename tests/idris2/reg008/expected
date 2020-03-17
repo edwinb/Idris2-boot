@@ -1,1 +1,10 @@
+     ____    __     _         ___                                           
+    /  _/___/ /____(_)____   |__ \                                          
+    / // __  / ___/ / ___/   __/ /     Version 0.0.0-7c8651a70
+  _/ // /_/ / /  / (__  )   / __/      https://www.idris-lang.org           
+ /___/\__,_/_/  /_/____/   /____/                                           
+
+Welcome to Idris 2.  Enjoy yourself!
 1/1: Building Vending (Vending.idr)
+Main> Main.runMachine: All cases covered
+Main> Bye for now!
