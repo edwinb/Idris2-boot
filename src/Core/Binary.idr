@@ -30,13 +30,9 @@ ttcVersion : Int
 ttcVersion = 17
 
 export
-checkTTCVersion : Int -> Int -> Core ()
-checkTTCVersion ver exp
-  = if ver < exp
-       then throw (TTCError FormatOlder)
-       else if ver > exp
-            then throw (TTCError FormatNewer)
-            else pure ()
+checkTTCVersion : String -> Int -> Int -> Core ()
+checkTTCVersion file ver exp
+  = when (ver /= exp) (throw $ TTCError $ Format file ver exp)
 
 record TTCFile extra where
   constructor MkTTCFile
@@ -212,7 +208,7 @@ readTTCFile modns as b
       = do hdr <- fromBuf b
            when (hdr /= "TTC") $ corrupt "TTC header"
            ver <- fromBuf b
-           checkTTCVersion ver ttcVersion
+           checkTTCVersion (show modns) ver ttcVersion
            ifaceHash <- fromBuf b
            importHashes <- fromBuf b
 --            holes <- fromBuf b
@@ -404,7 +400,7 @@ readFromTTC loc reexp fname modNS importAs
          let as = if importAs == modNS
                      then Nothing
                      else Just importAs
-         ttc <- logTime ("Read file " ++ show modNS) $ 
+         ttc <- logTime ("Read file " ++ show modNS) $
                   readTTCFile modNS as bin
 
          -- If it's already imported, but without reexporting, then all we're
@@ -439,22 +435,22 @@ readFromTTC loc reexp fname modNS importAs
                                  nextName = nextVar ttc } ust)
                pure (Just (ex, ifaceHash ttc, imported ttc))
 
-getImportHashes : Ref Bin Binary ->
+getImportHashes : String -> Ref Bin Binary ->
                   Core (List (List String, Int))
-getImportHashes b
+getImportHashes file b
     = do hdr <- fromBuf {a = String} b
          when (hdr /= "TTC") $ corrupt "TTC header"
          ver <- fromBuf {a = Int} b
-         checkTTCVersion ver ttcVersion
+         checkTTCVersion file ver ttcVersion
          ifaceHash <- fromBuf {a = Int} b
          fromBuf b
 
-getHash : Ref Bin Binary -> Core Int
-getHash b
+getHash : String -> Ref Bin Binary -> Core Int
+getHash file b
     = do hdr <- fromBuf {a = String} b
          when (hdr /= "TTC") $ corrupt "TTC header"
          ver <- fromBuf {a = Int} b
-         checkTTCVersion ver ttcVersion
+         checkTTCVersion file ver ttcVersion
          fromBuf b
 
 export
@@ -464,7 +460,7 @@ readIFaceHash fname
     = do Right buf <- coreLift $ readFromFile fname
             | Left err => pure 0
          b <- newRef Bin buf
-         catch (getHash b)
+         catch (getHash fname b)
                (\err => pure 0)
 
 export
@@ -474,6 +470,6 @@ readImportHashes fname
     = do Right buf <- coreLift $ readFromFile fname
             | Left err => pure []
          b <- newRef Bin buf
-         catch (getImportHashes b)
+         catch (getImportHashes fname b)
                (\err => pure [])
 
