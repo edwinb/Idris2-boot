@@ -559,7 +559,8 @@ sameType fc phase fn env [] = pure ()
 sameType {ns} fc phase fn env (p :: xs)
     = do defs <- get Ctxt
          case getFirstArgType p of
-              Known _ t => sameTypeAs !(nf defs env t) (map getFirstArgType xs)
+              Known _ t => sameTypeAs phase !(nf defs env t)
+                                      (map getFirstArgType xs)
               ty => throw (CaseCompile fc fn DifferingTypes)
   where
     firstPat : NamedPats ns (np :: nps) -> Pat
@@ -574,17 +575,17 @@ sameType {ns} fc phase fn env (p :: xs)
     headEq _ (NErased _ _) RunTime = True
     headEq _ _ _ = False
 
-    sameTypeAs : NF ns -> List (ArgType ns) -> Core ()
-    sameTypeAs ty [] = pure ()
-    sameTypeAs ty (Known Rig0 t :: xs)
+    sameTypeAs : Phase -> NF ns -> List (ArgType ns) -> Core ()
+    sameTypeAs _ ty [] = pure ()
+    sameTypeAs RunTime ty (Known Rig0 t :: xs)
           = throw (CaseCompile fc fn (MatchErased (_ ** (env, mkTerm _ (firstPat p)))))
                 -- Can't match on erased thing
-    sameTypeAs ty (Known c t :: xs)
+    sameTypeAs p ty (Known c t :: xs)
           = do defs <- get Ctxt
                if headEq ty !(nf defs env t) phase
-                  then sameTypeAs ty xs
+                  then sameTypeAs p ty xs
                   else throw (CaseCompile fc fn DifferingTypes)
-    sameTypeAs ty _ = throw (CaseCompile fc fn DifferingTypes)
+    sameTypeAs p ty _ = throw (CaseCompile fc fn DifferingTypes)
 
 -- Check whether all the initial patterns are the same, or are all a variable.
 -- If so, we'll match it to refine later types and move on

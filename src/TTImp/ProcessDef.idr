@@ -522,17 +522,19 @@ mkRunTime n
     = do defs <- get Ctxt
          Just gdef <- lookupCtxtExact n (gamma defs)
               | _ => pure ()
-         let PMDef r cargs tree_ct _ pats = definition gdef
-              | _ => pure () -- not a function definition
-         let ty = type gdef
-         (rargs ** tree_rt) <- getPMDef (location gdef) RunTime n ty
-                                        !(traverse (toClause (location gdef)) pats)
-         log 5 $ "Runtime tree for " ++ show (fullname gdef) ++ ": " ++ show tree_rt
-         let Just Refl = nameListEq cargs rargs
-                 | Nothing => throw (InternalError "WAT")
-         addDef n (record { definition = PMDef r cargs tree_ct tree_rt pats
-                          } gdef)
-         pure ()
+         -- If it's erased at run time, don't build the tree
+         when (not (multiplicity gdef == Rig0)) $ do
+           let PMDef r cargs tree_ct _ pats = definition gdef
+                | _ => pure () -- not a function definition
+           let ty = type gdef
+           (rargs ** tree_rt) <- getPMDef (location gdef) RunTime n ty
+                                          !(traverse (toClause (location gdef)) pats)
+           log 5 $ "Runtime tree for " ++ show (fullname gdef) ++ ": " ++ show tree_rt
+           let Just Refl = nameListEq cargs rargs
+                   | Nothing => throw (InternalError "WAT")
+           addDef n (record { definition = PMDef r cargs tree_ct tree_rt pats
+                            } gdef)
+           pure ()
   where
     toClause : FC -> (vars ** (Env Term vars, Term vars, Term vars)) ->
                Core Clause
