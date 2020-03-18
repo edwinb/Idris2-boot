@@ -176,8 +176,8 @@ mutual
       = IDef fc n (map (substNamesClause bound ps) cs)
   substNamesDecl bound ps (IData fc vis d)
       = IData fc vis (substNamesData bound ps d)
-  substNamesDecl bound ps (INamespace fc nest ns ds)
-      = INamespace fc nest ns (map (substNamesDecl bound ps) ds)
+  substNamesDecl bound ps (INamespace fc ns ds)
+      = INamespace fc ns (map (substNamesDecl bound ps) ds)
   substNamesDecl bound ps d = d
 
 mutual
@@ -252,8 +252,8 @@ mutual
       = IDef fc' n (map (substLocClause fc') cs)
   substLocDecl fc' (IData fc vis d)
       = IData fc' vis (substLocData fc' d)
-  substLocDecl fc' (INamespace fc nest ns ds)
-      = INamespace fc' nest ns (map (substLocDecl fc') ds)
+  substLocDecl fc' (INamespace fc ns ds)
+      = INamespace fc' ns (map (substLocDecl fc') ds)
   substLocDecl fc' d = d
 
 nameNum : String -> (String, Int)

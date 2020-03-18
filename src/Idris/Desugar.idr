@@ -703,8 +703,8 @@ mutual
                                               map fst params)) fields
            -- True flag set so that the parent namespace can look inside the
            -- record definition
-           pure [INamespace fc True [nameRoot tn]
-                  [IRecord fc vis (MkImpRecord fc tn paramsb conname fields')]]
+           pure [IRecord fc (Just (nameRoot tn))
+                         vis (MkImpRecord fc tn paramsb conname fields')]
     where
       fname : PField -> Name
       fname (MkField _ _ _ n _) = n
@@ -724,7 +724,7 @@ mutual
            pure (concat mds')
   desugarDecl ps (PNamespace fc ns decls)
       = do ds <- traverse (desugarDecl ps) decls
-           pure [INamespace fc False ns (concat ds)]
+           pure [INamespace fc ns (concat ds)]
   desugarDecl ps (PTransform fc lhs rhs)
       = do (bound, blhs) <- bindNames False !(desugar LHS ps lhs)
            rhs' <- desugar AnyExpr (bound ++ ps) rhs

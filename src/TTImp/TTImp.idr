@@ -300,12 +300,10 @@ mutual
        IDef : FC -> Name -> List ImpClause -> ImpDecl
        IParameters : FC -> List (Name, RawImp) ->
                      List ImpDecl -> ImpDecl
-       IRecord : FC -> Visibility -> ImpRecord -> ImpDecl
-       INamespace : FC ->
-                    (nested : Bool) ->
-                      -- ^ if True, parent namespaces in the same file can also
-                      -- look inside and see private/export names in full
-                    List String -> List ImpDecl -> ImpDecl
+       IRecord : FC ->
+                 Maybe String -> -- nested namespace
+                 Visibility -> ImpRecord -> ImpDecl
+       INamespace : FC -> List String -> List ImpDecl -> ImpDecl
        ITransform : FC -> RawImp -> RawImp -> ImpDecl
        IPragma : ({vars : _} -> Ref Ctxt Defs ->
                   NestedNames vars -> Env Term vars -> Core ()) ->
@@ -320,9 +318,9 @@ mutual
     show (IParameters _ ps ds)
         = "parameters " ++ show ps ++ "\n\t" ++
           showSep "\n\t" (assert_total $ map show ds)
-    show (IRecord _ _ d) = show d
-    show (INamespace _ nest ns decls)
-        = "namespace " ++ if nest then "[nested] " else "" ++ show ns ++
+    show (IRecord _ _ _ d) = show d
+    show (INamespace _ ns decls)
+        = "namespace " ++ show ns ++
           showSep "\n" (assert_total $ map show decls)
     show (ITransform _ lhs rhs)
         = "%transform " ++ show lhs ++ " ==> " ++ show rhs
@@ -513,8 +511,8 @@ definedInBlock ns = concatMap (defName ns)
         = expandNS ns n :: map (expandNS ns) (map getName cons)
     defName ns (IData _ _ (MkImpLater _ n _)) = [expandNS ns n]
     defName ns (IParameters _ _ pds) = concatMap (defName ns) pds
-    defName ns (INamespace _ _ n nds) = concatMap (defName (n ++ ns)) nds
-    defName ns (IRecord _ _ (MkImpRecord _ n _ _ _)) = [n]
+    defName ns (INamespace _ n nds) = concatMap (defName (n ++ ns)) nds
+    defName ns (IRecord _ _ _ (MkImpRecord _ n _ _ _)) = [n]
     defName _ _ = []
 
 export
@@ -888,10 +886,10 @@ mutual
         = do tag 2; toBuf b fc; toBuf b n; toBuf b xs
     toBuf b (IParameters fc vis d)
         = do tag 3; toBuf b fc; toBuf b vis; toBuf b d
-    toBuf b (IRecord fc vis r)
-        = do tag 4; toBuf b fc; toBuf b vis; toBuf b r
-    toBuf b (INamespace fc n xs ds)
-        = do tag 5; toBuf b fc; toBuf b n; toBuf b xs; toBuf b ds
+    toBuf b (IRecord fc ns vis r)
+        = do tag 4; toBuf b fc; toBuf b ns; toBuf b vis; toBuf b r
+    toBuf b (INamespace fc xs ds)
+        = do tag 5; toBuf b fc; toBuf b xs; toBuf b ds
     toBuf b (ITransform fc lhs rhs)
         = do tag 6; toBuf b fc; toBuf b lhs; toBuf b rhs
     toBuf b (IPragma f) = throw (InternalError "Can't write Pragma")
@@ -913,12 +911,12 @@ mutual
                3 => do fc <- fromBuf b; vis <- fromBuf b
                        d <- fromBuf b
                        pure (IParameters fc vis d)
-               4 => do fc <- fromBuf b; vis <- fromBuf b
-                       r <- fromBuf b
-                       pure (IRecord fc vis r)
-               5 => do fc <- fromBuf b; n <- fromBuf b; xs <- fromBuf b
+               4 => do fc <- fromBuf b; ns <- fromBuf b;
+                       vis <- fromBuf b; r <- fromBuf b
+                       pure (IRecord fc ns vis r)
+               5 => do fc <- fromBuf b; xs <- fromBuf b
                        ds <- fromBuf b
-                       pure (INamespace fc n xs ds)
+                       pure (INamespace fc xs ds)
                6 => do fc <- fromBuf b; lhs <- fromBuf b; rhs <- fromBuf b
                        pure (ITransform fc lhs rhs)
                7 => do n <- fromBuf b

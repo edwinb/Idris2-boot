@@ -28,13 +28,13 @@ elabRecord : {auto c : Ref Ctxt Defs} ->
              {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
              List ElabOpt -> FC -> Env Term vars ->
-             NestedNames vars -> Visibility ->
-             Name ->
+             NestedNames vars -> Maybe String ->
+             Visibility -> Name ->
              (params : List (Name, RawImp)) ->
              (conName : Maybe Name) ->
              List IField ->
              Core ()
-elabRecord {vars} eopts fc env nest vis tn params rcon fields
+elabRecord {vars} eopts fc env nest newns vis tn params rcon fields
     = do let conName_in = maybe (mkCon tn) id rcon
          conName <- inCurrentNS conName_in
          elabAsData conName
@@ -42,7 +42,20 @@ elabRecord {vars} eopts fc env nest vis tn params rcon fields
          Just conty <- lookupTyExact conName (gamma defs)
              | Nothing => throw (InternalError ("Adding " ++ show tn ++ "failed"))
          let recTy = apply (IVar fc tn) (map (IVar fc) (map fst params))
-         elabGetters conName recTy 0 [] [] conty
+         -- Go into new namespace, if there is one, for getters
+         case newns of
+              Nothing => elabGetters conName recTy 0 [] [] conty
+              Just ns =>
+                   do let cns = currentNS defs
+                      let nns = nestedNS defs
+                      extendNS [ns]
+                      newns <- getNS
+                      elabGetters conName recTy 0 [] [] conty
+                      defs <- get Ctxt
+                      -- Record that the current namespace is allowed to look
+                      -- at private names in the nested namespace
+                      put Ctxt (record { currentNS = cns,
+                                         nestedNS = newns :: nns } defs)
   where
     jname : (Name, RawImp) -> (Maybe Name, RigCount, PiInfo RawImp, RawImp)
     jname (n, t) = (Just n, Rig0, Implicit, t)
@@ -128,14 +141,13 @@ elabRecord {vars} eopts fc env nest vis tn params rcon fields
                                upds' (b :: tyenv) sc
     elabGetters con recTy done upds _ _ = pure ()
 
-
 export
 processRecord : {auto c : Ref Ctxt Defs} ->
                 {auto m : Ref MD Metadata} ->
                 {auto u : Ref UST UState} ->
                 List ElabOpt -> NestedNames vars ->
-                Env Term vars -> Visibility ->
-                ImpRecord -> Core ()
-processRecord eopts nest env vis (MkImpRecord fc n ps cons fs)
-    = elabRecord eopts fc env nest vis n ps cons fs
+                Env Term vars -> Maybe String ->
+                Visibility -> ImpRecord -> Core ()
+processRecord eopts nest env newns vis (MkImpRecord fc n ps cons fs)
+    = elabRecord eopts fc env nest newns vis n ps cons fs
 

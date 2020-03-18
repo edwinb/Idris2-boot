@@ -33,20 +33,15 @@ process eopts nest env (IDef fc fname def)
     = processDef eopts nest env fc fname def
 process eopts nest env (IParameters fc ps decls)
     = processParams nest env fc ps decls
-process eopts nest env (IRecord fc vis rec)
-    = processRecord eopts nest env vis rec
-process eopts nest env (INamespace fc nested ns decls)
+process eopts nest env (IRecord fc ns vis rec)
+    = processRecord eopts nest env ns vis rec
+process eopts nest env (INamespace fc ns decls)
     = do defs <- get Ctxt
          let cns = currentNS defs
-         let nns = nestedNS defs
          extendNS (reverse ns)
-         newns <- getNS
          traverse_ (processDecl eopts nest env) decls
          defs <- get Ctxt
-         put Ctxt (record { currentNS = cns,
-                            nestedNS = if nested
-                                          then newns :: nns
-                                          else nns } defs)
+         put Ctxt (record { currentNS = cns } defs)
 process eopts nest env (ITransform fc lhs rhs)
     = throw (GenericMsg fc "%transform not yet implemented")
 process {c} eopts nest env (IPragma act)
