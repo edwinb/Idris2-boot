@@ -518,7 +518,7 @@ mutual
   --    i.e. type constructors of data declarations
   --         function types
   --         interfaces (in full, since it includes function types)
-  --         records (in full, similarly)
+  --         records (just the generated type constructor)
   --         implementation headers (i.e. note their existence, but not the bodies)
   -- Everything else on the second pass
   getDecl : Pass -> PDecl -> Maybe PDecl
