@@ -1,5 +1,5 @@
 1/1: Building Cover (Cover.idr)
-Cover.idr:14:1--14:8:While processing left hand side of Main.badBar at Cover.idr:14:1--15:1:
+Cover.idr:14:1--14:8:While processing left hand side of badBar at Cover.idr:14:1--15:1:
 Can't match on Z as it has a polymorphic type
 Main> Main.foo:
 foo (Z, S _)

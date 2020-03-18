@@ -475,8 +475,9 @@ export
 HasNames Name where
   full gam (Resolved i)
       = do Just gdef <- lookupCtxtExact (Resolved i) gam
-                | Nothing => do coreLift $ putStrLn $ "Missing name! " ++ show i
-                                pure (Resolved i)
+                  -- May occasionally happen when working with metadata.
+                  -- It's harmless, so just silently return the resolved name.
+                | Nothing => pure (Resolved i)
            pure (fullname gdef)
   full gam n = pure n
 
@@ -1060,6 +1061,23 @@ toResolvedNames : {auto c : Ref Ctxt Defs} ->
 toResolvedNames t
     = do defs <- get Ctxt
          resolved (gamma defs) t
+
+-- Make the name look nicer for user display
+export
+prettyName : {auto c : Ref Ctxt Defs} ->
+             Name -> Core String
+prettyName (Nested i n)
+    = do i' <- toFullNames (Resolved i)
+         pure (show !(prettyName i') ++ "," ++
+               show !(prettyName n))
+prettyName (CaseBlock outer idx)
+    = do outer' <- toFullNames (Resolved outer)
+         pure ("case block in " ++ !(prettyName outer'))
+prettyName (WithBlock outer idx)
+    = do outer' <- toFullNames (Resolved outer)
+         pure ("with block in " ++ !(prettyName outer'))
+prettyName (NS ns n) = prettyName n
+prettyName n = pure (show n)
 
 export
 setFlag : {auto c : Ref Ctxt Defs} ->

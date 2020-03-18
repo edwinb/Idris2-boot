@@ -1,5 +1,5 @@
 1/1: Building Main (Main.idr)
-Main.idr:27:37--27:72:While processing right hand side of Main.dpairWithExtraInfoBad at Main.idr:27:1--28:1:
+Main.idr:27:37--27:72:While processing right hand side of dpairWithExtraInfoBad at Main.idr:27:1--28:1:
 When unifying [MN (fromInteger 0), MN (fromInteger 0)] and [MN (fromInteger 0)]
 Mismatch between:
 	[MN (fromInteger 0)]

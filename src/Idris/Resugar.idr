@@ -137,7 +137,7 @@ mutual
       = toPTerm p (IVar loc n)
   toPTerm p (IVar fc n)
       = do ns <- fullNamespace
-           pure (sugarApp (PRef fc (if ns then n else dropNS n)))
+           pure (sugarApp (PRef fc (if ns then n else UN !(prettyName n))))
   toPTerm p (IPi fc rig Implicit n arg ret)
       = do imp <- showImplicits
            if imp

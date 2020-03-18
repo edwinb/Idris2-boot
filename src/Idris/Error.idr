@@ -68,16 +68,16 @@ perror (BadDataConType fc n fam)
 perror (NotCovering fc n IsCovering)
     = pure $ "Internal error (Coverage of " ++ show n ++ ")"
 perror (NotCovering fc n (MissingCases cs))
-    = pure $ show n ++ " is not covering. Missing cases:\n\t" ++
+    = pure $ !(prettyName n) ++ " is not covering. Missing cases:\n\t" ++
              showSep "\n\t" !(traverse (pshow []) cs)
 perror (NotCovering fc n (NonCoveringCall ns))
-    = pure $ show n ++ " is not covering:\n\t" ++
+    = pure $ !(prettyName n) ++ " is not covering:\n\t" ++
                 "Calls non covering function"
                    ++ case ns of
                            [fn] => " " ++ show fn
                            _ => "s: " ++ showSep ", " (map show ns)
 perror (NotTotal fc n r)
-    = pure $ show n ++ " is not total"
+    = pure $ !(prettyName n) ++ " is not total"
 perror (LinearUsed fc count n)
     = pure $ "There are " ++ show count ++ " uses of linear name " ++ sugarName n
 perror (LinearMisuse fc n Rig0 ctx)
@@ -196,16 +196,16 @@ perror (RewriteNoChange _ env rule ty)
 perror (NotRewriteRule fc env rule)
     = pure $ !(pshow env rule) ++ " is not a rewrite rule type"
 perror (CaseCompile _ n DifferingArgNumbers)
-    = pure $ "Patterns for " ++ show !(toFullNames n) ++ " have differing numbers of arguments"
+    = pure $ "Patterns for " ++ !(prettyName n) ++ " have differing numbers of arguments"
 perror (CaseCompile _ n DifferingTypes)
-    = pure $ "Patterns for " ++ show !(toFullNames n) ++ " require matching on different types"
+    = pure $ "Patterns for " ++ !(prettyName n) ++ " require matching on different types"
 perror (CaseCompile _ n UnknownType)
-    = pure $ "Can't infer type to match in " ++ show !(toFullNames n)
+    = pure $ "Can't infer type to match in " ++ !(prettyName n)
 perror (CaseCompile fc n (NotFullyApplied cn))
     = pure $ "Constructor " ++ show !(toFullNames cn) ++ " is not fully applied"
 perror (CaseCompile fc n (MatchErased (_ ** (env, tm))))
     = pure $ "Attempt to match on erased argument " ++ !(pshow env tm) ++
-             " in " ++ show !(toFullNames n)
+             " in " ++ !(prettyName n)
 perror (BadDotPattern _ env reason x y)
     = pure $ "Can't match on " ++ !(pshow env x) ++
            " (" ++ show reason ++ ")"
@@ -234,16 +234,16 @@ perror ForceNeeded = pure "Internal error when resolving implicit laziness"
 perror (InternalError str) = pure $ "INTERNAL ERROR: " ++ str
 
 perror (InType fc n err)
-    = pure $ "While processing type of " ++ sugarName !(getFullName n) ++
+    = pure $ "While processing type of " ++ !(prettyName n) ++
              " at " ++ show fc ++ ":\n" ++ !(perror err)
 perror (InCon fc n err)
-    = pure $ "While processing constructor " ++ sugarName !(getFullName n) ++
+    = pure $ "While processing constructor " ++ !(prettyName n) ++
              " at " ++ show fc ++ ":\n" ++ !(perror err)
 perror (InLHS fc n err)
-    = pure $ "While processing left hand side of " ++ sugarName !(getFullName n) ++
+    = pure $ "While processing left hand side of " ++ !(prettyName n) ++
              " at " ++ show fc ++ ":\n" ++ !(perror err)
 perror (InRHS fc n err)
-    = pure $ "While processing right hand side of " ++ sugarName !(getFullName n) ++
+    = pure $ "While processing right hand side of " ++ !(prettyName n) ++
              " at " ++ show fc ++ ":\n" ++ !(perror err)
 
 export
