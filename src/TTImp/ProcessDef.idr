@@ -679,7 +679,7 @@ processDef opts nest env fc n_in cs_in
     getClause : {auto c : Ref Ctxt Defs} ->
                 Either RawImp Clause -> Core (Maybe Clause)
     getClause (Left rawlhs)
-        = catch (do lhsp <- getImpossibleTerm rawlhs
+        = catch (do lhsp <- getImpossibleTerm env rawlhs
                     log 3 $ "Generated impossible LHS: " ++ show lhsp
                     pure $ Just $ MkClause [] lhsp (Erased (getFC rawlhs) True))
                 (\e => pure Nothing)

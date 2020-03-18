@@ -196,16 +196,16 @@ perror (RewriteNoChange _ env rule ty)
 perror (NotRewriteRule fc env rule)
     = pure $ !(pshow env rule) ++ " is not a rewrite rule type"
 perror (CaseCompile _ n DifferingArgNumbers)
-    = pure $ "Patterns for " ++ show n ++ " have differing numbers of arguments"
+    = pure $ "Patterns for " ++ show !(toFullNames n) ++ " have differing numbers of arguments"
 perror (CaseCompile _ n DifferingTypes)
-    = pure $ "Patterns for " ++ show n ++ " require matching on different types"
+    = pure $ "Patterns for " ++ show !(toFullNames n) ++ " require matching on different types"
 perror (CaseCompile _ n UnknownType)
-    = pure $ "Can't infer type to match in " ++ show n
+    = pure $ "Can't infer type to match in " ++ show !(toFullNames n)
 perror (CaseCompile fc n (NotFullyApplied cn))
     = pure $ "Constructor " ++ show !(toFullNames cn) ++ " is not fully applied"
 perror (CaseCompile fc n (MatchErased (_ ** (env, tm))))
     = pure $ "Attempt to match on erased argument " ++ !(pshow env tm) ++
-             " in " ++ show n
+             " in " ++ show !(toFullNames n)
 perror (BadDotPattern _ env reason x y)
     = pure $ "Can't match on " ++ !(pshow env x) ++
            " (" ++ show reason ++ ")"

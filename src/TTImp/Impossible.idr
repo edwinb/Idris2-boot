@@ -153,7 +153,25 @@ mutual
 -- account the impossible clauses
 export
 getImpossibleTerm : {auto c : Ref Ctxt Defs} ->
-                    RawImp -> Core ClosedTerm
-getImpossibleTerm tm
+                    Env Term vars -> RawImp -> Core ClosedTerm
+getImpossibleTerm env tm
     = do q <- newRef QVar (the Int 0)
-         mkTerm tm Nothing [] []
+         mkTerm (applyEnv tm) Nothing [] []
+  where
+    isLet : Binder (Term vars) -> Bool
+    isLet (Let _ _ _) = True
+    isLet _ = False
+
+    addEnv : FC -> Env Term vars -> List RawImp
+    addEnv fc [] = []
+    addEnv fc (b :: env) =
+       if isLet b
+          then addEnv fc env
+          else Implicit fc False :: addEnv fc env
+
+    -- Need to apply the function to the surrounding environment
+    applyEnv : RawImp -> RawImp
+    applyEnv (IApp fc fn arg) = IApp fc (applyEnv fn) arg
+    applyEnv (IImplicitApp fc fn n arg)
+        = IImplicitApp fc (applyEnv fn) n arg
+    applyEnv tm = apply tm (addEnv (getFC tm) env)
