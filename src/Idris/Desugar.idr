@@ -532,7 +532,12 @@ mutual
   getDecl AsType (PData fc vis (MkPData dfc tyn tyc _ _))
       = Just (PData fc vis (MkPLater dfc tyn tyc))
   getDecl AsType d@(PInterface _ _ _ _ _ _ _ _) = Just d
-  getDecl AsType d@(PRecord _ _ _ _ _ _) = Just d
+  getDecl AsType d@(PRecord fc vis n ps _ _)
+      = Just (PData fc vis (MkPLater fc n (mkRecType ps)))
+    where
+      mkRecType : List (Name, PTerm) -> PTerm
+      mkRecType [] = PType fc
+      mkRecType ((n, t) :: ts) = PPi fc RigW Explicit (Just n) t (mkRecType ts)
   getDecl AsType d@(PFixity _ _ _ _) = Just d
   getDecl AsType d@(PDirective _ _) = Just d
   getDecl AsType d = Nothing
@@ -540,7 +545,7 @@ mutual
   getDecl AsDef (PClaim _ _ _ _ _) = Nothing
   getDecl AsDef d@(PData _ _ (MkPLater _ _ _)) = Just d
   getDecl AsDef (PInterface _ _ _ _ _ _ _ _) = Nothing
-  getDecl AsDef (PRecord _ _ _ _ _ _) = Nothing
+  getDecl AsDef d@(PRecord _ _ _ _ _ _) = Just d
   getDecl AsDef (PFixity _ _ _ _) = Nothing
   getDecl AsDef (PDirective _ _) = Nothing
   getDecl AsDef d = Just d
