@@ -607,8 +607,10 @@ mutual
                   Core (Term vs)
       substMeta (Bind bfc n (Lam c e ty) sc) (a :: as) env
           = substMeta sc as (a :: env)
+      substMeta (Bind bfc n (Let c val ty) sc) as env
+          = substMeta (subst val sc) as env
       substMeta rhs [] env = pure (substs env rhs)
-      substMeta rhs _ _ = throw (InternalError ("Badly formed metavar solution " ++ show n ++ " " ++ show rhs))
+      substMeta rhs _ _ = throw (InternalError ("Badly formed metavar solution " ++ show n ++ " " ++ show fn))
   expandMeta rig erase env n idx def _
       = throw (InternalError ("Badly formed metavar solution " ++ show n ++ " " ++ show def))
 

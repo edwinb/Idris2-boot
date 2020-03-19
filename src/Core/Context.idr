@@ -1068,8 +1068,8 @@ prettyName : {auto c : Ref Ctxt Defs} ->
              Name -> Core String
 prettyName (Nested i n)
     = do i' <- toFullNames (Resolved i)
-         pure (show !(prettyName i') ++ "," ++
-               show !(prettyName n))
+         pure (!(prettyName i') ++ "," ++
+               !(prettyName n))
 prettyName (CaseBlock outer idx)
     = do outer' <- toFullNames (Resolved outer)
          pure ("case block in " ++ !(prettyName outer'))
