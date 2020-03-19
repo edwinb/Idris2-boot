@@ -595,9 +595,8 @@ recordDecl fname indents
          n <- name
          params <- many (ifaceParam fname indents)
          keyword "where"
-         dc <- option Nothing (do exactIdent "constructor"
-                                  n <- name
-                                  pure (Just n))
+         exactIdent "constructor"
+         dc <- name
          flds <- assert_total (blockAfter col (fieldDecl fname))
          end <- location
          let fc = MkFC fname start end

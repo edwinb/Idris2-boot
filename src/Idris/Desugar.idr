@@ -693,7 +693,7 @@ mutual
                              elabImplementation fc vis pass env nest isb consb
                                                 tn paramsb impname nusing
                                                 body')]
-  desugarDecl ps (PRecord fc vis tn params conname fields)
+  desugarDecl ps (PRecord fc vis tn params conname_in fields)
       = do params' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
                                             pure (fst ntm, tm')) params
            let fnames = map fname fields
@@ -706,6 +706,7 @@ mutual
            let paramsb = map (\ (n, tm) => (n, doBind bnames tm)) params'
            fields' <- traverse (desugarField (ps ++ map fname fields ++
                                               map fst params)) fields
+           let conname = maybe (mkConName tn) id conname_in
            -- True flag set so that the parent namespace can look inside the
            -- record definition
            pure [IRecord fc (Just (nameRoot tn))
@@ -713,6 +714,11 @@ mutual
     where
       fname : PField -> Name
       fname (MkField _ _ _ n _) = n
+
+      mkConName : Name -> Name
+      mkConName (NS ns (UN n)) = NS ns (DN n (MN ("__mk" ++ n) 0))
+      mkConName n = DN (show n) (MN ("__mk" ++ show n) 0)
+
   desugarDecl ps (PFixity fc Prefix prec (UN n))
       = do syn <- get Syn
            put Syn (record { prefixes $= insert n prec } syn)

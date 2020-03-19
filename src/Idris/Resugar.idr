@@ -330,7 +330,7 @@ mutual
                                    do ty' <- toPTerm startPrec ty
                                       pure (n, ty')) ps
            fs' <- traverse toPField fs
-           pure (n, ps', con, fs')
+           pure (n, ps', Just con, fs')
 
   toPFnOpt : {auto c : Ref Ctxt Defs} ->
              {auto s : Ref Syn SyntaxInfo} ->

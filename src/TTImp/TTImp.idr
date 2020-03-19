@@ -260,7 +260,7 @@ mutual
   data ImpRecord : Type where
        MkImpRecord : FC -> (n : Name) ->
                      (params : List (Name, RawImp)) ->
-                     (conName : Maybe Name) ->
+                     (conName : Name) ->
                      (fields : List IField) ->
                      ImpRecord
 
@@ -498,6 +498,9 @@ definedInBlock ns = concatMap (defName ns)
     getName : ImpTy -> Name
     getName (MkImpTy _ n _) = n
 
+    getFieldName : IField -> Name
+    getFieldName (MkIField _ _ _ n _) = n
+
     expandNS : List String -> Name -> Name
     expandNS [] n = n
     expandNS ns (UN n) = NS ns (UN n)
@@ -512,7 +515,12 @@ definedInBlock ns = concatMap (defName ns)
     defName ns (IData _ _ (MkImpLater _ n _)) = [expandNS ns n]
     defName ns (IParameters _ _ pds) = concatMap (defName ns) pds
     defName ns (INamespace _ n nds) = concatMap (defName (n ++ ns)) nds
-    defName ns (IRecord _ _ _ (MkImpRecord _ n _ _ _)) = [n]
+    defName ns (IRecord _ fldns _ (MkImpRecord _ n _ con flds))
+        = let fldns = maybe ns (\f => f :: ns) fldns
+              all : List Name
+                  = expandNS ns n ::
+                    map (expandNS fldns) (map getFieldName flds) in
+              expandNS ns con :: all
     defName _ _ = []
 
 export
