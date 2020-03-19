@@ -17,6 +17,8 @@ import Idris.ProcessIdr
 import Idris.REPLCommon
 import Idris.Syntax
 
+import Data.StringMap
+
 %default covering
 
 record ModTree where
@@ -83,21 +85,31 @@ mkModTree loc done mod
                          CyclicImports _ => throw err
                          _ => pure (MkModTree mod Nothing []))
 
+data DoneMod : Type where
+data BuildOrder : Type where
+
 -- Given a module tree, returns the modules in the reverse order they need to
 -- be built, including their dependencies
-mkBuildMods : List BuildMod -> ModTree -> List BuildMod
-mkBuildMods acc mod
-    = let req = buildDeps acc (reverse (deps mod)) in
-          maybe req -- only build ones where we can find the source code
-             (\sf => if sf `elem` map buildFile req
-                        then req
-                        else MkBuildMod sf (nspace mod)
-                                        (map nspace (deps mod)) :: req)
-             (sourceFile mod)
-  where
-    buildDeps : List BuildMod -> List ModTree -> List BuildMod
-    buildDeps acc [] = acc
-    buildDeps acc (m :: ms) = buildDeps (mkBuildMods acc m) ms
+mkBuildMods : {auto d : Ref DoneMod (StringMap ())} ->
+              {auto o : Ref BuildOrder (List BuildMod)} ->
+              ModTree -> Core ()
+mkBuildMods mod
+    = maybe (pure ())
+         (\sf =>
+            do done <- get DoneMod
+               case lookup sf done of
+                    Just _ => pure ()
+                    Nothing =>
+                       do -- build dependencies
+                          traverse_ mkBuildMods (deps mod)
+                          -- build it now
+                          bo <- get BuildOrder
+                          put BuildOrder
+                                (MkBuildMod sf (nspace mod)
+                                            (map nspace (deps mod)) :: bo)
+                          done <- get DoneMod
+                          put DoneMod (insert sf () done))
+         (sourceFile mod)
 
 -- Given a main file name, return the list of modules that need to be
 -- built for that main file, in the order they need to be built
@@ -109,7 +121,10 @@ getBuildMods loc fname
     = do a <- newRef AllMods []
          d <- getDirs
          t <- mkModTree {a} loc [] (pathToNS (working_dir d) (source_dir d) fname)
-         pure (reverse (mkBuildMods [] t))
+         dm <- newRef DoneMod empty
+         o <- newRef BuildOrder []
+         mkBuildMods {d=dm} {o} t
+         pure (reverse !(get BuildOrder))
 
 fnameModified : String -> Core Integer
 fnameModified fname
