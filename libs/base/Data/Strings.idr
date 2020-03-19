@@ -173,3 +173,15 @@ strIndex = prim__strIndex
 export
 strTail : String -> String
 strTail = prim__strTail
+
+export
+isPrefixOf : String -> String -> Bool
+isPrefixOf a b = isPrefixOf (unpack a) (unpack b)
+
+export
+isSuffixOf : String -> String -> Bool
+isSuffixOf a b = isSuffixOf (unpack a) (unpack b)
+
+export
+isInfixOf : String -> String -> Bool
+isInfixOf a b = isInfixOf (unpack a) (unpack b)

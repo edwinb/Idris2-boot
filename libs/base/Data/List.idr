@@ -437,6 +437,26 @@ export
 isInfixOf : Eq a => List a -> List a -> Bool
 isInfixOf n h = any (isPrefixOf n) (tails h)
 
+||| Transposes rows and columns of a list of lists.
+|||
+||| ```idris example
+||| with List transpose [[1, 2], [3, 4]]
+||| ```
+|||
+||| This also works for non square scenarios, thus
+||| involution does not always hold:
+|||
+|||     transpose [[], [1, 2]] = [[1], [2]]
+|||     transpose (transpose [[], [1, 2]]) = [[1, 2]]
+export
+transpose : List (List a) -> List (List a)
+transpose [] = []
+transpose (heads :: tails) = spreadHeads heads (transpose tails) where
+  spreadHeads : List a -> List (List a) -> List (List a)
+  spreadHeads []              tails           = tails
+  spreadHeads (head :: heads) []              = [head] :: spreadHeads heads []
+  spreadHeads (head :: heads) (tail :: tails) = (head :: tail) :: spreadHeads heads tails
+
 --------------------------------------------------------------------------------
 -- Properties
 --------------------------------------------------------------------------------
