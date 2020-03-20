@@ -23,8 +23,6 @@ import TTImp.Unelab
 
 import Parser.Support
 
-import Control.Catchable
-
 %default covering
 
 showInfo : (Name, Int, GlobalDef) -> Core ()

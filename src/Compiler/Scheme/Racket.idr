@@ -296,7 +296,7 @@ compileToRKT c tm outfile
          s <- newRef {t = List String} Structs []
          fgndefs <- traverse getFgnCall ns
          compdefs <- traverse (getScheme racketPrim racketString defs) ns
-         let code = concat (map snd fgndefs) ++ concat compdefs
+         let code = fastAppend (map snd fgndefs ++ compdefs)
          main <- schExp racketPrim racketString 0 [] !(compileExp tags tm)
          support <- readDataFile "racket/support.rkt"
          let scm = schHeader (concat (map fst fgndefs)) ++

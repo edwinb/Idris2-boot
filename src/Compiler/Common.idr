@@ -101,6 +101,7 @@ findUsedNames tm
          natHackNames' <- traverse toResolvedNames natHackNames
          allNs <- getAllDesc (natHackNames' ++ keys ns) empty defs
          cns <- traverse toFullNames (keys allNs)
+         let cns = nub cns
          -- Initialise the type constructor list with explicit names for
          -- the primitives (this is how we look up the tags)
          -- Use '1' for '->' constructor
@@ -208,3 +209,17 @@ copyLib (lib, fullname)
                  Right _ <- coreLift $ writeToFile lib bin
                     | Left err => throw (FileErr lib err)
                  pure ()
+
+export
+fastAppend : List String -> String
+fastAppend xs
+    = let len = cast (foldr (+) 0 (map length xs)) in
+          unsafePerformIO $
+             do b <- newStringBuffer (len+1)
+                build b xs
+                getStringFromBuffer b
+  where
+    build : StringBuffer -> List String -> IO ()
+    build b [] = pure ()
+    build b (x :: xs) = do addToStringBuffer b x
+                           build b xs
