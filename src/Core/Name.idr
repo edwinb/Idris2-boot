@@ -9,7 +9,7 @@ data Name : Type where
      MN : String -> Int -> Name -- machine generated name
      PV : Name -> Int -> Name -- pattern variable name; int is the resolved function id
      DN : String -> Name -> Name -- a name and how to display it
-     Nested : Int -> Name -> Name -- nested function name
+     Nested : (Int, Int) -> Name -> Name -- nested function name
      CaseBlock : Int -> Int -> Name -- case block nested in (resolved) name
      WithBlock : Int -> Int -> Name -- with block nested in (resolved) name
      Resolved : Int -> Name -- resolved, index into context
@@ -64,7 +64,8 @@ export Show Name where
   show (MN x y) = "{" ++ x ++ ":" ++ show y ++ "}"
   show (PV n d) = "{P:" ++ show n ++ ":" ++ show d ++ "}"
   show (DN str n) = str
-  show (Nested outer inner) = show outer ++ ":" ++ show inner
+  show (Nested (outer, idx) inner)
+      = show outer ++ ":" ++ show idx ++ ":" ++ show inner
   show (CaseBlock outer i) = "case block in " ++ show outer ++ "(" ++ show i ++ ")"
   show (WithBlock outer i) = "with block in " ++ show outer
   show (Resolved x) = "$resolved" ++ show x

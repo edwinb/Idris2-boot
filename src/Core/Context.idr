@@ -1066,7 +1066,7 @@ toResolvedNames t
 export
 prettyName : {auto c : Ref Ctxt Defs} ->
              Name -> Core String
-prettyName (Nested i n)
+prettyName (Nested (i, _) n)
     = do i' <- toFullNames (Resolved i)
          pure (!(prettyName i') ++ "," ++
                !(prettyName n))

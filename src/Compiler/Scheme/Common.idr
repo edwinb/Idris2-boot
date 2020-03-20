@@ -35,7 +35,7 @@ schName (UN n) = schString n
 schName (MN n i) = schString n ++ "-" ++ show i
 schName (PV n d) = "pat--" ++ schName n
 schName (DN _ n) = schName n
-schName (Nested i n) = "n--" ++ show i ++ "-" ++ schName n
+schName (Nested (i, x) n) = "n--" ++ show i ++ "-" ++ show x ++ "-" ++ schName n
 schName (CaseBlock x y) = "case--" ++ show x ++ "-" ++ show y
 schName (WithBlock x y) = "with--" ++ show x ++ "-" ++ show y
 schName (Resolved i) = "fn--" ++ show i
@@ -324,7 +324,7 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
                       ++ showSep " " !(traverse (schConstAlt (i+1) vs n) alts)
                       ++ schCaseDef defc ++ "))"
     schExp i vs (CPrimVal fc c) = pure $ schConstant schString c
-    schExp i vs (CErased fc) = pure "'()"
+    schExp i vs (CErased fc) = pure "4294"
     schExp i vs (CCrash fc msg) = pure $ "(blodwen-error-quit " ++ show msg ++ ")"
 
   -- Need to convert the argument (a list of scheme arguments that may

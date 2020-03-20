@@ -52,7 +52,9 @@ checkLocal {vars} rig elabinfo nest env fc nestdecls scope expty
     applyEnv : {auto c : Ref Ctxt Defs} -> Int -> Name ->
                Core (Name, (Maybe Name, Nat, FC -> NameType -> Term vars))
     applyEnv outer inner
-          = do let nestedName = Nested outer inner
+          = do ust <- get UST
+               put UST (record { nextName $= (+1) } ust)
+               let nestedName = Nested (outer, nextName ust) inner
                n' <- addName nestedName
                pure (inner, (Just nestedName, lengthNoLet env,
                         \fc, nt => applyTo fc
