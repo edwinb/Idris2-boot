@@ -187,7 +187,8 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
          -- actually bound! This is rather hacky, but a lot less fiddly than
          -- the alternative of fixing up the environment
          when (not (isNil fullImps)) $ findImpsIn fc [] [] casefnty
-         cidx <- addDef casen (newDef fc casen rigc [] casefnty Private None)
+         cidx <- addDef casen (newDef fc casen (if rigc == Rig0 then Rig0 else RigW)
+                                      [] casefnty Private None)
          let caseRef : Term vars = Ref fc Func (Resolved cidx)
 
          let applyEnv = applyToFull fc caseRef env

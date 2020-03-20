@@ -200,7 +200,7 @@ mutual
       used _ = []
 
   lcheck rig erase env (Ref fc nt fn)
-      = do ty <- lcheckDef rig erase env fn
+      = do ty <- lcheckDef fc rig erase env fn
            pure (Ref fc nt fn, gnf env (embed ty), [])
 
   -- If the meta has a definition, and we're not in Rig0, expand it first
@@ -216,6 +216,13 @@ mutual
                              (_, Rig0) => False
                              (PMDef _ _ _ _ _, _) => True
                              _ => False
+           logC 10 $ do
+             def <- the (Core String) $ case definition gdef of
+                         PMDef _ _ (STerm tm) _ _ => do tm' <- toFullNames tm
+                                                        pure (show tm')
+                         _ => pure ""
+             pure (show rig ++ ": " ++ show n ++ " " ++ show fc ++ "\n"
+                     ++ show def)
            if expand
               then expandMeta rig erase env n idx (definition gdef) args
               else do let ty : ClosedTerm
@@ -552,22 +559,23 @@ mutual
 
   lcheckDef : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
-              RigCount -> (erase : Bool) -> Env Term vars -> Name ->
+              FC -> RigCount -> (erase : Bool) -> Env Term vars -> Name ->
               Core ClosedTerm
-  lcheckDef rig True env n
+  lcheckDef fc rig True env n
       = do defs <- get Ctxt
            Just def <- lookupCtxtExact n (gamma defs)
                 | Nothing => throw (InternalError ("Linearity checking failed on " ++ show n))
            pure (type def)
-  lcheckDef rig False env n
+  lcheckDef fc rig False env n
       = do defs <- get Ctxt
            let Just idx = getNameID n (gamma defs)
                 | Nothing => throw (InternalError ("Linearity checking failed on " ++ show n))
            Just def <- lookupCtxtExact (Resolved idx) (gamma defs)
                 | Nothing => throw (InternalError ("Linearity checking failed on " ++ show n))
+           rigSafe (multiplicity def) rig
            if linearChecked def
               then pure (type def)
-              else do case definition def of
+              else case definition def of
                         PMDef _ _ _ _ pats =>
                             do u <- getArgUsage (getLoc (type def))
                                                 rig (type def) pats
@@ -593,6 +601,12 @@ mutual
                           UseAny => c in -- no constraint, so leave alone
                 Bind bfc n (Pi c' e ty) sc'
       updateUsage _ ty = ty
+
+      rigSafe : RigCount -> RigCount -> Core ()
+      rigSafe Rig1 RigW = throw (LinearMisuse fc !(getFullName n) Rig1 RigW)
+      rigSafe Rig0 RigW = throw (LinearMisuse fc !(getFullName n) Rig0 RigW)
+      rigSafe Rig0 Rig1 = throw (LinearMisuse fc !(getFullName n) Rig0 Rig1)
+      rigSafe _ _ = pure ()
 
   expandMeta : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
