@@ -188,7 +188,57 @@ mutual
 
 mutual
   export
+  insertNames : {outer, inner : _} ->
+                (ns : List Name) -> CExp (outer ++ inner) ->
+                CExp (outer ++ (ns ++ inner))
+  insertNames ns (CLocal fc prf)
+      = let MkVar var' = insertVarNames {ns} _ prf in
+            CLocal fc var'
+  insertNames _ (CRef fc x) = CRef fc x
+  insertNames {outer} {inner} ns (CLam fc x sc)
+      = let sc' = insertNames {outer = x :: outer} {inner} ns sc in
+            CLam fc x sc'
+  insertNames {outer} {inner} ns (CLet fc x val sc)
+      = let sc' = insertNames {outer = x :: outer} {inner} ns sc in
+            CLet fc x (insertNames ns val) sc'
+  insertNames ns (CApp fc x xs)
+      = CApp fc (insertNames ns x) (assert_total (map (insertNames ns) xs))
+  insertNames ns (CCon fc x tag xs)
+      = CCon fc x tag (assert_total (map (insertNames ns) xs))
+  insertNames ns (COp fc x xs)
+      = COp fc x (assert_total (map (insertNames ns) xs))
+  insertNames ns (CExtPrim fc p xs)
+      = CExtPrim fc p (assert_total (map (insertNames ns) xs))
+  insertNames ns (CForce fc x) = CForce fc (insertNames ns x)
+  insertNames ns (CDelay fc x) = CDelay fc (insertNames ns x)
+  insertNames ns (CConCase fc sc xs def)
+      = CConCase fc (insertNames ns sc) (assert_total (map (insertNamesConAlt ns) xs))
+                 (assert_total (map (insertNames ns) def))
+  insertNames ns (CConstCase fc sc xs def)
+      = CConstCase fc (insertNames ns sc) (assert_total (map (insertNamesConstAlt ns) xs))
+                   (assert_total (map (insertNames ns) def))
+  insertNames _ (CPrimVal fc x) = CPrimVal fc x
+  insertNames _ (CErased fc) = CErased fc
+  insertNames _ (CCrash fc x) = CCrash fc x
+
+  insertNamesConAlt : (ns : List Name) -> CConAlt (outer ++ inner) -> CConAlt (outer ++ (ns ++ inner))
+  insertNamesConAlt {outer} {inner} ns (MkConAlt x tag args sc)
+        = let sc' : CExp ((args ++ outer) ++ inner)
+                  = rewrite sym (appendAssociative args outer inner) in sc in
+              MkConAlt x tag args
+               (rewrite appendAssociative args outer (ns ++ inner) in
+                        insertNames ns sc')
+
+  insertNamesConstAlt : (ns : List Name) -> CConstAlt (outer ++ inner) -> CConstAlt (outer ++ (ns ++ inner))
+  insertNamesConstAlt ns (MkConstAlt x sc) = MkConstAlt x (insertNames ns sc)
+
+mutual
+  export
   embed : CExp args -> CExp (args ++ vars)
+  embed cexp = believe_me cexp
+  -- It is identity at run time, but it would be implemented as below
+  -- (not sure theere's much performance benefit, mind...)
+  {-
   embed (CLocal fc prf) = CLocal fc (varExtend prf)
   embed (CRef fc n) = CRef fc n
   embed (CLam fc x sc) = CLam fc x (embed sc)
@@ -215,6 +265,7 @@ mutual
 
   embedConstAlt : CConstAlt args -> CConstAlt (args ++ vars)
   embedConstAlt (MkConstAlt c sc) = MkConstAlt c (embed sc)
+  -}
 
 mutual
   -- Shrink the scope of a compiled expression, replacing any variables not
@@ -265,6 +316,7 @@ mutual
   export
   Weaken CExp where
     weaken = thin {outer = []} _
+    weakenNs ns tm = insertNames {outer = []} ns tm
 
 export
 getFC : CExp args -> FC

@@ -9,6 +9,7 @@ import Core.Options
 import Core.TT
 import Utils.Binary
 
+import Data.IOArray
 import Data.NameMap
 
 import System.Info
@@ -57,20 +58,23 @@ execute {c} cg tm
          pure ()
 
 -- ||| Recursively get all calls in a function definition
-getAllDesc : List Name -> -- calls to check
-             NameMap () ->  -- all descendants so far
-             Defs -> Core (NameMap ())
-getAllDesc [] ns defs = pure ns
-getAllDesc (n :: rest) ns defs
-  = case lookup n ns of
-         Just _ => getAllDesc rest ns defs
-         Nothing =>
-            case !(lookupCtxtExact n (gamma defs)) of
-                 Nothing => getAllDesc rest ns defs
-                 Just def =>
-                   let refs = refersTo def in
-                       getAllDesc (rest ++ keys refs) (insert n () ns) defs
-
+getAllDesc : {auto c : Ref Ctxt Defs} ->
+             List Name -> -- calls to check
+             IOArray Int -> -- which nodes have been visited. If the entry is
+                            -- present, it's visited
+             Defs -> Core ()
+getAllDesc [] arr defs = pure ()
+getAllDesc (n@(Resolved i) :: rest) arr defs
+  = do Nothing <- coreLift $ readArray arr i
+           | Just _ => getAllDesc rest arr defs
+       case !(lookupCtxtExact n (gamma defs)) of
+            Nothing => getAllDesc rest arr defs
+            Just def =>
+              do coreLift $ writeArray arr i i
+                 let refs = refersTo def
+                 getAllDesc (keys refs ++ rest) arr defs
+getAllDesc (n :: rest) arr defs
+  = getAllDesc rest arr defs
 
 -- Calculate a unique tag for each type constructor name we're compiling
 -- This is so that type constructor names get globally unique tags
@@ -99,9 +103,14 @@ findUsedNames tm
     = do defs <- get Ctxt
          let ns = getRefs (Resolved (-1)) tm
          natHackNames' <- traverse toResolvedNames natHackNames
-         allNs <- getAllDesc (natHackNames' ++ keys ns) empty defs
-         cns <- traverse toFullNames (keys allNs)
-         let cns = nub cns
+         -- make an array of Bools to hold which names we've found (quicker
+         -- to check than a NameMap!)
+         asize <- getNextEntry
+         arr <- coreLift $ newArray asize
+         logTime "Get names" $ getAllDesc (natHackNames' ++ keys ns) arr defs
+         let allNs = mapMaybe (maybe Nothing (Just . Resolved))
+                              !(coreLift (toList arr))
+         cns <- traverse toFullNames allNs
          -- Initialise the type constructor list with explicit names for
          -- the primitives (this is how we look up the tags)
          -- Use '1' for '->' constructor
@@ -111,8 +120,9 @@ findUsedNames tm
                                      [IntType, IntegerType, StringType,
                                       CharType, DoubleType, WorldType]
          tycontags <- mkNameTags defs tyconInit 100 cns
-         traverse_ (compileDef tycontags) cns
-         traverse_ inlineDef cns
+         logTime ("Compile defs " ++ show (length cns) ++ "/" ++ show asize) $
+           traverse_ (compileDef tycontags) cns
+         logTime "Inline" $ traverse_ inlineDef cns
          pure (cns, tycontags)
   where
     primTags : Int -> NameTags -> List Constant -> NameTags

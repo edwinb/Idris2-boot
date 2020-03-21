@@ -348,7 +348,8 @@ compileToSS c tm outfile
          pure ()
 
 ||| Compile a Chez Scheme source file to an executable, daringly with runtime checks off.
-compileToSO : (ssFile : String) -> Core ()
+compileToSO : {auto c : Ref Ctxt Defs} ->
+              (ssFile : String) -> Core ()
 compileToSO ssFile
     = do tmpFile <- coreLift $ tmpName
          chez <- coreLift $ findChez
@@ -375,7 +376,7 @@ compileExpr makeitso c tm outfile
          coreLift $ changeDir (outfile ++ "_app")
          let outSs = outfile ++ ".ss"
          compileToSS c tm outSs
-         when makeitso $ compileToSO outSs
+         logTime "Make SO" $ when makeitso $ compileToSO outSs
          coreLift $ changeDir ".."
          makeSh outfile (if makeitso then "so" else "ss")
          coreLift $ chmod outfile 0o755
