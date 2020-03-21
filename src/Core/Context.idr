@@ -250,7 +250,7 @@ getContent = content
 -- Implemented later, once we can convert to and from full names
 -- Defined in Core.TTC
 export
-decode : Context -> Int -> ContextEntry -> Core GlobalDef
+decode : Context -> Int -> (update : Bool) -> ContextEntry -> Core GlobalDef
 
 initSize : Int
 initSize = 10000
@@ -352,13 +352,13 @@ lookupCtxtExactI : Name -> Context -> Core (Maybe (Int, GlobalDef))
 lookupCtxtExactI (Resolved idx) ctxt
     = case lookup idx (staging ctxt) of
            Just val =>
-                 pure $ returnDef (inlineOnly ctxt) idx !(decode ctxt idx val)
+                 pure $ returnDef (inlineOnly ctxt) idx !(decode ctxt idx True val)
            Nothing =>
               do let a = content ctxt
                  arr <- get Arr
                  Just def <- coreLift (readArray arr idx)
                       | Nothing => pure Nothing
-                 pure $ returnDef (inlineOnly ctxt) idx !(decode ctxt idx def)
+                 pure $ returnDef (inlineOnly ctxt) idx !(decode ctxt idx True def)
 lookupCtxtExactI n ctxt
     = do let Just idx = lookup n (resolvedAs ctxt)
                   | Nothing => pure Nothing
@@ -369,7 +369,7 @@ lookupCtxtExact : Name -> Context -> Core (Maybe GlobalDef)
 lookupCtxtExact (Resolved idx) ctxt
     = case lookup idx (staging ctxt) of
            Just res =>
-                do def <- decode ctxt idx res
+                do def <- decode ctxt idx True res
                    case returnDef (inlineOnly ctxt) idx def of
                         Nothing => pure Nothing
                         Just (_, def) => pure (Just def)
@@ -378,7 +378,7 @@ lookupCtxtExact (Resolved idx) ctxt
                  arr <- get Arr
                  Just res <- coreLift (readArray arr idx)
                       | Nothing => pure Nothing
-                 def <- decode ctxt idx res
+                 def <- decode ctxt idx True res
                  case returnDef (inlineOnly ctxt) idx def of
                       Nothing => pure Nothing
                       Just (_, def) => pure (Just def)
@@ -386,6 +386,22 @@ lookupCtxtExact n ctxt
     = do Just (i, def) <- lookupCtxtExactI n ctxt
               | Nothing => pure Nothing
          pure (Just def)
+
+export
+lookupContextEntry : Name -> Context -> Core (Maybe (Int, ContextEntry))
+lookupContextEntry (Resolved idx) ctxt
+    = case lookup idx (staging ctxt) of
+           Just res => pure (Just (idx, res))
+           Nothing =>
+              do let a = content ctxt
+                 arr <- get Arr
+                 Just res <- coreLift (readArray arr idx)
+                      | Nothing => pure Nothing
+                 pure (Just (idx, res))
+lookupContextEntry n ctxt
+    = do let Just idx = lookup n (resolvedAs ctxt)
+                  | Nothing => pure Nothing
+         lookupContextEntry (Resolved idx) ctxt
 
 export
 lookupCtxtName : Name -> Context -> Core (List (Name, Int, GlobalDef))

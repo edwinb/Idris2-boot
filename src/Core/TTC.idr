@@ -943,14 +943,14 @@ TTC Transform where
            rhs <- fromBuf b
            pure (MkTransform {vars} env lhs rhs)
 
--- decode : Context -> Int -> ContextEntry -> Core GlobalDef
-Core.Context.decode gam idx (Coded bin)
+-- decode : Context -> Int -> (update : Bool) -> ContextEntry -> Core GlobalDef
+Core.Context.decode gam idx update (Coded bin)
     = do b <- newRef Bin bin
          def <- fromBuf b
          let a = getContent gam
          arr <- get Arr
          def' <- resolved gam def
-         coreLift $ writeArray arr idx (Decoded def')
+         when update $ coreLift $ writeArray arr idx (Decoded def')
          pure def'
-Core.Context.decode gam idx (Decoded def) = pure def
+Core.Context.decode gam idx update (Decoded def) = pure def
 

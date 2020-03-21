@@ -293,7 +293,13 @@ addGlobalDef : {auto c : Ref Ctxt Defs} ->
                (Name, Binary) -> Core ()
 addGlobalDef modns as (n, def)
     = do defs <- get Ctxt
-         entry <- lookupCtxtExact n (gamma defs)
+         codedentry <- lookupContextEntry n (gamma defs)
+         -- Don't update the coded entry because some names might not be
+         -- resolved yet
+         entry <- maybe (pure Nothing)
+                        (\ (i, d) => do x <- decode (gamma defs) i False d
+                                        pure (Just x))
+                        codedentry
          if completeDef entry
             then pure ()
             else do addContextEntry (asName modns as n) def
