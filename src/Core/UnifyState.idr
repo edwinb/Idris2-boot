@@ -640,11 +640,12 @@ dumpHole lvl hole
              case lookup n (constraints ust) of
                   Nothing => pure ()
                   Just Resolved => log lvl "\tResolved"
-                  Just (MkConstraint _ l env x y) =>
+                  Just (MkConstraint _ lazy env x y) =>
                     do log lvl $ "\t  " ++ show !(toFullNames !(normalise defs env x))
                                       ++ " =?= " ++ show !(toFullNames !(normalise defs env y))
                        log 5 $ "\t    from " ++ show !(toFullNames x)
-                                      ++ " =?= " ++ show !(toFullNames y)
+                                      ++ " =?= " ++ show !(toFullNames y) ++
+                               if lazy then "\n\t(lazy allowed)" else ""
                   Just (MkSeqConstraint _ _ xs ys) =>
                        log lvl $ "\t\t" ++ show xs ++ " =?= " ++ show ys
 

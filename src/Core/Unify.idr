@@ -1057,7 +1057,7 @@ mutual
              logNF 10 "EtaR" env tmx
              logNF 10 "...with" env tmy
              if isHoleApp tmy
-                then unifyNoEta mode loc env tmx tmy
+                then unifyNoEta (lower mode) loc env tmx tmy
                 else do empty <- clearDefs defs
                         ety <- getEtaType env !(quote empty env tmx)
                         case ety of
@@ -1165,13 +1165,18 @@ retry mode c
               Just (MkConstraint loc withLazy env x y)
                   => catch (do logTermNF 5 "Retrying" env x
                                logTermNF 5 "....with" env y
+                               log 5 $ if withLazy
+                                          then "(lazy allowed)"
+                                          else "(no lazy)"
                                cs <- if withLazy
                                         then unifyWithLazy mode loc env x y
                                         else unify mode loc env x y
                                case constraints cs of
-                                 [] => do deleteConstraint c
+                                 [] => do log 5 $ "Success " ++ show (addLazy cs)
+                                          deleteConstraint c
                                           pure cs
-                                 _ => pure cs)
+                                 _ => do log 5 $ "Constraints " ++ show (addLazy cs)
+                                         pure cs)
                        (\err => throw (WhenUnifying loc env x y err))
               Just (MkSeqConstraint loc env xs ys)
                   => do cs <- unifyArgs mode loc env xs ys
@@ -1233,6 +1238,7 @@ retryGuess mode smode (hid, (loc, hname))
                                            AddForce r => pure $ forceMeta r envb tm
                                            AddDelay r =>
                                               do ty <- getType [] tm
+                                                 logTerm 5 "Retry Delay" tm
                                                  pure $ delayMeta r envb !(getTerm ty) tm
                                   let gdef = record { definition = PMDef (MkPMDefInfo NotHole True)
                                                                          [] (STerm tm') (STerm tm') [] } def
@@ -1240,7 +1246,14 @@ retryGuess mode smode (hid, (loc, hname))
                                   addDef (Resolved hid) gdef
                                   removeGuess hid
                                   pure (holesSolved cs)
-                         newcs => do let gdef = record { definition = Guess tm envb newcs } def
+                         newcs => do tm' <- case addLazy cs of
+                                           NoLazy => pure tm
+                                           AddForce r => pure $ forceMeta r envb tm
+                                           AddDelay r =>
+                                              do ty <- getType [] tm
+                                                 logTerm 5 "Retry Delay (constrained)" tm
+                                                 pure $ delayMeta r envb !(getTerm ty) tm
+                                     let gdef = record { definition = Guess tm' envb newcs } def
                                      addDef (Resolved hid) gdef
                                      pure False
                Guess tm envb constrs =>
