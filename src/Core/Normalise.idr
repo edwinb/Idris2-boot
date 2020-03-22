@@ -800,7 +800,12 @@ mutual
              else pure False
     convGen q defs env (NDelay _ r _ arg) (NDelay _ r' _ arg')
         = if compatible r r'
-             then convGen q defs env arg arg'
+             then do -- if it's codata, don't reduce the argument or we might
+                     -- go for ever, if it's infinite
+                     adefs <- case r of
+                                   LLazy => pure defs
+                                   _ => clearDefs defs
+                     convGen q adefs env arg arg'
              else pure False
     convGen q defs env (NForce _ r arg args) (NForce _ r' arg' args')
         = if compatible r r'
