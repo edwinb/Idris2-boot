@@ -832,13 +832,18 @@ mutual
                                    showSep ", " (map show xs)
   displayResult  (LogLevelSet k) = printResult $ "Set loglevel to " ++ show k
   displayResult  (VersionIs x) = printResult $ showVersion True x
-  displayResult  (RequestedHelp) = printResult $ "This is where the help will go"
+  displayResult  (RequestedHelp) = printResult displayHelp
   displayResult  (Edited (DisplayEdit [])) = pure ()
   displayResult  (Edited (DisplayEdit xs)) = printResult $ showSep "\n" xs
   displayResult  (Edited (EditError x)) = printError x
   displayResult  (Edited (MadeLemma name pty pappstr)) = printResult (show name ++ " : " ++ show pty ++ "\n" ++ pappstr)
   displayResult  (OptionsSet opts) = printResult $ showSep "\n" $ map show opts
   displayResult  _ = pure ()
+
+  displayHelp : String
+  displayHelp =
+    showSep "\n" $ map cmdInfo help
+    where cmdInfo (cmds, args, text) = "   " ++ showSep " " cmds ++ " " ++ show args ++ " " ++ text
 
   export
   displayErrors : {auto c : Ref Ctxt Defs} ->

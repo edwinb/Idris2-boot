@@ -1502,6 +1502,42 @@ editCmd
          pure (MakeWith upd (fromInteger line) n)
   <|> fatalError "Unrecognised command"
 
+export
+data CmdArg : Type where
+     ||| The command takes an expression.
+     ExprArg : CmdArg
+     NoArg : CmdArg
+
+export
+Show CmdArg where
+  show ExprArg = "<expr>"
+  show NoArg = ""
+
+CommandDefinition : Type
+CommandDefinition = (List String, CmdArg, String, Rule REPLCmd)
+
+CommandTable : Type
+CommandTable = List CommandDefinition
+
+exprArg : (PTerm -> REPLCmd) -> Rule REPLCmd
+exprArg command = do
+  tm <- expr pdef "(interactive)" init
+  pure (command tm)
+
+exprArgCmd : List String -> (PTerm -> REPLCmd) -> String -> CommandDefinition
+exprArgCmd names command doc =
+  (names, ExprArg, doc, exprArg command)
+
+parserCommandsForHelp : CommandTable
+parserCommandsForHelp =
+  [ exprArgCmd ["t", "type"] Check "Check the type of an expression"
+  ]
+
+export
+help : List (List String, CmdArg, String)
+help = (["<expr>"], NoArg, "Evaluate an expression") ::
+  [ (map (":" ++) names, args, text) | (names, args, text, _) <- parserCommandsForHelp ]
+
 nonEmptyCommand : Rule REPLCmd
 nonEmptyCommand
     = do symbol ":"; replCmd ["t", "type"]
