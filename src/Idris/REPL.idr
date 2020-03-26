@@ -456,6 +456,7 @@ data REPLResult : Type where
   Done : REPLResult
   REPLError : String -> REPLResult
   Executed : PTerm -> REPLResult
+  RequestedHelp : REPLResult
   Evaluated : PTerm -> (Maybe PTerm) -> REPLResult
   Printed : List String -> REPLResult
   TermChecked : PTerm -> PTerm -> REPLResult
@@ -620,6 +621,8 @@ process (Compile ctm outfile)
     = compileExp ctm outfile
 process (Exec ctm)
     = execExp ctm
+process Help
+    = pure RequestedHelp
 process (ProofSearch n_in)
     = do defs <- get Ctxt
          [(n, i, ty)] <- lookupTyName n_in (gamma defs)
@@ -829,6 +832,7 @@ mutual
                                    showSep ", " (map show xs)
   displayResult  (LogLevelSet k) = printResult $ "Set loglevel to " ++ show k
   displayResult  (VersionIs x) = printResult $ showVersion True x
+  displayResult  (RequestedHelp) = printResult $ "This is where the help will go"
   displayResult  (Edited (DisplayEdit [])) = pure ()
   displayResult  (Edited (DisplayEdit xs)) = printResult $ showSep "\n" xs
   displayResult  (Edited (EditError x)) = printError x

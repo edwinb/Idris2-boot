@@ -1533,6 +1533,8 @@ nonEmptyCommand
   <|> do symbol ":"; exactIdent "exec"
          tm <- expr pdef "(interactive)" init
          pure (Exec tm)
+  <|> do symbol ":"; replCmd ["?", "h", "help"]
+         pure Help
   <|> do symbol ":"; replCmd ["r", "reload"]
          pure Reload
   <|> do symbol ":"; replCmd ["e", "edit"]
