@@ -1504,14 +1504,20 @@ editCmd
 
 export
 data CmdArg : Type where
+     ||| The command takes no arguments.
+     NoArg : CmdArg
+
+     ||| The command takes a name.
+     NameArg : CmdArg
+
      ||| The command takes an expression.
      ExprArg : CmdArg
-     NoArg : CmdArg
 
 export
 Show CmdArg where
-  show ExprArg = "<expr>"
   show NoArg = ""
+  show NameArg = "<name>"
+  show ExprArg = "<expr>"
 
 CommandDefinition : Type
 CommandDefinition = (List String, CmdArg, String, Rule REPLCmd)
@@ -1519,18 +1525,49 @@ CommandDefinition = (List String, CmdArg, String, Rule REPLCmd)
 CommandTable : Type
 CommandTable = List CommandDefinition
 
-exprArg : (PTerm -> REPLCmd) -> Rule REPLCmd
-exprArg command = do
-  tm <- expr pdef "(interactive)" init
-  pure (command tm)
+eatCommand : List String -> Rule ()
+eatCommand names = do
+  symbol ":"
+  replCmd names
+
+noArgCmd : List String -> REPLCmd -> String -> CommandDefinition
+noArgCmd names command doc = (names, NoArg, doc, parse)
+  where
+    parse = do
+      eatCommand names
+      pure command
+
+nameArgCmd : List String -> (Name -> REPLCmd) -> String -> CommandDefinition
+nameArgCmd names command doc = (names, NameArg, doc, parse)
+  where
+    parse = do
+      eatCommand names
+      n <- name
+      pure (command n)
 
 exprArgCmd : List String -> (PTerm -> REPLCmd) -> String -> CommandDefinition
-exprArgCmd names command doc =
-  (names, ExprArg, doc, exprArg command)
+exprArgCmd names command doc = (names, ExprArg, doc, parse)
+  where
+    parse = do
+      eatCommand names
+      tm <- expr pdef "(interactive)" init
+      pure (command tm)
 
 parserCommandsForHelp : CommandTable
 parserCommandsForHelp =
   [ exprArgCmd ["t", "type"] Check "Check the type of an expression"
+  , nameArgCmd ["printdef"] PrintDef "Show the definition of a function"
+  , nameArgCmd ["s", "search"] ProofSearch "???"
+  , nameArgCmd ["di"] DebugInfo "???"
+  , nameArgCmd ["miss", "missing"] Missing "Show missing clauses"
+  , nameArgCmd ["total"] Total "Check the totality of a name"
+  , noArgCmd ["h", "help"] Help "Display this help text"
+  , noArgCmd ["q", "quit", "exit"] Quit "Exit the Idris system"
+  , noArgCmd ["cwd"] CWD "Displays the current working directory"
+  , noArgCmd ["version"] ShowVersion "Display the Idris version"
+  , noArgCmd ["r", "reload"] Reload "Reload current file"
+  , noArgCmd ["e", "edit"] Edit "Edit current file using $EDITOR or $VISUAL"
+  , noArgCmd ["m", "metavars"] Metavars "Show remaining proof obligations (metavariables or holes)"
   ]
 
 export
@@ -1539,24 +1576,12 @@ help = (["<expr>"], NoArg, "Evaluate an expression") ::
   [ (map (":" ++) names, args, text) | (names, args, text, _) <- parserCommandsForHelp ]
 
 nonEmptyCommand : Rule REPLCmd
-nonEmptyCommand
-    = do symbol ":"; replCmd ["t", "type"]
-         tm <- expr pdef "(interactive)" init
-         pure (Check tm)
-  <|> do symbol ":"; replCmd ["printdef"]
-         n <- name
-         pure (PrintDef n)
-  <|> do symbol ":"; replCmd ["s", "search"]
-         n <- name
-         pure (ProofSearch n)
-  <|> do symbol ":"; exactIdent "di"
-         n <- name
-         pure (DebugInfo n)
-  <|> do symbol ":"; replCmd ["q", "quit", "exit"]
-         pure Quit
-  <|> do symbol ":"; replCmd ["cwd"]
-         pure CWD
-  <|> do symbol ":"; exactIdent "set"
+nonEmptyCommand =
+  choice [ parser | (_, _, _, parser) <- parserCommandsForHelp ]
+
+undocumentedNonEmptyCommand : Rule REPLCmd
+undocumentedNonEmptyCommand
+    = do symbol ":"; exactIdent "set"
          opt <- setOption True
          pure (SetOpt opt)
   <|> do symbol ":"; exactIdent "unset"
@@ -1569,29 +1594,16 @@ nonEmptyCommand
   <|> do symbol ":"; exactIdent "exec"
          tm <- expr pdef "(interactive)" init
          pure (Exec tm)
-  <|> do symbol ":"; replCmd ["?", "h", "help"]
-         pure Help
-  <|> do symbol ":"; replCmd ["r", "reload"]
-         pure Reload
-  <|> do symbol ":"; replCmd ["e", "edit"]
-         pure Edit
-  <|> do symbol ":"; replCmd ["miss", "missing"]
-         n <- name
-         pure (Missing n)
-  <|> do symbol ":"; keyword "total"
-         n <- name
-         pure (Total n)
   <|> do symbol ":"; replCmd ["log", "logging"]
          i <- intLit
          pure (SetLog (fromInteger i))
-  <|> do symbol ":"; replCmd ["m", "metavars"]
-         pure Metavars
-  <|> do symbol ":"; replCmd ["version"]
-         pure ShowVersion
   <|> do symbol ":"; cmd <- editCmd
          pure (Editing cmd)
-  <|> do tm <- expr pdef "(interactive)" init
-         pure (Eval tm)
+
+eval : Rule REPLCmd
+eval = do
+  tm <- expr pdef "(interactive)" init
+  pure (Eval tm)
 
 export
 command : EmptyRule REPLCmd
@@ -1599,3 +1611,5 @@ command
     = do eoi
          pure NOP
   <|> nonEmptyCommand
+  <|> undocumentedNonEmptyCommand
+  <|> eval
