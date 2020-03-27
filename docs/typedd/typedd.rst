@@ -11,6 +11,11 @@ code is also [going to be] part of the test suite (see `tests/typedd-book
 <https://github.com/edwinb/Idris2/tree/master/tests/typedd-book>`_ in the Idris
 2 source).
 
+If you are new to Idris, and learning from the book, we recommend working
+through the first 3-4 chapters with Idris 1, to avoid the need to worry about
+the changes described here. After that, refer to this document for any
+necessary changes.
+
 Chapter 1
 ---------
 
