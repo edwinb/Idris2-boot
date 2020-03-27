@@ -13,4 +13,3 @@ fourNotInVector (There (There (There (There _)))) impossible
 peteNotInVector : Elem "Pete" ["John", "Paul", "George", "Ringo"] -> Void
 peteNotInVector (There (There (There (There Here)))) impossible
 peteNotInVector (There (There (There (There (There _))))) impossible
-

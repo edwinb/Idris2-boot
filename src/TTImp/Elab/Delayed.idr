@@ -66,13 +66,7 @@ delayOnFailure fc rig env expected pred elab
                          log 10 ("Due to error " ++ show err)
                          ust <- get UST
                          put UST (record { delayedElab $=
-                                 ((ci, mkClosedElab fc env
-                                           (do est <- get EST
-                                               put EST (record { allowDelay = False } est)
-                                               tm <- elab True
-                                               est <- get EST
-                                               put EST (record { allowDelay = True } est)
-                                               pure tm)) :: ) }
+                                 ((ci, mkClosedElab fc env (elab True)) :: ) }
                                          ust)
                          pure (dtm, expected)
                     else throw err)
@@ -98,13 +92,7 @@ delayElab {vars} fc rig env exp elab
                           " for") env expected
              ust <- get UST
              put UST (record { delayedElab $=
-                     ((ci, mkClosedElab fc env
-                               (do est <- get EST
-                                   put EST (record { allowDelay = False } est)
-                                   tm <- elab
-                                   est <- get EST
-                                   put EST (record { allowDelay = True } est)
-                                   pure tm)) :: ) }
+                     ((ci, mkClosedElab fc env elab) :: ) }
                              ust)
              pure (dtm, expected)
   where
@@ -127,11 +115,37 @@ retryDelayed ((i, elab) :: ds)
          Just Delayed <- lookupDefExact (Resolved i) (gamma defs)
               | _ => retryDelayed ds
          log 5 ("Retrying delayed hole " ++ show !(getFullName (Resolved i)))
+         -- elab itself might have delays internally, so keep track of them
+         ust <- get UST
+         put UST (record { delayedElab = [] } ust)
          tm <- elab
+         ust <- get UST
+         let ds' = reverse (delayedElab ust) ++ ds
+
          updateDef (Resolved i) (const (Just
               (PMDef (MkPMDefInfo NotHole True) [] (STerm tm) (STerm tm) [])))
          logTerm 5 ("Resolved delayed hole " ++ show i) tm
          logTermNF 5 ("Resolved delayed hole NF " ++ show i) [] tm
          removeHole i
-         retryDelayed ds
+         retryDelayed ds'
 
+-- Run an elaborator, then all the delayed elaborators arising from it
+export
+runDelays : {auto c : Ref Ctxt Defs} ->
+            {auto u : Ref UST UState} ->
+            {auto e : Ref EST (EState vars)} ->
+            Core a -> Core a
+runDelays elab
+    = do ust <- get UST
+         let olddelayed = delayedElab ust
+         put UST (record { delayedElab = [] } ust)
+         tm <- elab
+         ust <- get UST
+         catch (retryDelayed (reverse (delayedElab ust)))
+               (\err =>
+                  do ust <- get UST
+                     put UST (record { delayedElab = olddelayed } ust)
+                     throw err)
+         ust <- get UST
+         put UST (record { delayedElab = olddelayed } ust)
+         pure tm

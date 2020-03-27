@@ -315,7 +315,6 @@ checkCase rig elabinfo nest env fc scr scrty_exp alts exp
     = delayElab fc rig env exp $
         do (scrtyv, scrtyt) <- check Rig0 elabinfo nest env scrty_exp
                                      (Just (gType fc))
-
            logTerm 10 "Expected scrutinee type" scrtyv
            -- Try checking at the given multiplicity; if that doesn't work,
            -- try checking at Rig1 (meaning that we're using a linear variable
@@ -326,14 +325,15 @@ checkCase rig elabinfo nest env fc scr scrty_exp alts exp
            log 5 $ "Checking " ++ show scr ++ " at " ++ show chrig
 
            (scrtm_in, gscrty, caseRig) <- handle
-              (do c <- check chrig elabinfo nest env scr (Just (gnf env scrtyv))
+              (do c <- runDelays $ check chrig elabinfo nest env scr (Just (gnf env scrtyv))
                   pure (fst c, snd c, chrig))
               (\err => case err of
                             LinearMisuse _ _ Rig1 _
-                              => do c <- check Rig1 elabinfo nest env scr
+                              => do c <- runDelays $ check Rig1 elabinfo nest env scr
                                                (Just (gnf env scrtyv))
                                     pure (fst c, snd c, Rig1)
                             e => throw e)
+
            scrty <- getTerm gscrty
            logTermNF 5 "Scrutinee type" env scrty
            defs <- get Ctxt
@@ -347,4 +347,3 @@ checkCase rig elabinfo nest env fc scr scrty_exp alts exp
     checkConcrete (NApp _ (NMeta n i _) _)
         = throw (GenericMsg (getFC scr) "Can't infer type for case scrutinee")
     checkConcrete _ = pure ()
-

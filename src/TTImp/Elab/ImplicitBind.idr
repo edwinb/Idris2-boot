@@ -139,8 +139,8 @@ bindUnsolved {vars} fc elabmode _
                                     !(normaliseHoles defs env exp)
              logTerm 5 ("Added unbound implicit") bindtm
              unify (case elabmode of
-                         InLHS _ => InLHS
-                         _ => InTerm (Top False))
+                         InLHS _ => inLHS
+                         _ => inTermP False)
                    fc env tm bindtm
              pure ()
 
@@ -292,12 +292,12 @@ getToBind fc elabmode NONE env excepts
     = pure [] -- We should probably never get here, but for completeness...
 getToBind {vars} fc elabmode impmode env excepts
     = do solveConstraints (case elabmode of
-                                InLHS _ => InLHS
-                                _ => InTerm (Top False)) Normal
+                                InLHS _ => inLHS
+                                _ => inTermP False) Normal
          bindUnsolved fc elabmode impmode
          solveConstraints (case elabmode of
-                                InLHS _ => InLHS
-                                _ => InTerm (Top False)) Normal
+                                InLHS _ => inLHS
+                                _ => inTermP False) Normal
          defs <- get Ctxt
          est <- get EST
          let tob = reverse $ filter (\x => not (fst x `elem` excepts)) $
@@ -459,16 +459,18 @@ checkBindHere rig elabinfo nest env fc bindmode tm exp
          -- Set the binding environment in the elab state - unbound
          -- implicits should have access to whatever is in scope here
          put EST (updateEnv env SubRefl [] est)
+         constart <- getNextEntry
          (tmv, tmt) <- check rig (record { implicitMode = bindmode,
                                            bindingVars = True }
                                          elabinfo)
                              nest env tm exp
          solveConstraints (case elabMode elabinfo of
-                                InLHS c => InLHS
-                                _ => InTerm (Top False)) Normal
-         solveConstraints (case elabMode elabinfo of
-                                InLHS c => InLHS
-                                _ => InTerm (Top False)) Defaults
+                                InLHS c => inLHS
+                                _ => inTermP False) Normal
+         solveConstraintsAfter constart
+                          (case elabMode elabinfo of
+                                InLHS c => inLHS
+                                _ => inTermP False) Defaults
          ust <- get UST
          catch (retryDelayed (delayedElab ust))
                (\err =>

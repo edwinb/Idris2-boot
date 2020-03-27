@@ -2,9 +2,9 @@
 Main>  0 v : Type
  0 k' : Type
  0 k : Type
-   z : List (k', v)
-   y : v
    x : k'
+   y : v
+   z : List (k', v)
 -------------------------------------
 bang : List (k', v)
 Main> Bye for now!

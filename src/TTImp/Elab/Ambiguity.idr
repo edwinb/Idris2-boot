@@ -274,7 +274,6 @@ export
 ambiguous : Error -> Bool
 ambiguous (AmbiguousElab _ _ _) = True
 ambiguous (AmbiguousName _ _) = True
-ambiguous (AllFailed _) = True
 ambiguous (InType _ _ err) = ambiguous err
 ambiguous (InCon _ _ err) = ambiguous err
 ambiguous (InLHS _ _ err) = ambiguous err
@@ -304,8 +303,8 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
                                pure (gnf env ty))
                            pure mexpected
          let solvemode = case elabMode elabinfo of
-                              InLHS c => InLHS
-                              _ => InTerm (Top False)
+                              InLHS c => inLHS
+                              _ => inTermP False
          delayOnFailure fc rig env expected ambiguous $
              \delayed =>
                do solveConstraints solvemode Normal
@@ -318,11 +317,12 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
                                 then gnf env exp
                                 else expected
 
-                  alts' <- pruneByType env !(getNF exp') alts
-
-                  logGlueNF 5 ("Ambiguous elaboration " ++ show alts' ++
+                  logGlueNF 5 ("Ambiguous elaboration " ++ show alts ++
                                " at " ++ show fc ++
                                "\nWith default. Target type ") env exp'
+                  alts' <- pruneByType env !(getNF exp') alts
+                  log 5 ("Pruned alts " ++ show alts')
+
                   if delayed -- use the default if there's still ambiguity
                      then try
                             (exactlyOne fc env
@@ -348,8 +348,8 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
                                       pure (gnf env ty))
                                   pure mexpected
                 let solvemode = case elabMode elabinfo of
-                                      InLHS c => InLHS
-                                      _ => InTerm (Top False)
+                                      InLHS c => inLHS
+                                      _ => inTermP False
                 delayOnFailure fc rig env expected ambiguous $
                      \delayed =>
                        do defs <- get Ctxt
@@ -363,7 +363,8 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
 
                           alts' <- pruneByType env !(getNF exp') alts
 
-                          logGlueNF 5 ("Ambiguous elaboration " ++ show alts' ++
+                          logGlueNF 5 ("Ambiguous elaboration " ++ show delayed ++ " " ++
+                                       show alts' ++
                                        " at " ++ show fc ++
                                        "\nTarget type ") env exp'
                           let tryall = case uniq of

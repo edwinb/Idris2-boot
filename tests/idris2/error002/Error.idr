@@ -3,4 +3,4 @@ data Vect : Nat -> Type -> Type where
      (::) : a -> Vect k a -> Vect (S k) a
 
 wrong : a -> Vect (S n) a -> Vect (S n) a
-wrong xs = x :: xs
+wrong xs = x :: ys

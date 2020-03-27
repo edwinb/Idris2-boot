@@ -360,7 +360,7 @@ mutual
                    then pure True
                    else do sc' <- sc defs (toClosure defaultOpts env (Erased fc False))
                            concrete defs env sc'
-          if !(needsDelay (elabMode elabinfo) kr arg_in) then do
+          if (isHole aty && kr) || !(needsDelay (elabMode elabinfo) kr arg_in) then do
              nm <- genMVName x
              empty <- clearDefs defs
              metaty <- quote empty env aty
@@ -385,12 +385,16 @@ mutual
              -- better way that leads to good code...)
              logTerm 5 ("Solving " ++ show metaval ++ " with") argv
              ok <- solveIfUndefined env metaval argv
-             when (not ok) $
-                do res <- convert fc elabinfo env (gnf env metaval)
+             -- If there's a constraint, make a constant, but otherwise
+             -- just return the term as expected
+             tm <- if not ok
+                      then do res <- convert fc elabinfo env (gnf env metaval)
                                                  (gnf env argv)
-                   let [] = constraints res
-                      | cs => throw (CantConvert fc env metaval argv)
-                   pure ()
+                              let [] = constraints res
+                                  | cs => do tmty <- getTerm gty
+                                             newConstant fc rig env tm tmty cs
+                              pure tm
+                      else pure tm
              case elabMode elabinfo of
                   InLHS _ => -- reset hole and redo it with the unexpanded definition
                      do updateDef (Resolved idx) (const (Just (Hole 0 False)))

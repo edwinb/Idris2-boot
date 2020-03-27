@@ -124,7 +124,7 @@ searchName fc rigc opts env target topty defining (n, ndef)
          (args, appTy) <- mkArgs fc rigc env nty
          logNF 5 "Target" env target
          logNF 10 "App type" env appTy
-         ures <- unify InSearch fc env target appTy
+         ures <- unify inSearch fc env target appTy
          let [] = constraints ures
              | _ => pure []
          -- Search the explicit arguments first, they may resolve other holes

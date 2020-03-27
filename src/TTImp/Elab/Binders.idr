@@ -10,6 +10,7 @@ import Core.TT
 import Core.Value
 
 import TTImp.Elab.Check
+import TTImp.Elab.Delayed
 import TTImp.TTImp
 
 %default covering
@@ -192,13 +193,13 @@ checkLet rigc_in elabinfo nest env fc rigl n nTy nVal scope expty
          -- try checking at Rig1 (meaning that we're using a linear variable
          -- so the resulting binding should be linear)
          (valv, valt, rigb) <- handle
-              (do c <- check (rigMult rigl rigc)
+              (do c <- runDelays $ check (rigMult rigl rigc)
                              (record { preciseInf = True } elabinfo)
                              nest env nVal (Just (gnf env tyv))
                   pure (fst c, snd c, rigMult rigl rigc))
               (\err => case err of
                             LinearMisuse _ _ Rig1 _
-                              => do c <- check Rig1 elabinfo
+                              => do c <- runDelays $ check Rig1 elabinfo
                                                nest env nVal (Just (gnf env tyv))
                                     pure (fst c, snd c, Rig1)
                             e => do c <- check (rigMult rigl rigc)

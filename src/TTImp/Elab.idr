@@ -105,18 +105,20 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
          ust <- get UST
          let olddelayed = delayedElab ust
          put UST (record { delayedElab = [] } ust)
+         constart <- getNextEntry
 
          defs <- get Ctxt
          e <- newRef EST (initEStateSub defining env' sub)
          let rigc = getRigNeeded mode
+
          (chktm, chkty) <- check {e} rigc (initElabInfo mode) nest env tm ty
          -- Final retry of constraints and delayed elaborations
          -- - Solve any constraints, then retry any delayed elaborations
          -- - Finally, last attempts at solving constraints, but this
          --   is most likely just to be able to display helpful errors
          let solvemode = case mode of
-                              InLHS _ => InLHS
-                              _ => InTerm (Top False)
+                              InLHS _ => inLHS
+                              _ => inTermP False
          solveConstraints solvemode Normal
          logTerm 5 "Looking for delayed in " chktm
          ust <- get UST
@@ -127,16 +129,17 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
                      throw err)
          ust <- get UST
          put UST (record { delayedElab = olddelayed } ust)
-         solveConstraints solvemode MatchArgs
+         solveConstraintsAfter constart solvemode MatchArgs
 
          -- As long as we're not in a case block, finish off constraint solving
          when (not incase) $
            -- resolve any default hints
-           do solveConstraints solvemode Defaults
+           do log 5 "Resolving default hints"
+              solveConstraintsAfter constart solvemode Defaults
               -- perhaps resolving defaults helps...
               -- otherwise, this last go is most likely just to give us more
               -- helpful errors.
-              solveConstraints solvemode LastChance
+              solveConstraintsAfter constart solvemode LastChance
 
          dumpConstraints 4 False
          defs <- get Ctxt

@@ -1,10 +1,4 @@
 1/1: Building CaseInf (CaseInf.idr)
-CaseInf.idr:7:24--9:1:While processing right hand side of test3bad at CaseInf.idr:6:1--9:1:
-While processing right hand side of case block in test3bad at CaseInf.idr:7:14--9:1:
-When unifying Integer and Nat
-Mismatch between:
-	Integer
-and
-	Nat
+Main> S (S (S Z))
 Main> S (S (S Z))
 Main> Bye for now!

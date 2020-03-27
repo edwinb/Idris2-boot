@@ -22,6 +22,11 @@ import Data.StringMap
 public export
 data ElabMode = InType | InLHS RigCount | InExpr
 
+Show ElabMode where
+  show InType = "InType"
+  show (InLHS c) = "InLHS " ++ show c
+  show InExpr = "InExpr"
+
 public export
 data ElabOpt
   = HolesOkay
@@ -444,6 +449,7 @@ successful ((tm, elab) :: elabs)
                    est' <- get EST
                    md' <- get MD
                    defs' <- get Ctxt
+
                    -- Reset to previous state and try the rest
                    put UST ust
                    put EST est
@@ -549,13 +555,14 @@ convertWithLazy
           FC -> ElabInfo -> Env Term vars -> Glued vars -> Glued vars ->
           Core UnifyResult
 convertWithLazy withLazy prec fc elabinfo env x y
-    = let umode : UnifyMode
+    = let umode : UnifyInfo
                 = case elabMode elabinfo of
-                       InLHS _ => InLHS
-                       _ => InTerm (Top prec) in
+                       InLHS _ => inLHS
+                       _ => inTermP prec in
           catch
             (do let lazy = !isLazyActive && withLazy
-                logGlueNF 5 ("Unifying " ++ show withLazy) env x
+                logGlueNF 5 ("Unifying " ++ show withLazy ++ " "
+                             ++ show (elabMode elabinfo)) env x
                 logGlueNF 5 "....with" env y
                 vs <- if isFromTerm x && isFromTerm y
                          then do xtm <- getTerm x
