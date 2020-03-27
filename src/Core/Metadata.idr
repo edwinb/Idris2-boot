@@ -9,6 +9,8 @@ import Core.Normalise
 import Core.TT
 import Core.TTC
 
+import Utils.Binary
+
 -- Additional data we keep about the context to support interactive editing
 
 public export
@@ -34,6 +36,15 @@ record Metadata where
        -- to know what the recursive call is, if applicable)
        currentLHS : Maybe ClosedTerm
        holeLHS : List (Name, ClosedTerm)
+
+Show Metadata where
+  show (MkMetadata apps names tydecls currentLHS holeLHS)
+    = "Metadata:\n" ++
+      " lhsApps: " ++ show apps ++ "\n" ++
+      " names: " ++ show names ++ "\n" ++
+      " type declarations: " ++ show tydecls ++ "\n" ++
+      " current LHS: " ++ show currentLHS ++ "\n" ++
+      " holes: " ++ show holeLHS
 
 export
 initMetadata : Metadata
@@ -266,3 +277,19 @@ readFromTTM fname
          ttm <- fromBuf bin
          put MD (metadata ttm)
 
+||| Read Metadata from given file
+export
+readMetadata : (fname : String) -> Core Metadata
+readMetadata fname
+  = do Right buf <- coreLift $ readFromFile fname
+             | Left err => throw (InternalError (fname ++ ": " ++ show err))
+       bin <- newRef Bin buf
+       MkTTMFile _ md <- fromBuf bin
+       pure md
+
+||| Dump content of a .ttm file in human-readable format
+export
+dumpTTM : (filename : String) -> Core ()
+dumpTTM fname
+    = do md <- readMetadata fname
+         coreLift $ putStrLn $ show md

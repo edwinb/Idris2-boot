@@ -32,11 +32,7 @@ printWithStatus status msg
     = do opts <- get ROpts
          case idemode opts of
               REPL _ => coreLift $ putStrLn msg
-              IDEMode i _ f =>
-                do let m = SExpList [SymbolAtom status, toSExp msg,
-                                     -- highlighting; currently blank
-                                     SExpList []]
-                   send f (SExpList [SymbolAtom "return", m, toSExp i])
+              _      => pure () -- this function should never be called in IDE Mode
 
 export
 printResult : {auto o : Ref ROpts REPLOpts} ->

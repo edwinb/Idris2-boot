@@ -26,6 +26,7 @@ import Idris.Version
 
 import Idris.IDEMode.Parser
 import Idris.IDEMode.Commands
+import Idris.IDEMode.SyntaxHighlight
 
 import TTImp.Interactive.CaseSplit
 import TTImp.Elab
@@ -115,6 +116,7 @@ getInput f
                 do inp <- getNChars f (cast num)
                    pure (pack inp)
 
+
 process : {auto c : Ref Ctxt Defs} ->
           {auto u : Ref UST UState} ->
           {auto s : Ref Syn SyntaxInfo} ->
@@ -124,7 +126,7 @@ process : {auto c : Ref Ctxt Defs} ->
 process (Interpret cmd)
     = interpret cmd
 process (LoadFile fname _)
-    = Idris.REPL.process (Load fname)
+    = Idris.REPL.process (Load fname) >>= outputSyntaxHighlighting fname
 process (TypeOf n Nothing)
     = Idris.REPL.process (Check (PRef replFC (UN n)))
 process (TypeOf n (Just (l, c)))
@@ -177,18 +179,20 @@ idePutStrLn outf i msg
     = send outf (SExpList [SymbolAtom "write-string",
                 toSExp msg, toSExp i])
 
-printIDEWithStatus : File -> Integer -> String -> SExp -> Core ()
-printIDEWithStatus outf i status msg
-    = do let m = SExpList [SymbolAtom status, toSExp msg,
-                           -- highlighting; currently blank
-                           SExpList []]
-         send outf (SExpList [SymbolAtom "return", m, toSExp i])
+returnFromIDE : File -> Integer -> SExp -> Core ()
+returnFromIDE outf i msg
+    = do send outf (SExpList [SymbolAtom "return", msg, toSExp i])
 
 printIDEResult : File -> Integer -> SExp -> Core ()
-printIDEResult outf i msg = printIDEWithStatus outf i "ok" msg
+printIDEResult outf i msg = returnFromIDE outf i (SExpList [SymbolAtom "ok", toSExp msg])
+
+printIDEResultWithHighlight : File -> Integer -> SExp -> Core ()
+printIDEResultWithHighlight outf i msg = returnFromIDE outf i (SExpList [SymbolAtom "ok", toSExp msg
+                                                                        -- TODO return syntax highlighted result
+                                                                        , SExpList []])
 
 printIDEError : File -> Integer -> String -> Core ()
-printIDEError outf i msg = printIDEWithStatus outf i "error" (toSExp msg)
+printIDEError outf i msg = returnFromIDE outf i (SExpList [SymbolAtom "error", toSExp msg ])
 
 SExpable REPLEval where
   toSExp EvalTC = SymbolAtom "typecheck"
@@ -214,10 +218,10 @@ displayIDEResult : {auto c : Ref Ctxt Defs} ->
        {auto o : Ref ROpts REPLOpts} ->
        File -> Integer -> REPLResult -> Core ()
 displayIDEResult outf i  (REPLError err) = printIDEError outf i err
-displayIDEResult outf i  (Evaluated x Nothing) = printIDEResult outf i $ StringAtom $ show x
-displayIDEResult outf i  (Evaluated x (Just y)) = printIDEResult outf i $ StringAtom $ show x ++ " : " ++ show y
-displayIDEResult outf i  (Printed xs) = printIDEResult outf i $ StringAtom $ showSep "\n" xs
-displayIDEResult outf i  (TermChecked x y) = printIDEResult outf i $ StringAtom $ show x ++ " : " ++ show y
+displayIDEResult outf i  (Evaluated x Nothing) = printIDEResultWithHighlight outf i $ StringAtom $ show x
+displayIDEResult outf i  (Evaluated x (Just y)) = printIDEResultWithHighlight outf i $ StringAtom $ show x ++ " : " ++ show y
+displayIDEResult outf i  (Printed xs) = printIDEResultWithHighlight outf i $ StringAtom $ showSep "\n" xs
+displayIDEResult outf i  (TermChecked x y) = printIDEResultWithHighlight outf i $ StringAtom $ show x ++ " : " ++ show y
 displayIDEResult outf i  (FileLoaded x) = printIDEResult outf i $ SExpList []
 displayIDEResult outf i  (ErrorLoadingFile x err) = printIDEError outf i $ "Error loading file " ++ x ++ ": " ++ show err
 displayIDEResult outf i  (ErrorsBuildingFile x errs) = printIDEError outf i $ "Error(s) building file " ++ x ++ ": " ++ (showSep "\n" $ map show errs)
