@@ -1556,6 +1556,7 @@ exprArgCmd names command doc = (names, ExprArg, doc, parse)
 parserCommandsForHelp : CommandTable
 parserCommandsForHelp =
   [ exprArgCmd ["t", "type"] Check "Check the type of an expression"
+  , exprArgCmd ["exec"] Exec "Compile to an executable and run"
   , nameArgCmd ["printdef"] PrintDef "Show the definition of a function"
   , nameArgCmd ["s", "search"] ProofSearch "???"
   , nameArgCmd ["di"] DebugInfo "???"
@@ -1591,9 +1592,6 @@ undocumentedNonEmptyCommand
          n <- unqualifiedName
          tm <- expr pdef "(interactive)" init
          pure (Compile tm n)
-  <|> do symbol ":"; exactIdent "exec"
-         tm <- expr pdef "(interactive)" init
-         pure (Exec tm)
   <|> do symbol ":"; replCmd ["log", "logging"]
          i <- intLit
          pure (SetLog (fromInteger i))
