@@ -66,10 +66,10 @@
   (bytevector-u8-ref buf loc))
 
 (define (blodwen-buffer-setint buf loc val)
-  (bytevector-s64-set! buf loc val (native-endianness)))
+  (bytevector-s32-set! buf loc val (native-endianness)))
 
 (define (blodwen-buffer-getint buf loc)
-  (bytevector-s64-ref buf loc (native-endianness)))
+  (bytevector-s32-ref buf loc (native-endianness)))
 
 (define (blodwen-buffer-setdouble buf loc val)
   (bytevector-ieee-double-set! buf loc val (native-endianness)))

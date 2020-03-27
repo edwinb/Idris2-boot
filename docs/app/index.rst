@@ -23,7 +23,7 @@ a description of interactive actions which produce a value of type ``a``. This
 is fine for primitives, but ``IO`` does not support exceptions so we have to be
 explicit about how an operation handles failure. Also, if we do
 want to support exceptions, we also want to explain how exceptions and linearity
-(see Section :ref:`sect-multiplicites`) interact.
+(see Section :ref:`sect-multiplicities`) interact.
 
 In this tutorial, we describe a parameterised type ``App`` and a related
 parameterised type ``App1``, which together allow us to structure larger

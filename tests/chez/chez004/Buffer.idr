@@ -9,6 +9,7 @@ main
          printLn s
 
          setInt buf 1 94
+         setString buf 5 "AAAA"
          val <- getInt buf 1
          printLn val
 
