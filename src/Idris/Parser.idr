@@ -1576,19 +1576,19 @@ exprArgCmd parseCmd command doc = (names, ExprArg, doc, parse)
 parserCommandsForHelp : CommandTable
 parserCommandsForHelp =
   [ exprArgCmd (ParseREPLCmd ["t", "type"]) Check "Check the type of an expression"
-  , exprArgCmd (ParseIdentCmd "exec") Exec "Compile to an executable and run"
   , nameArgCmd (ParseREPLCmd ["printdef"]) PrintDef "Show the definition of a function"
   , nameArgCmd (ParseREPLCmd ["s", "search"]) ProofSearch "???"
   , nameArgCmd (ParseIdentCmd "di") DebugInfo "???"
-  , nameArgCmd (ParseREPLCmd ["miss", "missing"]) Missing "Show missing clauses"
-  , nameArgCmd (ParseKeywordCmd "total") Total "Check the totality of a name"
-  , noArgCmd (ParseREPLCmd ["h", "help"]) Help "Display this help text"
   , noArgCmd (ParseREPLCmd ["q", "quit", "exit"]) Quit "Exit the Idris system"
   , noArgCmd (ParseREPLCmd ["cwd"]) CWD "Displays the current working directory"
-  , noArgCmd (ParseREPLCmd ["version"]) ShowVersion "Display the Idris version"
+  , exprArgCmd (ParseIdentCmd "exec") Exec "Compile to an executable and run"
   , noArgCmd (ParseREPLCmd ["r", "reload"]) Reload "Reload current file"
   , noArgCmd (ParseREPLCmd ["e", "edit"]) Edit "Edit current file using $EDITOR or $VISUAL"
+  , nameArgCmd (ParseREPLCmd ["miss", "missing"]) Missing "Show missing clauses"
+  , nameArgCmd (ParseKeywordCmd "total") Total "Check the totality of a name"
   , noArgCmd (ParseREPLCmd ["m", "metavars"]) Metavars "Show remaining proof obligations (metavariables or holes)"
+  , noArgCmd (ParseREPLCmd ["version"]) ShowVersion "Display the Idris version"
+  , noArgCmd (ParseREPLCmd ["h", "help"]) Help "Display this help text"
   ]
 
 export
