@@ -456,6 +456,7 @@ data REPLResult : Type where
   Done : REPLResult
   REPLError : String -> REPLResult
   Executed : PTerm -> REPLResult
+  RequestedHelp : REPLResult
   Evaluated : PTerm -> (Maybe PTerm) -> REPLResult
   Printed : List String -> REPLResult
   TermChecked : PTerm -> PTerm -> REPLResult
@@ -620,6 +621,8 @@ process (Compile ctm outfile)
     = compileExp ctm outfile
 process (Exec ctm)
     = execExp ctm
+process Help
+    = pure RequestedHelp
 process (ProofSearch n_in)
     = do defs <- get Ctxt
          [(n, i, ty)] <- lookupTyName n_in (gamma defs)
@@ -829,12 +832,28 @@ mutual
                                    showSep ", " (map show xs)
   displayResult  (LogLevelSet k) = printResult $ "Set loglevel to " ++ show k
   displayResult  (VersionIs x) = printResult $ showVersion True x
+  displayResult  (RequestedHelp) = printResult displayHelp
   displayResult  (Edited (DisplayEdit [])) = pure ()
   displayResult  (Edited (DisplayEdit xs)) = printResult $ showSep "\n" xs
   displayResult  (Edited (EditError x)) = printError x
   displayResult  (Edited (MadeLemma name pty pappstr)) = printResult (show name ++ " : " ++ show pty ++ "\n" ++ pappstr)
   displayResult  (OptionsSet opts) = printResult $ showSep "\n" $ map show opts
   displayResult  _ = pure ()
+
+  displayHelp : String
+  displayHelp =
+    showSep "\n" $ map cmdInfo help
+    where
+      makeSpace : Nat -> String
+      makeSpace n = pack $ take n (repeat ' ')
+
+      col : Nat -> Nat -> String -> String -> String -> String
+      col c1 c2 l m r =
+        l ++ (makeSpace $ c1 `minus` length l) ++
+        m ++ (makeSpace $ c2 `minus` length m) ++ r
+
+      cmdInfo : (List String, CmdArg, String) -> String
+      cmdInfo (cmds, args, text) = "   " ++ col 16 12 (showSep " " cmds) (show args) text
 
   export
   displayErrors : {auto c : Ref Ctxt Defs} ->
