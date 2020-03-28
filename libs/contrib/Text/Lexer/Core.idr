@@ -79,8 +79,8 @@ export
 concatMap : {c : Bool} -> (a -> Recognise c) -> (xs : List a) -> 
             Recognise (c && (isCons xs))
 concatMap {c} _ [] = rewrite andFalseFalse c in Empty
-concatMap {c = True} f (x :: xs) = SeqEat (f x) (Core.concatMap f xs)
-concatMap {c = False} f (x :: xs) = SeqEmpty (f x) (Core.concatMap f xs)
+concatMap {c = True} f (x :: xs) = f x `SeqEat` Core.concatMap f xs
+concatMap {c = False} f (x :: xs) = f x `SeqEmpty` Core.concatMap f xs
 
 data StrLen : Type where
      MkStrLen : String -> Nat -> StrLen
