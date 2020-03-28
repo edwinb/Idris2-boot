@@ -843,7 +843,17 @@ mutual
   displayHelp : String
   displayHelp =
     showSep "\n" $ map cmdInfo help
-    where cmdInfo (cmds, args, text) = "   " ++ showSep " " cmds ++ " " ++ show args ++ " " ++ text
+    where
+      makeSpace : Nat -> String
+      makeSpace n = pack $ take n (repeat ' ')
+
+      col : Nat -> Nat -> String -> String -> String -> String
+      col c1 c2 l m r =
+        l ++ (makeSpace $ c1 `minus` length l) ++
+        m ++ (makeSpace $ c2 `minus` length m) ++ r
+
+      cmdInfo : (List String, CmdArg, String) -> String
+      cmdInfo (cmds, args, text) = "   " ++ col 16 12 (showSep " " cmds) (show args) text
 
   export
   displayErrors : {auto c : Ref Ctxt Defs} ->
