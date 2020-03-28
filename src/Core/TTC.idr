@@ -169,6 +169,11 @@ mkPrf : (idx : Nat) -> IsVar n idx ns
 mkPrf {n} {ns} Z = believe_me (First {n} {ns = n :: ns})
 mkPrf {n} {ns} (S k) = believe_me (Later {m=n} (mkPrf {n} {ns} k))
 
+getName : (idx : Nat) -> List Name -> Maybe Name
+getName Z (x :: xs) = Just x
+getName (S k) (x :: xs) = getName k xs
+getName _ [] = Nothing
+
 export
 TTC (Var vars) where
   toBuf b (MkVar {i} {n} v) = do toBuf b n; toBuf b i
@@ -215,10 +220,8 @@ mutual
         = if idx < 244
              then do toBuf b (prim__truncBigInt_B8 (12 + cast idx))
                      toBuf b c
-                     toBuf b name
              else do tag 0
                      toBuf b c
-                     toBuf b name
                      toBuf b idx
     toBuf b (Ref fc nt name)
         = do tag 1;
@@ -256,11 +259,12 @@ mutual
     toBuf b (TType fc)
         = tag 11
 
-    fromBuf b
+    fromBuf {vars} b
         = case !getTag of
                0 => do c <- fromBuf b
-                       name <- fromBuf b
                        idx <- fromBuf b
+                       name <- maybe (corrupt "Term") pure
+                                     (getName idx vars)
                        pure (Local {name} emptyFC c idx (mkPrf idx))
                1 => do nt <- fromBuf b; name <- fromBuf b
                        pure (Ref emptyFC nt name)
@@ -287,8 +291,9 @@ mutual
                10 => pure (Erased emptyFC False)
                11 => pure (TType emptyFC)
                idxp => do c <- fromBuf b
-                          name <- fromBuf b
-                          let idx = fromInteger (prim__sextB8_BigInt idxp - 12)
+                          let idx : Nat = fromInteger (prim__sextB8_BigInt idxp - 12)
+                          name <- maybe (corrupt "Term") pure
+                                        (getName idx vars)
                           pure (Local {name} emptyFC c idx (mkPrf idx))
 
 export

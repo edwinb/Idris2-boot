@@ -1231,6 +1231,12 @@ export
 getRefs : (aTotal : Name) -> Term vars -> NameMap Bool
 getRefs at tm = addRefs False at empty tm
 
+export
+nameAt : {vars : _} ->
+         (idx : Nat) -> .(p : IsVar n idx vars) -> Name
+nameAt {vars = n :: ns} Z First = n
+nameAt {vars = n :: ns} (S k) (Later p) = nameAt k p
+
 export Show (Term vars) where
   show tm = let (fn, args) = getFnArgs tm in showApp fn args
     where
