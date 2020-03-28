@@ -4,8 +4,6 @@
 Types and Functions
 *******************
 
-[NOT UPDATED FOR IDRIS 2 YET]
-
 Primitive Types
 ===============
 
@@ -469,7 +467,7 @@ names, ``n`` and ``a``, which are not declared explicitly. These are
 
     index : forall a, n . Fin n -> Vect n a -> a
 
-Implicit arguments, given with the `forall` declaration,
+Implicit arguments, given with the ``forall`` declaration,
 are not given in applications of ``index``; their values can be
 inferred from the types of the ``Fin n`` and ``Vect n a``
 arguments. Any name beginning with a lower case letter which appears

@@ -1,3 +1,5 @@
+.. _sect-execs:
+
 ************************
 Compiling to Executables
 ************************
