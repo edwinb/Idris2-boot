@@ -1449,6 +1449,7 @@ replCmd : List String -> Rule ()
 replCmd [] = fail "Unrecognised command"
 replCmd (c :: cs)
     = exactIdent c
+  <|> symbol c
   <|> replCmd cs
 
 export
@@ -1638,7 +1639,7 @@ parserCommandsForHelp =
   , numberArgCmd (ParseREPLCmd ["log", "logging"]) SetLog "Set logging level"
   , noArgCmd (ParseREPLCmd ["m", "metavars"]) Metavars "Show remaining proof obligations (metavariables or holes)"
   , noArgCmd (ParseREPLCmd ["version"]) ShowVersion "Display the Idris version"
-  , noArgCmd (ParseREPLCmd ["h", "help"]) Help "Display this help text"
+  , noArgCmd (ParseREPLCmd ["?", "h", "help"]) Help "Display this help text"
   ]
 
 export
@@ -1661,6 +1662,7 @@ command
     = do eoi
          pure NOP
   <|> nonEmptyCommand
+  <|> do symbol ":?"; pure Help -- special case, :? doesn't fit into above scheme
   <|> do symbol ":"; cmd <- editCmd
          pure (Editing cmd)
   <|> eval
