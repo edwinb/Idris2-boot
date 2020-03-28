@@ -1577,8 +1577,8 @@ parserCommandsForHelp : CommandTable
 parserCommandsForHelp =
   [ exprArgCmd (ParseREPLCmd ["t", "type"]) Check "Check the type of an expression"
   , nameArgCmd (ParseREPLCmd ["printdef"]) PrintDef "Show the definition of a function"
-  , nameArgCmd (ParseREPLCmd ["s", "search"]) ProofSearch "???"
-  , nameArgCmd (ParseIdentCmd "di") DebugInfo "???"
+  , nameArgCmd (ParseREPLCmd ["s", "search"]) ProofSearch "Search for values by type"
+  , nameArgCmd (ParseIdentCmd "di") DebugInfo "Show debugging information for a name"
   , noArgCmd (ParseREPLCmd ["q", "quit", "exit"]) Quit "Exit the Idris system"
   , noArgCmd (ParseREPLCmd ["cwd"]) CWD "Displays the current working directory"
   , exprArgCmd (ParseIdentCmd "exec") Exec "Compile to an executable and run"
