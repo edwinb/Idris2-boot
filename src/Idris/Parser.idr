@@ -1513,6 +1513,9 @@ data CmdArg : Type where
      ||| The command takes an expression.
      ExprArg : CmdArg
 
+     ||| The command takes a number.
+     NumberArg : CmdArg
+
      ||| The command takes an option.
      OptionArg : CmdArg
 
@@ -1521,6 +1524,7 @@ Show CmdArg where
   show NoArg = ""
   show NameArg = "<name>"
   show ExprArg = "<expr>"
+  show NumberArg = "<number>"
   show OptionArg = "<option>"
 
 export
@@ -1588,6 +1592,17 @@ optArgCmd parseCmd command set doc = (names, OptionArg, doc, parse)
       opt <- setOption set
       pure (command opt)
 
+numberArgCmd : ParseCmd -> (Nat -> REPLCmd) -> String -> CommandDefinition
+numberArgCmd parseCmd command doc = (names, NumberArg, doc, parse)
+  where
+    names = extractNames parseCmd
+
+    parse = do
+      symbol ":"
+      runParseCmd parseCmd
+      i <- intLit
+      pure (command (fromInteger i))
+
 parserCommandsForHelp : CommandTable
 parserCommandsForHelp =
   [ exprArgCmd (ParseREPLCmd ["t", "type"]) Check "Check the type of an expression"
@@ -1603,6 +1618,7 @@ parserCommandsForHelp =
   , noArgCmd (ParseREPLCmd ["e", "edit"]) Edit "Edit current file using $EDITOR or $VISUAL"
   , nameArgCmd (ParseREPLCmd ["miss", "missing"]) Missing "Show missing clauses"
   , nameArgCmd (ParseKeywordCmd "total") Total "Check the totality of a name"
+  , numberArgCmd (ParseREPLCmd ["log", "logging"]) SetLog "Set logging level"
   , noArgCmd (ParseREPLCmd ["m", "metavars"]) Metavars "Show remaining proof obligations (metavariables or holes)"
   , noArgCmd (ParseREPLCmd ["version"]) ShowVersion "Display the Idris version"
   , noArgCmd (ParseREPLCmd ["h", "help"]) Help "Display this help text"
@@ -1623,9 +1639,6 @@ undocumentedNonEmptyCommand
          n <- unqualifiedName
          tm <- expr pdef "(interactive)" init
          pure (Compile tm n)
-  <|> do symbol ":"; replCmd ["log", "logging"]
-         i <- intLit
-         pure (SetLog (fromInteger i))
   <|> do symbol ":"; cmd <- editCmd
          pure (Editing cmd)
 
