@@ -1519,56 +1519,76 @@ Show CmdArg where
   show NameArg = "<name>"
   show ExprArg = "<expr>"
 
+export
+data ParseCmd : Type where
+     ParseREPLCmd : List String -> ParseCmd
+     ParseKeywordCmd : String -> ParseCmd
+     ParseIdentCmd : String -> ParseCmd
+
 CommandDefinition : Type
 CommandDefinition = (List String, CmdArg, String, Rule REPLCmd)
 
 CommandTable : Type
 CommandTable = List CommandDefinition
 
-eatCommand : List String -> Rule ()
-eatCommand names = do
-  symbol ":"
-  replCmd names
+extractNames : ParseCmd -> List String
+extractNames (ParseREPLCmd names) = names
+extractNames (ParseKeywordCmd keyword) = [keyword]
+extractNames (ParseIdentCmd ident) = [ident]
 
-noArgCmd : List String -> REPLCmd -> String -> CommandDefinition
-noArgCmd names command doc = (names, NoArg, doc, parse)
+runParseCmd : ParseCmd -> Rule ()
+runParseCmd (ParseREPLCmd names) = replCmd names
+runParseCmd (ParseKeywordCmd keyword') = keyword keyword'
+runParseCmd (ParseIdentCmd ident) = exactIdent ident
+
+noArgCmd : ParseCmd -> REPLCmd -> String -> CommandDefinition
+noArgCmd parseCmd command doc = (names, NoArg, doc, parse)
   where
+    names = extractNames parseCmd
+
     parse = do
-      eatCommand names
+      symbol ":"
+      runParseCmd parseCmd
       pure command
 
-nameArgCmd : List String -> (Name -> REPLCmd) -> String -> CommandDefinition
-nameArgCmd names command doc = (names, NameArg, doc, parse)
+nameArgCmd : ParseCmd -> (Name -> REPLCmd) -> String -> CommandDefinition
+nameArgCmd parseCmd command doc = (names, NameArg, doc, parse)
   where
+    names = extractNames parseCmd
+
     parse = do
-      eatCommand names
+      symbol ":"
+      runParseCmd parseCmd
       n <- name
       pure (command n)
 
-exprArgCmd : List String -> (PTerm -> REPLCmd) -> String -> CommandDefinition
-exprArgCmd names command doc = (names, ExprArg, doc, parse)
+exprArgCmd : ParseCmd -> (PTerm -> REPLCmd) -> String -> CommandDefinition
+exprArgCmd parseCmd command doc = (names, ExprArg, doc, parse)
   where
+    names = extractNames parseCmd
+
     parse = do
-      eatCommand names
+      symbol ":"
+      runParseCmd parseCmd
       tm <- expr pdef "(interactive)" init
       pure (command tm)
 
 parserCommandsForHelp : CommandTable
 parserCommandsForHelp =
-  [ exprArgCmd ["t", "type"] Check "Check the type of an expression"
-  , exprArgCmd ["exec"] Exec "Compile to an executable and run"
-  , nameArgCmd ["printdef"] PrintDef "Show the definition of a function"
-  , nameArgCmd ["s", "search"] ProofSearch "???"
-  , nameArgCmd ["di"] DebugInfo "???"
-  , nameArgCmd ["miss", "missing"] Missing "Show missing clauses"
-  , nameArgCmd ["total"] Total "Check the totality of a name"
-  , noArgCmd ["h", "help"] Help "Display this help text"
-  , noArgCmd ["q", "quit", "exit"] Quit "Exit the Idris system"
-  , noArgCmd ["cwd"] CWD "Displays the current working directory"
-  , noArgCmd ["version"] ShowVersion "Display the Idris version"
-  , noArgCmd ["r", "reload"] Reload "Reload current file"
-  , noArgCmd ["e", "edit"] Edit "Edit current file using $EDITOR or $VISUAL"
-  , noArgCmd ["m", "metavars"] Metavars "Show remaining proof obligations (metavariables or holes)"
+  [ exprArgCmd (ParseREPLCmd ["t", "type"]) Check "Check the type of an expression"
+  , exprArgCmd (ParseIdentCmd "exec") Exec "Compile to an executable and run"
+  , nameArgCmd (ParseREPLCmd ["printdef"]) PrintDef "Show the definition of a function"
+  , nameArgCmd (ParseREPLCmd ["s", "search"]) ProofSearch "???"
+  , nameArgCmd (ParseIdentCmd "di") DebugInfo "???"
+  , nameArgCmd (ParseREPLCmd ["miss", "missing"]) Missing "Show missing clauses"
+  , nameArgCmd (ParseKeywordCmd "total") Total "Check the totality of a name"
+  , noArgCmd (ParseREPLCmd ["h", "help"]) Help "Display this help text"
+  , noArgCmd (ParseREPLCmd ["q", "quit", "exit"]) Quit "Exit the Idris system"
+  , noArgCmd (ParseREPLCmd ["cwd"]) CWD "Displays the current working directory"
+  , noArgCmd (ParseREPLCmd ["version"]) ShowVersion "Display the Idris version"
+  , noArgCmd (ParseREPLCmd ["r", "reload"]) Reload "Reload current file"
+  , noArgCmd (ParseREPLCmd ["e", "edit"]) Edit "Edit current file using $EDITOR or $VISUAL"
+  , noArgCmd (ParseREPLCmd ["m", "metavars"]) Metavars "Show remaining proof obligations (metavariables or holes)"
   ]
 
 export
