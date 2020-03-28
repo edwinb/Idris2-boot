@@ -334,6 +334,19 @@ intersperse : a -> List a -> List a
 intersperse sep []      = []
 intersperse sep (x::xs) = x :: mergeReplicate sep xs
 
+||| Given a separator list and some more lists, produce a new list by
+||| placing the separator between each of the lists.
+|||
+||| @ sep the separator
+||| @ xss the lists between which the separator will be placed
+|||
+||| ```idris example
+||| intercalate [0, 0, 0] [ [1, 2, 3], [4, 5, 6], [7, 8, 9] ]
+||| ```
+export
+intercalate : (sep : List a) -> (xss : List (List a)) -> List a
+intercalate sep xss = concat $ intersperse sep xss
+
 ||| Apply a partial function to the elements of a list, keeping the ones at which
 ||| it is defined.
 export
