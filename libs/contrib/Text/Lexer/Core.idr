@@ -137,7 +137,7 @@ scan (SeqEat r1 r2) tok str
          assert_total (scan r2 tok' rest)
 scan (SeqEmpty r1 r2) tok str
     = do (tok', rest) <- scan r1 tok str
-         scan r2 tok' str
+         scan r2 tok' rest
 scan (Alt r1 r2) tok str
     = maybe (scan r2 tok str) Just (scan r1 tok str)
 
