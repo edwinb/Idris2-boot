@@ -76,13 +76,11 @@ reject = Lookahead False
 ||| of a list. The resulting recogniser will consume input if the produced
 ||| recognisers consume and the list is non-empty.
 export
-concatMap : (a -> Recognise c) -> (xs : List a) -> 
+concatMap : {c : Bool} -> (a -> Recognise c) -> (xs : List a) -> 
             Recognise (c && (isCons xs))
 concatMap {c} _ [] = rewrite andFalseFalse c in Empty
-concatMap {c} f (x :: xs) 
-   = rewrite andTrueNeutral c in
-     rewrite sym (orSameAndRightNeutral c (isCons xs)) in
-             SeqEmpty (f x) (Core.concatMap f xs)
+concatMap {c = True} f (x :: xs) = SeqEat (f x) (Core.concatMap f xs)
+concatMap {c = False} f (x :: xs) = SeqEmpty (f x) (Core.concatMap f xs)
 
 data StrLen : Type where
      MkStrLen : String -> Nat -> StrLen
