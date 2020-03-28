@@ -1513,11 +1513,15 @@ data CmdArg : Type where
      ||| The command takes an expression.
      ExprArg : CmdArg
 
+     ||| The command takes an option.
+     OptionArg : CmdArg
+
 export
 Show CmdArg where
   show NoArg = ""
   show NameArg = "<name>"
   show ExprArg = "<expr>"
+  show OptionArg = "<option>"
 
 export
 data ParseCmd : Type where
@@ -1573,6 +1577,17 @@ exprArgCmd parseCmd command doc = (names, ExprArg, doc, parse)
       tm <- expr pdef "(interactive)" init
       pure (command tm)
 
+optArgCmd : ParseCmd -> (REPLOpt -> REPLCmd) -> Bool -> String -> CommandDefinition
+optArgCmd parseCmd command set doc = (names, OptionArg, doc, parse)
+  where
+    names = extractNames parseCmd
+
+    parse = do
+      symbol ":"
+      runParseCmd parseCmd
+      opt <- setOption set
+      pure (command opt)
+
 parserCommandsForHelp : CommandTable
 parserCommandsForHelp =
   [ exprArgCmd (ParseREPLCmd ["t", "type"]) Check "Check the type of an expression"
@@ -1581,6 +1596,8 @@ parserCommandsForHelp =
   , nameArgCmd (ParseIdentCmd "di") DebugInfo "Show debugging information for a name"
   , noArgCmd (ParseREPLCmd ["q", "quit", "exit"]) Quit "Exit the Idris system"
   , noArgCmd (ParseREPLCmd ["cwd"]) CWD "Displays the current working directory"
+  , optArgCmd (ParseIdentCmd "set") SetOpt True "Set an option"
+  , optArgCmd (ParseIdentCmd "unset") SetOpt False "Unset an option"
   , exprArgCmd (ParseIdentCmd "exec") Exec "Compile to an executable and run"
   , noArgCmd (ParseREPLCmd ["r", "reload"]) Reload "Reload current file"
   , noArgCmd (ParseREPLCmd ["e", "edit"]) Edit "Edit current file using $EDITOR or $VISUAL"
@@ -1602,13 +1619,7 @@ nonEmptyCommand =
 
 undocumentedNonEmptyCommand : Rule REPLCmd
 undocumentedNonEmptyCommand
-    = do symbol ":"; exactIdent "set"
-         opt <- setOption True
-         pure (SetOpt opt)
-  <|> do symbol ":"; exactIdent "unset"
-         opt <- setOption False
-         pure (SetOpt opt)
-  <|> do symbol ":"; replCmd ["c", "compile"]
+    = do symbol ":"; replCmd ["c", "compile"]
          n <- unqualifiedName
          tm <- expr pdef "(interactive)" init
          pure (Compile tm n)
