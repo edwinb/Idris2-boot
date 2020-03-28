@@ -1519,6 +1519,9 @@ data CmdArg : Type where
      ||| The command takes an option.
      OptionArg : CmdArg
 
+     ||| The command takes a file.
+     FileArg : CmdArg
+
 export
 Show CmdArg where
   show NoArg = ""
@@ -1526,6 +1529,7 @@ Show CmdArg where
   show ExprArg = "<expr>"
   show NumberArg = "<number>"
   show OptionArg = "<option>"
+  show FileArg = "<filename>"
 
 export
 data ParseCmd : Type where
@@ -1603,6 +1607,18 @@ numberArgCmd parseCmd command doc = (names, NumberArg, doc, parse)
       i <- intLit
       pure (command (fromInteger i))
 
+compileArgsCmd : ParseCmd -> (PTerm -> String -> REPLCmd) -> String -> CommandDefinition
+compileArgsCmd parseCmd command doc = (names, FileArg, doc, parse)
+  where
+    names = extractNames parseCmd
+
+    parse = do
+      symbol ":"
+      runParseCmd parseCmd
+      n <- unqualifiedName
+      tm <- expr pdef "(interactive)" init
+      pure (command tm n)
+
 parserCommandsForHelp : CommandTable
 parserCommandsForHelp =
   [ exprArgCmd (ParseREPLCmd ["t", "type"]) Check "Check the type of an expression"
@@ -1613,6 +1629,7 @@ parserCommandsForHelp =
   , noArgCmd (ParseREPLCmd ["cwd"]) CWD "Displays the current working directory"
   , optArgCmd (ParseIdentCmd "set") SetOpt True "Set an option"
   , optArgCmd (ParseIdentCmd "unset") SetOpt False "Unset an option"
+  , compileArgsCmd (ParseREPLCmd ["c", "compile"]) Compile "Compile to an executable"
   , exprArgCmd (ParseIdentCmd "exec") Exec "Compile to an executable and run"
   , noArgCmd (ParseREPLCmd ["r", "reload"]) Reload "Reload current file"
   , noArgCmd (ParseREPLCmd ["e", "edit"]) Edit "Edit current file using $EDITOR or $VISUAL"
@@ -1633,15 +1650,6 @@ nonEmptyCommand : Rule REPLCmd
 nonEmptyCommand =
   choice [ parser | (_, _, _, parser) <- parserCommandsForHelp ]
 
-undocumentedNonEmptyCommand : Rule REPLCmd
-undocumentedNonEmptyCommand
-    = do symbol ":"; replCmd ["c", "compile"]
-         n <- unqualifiedName
-         tm <- expr pdef "(interactive)" init
-         pure (Compile tm n)
-  <|> do symbol ":"; cmd <- editCmd
-         pure (Editing cmd)
-
 eval : Rule REPLCmd
 eval = do
   tm <- expr pdef "(interactive)" init
@@ -1653,5 +1661,6 @@ command
     = do eoi
          pure NOP
   <|> nonEmptyCommand
-  <|> undocumentedNonEmptyCommand
+  <|> do symbol ":"; cmd <- editCmd
+         pure (Editing cmd)
   <|> eval
