@@ -122,6 +122,7 @@ mutual
   appExpr : ParseOpts -> FileName -> IndentInfo -> Rule PTerm
   appExpr q fname indents
       = case_ fname indents
+    <|> lambdaCase fname indents
     <|> lazy fname indents
     <|> if_ fname indents
     <|> doBlock fname indents
@@ -570,6 +571,21 @@ mutual
            alts <- block (caseAlt fname)
            end <- location
            pure (PCase (MkFC fname start end) scr alts)
+
+  lambdaCase : FileName -> IndentInfo -> Rule PTerm
+  lambdaCase fname indents
+      = do start <- location
+           symbol "\\" *> keyword "case"
+           endCase <- location
+           commit
+           alts <- block (caseAlt fname)
+           end <- location
+           let fc = MkFC fname start end
+           let fcCase = MkFC fname start endCase
+           let n = MN "lcase" 0
+           pure $
+            PLam fcCase RigW Explicit (PRef fcCase n) (PInfer fcCase) $
+                PCase fc (PRef fcCase n) alts
 
   caseAlt : FileName -> IndentInfo -> Rule PClause
   caseAlt fname indents
