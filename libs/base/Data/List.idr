@@ -387,9 +387,9 @@ sortBy cmp xs  = let (x, y) = split xs in
           (sortBy cmp (assert_smaller xs x))
           (sortBy cmp (assert_smaller xs y)) -- not structurally smaller, hence assert
   where
-    splitRec : List a -> List a -> (List a -> List a) -> (List a, List a)
-    splitRec (_::_::xs) (y::ys) zs = splitRec xs ys (zs . ((::) y))
-    splitRec _          ys      zs = (zs [], ys)
+    splitRec : List b -> List a -> (List a -> List a) -> (List a, List a)
+    splitRec (_::_::xs) (y::ys) zs = splitRec xs ys ((y ::) . zs)
+    splitRec  _             ys  zs = (ys, zs [])
 
     split : List a -> (List a, List a)
     split xs = splitRec xs xs id
