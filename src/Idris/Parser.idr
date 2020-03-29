@@ -596,7 +596,6 @@ mutual
            keyword "if"
            x <- expr pdef fname indents
            commitKeyword indents "then"
-           col <- column
            t <- expr pdef fname indents
            commitKeyword indents "else"
            e <- expr pdef fname indents

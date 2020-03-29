@@ -403,14 +403,17 @@ mutual
            bd <- get Bang
            pure $ bindBangs (bangNames bd) bind
   expandDo side ps topfc (DoLetPat fc pat ty tm alts :: rest)
-      = do pat' <- desugar LHS ps pat
+      = do b <- newRef Bang initBangs
+           pat' <- desugar LHS ps pat
            ty' <- desugar side ps ty
            (newps, bpat) <- bindNames False pat'
-           tm' <- desugar side ps tm
+           tm' <- desugarB side ps tm
            alts' <- traverse (desugarClause ps True) alts
            let ps' = newps ++ ps
            rest' <- expandDo side ps' topfc rest
-           pure $ ICase fc tm' ty'
+           bd <- get Bang
+           pure $ bindBangs (bangNames bd) $
+                    ICase fc tm' ty'
                        (PatClause fc bpat rest'
                                   :: alts')
   expandDo side ps topfc (DoLetLocal fc decls :: rest)
