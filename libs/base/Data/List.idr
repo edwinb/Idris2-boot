@@ -392,9 +392,10 @@ sortBy cmp xs  = let (x, y) = split xs in
     splitRec : List b -> List a -> (List a -> List a) -> (List a, List a)
     splitRec (_::_::xs) (y::ys) zs = splitRec xs ys (zs . ((::) y))
     splitRec _          ys      zs = (ys, zs [])
-    -- In the above base-case clause, we put `ys` first to get a stable sort.
+    -- In the above base-case clause, we put `ys` on the LHS to get a stable sort.
     -- This is because `mergeBy` prefers taking elements from its RHS operand
-    -- if both heads are equal.
+    -- if both heads are equal, and all elements in `zs []` precede all elements of `ys`
+    -- in the original list.
 
     split : List a -> (List a, List a)
     split xs = splitRec xs xs id
