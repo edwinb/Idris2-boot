@@ -19,7 +19,8 @@
     (if (number? x) x 0)))
 (define destroy-prefix
   (lambda (x)
-    (if (eqv? (string-ref x 0) #\#) "" x)))
+    (if (eqv? x "") ""
+      (if (eqv? (string-ref x 0) #\#) "" x))))
 (define cast-string-int
   (lambda (x)
     (floor (cast-num (string->number (destroy-prefix x))))))
