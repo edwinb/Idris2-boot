@@ -388,6 +388,33 @@ By default, ``auto``-implicit search uses the constructors of a data type
 as search hints. The ``noHints`` option on a data type turns this behaviour
 off.
 
+You can add your own search hints with the ``%hint`` option on a function.
+For example:
+
+.. code-block:: idris
+
+    data MyShow : Type -> Type where
+         [noHints]
+         MkMyShow : (myshow : a -> String) -> MyShow a
+
+    %hint
+    showBool : MyShow Bool
+    showBool = MkMyShow (\x => if x then "True" else "False")
+
+    myShow : MyShow a => a -> String
+    myShow @{MkMyShow myshow} = myshow
+
+In this case, searching for ``MyShow Bool`` will find ``showBool``, as we
+can see if we try evaluating ``myShow True`` at the REPL:
+
+::
+
+    Main> myShow True
+    "True"
+
+In fact, this is how interfaces are elaborated. However, ``%hint`` should be
+used with care. Too many hints can lead to a large search space!
+
 Totality and Coverage
 ---------------------
 
