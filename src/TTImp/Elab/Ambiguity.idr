@@ -270,17 +270,6 @@ pruneByType env target alts
             else pure res
 
 
-export
-ambiguous : Error -> Bool
-ambiguous (AmbiguousElab _ _ _) = True
-ambiguous (AmbiguousName _ _) = True
-ambiguous (InType _ _ err) = ambiguous err
-ambiguous (InCon _ _ err) = ambiguous err
-ambiguous (InLHS _ _ err) = ambiguous err
-ambiguous (InRHS _ _ err) = ambiguous err
-ambiguous (WhenUnifying _ _ _ _ err) = ambiguous err
-ambiguous _ = False
-
 getName : RawImp -> Maybe Name
 getName (IVar _ n) = Just n
 getName (IApp _ f _) = getName f

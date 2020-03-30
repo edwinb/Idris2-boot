@@ -106,34 +106,66 @@ delayElab {vars} fc rig env exp pri elab
              pure (gnf env ty)
 
 export
+ambiguous : Error -> Bool
+ambiguous (AmbiguousElab _ _ _) = True
+ambiguous (AmbiguousName _ _) = True
+ambiguous (InType _ _ err) = ambiguous err
+ambiguous (InCon _ _ err) = ambiguous err
+ambiguous (InLHS _ _ err) = ambiguous err
+ambiguous (InRHS _ _ err) = ambiguous err
+ambiguous (WhenUnifying _ _ _ _ err) = ambiguous err
+ambiguous _ = False
+
+-- Try all the delayed elaborators. If there's a failure, we want to
+-- show the ambiguity errors first (since that's the likely cause)
+retryDelayed' : {auto c : Ref Ctxt Defs} ->
+                {auto m : Ref MD Metadata} ->
+                {auto u : Ref UST UState} ->
+                {auto e : Ref EST (EState vars)} ->
+                (skiperr : Bool) ->
+                List (Nat, Int, Core ClosedTerm) ->
+                Core ()
+retryDelayed' skiperr [] = pure ()
+retryDelayed' skiperr ((_, i, elab) :: ds)
+    = do defs <- get Ctxt
+         Just Delayed <- lookupDefExact (Resolved i) (gamma defs)
+              | _ => retryDelayed' skiperr ds
+         handle
+           (do log 5 ("Retrying delayed hole " ++ show !(getFullName (Resolved i)))
+               -- elab itself might have delays internally, so keep track of them
+               ust <- get UST
+               put UST (record { delayedElab = [] } ust)
+               tm <- elab
+               ust <- get UST
+               let ds' = reverse (delayedElab ust) ++ ds
+
+               updateDef (Resolved i) (const (Just
+                    (PMDef (MkPMDefInfo NotHole True) [] (STerm tm) (STerm tm) [])))
+               logTerm 5 ("Resolved delayed hole " ++ show i) tm
+               logTermNF 5 ("Resolved delayed hole NF " ++ show i) [] tm
+               removeHole i
+               retryDelayed' skiperr ds')
+           (\err => if skiperr
+                       then if ambiguous err -- give up on ambiguity
+                               then throw err
+                               else retryDelayed' skiperr ds
+                       else throw err)
+
+export
 retryDelayed : {auto c : Ref Ctxt Defs} ->
+               {auto m : Ref MD Metadata} ->
                {auto u : Ref UST UState} ->
                {auto e : Ref EST (EState vars)} ->
                List (Nat, Int, Core ClosedTerm) ->
                Core ()
-retryDelayed [] = pure ()
-retryDelayed ((_, i, elab) :: ds)
-    = do defs <- get Ctxt
-         Just Delayed <- lookupDefExact (Resolved i) (gamma defs)
-              | _ => retryDelayed ds
-         log 5 ("Retrying delayed hole " ++ show !(getFullName (Resolved i)))
-         -- elab itself might have delays internally, so keep track of them
-         ust <- get UST
-         put UST (record { delayedElab = [] } ust)
-         tm <- elab
-         ust <- get UST
-         let ds' = reverse (delayedElab ust) ++ ds
-
-         updateDef (Resolved i) (const (Just
-              (PMDef (MkPMDefInfo NotHole True) [] (STerm tm) (STerm tm) [])))
-         logTerm 5 ("Resolved delayed hole " ++ show i) tm
-         logTermNF 5 ("Resolved delayed hole NF " ++ show i) [] tm
-         removeHole i
-         retryDelayed ds'
+retryDelayed ds
+    = do retryDelayed' True ds
+         retryDelayed' False ds
 
 -- Run an elaborator, then all the delayed elaborators arising from it
 export
 runDelays : {auto c : Ref Ctxt Defs} ->
+            {auto m : Ref MD Metadata} ->
             {auto u : Ref UST UState} ->
             {auto e : Ref EST (EState vars)} ->
             Core a -> Core a
@@ -144,7 +176,7 @@ runDelays elab
          tm <- elab
          ust <- get UST
          log 2 $ "Rerunning delayed in elaborator"
-         handleUnify (retryDelayed (reverse (delayedElab ust)))
+         handleUnify (retryDelayed' False (reverse (delayedElab ust)))
                      (\err => throw err)
          ust <- get UST
          put UST (record { delayedElab $= (++ olddelayed) } ust)

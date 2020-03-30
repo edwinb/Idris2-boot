@@ -442,7 +442,9 @@ successful ((tm, elab) :: elabs)
          md <- get MD
          defs <- branch
          catch (do -- Run the elaborator
-                   log 5 $ "Running " ++ show tm
+                   logC 5 $ do tm' <- maybe (pure (UN "__"))
+                                            toFullNames tm
+                               pure ("Running " ++ show tm')
                    res <- elab
                    -- Record post-elaborator state
                    ust' <- get UST
@@ -455,6 +457,9 @@ successful ((tm, elab) :: elabs)
                    put EST est
                    put MD md
                    put Ctxt defs
+                   logC 5 $ do tm' <- maybe (pure (UN "__"))
+                                            toFullNames tm
+                               pure ("Success " ++ show tm')
                    elabs' <- successful elabs
                    -- Record success, and the state we ended at
                    pure (Right (res, defs', ust', est') :: elabs'))
