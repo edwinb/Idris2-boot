@@ -329,8 +329,8 @@ mutual
                 desugarB side ps (PApp fc (PRef fc (UN "rangeFrom")) start)
              Just n =>
                 desugarB side ps (PApp fc (PApp fc (PRef fc (UN "rangeFromThen")) start) n)
-  desugarB side ps (PUnifyLog fc tm)
-      = pure $ IUnifyLog fc !(desugarB side ps tm)
+  desugarB side ps (PUnifyLog fc lvl tm)
+      = pure $ IUnifyLog fc lvl !(desugarB side ps tm)
 
   desugarUpdate : {auto s : Ref Syn SyntaxInfo} ->
                   {auto b : Ref Bang BangData} ->

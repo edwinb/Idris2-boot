@@ -5,6 +5,7 @@ import Core.Core
 import Core.Env
 import Core.Metadata
 import Core.Normalise
+import Core.Options
 -- import Core.Reflect
 import Core.Unify
 import Core.TT
@@ -186,11 +187,12 @@ checkTerm rig elabinfo nest env (IType fc) exp
 
 checkTerm rig elabinfo nest env (IHole fc str) exp
     = checkHole rig elabinfo nest env fc str exp
-checkTerm rig elabinfo nest env (IUnifyLog fc tm) exp
-    = do ust <- get UST
-         put UST (record { logging = True } ust)
+checkTerm rig elabinfo nest env (IUnifyLog fc n tm) exp
+    = do opts <- getSession
+         let lvl = logLevel opts
+         setLogLevel n
          r <- check rig elabinfo nest env tm exp
-         put UST ust
+         setLogLevel lvl
          pure r
 checkTerm rig elabinfo nest env (Implicit fc b) (Just gexpty)
     = do nm <- genName "_"

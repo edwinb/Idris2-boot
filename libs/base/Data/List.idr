@@ -297,11 +297,13 @@ tail [] impossible
 tail (x :: xs) = xs
 
 ||| Attempt to get the head of a list. If the list is empty, return `Nothing`.
+export
 head' : List a -> Maybe a
 head' []      = Nothing
 head' (x::xs) = Just x
 
 ||| Attempt to get the tail of a list. If the list is empty, return `Nothing`.
+export
 tail' : List a -> Maybe (List a)
 tail' []      = Nothing
 tail' (x::xs) = Just xs

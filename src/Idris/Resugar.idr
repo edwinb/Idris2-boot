@@ -230,7 +230,7 @@ mutual
   toPTerm p (IUnquote fc tm) = pure (PUnquote fc !(toPTerm argPrec tm))
   toPTerm p (IRunElab fc tm) = pure (PRunElab fc !(toPTerm argPrec tm))
 
-  toPTerm p (IUnifyLog fc tm) = toPTerm p tm
+  toPTerm p (IUnifyLog fc _ tm) = toPTerm p tm
   toPTerm p (Implicit fc True) = pure (PImplicit fc)
   toPTerm p (Implicit fc False) = pure (PInfer fc)
 

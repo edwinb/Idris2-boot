@@ -358,10 +358,11 @@ mutual
            end <- location
            pure (PIdiom (MkFC fname start end) e)
     <|> do start <- location
-           symbol "%"; exactIdent "unifyLog"
+           symbol "%"; exactIdent "logging"
+           lvl <- intLit
            e <- expr pdef fname indents
            end <- location
-           pure (PUnifyLog (MkFC fname start end) e)
+           pure (PUnifyLog (MkFC fname start end) (cast lvl) e)
 
   multiplicity : EmptyRule (Maybe Integer)
   multiplicity
