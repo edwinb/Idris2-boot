@@ -49,9 +49,10 @@ delayOnFailure : {auto c : Ref Ctxt Defs} ->
                  FC -> RigCount -> Env Term vars ->
                  (expected : Glued vars) ->
                  (Error -> Bool) ->
+                 (pri : Nat) ->
                  (Bool -> Core (Term vars, Glued vars)) ->
                  Core (Term vars, Glued vars)
-delayOnFailure fc rig env expected pred elab
+delayOnFailure fc rig env expected pred pri elab
     = do est <- get EST
          handle (elab (not (allowDelay est)))
           (\err =>
@@ -66,7 +67,7 @@ delayOnFailure fc rig env expected pred elab
                          log 10 ("Due to error " ++ show err)
                          ust <- get UST
                          put UST (record { delayedElab $=
-                                 ((ci, mkClosedElab fc env (elab True)) :: ) }
+                                 ((pri, ci, mkClosedElab fc env (elab True)) :: ) }
                                          ust)
                          pure (dtm, expected)
                     else throw err)
@@ -78,9 +79,10 @@ delayElab : {auto c : Ref Ctxt Defs} ->
             {auto e : Ref EST (EState vars)} ->
             FC -> RigCount -> Env Term vars ->
             (expected : Maybe (Glued vars)) ->
+            (pri : Nat) ->
             Core (Term vars, Glued vars) ->
             Core (Term vars, Glued vars)
-delayElab {vars} fc rig env exp elab
+delayElab {vars} fc rig env exp pri elab
     = do est <- get EST
          if not (allowDelay est)
             then elab
@@ -92,7 +94,7 @@ delayElab {vars} fc rig env exp elab
                           " for") env expected
              ust <- get UST
              put UST (record { delayedElab $=
-                     ((ci, mkClosedElab fc env elab) :: ) }
+                     ((pri, ci, mkClosedElab fc env elab) :: ) }
                              ust)
              pure (dtm, expected)
   where
@@ -107,10 +109,10 @@ export
 retryDelayed : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
                {auto e : Ref EST (EState vars)} ->
-               List (Int, Core ClosedTerm) ->
+               List (Nat, Int, Core ClosedTerm) ->
                Core ()
 retryDelayed [] = pure ()
-retryDelayed ((i, elab) :: ds)
+retryDelayed ((_, i, elab) :: ds)
     = do defs <- get Ctxt
          Just Delayed <- lookupDefExact (Resolved i) (gamma defs)
               | _ => retryDelayed ds
@@ -141,11 +143,9 @@ runDelays elab
          put UST (record { delayedElab = [] } ust)
          tm <- elab
          ust <- get UST
-         catch (retryDelayed (reverse (delayedElab ust)))
-               (\err =>
-                  do ust <- get UST
-                     put UST (record { delayedElab = olddelayed } ust)
-                     throw err)
+         log 2 $ "Rerunning delayed in elaborator"
+         handleUnify (retryDelayed (reverse (delayedElab ust)))
+                     (\err => throw err)
          ust <- get UST
-         put UST (record { delayedElab = olddelayed } ust)
+         put UST (record { delayedElab $= (++ olddelayed) } ust)
          pure tm

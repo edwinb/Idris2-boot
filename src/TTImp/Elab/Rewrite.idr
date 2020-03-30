@@ -104,7 +104,7 @@ checkRewrite : {vars : _} ->
 checkRewrite rigc elabinfo nest env fc rule tm Nothing
     = throw (GenericMsg fc "Can't infer a type for rewrite")
 checkRewrite {vars} rigc elabinfo nest env fc rule tm (Just expected)
-    = delayOnFailure fc rigc env expected rewriteErr (\delayed =>
+    = delayOnFailure fc rigc env expected rewriteErr 10 (\delayed =>
         do (rulev, grulet) <- check Rig0 elabinfo nest env rule Nothing
            rulet <- getTerm grulet
            expTy <- getTerm expected

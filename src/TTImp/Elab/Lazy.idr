@@ -50,7 +50,7 @@ checkDelay rig elabinfo nest env fc tm mexpected
          solveConstraints solvemode Normal
          -- Can only check if we know the expected type already because we
          -- need to infer the delay reason
-         delayOnFailure fc rig env expected delayError
+         delayOnFailure fc rig env expected delayError 5
             (\delayed =>
                  case !(getNF expected) of
                       NDelayed _ r expnf =>
