@@ -159,7 +159,8 @@ schOp BelieveMe [_,_,x] = x
 public export
 data ExtPrim = CCall | SchemeCall
              | PutStr | GetStr | PutChar | GetChar
-             | FileOpen | FileClose | FileReadLine | FileWriteLine | FileEOF
+             | FileOpen | FileClose | FileReadLine | FileWriteLine
+             | FileEOF | FileModifiedTime
              | NewIORef | ReadIORef | WriteIORef
              | NewArray | ArrayGet | ArraySet
              | GetField | SetField
@@ -181,6 +182,7 @@ Show ExtPrim where
   show FileReadLine = "FileReadLine"
   show FileWriteLine = "FileWriteLine"
   show FileEOF = "FileEOF"
+  show FileModifiedTime = "FileModifiedTime"
   show NewIORef = "NewIORef"
   show ReadIORef = "ReadIORef"
   show WriteIORef = "WriteIORef"
@@ -211,6 +213,7 @@ toPrim pn@(NS _ n)
             (n == UN "prim__readLine", FileReadLine),
             (n == UN "prim__writeLine", FileWriteLine),
             (n == UN "prim__eof", FileEOF),
+            (n == UN "prim__fileModifiedTime", FileModifiedTime),
             (n == UN "prim__newIORef", NewIORef),
             (n == UN "prim__readIORef", ReadIORef),
             (n == UN "prim__writeIORef", WriteIORef),
@@ -368,6 +371,9 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
                                         ++ !(schExp i vs str) ++ ")"
   schExtCommon i vs FileEOF [file, world]
       = pure $ mkWorld $ "(blodwen-eof " ++ !(schExp i vs file) ++ ")"
+  schExtCommon i vs FileModifiedTime [file, world]
+      = pure $ mkWorld $ fileOp $ "(blodwen-file-modified-time "
+                                        ++ !(schExp i vs file) ++ ")"
   schExtCommon i vs NewIORef [_, val, world]
       = pure $ mkWorld $ "(box " ++ !(schExp i vs val) ++ ")"
   schExtCommon i vs ReadIORef [_, ref, world]

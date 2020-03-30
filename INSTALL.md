@@ -27,6 +27,14 @@ tests (if Idris 1 is available), then if all is well, install everything. The
 default installation directory is `$HOME/.idris2`. You can change this by
 setting the `PREFIX` variable in the `Makefile`.
 
+Other settings you can change in the `Makefile` are:
+
+* `OPT` which sets the optimisation level for compiling the generated C.  Leave
+  this blank for Idris 2 to build sooner, or set it to `-O2` for a faster
+  Idris 2 compiler. `-O2` takes a few minutes!
+* `CC` which sets the C compiler to use. `clang` is the default, but `gcc`
+  always works. `clang` generates code faster.
+
 ## Idris
 
 There are several sets of instructions on how to install Idris from source and

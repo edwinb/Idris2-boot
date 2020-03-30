@@ -16,6 +16,9 @@ data FilePtr : Type where
 %extern prim__writeLine : FilePtr -> String -> (1 x : %World) -> IORes (Either Int ())
 %extern prim__eof : FilePtr -> (1 x : %World) -> IORes Int
 
+%extern prim__fileModifiedTime : FilePtr -> (1 x : %World) ->
+                                 IORes (Either Int Integer)
+
 %extern prim__stdin : FilePtr
 %extern prim__stdout : FilePtr
 %extern prim__stderr : FilePtr
@@ -119,6 +122,12 @@ fEOF (FHandle f)
          pure (res /= 0)
 
 export
+fileModifiedTime : (h : File) -> IO (Either FileError Integer)
+fileModifiedTime (FHandle f)
+    = do res <- primIO (prim__fileModifiedTime f)
+         fpure res
+
+export
 readFile : String -> IO (Either FileError String)
 readFile file
   = do Right h <- openFile file Read
@@ -138,3 +147,16 @@ readFile file
                   do Right str <- fGetLine h
                         | Left err => pure (Left err)
                      read (str :: acc) h
+
+||| Write a string to a file
+export
+writeFile : (filepath : String) -> (contents : String) ->
+            IO (Either FileError ())
+writeFile fn contents = do
+     Right h  <- openFile fn WriteTruncate
+        | Left err => pure (Left err)
+     Right () <- fPutStr h contents
+        | Left err => do closeFile h
+                         pure (Left err)
+     closeFile h
+     pure (Right ())

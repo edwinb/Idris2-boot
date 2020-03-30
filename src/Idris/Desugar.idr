@@ -34,14 +34,11 @@ import Control.Monad.State
 
 -- Desugaring from high level Idris syntax to TTImp involves:
 
--- Done:
 -- * Shunting infix operators into function applications according to precedence
 -- * Replacing 'do' notating with applications of (>>=)
 -- * Replacing pattern matching binds with 'case'
 -- * Changing tuples to 'Pair/MkPair'
 -- * List notation
-
--- Still TODO:
 -- * Replacing !-notation
 -- * Dependent pair notation
 -- * Idiom brackets

@@ -92,6 +92,60 @@ implementation (DecEq t) => DecEq (Maybe t) where
 -- for computation in a higher order setting.
 
 --------------------------------------------------------------------------------
+-- Tuple
+--------------------------------------------------------------------------------
+
+lemma_both_neq : (x = x' -> Void) -> (y = y' -> Void) -> ((x, y) = (x', y') -> Void)
+lemma_both_neq p_x_not_x' p_y_not_y' Refl = p_x_not_x' Refl
+
+lemma_snd_neq : (x = x) -> (y = y' -> Void) -> ((x, y) = (x, y') -> Void)
+lemma_snd_neq Refl p Refl = p Refl
+
+lemma_fst_neq_snd_eq : (x = x' -> Void) ->
+                       (y = y') ->
+                       ((x, y) = (x', y) -> Void)
+lemma_fst_neq_snd_eq p_x_not_x' Refl Refl = p_x_not_x' Refl
+
+export
+implementation (DecEq a, DecEq b) => DecEq (a, b) where
+  decEq (a, b) (a', b')     with (decEq a a')
+    decEq (a, b) (a, b')    | (Yes Refl) with (decEq b b')
+      decEq (a, b) (a, b)   | (Yes Refl) | (Yes Refl) = Yes Refl
+      decEq (a, b) (a, b')  | (Yes Refl) | (No p) = No (\eq => lemma_snd_neq Refl p eq)
+    decEq (a, b) (a', b')   | (No p)     with (decEq b b')
+      decEq (a, b) (a', b)  | (No p)     | (Yes Refl) =  No (\eq => lemma_fst_neq_snd_eq p Refl eq)
+      decEq (a, b) (a', b') | (No p)     | (No p') = No (\eq => lemma_both_neq p p' eq)
+
+--------------------------------------------------------------------------------
+-- List
+--------------------------------------------------------------------------------
+
+lemma_val_not_nil : (the (List _) (x :: xs) = Prelude.Nil {a = t} -> Void)
+lemma_val_not_nil Refl impossible
+
+lemma_x_eq_xs_neq : (x = y) -> (xs = ys -> Void) -> (the (List _) (x :: xs) = (y :: ys) -> Void)
+lemma_x_eq_xs_neq Refl p Refl = p Refl
+
+lemma_x_neq_xs_eq : (x = y -> Void) -> (xs = ys) -> (the (List _) (x :: xs) = (y :: ys) -> Void)
+lemma_x_neq_xs_eq p Refl Refl = p Refl
+
+lemma_x_neq_xs_neq : (x = y -> Void) -> (xs = ys -> Void) -> (the (List _) (x :: xs) = (y :: ys) -> Void)
+lemma_x_neq_xs_neq p p' Refl = p Refl
+
+implementation DecEq a => DecEq (List a) where
+  decEq [] [] = Yes Refl
+  decEq (x :: xs) [] = No lemma_val_not_nil
+  decEq [] (x :: xs) = No (negEqSym lemma_val_not_nil)
+  decEq (x :: xs) (y :: ys) with (decEq x y)
+    decEq (x :: xs) (x :: ys) | Yes Refl with (decEq xs ys)
+      decEq (x :: xs) (x :: xs) | (Yes Refl) | (Yes Refl) = Yes Refl
+      decEq (x :: xs) (x :: ys) | (Yes Refl) | (No p) = No (\eq => lemma_x_eq_xs_neq Refl p eq)
+    decEq (x :: xs) (y :: ys) | No p with (decEq xs ys)
+      decEq (x :: xs) (y :: xs) | (No p) | (Yes Refl) = No (\eq => lemma_x_neq_xs_eq p Refl eq)
+      decEq (x :: xs) (y :: ys) | (No p) | (No p') = No (\eq => lemma_x_neq_xs_neq p p' eq)
+
+
+--------------------------------------------------------------------------------
 -- Int
 --------------------------------------------------------------------------------
 export

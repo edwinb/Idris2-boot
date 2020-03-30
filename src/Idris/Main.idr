@@ -19,8 +19,6 @@ import Idris.ProcessIdr
 import Idris.REPL
 import Idris.SetOptions
 import Idris.Syntax
-import Idris.Socket
-import Idris.Socket.Data
 import Idris.Version
 
 import Data.Vect

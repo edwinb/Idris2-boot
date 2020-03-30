@@ -161,6 +161,9 @@
         (get-char p)
         #\nul))
 
+(define (blodwen-file-modified-time p)
+    (time-second (file-modification-time p)))
+
 (define (blodwen-file-size p)
     (port-length p))
 
@@ -234,3 +237,9 @@
         (vector 0 '())
         (vector 1 '() (car args) (blodwen-build-args (cdr args)))))
     (blodwen-build-args (command-line)))
+
+(define (blodwen-hasenv var)
+  (if (eq? (getenv var) #f) 0 1))
+
+(define (blodwen-system cmd)
+  (system cmd))

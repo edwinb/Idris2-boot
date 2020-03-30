@@ -246,3 +246,8 @@
     (blodwen-build-args
       (cons (path->string (find-system-path 'run-file))
             (vector->list (current-command-line-arguments)))))
+
+(define (blodwen-system cmd)
+  (if (system cmd)
+      0
+      1))

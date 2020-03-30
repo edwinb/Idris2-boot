@@ -1,7 +1,6 @@
 module Idris.REPLOpts
 
 import Idris.Syntax
-import Idris.Socket
 
 public export
 data OutputMode

@@ -1017,6 +1017,14 @@ isControl x
     = (x >= '\x0000' && x <= '\x001f')
        || (x >= '\x007f' && x <= '\x009f')
 
+public export
+chr : Int -> Char
+chr = prim__cast_IntChar
+
+public export
+ord : Char -> Int
+ord = prim__cast_CharInt
+
 ----------
 -- SHOW --
 ----------
