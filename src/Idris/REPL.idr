@@ -230,6 +230,7 @@ getOptions = do
          , Editor (editor opts)
          ]
 
+export
 findCG : {auto c : Ref Ctxt Defs} -> Core Codegen
 findCG
     = do defs <- get Ctxt

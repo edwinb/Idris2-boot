@@ -1,8 +1,11 @@
 module Idris.Package
 
+import Compiler.Common
+
 import Core.Context
 import Core.Core
 import Core.Directory
+import Core.Metadata
 import Core.Options
 import Core.Unify
 
@@ -13,6 +16,7 @@ import Data.StringTrie
 import Idris.CommandLine
 import Idris.ModTree
 import Idris.ProcessIdr
+import Idris.REPL
 import Idris.REPLOpts
 import Idris.SetOptions
 import Idris.Syntax
@@ -244,6 +248,18 @@ processOptions (Just (fc, opts))
          preOptions clopts
          pure ()
 
+compileMain : {auto c : Ref Ctxt Defs} ->
+              {auto s : Ref Syn SyntaxInfo} ->
+              {auto o : Ref ROpts REPLOpts} ->
+              Name -> String -> String -> Core ()
+compileMain mainn mmod exec
+    = do m <- newRef MD initMetadata
+         u <- newRef UST initUState
+
+         loadMainFile mmod
+         compileExp (PRef replFC mainn) exec
+         pure ()
+
 build : {auto c : Ref Ctxt Defs} ->
         {auto s : Ref Syn SyntaxInfo} ->
         {auto o : Ref ROpts REPLOpts} ->
@@ -258,6 +274,14 @@ build pkg
                              (mainmod pkg)
          [] <- buildAll toBuild
               | errs => pure errs
+
+         case executable pkg of
+              Nothing => pure ()
+              Just exec =>
+                   do let Just (mainns, mmod) = mainmod pkg
+                               | Nothing => throw (GenericMsg emptyFC "No main module given")
+                      let mainn = NS ["Main"] (UN "main")
+                      compileMain mainn mmod exec
          runScript (postbuild pkg)
          pure []
 
@@ -354,6 +378,7 @@ clean : {auto c : Ref Ctxt Defs} ->
 clean pkg
     = do defs <- get Ctxt
          let build = build_dir (dirs (options defs))
+         let exec = exec_dir (dirs (options defs))
          runScript (preclean pkg)
          let toClean = mapMaybe (\ks => [| MkPair (tail' ks) (head' ks) |]) $
                        maybe (map fst (modules pkg))
@@ -361,6 +386,7 @@ clean pkg
                              (mainmod pkg)
          srcdir <- coreLift currentDir
          let builddir = srcdir ++ dirSep ++ build ++ dirSep ++ "ttc"
+         let execdir = srcdir ++ dirSep ++ exec
          -- the usual pair syntax breaks with `No such variable a` here for some reason
          let pkgTrie = the (StringTrie (List String)) $
                        foldl (\trie, ksv =>
@@ -372,20 +398,24 @@ clean pkg
                        (\ks => map concat . traverse (deleteBin builddir ks))
                        pkgTrie
          deleteFolder builddir []
+         maybe (pure ()) (\e => delete (execdir ++ dirSep ++ e))
+               (executable pkg)
          runScript (postclean pkg)
   where
-  delete : String -> Core ()
-  delete path = do True <- coreLift $ fRemove path
-                     | False => do err <- coreLift getErrno
-                                   coreLift $ putStrLn $ path ++ ": " ++ show (GenericFileError err)
-                   coreLift $ putStrLn $ "Removed: " ++ path
-  deleteFolder : String -> List String -> Core ()
-  deleteFolder builddir ns = delete $ builddir ++ dirSep ++ showSep dirSep ns
-  deleteBin : String -> List String -> String -> Core ()
-  deleteBin builddir ns mod
-      = do let ttFile = builddir ++ dirSep ++ showSep dirSep ns ++ dirSep ++ mod
-           delete $ ttFile ++ ".ttc"
-           delete $ ttFile ++ ".ttm"
+    delete : String -> Core ()
+    delete path = do True <- coreLift $ fRemove path
+                       | False => do err <- coreLift getErrno
+                                     coreLift $ putStrLn $ path ++ ": " ++ show (GenericFileError err)
+                     coreLift $ putStrLn $ "Removed: " ++ path
+
+    deleteFolder : String -> List String -> Core ()
+    deleteFolder builddir ns = delete $ builddir ++ dirSep ++ showSep dirSep ns
+
+    deleteBin : String -> List String -> String -> Core ()
+    deleteBin builddir ns mod
+        = do let ttFile = builddir ++ dirSep ++ showSep dirSep ns ++ dirSep ++ mod
+             delete $ ttFile ++ ".ttc"
+             delete $ ttFile ++ ".ttm"
 
 -- Just load the 'Main' module, if it exists, which will involve building
 -- it if necessary

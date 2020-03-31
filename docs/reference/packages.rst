@@ -68,6 +68,9 @@ Other common fields which may be present in an ``ipkg`` file are:
   identifier. the iPKG format also takes a quoted version that accepts
   any valid filename.
 
+  Executables are placed in ``build/exec``, relative to the top level
+  source directory.
+
 + ``main = <module>``, which takes the name of the main module, and
   must be present if the executable field is present.
 
@@ -91,7 +94,8 @@ Given an Idris package file ``test.ipkg`` it can be used with the Idris compiler
 + ``idris2 --build test.ipkg`` will build all modules in the package
 
 + ``idris2 --install test.ipkg`` will install the package, making it
-  accessible by other Idris libraries and programs.
+  accessible by other Idris libraries and programs. Note that this doesn't
+  install any executables, just library modules.
 
 + ``idris2 --clean test.ipkg`` will clean the intermediate build files.
 
