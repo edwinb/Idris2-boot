@@ -560,6 +560,13 @@ process (Eval itm)
             _ =>
               do ttimp <- desugar AnyExpr [] itm
                  inidx <- resolveName (UN "[input]")
+                 -- a TMP HACK to prioritise list syntax for List: hide
+                 -- foreign argument lists. TODO: once the new FFI is fully
+                 -- up and running we won't need this. Also, if we add
+                 -- 'with' disambiguation we can use that instead.
+                 catch (do hide replFC (NS ["PrimIO"] (UN "::"))
+                           hide replFC (NS ["PrimIO"] (UN "Nil")))
+                       (\err => pure ())
                  (tm, gty) <- elabTerm inidx (emode (evalMode opts)) [] (MkNested [])
                                        [] ttimp Nothing
                  defs <- get Ctxt
