@@ -44,6 +44,10 @@ idrisTests
        "interactive001", "interactive002", "interactive003", "interactive004",
        "interactive005", "interactive006", "interactive007", "interactive008",
        "interactive009", "interactive010", "interactive011", "interactive012",
+       -- Literate
+       "literate001", "literate002", "literate003", "literate004",
+       "literate005", "literate006", "literate007", "literate008",
+       "literate009",
        -- Interfaces
        "interface001", "interface002", "interface003", "interface004",
        "interface005", "interface006", "interface007", "interface008",

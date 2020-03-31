@@ -6,6 +6,8 @@ import Core.Metadata
 import Core.TT
 import Core.Value
 
+import Parser.Unlit
+
 import TTImp.Interactive.CaseSplit
 import TTImp.TTImp
 import TTImp.Utils
@@ -164,6 +166,7 @@ fnName lhs n = show n
 export
 getClause : {auto c : Ref Ctxt Defs} ->
             {auto m : Ref MD Metadata} ->
+            {auto o : Ref ROpts REPLOpts} ->
             Int -> Name -> Core (Maybe String)
 getClause l n
     = do defs <- get Ctxt
@@ -171,8 +174,12 @@ getClause l n
              | Nothing => pure Nothing
          n <- getFullName nidx
          argns <- getEnvArgNames defs envlen !(nf defs [] ty)
-         pure (Just (indent loc ++ fnName True n ++ concat (map (" " ++) argns) ++
+         Just srcLine <- getSourceLine l
+           | Nothing => pure Nothing
+         let (lit, src) = isLit srcLine
+         pure (Just (indent lit loc ++ fnName True n ++ concat (map (" " ++) argns) ++
                   " = ?" ++ fnName False n ++ "_rhs"))
   where
-    indent : FC -> String
-    indent fc = pack (replicate (cast (snd (startPos fc))) ' ')
+    indent : Bool -> FC -> String
+    indent True fc = ">" ++ pack (replicate (cast (max 0 (snd (startPos fc) - 1))) ' ')
+    indent False fc = pack (replicate (cast (snd (startPos fc))) ' ')

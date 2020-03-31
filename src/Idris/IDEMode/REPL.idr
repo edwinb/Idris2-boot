@@ -258,7 +258,7 @@ displayIDEResult outf i  (VersionIs x) = printIDEResult outf i versionSExp
 
 displayIDEResult outf i  (Edited (DisplayEdit xs)) = printIDEResult outf i $ StringAtom $ showSep "\n" xs
 displayIDEResult outf i  (Edited (EditError x)) = printIDEError outf i x
-displayIDEResult outf i  (Edited (MadeLemma name pty pappstr)) = printIDEResult outf i $ StringAtom $ show name ++ " : " ++ show pty ++ "\n" ++ pappstr
+displayIDEResult outf i  (Edited (MadeLemma lit name pty pappstr)) = printIDEResult outf i $ StringAtom $ (if lit then "> " else "") ++ show name ++ " : " ++ show pty ++ "\n" ++ pappstr
 displayIDEResult outf i  _ = pure ()
 
 
