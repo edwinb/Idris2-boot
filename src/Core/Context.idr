@@ -1826,10 +1826,17 @@ setUnboundImplicits a
 
 export
 setDefaultTotalityOption : {auto c : Ref Ctxt Defs} ->
-                TotalReq -> Core ()
+                           TotalReq -> Core ()
 setDefaultTotalityOption tot
     = do defs <- get Ctxt
          put Ctxt (record { options->elabDirectives->totality = tot } defs)
+
+export
+setAmbigLimit : {auto c : Ref Ctxt Defs} ->
+                Nat -> Core ()
+setAmbigLimit max
+    = do defs <- get Ctxt
+         put Ctxt (record { options->elabDirectives->ambigLimit = max } defs)
 
 export
 isLazyActive : {auto c : Ref Ctxt Defs} ->
@@ -1847,10 +1854,17 @@ isUnboundImplicits
 
 export
 getDefaultTotalityOption : {auto c : Ref Ctxt Defs} ->
-                  Core TotalReq
+                           Core TotalReq
 getDefaultTotalityOption
     = do defs <- get Ctxt
          pure (totality (elabDirectives (options defs)))
+
+export
+getAmbigLimit : {auto c : Ref Ctxt Defs} ->
+                Core Nat
+getAmbigLimit
+    = do defs <- get Ctxt
+         pure (ambigLimit (elabDirectives (options defs)))
 
 export
 setPair : {auto c : Ref Ctxt Defs} ->

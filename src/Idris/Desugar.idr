@@ -746,6 +746,7 @@ mutual
              Logging i => pure [ILog i]
              LazyOn a => pure [IPragma (\c, nest, env => lazyActive a)]
              UnboundImplicits a => pure [IPragma (\c, nest, env => setUnboundImplicits a)]
+             AmbigDepth n => pure [IPragma (\c, nest, env => setAmbigLimit n)]
              PairNames ty f s => pure [IPragma (\c, nest, env => setPair fc ty f s)]
              RewriteName eq rw => pure [IPragma (\c, nest, env => setRewrite fc eq rw)]
              PrimInteger n => pure [IPragma (\c, nest, env => setFromInteger n)]

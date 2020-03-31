@@ -64,6 +64,7 @@ data Error
     | AmbiguousName FC (List Name)
     | AmbiguousElab FC (Env Term vars) (List (Term vars))
     | AmbiguousSearch FC (Env Term vars) (List (Term vars))
+    | AmbiguityTooDeep FC Name (List Name)
     | AllFailed (List (Maybe Name, Error))
     | RecordTypeNeeded FC (Env Term vars)
     | NotRecordField FC String (Maybe Name)
@@ -178,6 +179,8 @@ Show Error where
   show (AmbiguousName fc ns) = show fc ++ ":Ambiguous name " ++ show ns
   show (AmbiguousElab fc env ts) = show fc ++ ":Ambiguous elaboration " ++ show ts
   show (AmbiguousSearch fc env ts) = show fc ++ ":Ambiguous search " ++ show ts
+  show (AmbiguityTooDeep fc n ns)
+      = show fc ++ ":Ambiguity too deep in " ++ show n ++ " " ++ show ns
   show (AllFailed ts) = "No successful elaboration: " ++ assert_total (show ts)
   show (RecordTypeNeeded fc env)
       = show fc ++ ":Can't infer type of record to update"
@@ -288,6 +291,7 @@ getErrorLoc (BorrowPartialType loc _ _) = Just loc
 getErrorLoc (AmbiguousName loc _) = Just loc
 getErrorLoc (AmbiguousElab loc _ _) = Just loc
 getErrorLoc (AmbiguousSearch loc _ _) = Just loc
+getErrorLoc (AmbiguityTooDeep loc _ _) = Just loc
 getErrorLoc (AllFailed ((_, x) :: _)) = getErrorLoc x
 getErrorLoc (AllFailed []) = Nothing
 getErrorLoc (RecordTypeNeeded loc _) = Just loc

@@ -113,6 +113,9 @@ perror (AmbiguousElab fc env ts)
 perror (AmbiguousSearch fc env ts)
     = pure $ "Multiple solutions found in search. Possible correct results:\n\t" ++
            showSep "\n\t" !(traverse (pshowNoNorm env) ts)
+perror (AmbiguityTooDeep fc n ns)
+    = pure $ "Maximum ambiguity depth exceeded in "  ++ show !(getFullName n)
+             ++ ": " ++ showSep " --> " (map show !(traverse getFullName ns))
 perror (AllFailed ts)
     = case allUndefined ts of
            Just e => perror e

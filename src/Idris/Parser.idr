@@ -968,6 +968,10 @@ directive fname indents
          b <- onoff
          atEnd indents
          pure (UnboundImplicits b)
+  <|> do exactIdent "ambiguity_depth"
+         lvl <- intLit
+         atEnd indents
+         pure (AmbigDepth (cast lvl))
   <|> do exactIdent "pair"
          ty <- name
          f <- name

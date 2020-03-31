@@ -269,12 +269,28 @@ pruneByType env target alts
             then pure alts -- if none of them work, better to show all the errors
             else pure res
 
+checkAmbigDepth : {auto c : Ref Ctxt Defs} ->
+                  {auto e : Ref EST (EState vars)} ->
+                  FC -> ElabInfo -> Core ()
+checkAmbigDepth fc info
+    = do max <- getAmbigLimit
+         let ambs = ambigTries info
+         when (length ambs > max) $
+           do est <- get EST
+              throw (AmbiguityTooDeep fc (Resolved (defining est)) ambs)
 
 getName : RawImp -> Maybe Name
 getName (IVar _ n) = Just n
 getName (IApp _ f _) = getName f
 getName (IImplicitApp _ f _ _) = getName f
 getName _ = Nothing
+
+export
+addAmbig : List alts -> Maybe Name -> ElabInfo -> ElabInfo
+addAmbig _ Nothing = id
+addAmbig [] Nothing = id
+addAmbig [_] Nothing = id
+addAmbig _ (Just n) = record { ambigTries $= (n ::) }
 
 export
 checkAlternative : {vars : _} ->
@@ -287,7 +303,8 @@ checkAlternative : {vars : _} ->
                    FC -> AltType -> List RawImp -> Maybe (Glued vars) ->
                    Core (Term vars, Glued vars)
 checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
-    = do expected <- maybe (do nm <- genName "altTy"
+    = do checkAmbigDepth fc elabinfo
+         expected <- maybe (do nm <- genName "altTy"
                                ty <- metaVar fc Rig0 env nm (TType fc)
                                pure (gnf env ty))
                            pure mexpected
@@ -317,17 +334,20 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
                             (exactlyOne' False fc env
                                 (map (\t =>
                                    (getName t,
-                                    checkImp rig elabinfo nest env t
+                                    checkImp rig (addAmbig alts' (getName t) elabinfo)
+                                             nest env t
                                              (Just exp'))) alts'))
                             (do log 5 "All failed, running default"
                                 checkImp rig elabinfo nest env def (Just exp'))
                      else exactlyOne' True fc env
                            (map (\t =>
                              (getName t,
-                              checkImp rig elabinfo nest env t (Just exp')))
+                              checkImp rig (addAmbig alts' (getName t) elabinfo)
+                                       nest env t (Just exp')))
                               alts')
 checkAlternative rig elabinfo nest env fc uniq alts mexpected
-    = do alts' <- maybe (pure [])
+    = do checkAmbigDepth fc elabinfo
+         alts' <- maybe (pure [])
                         (\exp => pruneByType env !(getNF exp) alts) mexpected
          case alts' of
            [alt] => checkImp rig elabinfo nest env alt mexpected
@@ -361,7 +381,8 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
                                             _ => exactlyOne' (not delayed) fc env
                           tryall (map (\t =>
                               (getName t,
-                               do res <- checkImp rig elabinfo nest env t (Just exp')
+                               do res <- checkImp rig (addAmbig alts' (getName t) elabinfo)
+                                                  nest env t (Just exp')
                                   -- Do it twice for interface resolution;
                                   -- first pass gets the determining argument
                                   -- (maybe rethink this, there should be a better

@@ -151,6 +151,7 @@ mutual
        Logging : Nat -> Directive
        LazyOn : Bool -> Directive
        UnboundImplicits : Bool -> Directive
+       AmbigDepth : Nat -> Directive
        PairNames : Name -> Name -> Name -> Directive
        RewriteName : Name -> Name -> Directive
        PrimInteger : Name -> Directive

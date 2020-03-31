@@ -376,10 +376,11 @@ record ElabInfo where
   bindingVars : Bool
   preciseInf : Bool -- are types inferred precisely (True) or do we generalise
                     -- pi bindings to RigW (False, default)
+  ambigTries : List Name
 
 export
 initElabInfo : ElabMode -> ElabInfo
-initElabInfo m = MkElabInfo m NONE False True False
+initElabInfo m = MkElabInfo m NONE False True False []
 
 export
 tryError : {vars : _} ->
@@ -513,12 +514,24 @@ exactlyOne' {vars} allowCons fc env all
     getRes : ((Term vars, Glued vars), st) -> Term vars
     getRes ((tm, _), thisst) = tm
 
+    getDepthError : Error -> Maybe Error
+    getDepthError e@(AmbiguityTooDeep _ _ _) = Just e
+    getDepthError _ = Nothing
+
+    depthError : List (Maybe Name, Error) -> Maybe Error
+    depthError [] = Nothing
+    depthError ((_, e) :: es)
+        = maybe (depthError es) Just (getDepthError e)
+
     -- If they've all failed, collect all the errors
     -- If more than one succeeded, report the ambiguity
     altError : List (Maybe Name, Error) ->
                List ((Term vars, Glued vars), st) ->
                Error
-    altError ls [] = AllFailed ls
+    altError ls []
+        = case depthError ls of
+               Nothing => AllFailed ls
+               Just err => err
     altError ls rs = AmbiguousElab fc env (map getRes rs)
 
 export
