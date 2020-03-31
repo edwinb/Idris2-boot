@@ -118,6 +118,18 @@ idiomise fc (IApp afc f a)
                     a
 idiomise fc fn = IApp fc (IVar fc (UN "pure")) fn
 
+pairname : Name
+pairname = NS ["Builtin"] (UN "Pair")
+
+mkpairname : Name
+mkpairname = NS ["Builtin"] (UN "MkPair")
+
+dpairname : Name
+dpairname = NS ["DPair", "Builtin"] (UN "DPair")
+
+mkdpairname : Name
+mkdpairname = NS ["DPair", "Builtin"] (UN "MkDPair")
+
 data Bang : Type where
 
 mutual
@@ -270,27 +282,27 @@ mutual
   desugarB side ps (PPair fc l r)
       = do l' <- desugarB side ps l
            r' <- desugarB side ps r
-           let pval = apply (IVar fc (UN "MkPair")) [l', r']
+           let pval = apply (IVar fc mkpairname) [l', r']
            pure $ IAlternative fc (UniqueDefault pval)
-                  [apply (IVar fc (UN "Pair")) [l', r'], pval]
+                  [apply (IVar fc pairname) [l', r'], pval]
   desugarB side ps (PDPair fc (PRef nfc (UN n)) (PImplicit _) r)
       = do r' <- desugarB side ps r
-           let pval = apply (IVar fc (UN "MkDPair")) [IVar nfc (UN n), r']
+           let pval = apply (IVar fc mkdpairname) [IVar nfc (UN n), r']
            pure $ IAlternative fc (UniqueDefault pval)
-                  [apply (IVar fc (UN "DPair"))
+                  [apply (IVar fc dpairname)
                       [Implicit nfc False,
                        ILam nfc RigW Explicit (Just (UN n)) (Implicit nfc False) r'],
                    pval]
   desugarB side ps (PDPair fc (PRef nfc (UN n)) ty r)
       = do ty' <- desugarB side ps ty
            r' <- desugarB side ps r
-           pure $ apply (IVar fc (UN "DPair"))
+           pure $ apply (IVar fc dpairname)
                         [ty',
                          ILam nfc RigW Explicit (Just (UN n)) ty' r']
   desugarB side ps (PDPair fc l (PImplicit _) r)
       = do l' <- desugarB side ps l
            r' <- desugarB side ps r
-           pure $ apply (IVar fc (UN "MkDPair")) [l', r']
+           pure $ apply (IVar fc mkdpairname) [l', r']
   desugarB side ps (PDPair fc l ty r)
       = throw (GenericMsg fc "Invalid dependent pair type")
   desugarB side ps (PUnit fc)

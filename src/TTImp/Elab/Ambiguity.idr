@@ -288,8 +288,8 @@ getName _ = Nothing
 export
 addAmbig : List alts -> Maybe Name -> ElabInfo -> ElabInfo
 addAmbig _ Nothing = id
-addAmbig [] Nothing = id
-addAmbig [_] Nothing = id
+addAmbig [] _ = id
+addAmbig [_] _ = id
 addAmbig _ (Just n) = record { ambigTries $= (n ::) }
 
 export
@@ -327,7 +327,8 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
                                " at " ++ show fc ++
                                "\nWith default. Target type ") env exp'
                   alts' <- pruneByType env !(getNF exp') alts
-                  log 5 ("Pruned alts " ++ show alts')
+                  log 5 ("Pruned alts (" ++ show (length alts') ++ ") " ++
+                          show alts')
 
                   if delayed -- use the default if there's still ambiguity
                      then try
@@ -338,7 +339,8 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
                                              nest env t
                                              (Just exp'))) alts'))
                             (do log 5 "All failed, running default"
-                                checkImp rig elabinfo nest env def (Just exp'))
+                                checkImp rig (addAmbig alts' (getName def) elabinfo)
+                                             nest env def (Just exp'))
                      else exactlyOne' True fc env
                            (map (\t =>
                              (getName t,

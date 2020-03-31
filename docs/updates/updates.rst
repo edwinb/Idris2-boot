@@ -250,17 +250,27 @@ Ambiguous Name Resolution
 
 Idris 1 worked very hard to resolve ambiguous names, by type, even if this
 involved some complicated interaction with interface resolution. This could
-sometimes be the cause of long type checking times. Idris 2 simplifies this,
-at the cost of requiring more programmer annotations on ambiguous names.
+sometimes be the cause of long type checking times. Idris 2 simplifies this, at
+the cost of sometiemes requiring more programmer annotations on ambiguous
+names.
 
 As a general rule, Idris 2 will be able to disambiguate between names which
 have different concrete return types (such as data constructors), or which have
 different concrete argument types (such as record projections). It may struggle
 to resolve ambiguities if one name requires an interface to be resolved.
 It will postpone resolution if a name can't be resolved immediately, but unlike
-Idris 1, it won't attempt significant backtracking
+Idris 1, it won't attempt significant backtracking. If you have deeply nested
+ambiguous names (beyond a small threshold, default 3) Idris 2 will report an
+error.  You can change this threshold with a directive, for example:
 
-If you get an ambiguous name error, generally the best approach is to
+.. code_block:: idris
+
+    %ambiguity_depth 10
+
+However, in such circumstances it is almost certainly a better idea to
+disambiguate explicitly.
+
+Indeed in general, if you get an ambiguous name error, the best approach is to
 give the namespace explicitly. You can also rebind names locally:
 
 .. code-block:: idris

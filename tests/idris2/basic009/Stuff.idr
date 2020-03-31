@@ -55,9 +55,10 @@ data Equal : a -> b -> Type where
 public export
 data Unit = MkUnit
 
-public export
-data Pair : Type -> Type -> Type where
-     MkPair : {0 a, b : Type} -> (1 x : a) -> (1 y : b) -> Pair a b
+namespace Builtin -- hardcoded into elaborator!
+  public export
+  data Pair : Type -> Type -> Type where
+       MkPair : {0 a, b : Type} -> (1 x : a) -> (1 y : b) -> Pair a b
 
 public export
 fst : {0 a, b : Type} -> (a, b) -> a
