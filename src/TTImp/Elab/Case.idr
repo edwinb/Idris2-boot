@@ -328,11 +328,11 @@ checkCase rig elabinfo nest env fc scr scrty_in alts exp
            log 5 $ "Checking " ++ show scr ++ " at " ++ show chrig
 
            (scrtm_in, gscrty, caseRig) <- handle
-              (do c <- runDelays $ check chrig elabinfo nest env scr (Just (gnf env scrtyv))
+              (do c <- runDelays 10 $ check chrig elabinfo nest env scr (Just (gnf env scrtyv))
                   pure (fst c, snd c, chrig))
               (\err => case err of
                             LinearMisuse _ _ Rig1 _
-                              => do c <- runDelays $ check Rig1 elabinfo nest env scr
+                              => do c <- runDelays 10 $ check Rig1 elabinfo nest env scr
                                                (Just (gnf env scrtyv))
                                     pure (fst c, snd c, Rig1)
                             e => throw e)

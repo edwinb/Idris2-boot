@@ -101,7 +101,7 @@ Things still missing
 + Parts of the ide-mode, particularly syntax highlighting
 + Documentation strings and HTML documentation generation
 + ':search' and ':apropos' at the REPL
-+ The rest of this "Things still missing" list
++ Metaprogramming (reflection, partial evaluation)
 
 Talks
 =====

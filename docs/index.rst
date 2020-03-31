@@ -15,10 +15,6 @@ Documentation for the Idris 2 Language
 
    More information concerning the CC0 can be found online at: https://creativecommons.org/publicdomain/zero/1.0/
 
-This is still a work in progress; many details are copied directly from the
-`Idris 1 tutorial <https://idris.readthedocs.org>`_
-and yet to be updated, so use with caution!
-
 .. toctree::
    :maxdepth: 1
 

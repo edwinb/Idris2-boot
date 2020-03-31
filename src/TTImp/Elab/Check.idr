@@ -454,7 +454,7 @@ successful allowCons ((tm, elab) :: elabs)
                    ust' <- get UST
                    let ncons' = if allowCons
                                    then 0
-                                   else length (toList (guesses ust))
+                                   else length (toList (guesses ust'))
 
                    est' <- get EST
                    md' <- get MD
@@ -467,7 +467,9 @@ successful allowCons ((tm, elab) :: elabs)
                    put Ctxt defs
                    logC 5 $ do tm' <- maybe (pure (UN "__"))
                                             toFullNames tm
-                               pure ("Success " ++ show tm')
+                               pure ("Success " ++ show tm' ++
+                                     " (" ++ show ncons' ++ " - "
+                                          ++ show ncons ++ ")")
                    elabs' <- successful allowCons elabs
                    -- Record success, and the state we ended at
                    pure (Right (minus ncons' ncons,

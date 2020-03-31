@@ -116,20 +116,25 @@ ambiguous (InRHS _ _ err) = ambiguous err
 ambiguous (WhenUnifying _ _ _ _ err) = ambiguous err
 ambiguous _ = False
 
+data RetryError
+     = NoError
+     | AmbigError
+     | AllErrors
+
 -- Try all the delayed elaborators. If there's a failure, we want to
 -- show the ambiguity errors first (since that's the likely cause)
 retryDelayed' : {auto c : Ref Ctxt Defs} ->
                 {auto m : Ref MD Metadata} ->
                 {auto u : Ref UST UState} ->
                 {auto e : Ref EST (EState vars)} ->
-                (skiperr : Bool) ->
+                RetryError ->
                 List (Nat, Int, Core ClosedTerm) ->
                 Core ()
-retryDelayed' skiperr [] = pure ()
-retryDelayed' skiperr ((_, i, elab) :: ds)
+retryDelayed' errmode [] = pure ()
+retryDelayed' errmode ((_, i, elab) :: ds)
     = do defs <- get Ctxt
          Just Delayed <- lookupDefExact (Resolved i) (gamma defs)
-              | _ => retryDelayed' skiperr ds
+              | _ => retryDelayed' errmode ds
          handle
            (do log 5 ("Retrying delayed hole " ++ show !(getFullName (Resolved i)))
                -- elab itself might have delays internally, so keep track of them
@@ -144,12 +149,14 @@ retryDelayed' skiperr ((_, i, elab) :: ds)
                logTerm 5 ("Resolved delayed hole " ++ show i) tm
                logTermNF 5 ("Resolved delayed hole NF " ++ show i) [] tm
                removeHole i
-               retryDelayed' skiperr ds')
-           (\err => if skiperr
-                       then if ambiguous err -- give up on ambiguity
+               retryDelayed' errmode ds')
+           (\err => case errmode of
+                         NoError => retryDelayed' errmode ds
+                         AmbigError =>
+                            if ambiguous err -- give up on ambiguity
                                then throw err
-                               else retryDelayed' skiperr ds
-                       else throw err)
+                               else retryDelayed' errmode ds
+                         AllErrors => throw err)
 
 export
 retryDelayed : {auto c : Ref Ctxt Defs} ->
@@ -159,8 +166,9 @@ retryDelayed : {auto c : Ref Ctxt Defs} ->
                List (Nat, Int, Core ClosedTerm) ->
                Core ()
 retryDelayed ds
-    = do retryDelayed' True ds
-         retryDelayed' False ds
+    = do retryDelayed' NoError ds -- try everything again
+         retryDelayed' AmbigError ds -- fail on ambiguity error
+         retryDelayed' AllErrors ds -- fail on all errors
 
 -- Run an elaborator, then all the delayed elaborators arising from it
 export
@@ -168,16 +176,21 @@ runDelays : {auto c : Ref Ctxt Defs} ->
             {auto m : Ref MD Metadata} ->
             {auto u : Ref UST UState} ->
             {auto e : Ref EST (EState vars)} ->
-            Core a -> Core a
-runDelays elab
+            Nat -> Core a -> Core a
+runDelays pri elab
     = do ust <- get UST
          let olddelayed = delayedElab ust
          put UST (record { delayedElab = [] } ust)
          tm <- elab
          ust <- get UST
          log 2 $ "Rerunning delayed in elaborator"
-         handleUnify (retryDelayed' False (reverse (delayedElab ust)))
-                     (\err => throw err)
+         handleUnify (retryDelayed' AllErrors
+                        (reverse (filter hasPri (delayedElab ust))))
+                        (\err => do put UST (record { delayedElab = olddelayed } ust)
+                                    throw err)
          ust <- get UST
          put UST (record { delayedElab $= (++ olddelayed) } ust)
          pure tm
+  where
+    hasPri : (Nat, d) -> Bool
+    hasPri (n, _) = toIntegerNat n <= toIntegerNat pri

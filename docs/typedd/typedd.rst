@@ -71,8 +71,8 @@ Chapter 5
 
 There is no longer a ``Cast`` instance from ``String`` to ``Nat``, because its
 behaviour of returing Z if the ``String`` wasn't numeric was thought to be
-confusing. Instead, there is ``stringToNatOrZ`` in ``Data.Strings`` which at least
-has a clearer name. So:
+confusing and potentially error prone. Instead, there is ``stringToNatOrZ`` in
+``Data.Strings`` which at least has a clearer name. So:
 
 In ``Loops.idr`` and ``ReadNum.idr`` add ``import Data.Strings`` and change ``cast`` to
 ``stringToNatOrZ``
