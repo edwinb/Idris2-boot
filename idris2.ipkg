@@ -70,6 +70,7 @@ modules =
     Idris.Socket.Data,
     Idris.Socket.Raw,
     Idris.Syntax,
+    Idris.Version,
 
     Parser.Lexer,
     Parser.Support,
