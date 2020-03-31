@@ -176,10 +176,10 @@ getClause l n
          argns <- getEnvArgNames defs envlen !(nf defs [] ty)
          Just srcLine <- getSourceLine l
            | Nothing => pure Nothing
-         let (lit, src) = isLit srcLine
-         pure (Just (indent lit loc ++ fnName True n ++ concat (map (" " ++) argns) ++
+         let (mark, src) = isLitLine srcLine
+         pure (Just (indent mark loc ++ fnName True n ++ concat (map (" " ++) argns) ++
                   " = ?" ++ fnName False n ++ "_rhs"))
   where
-    indent : Bool -> FC -> String
-    indent True fc = ">" ++ pack (replicate (cast (max 0 (snd (startPos fc) - 1))) ' ')
-    indent False fc = pack (replicate (cast (snd (startPos fc))) ' ')
+    indent : Maybe String -> FC -> String
+    indent (Just mark) fc = relit (Just mark) $ pack (replicate (cast (max 0 (snd (startPos fc) - 1))) ' ')
+    indent Nothing fc = pack (replicate (cast (snd (startPos fc))) ' ')

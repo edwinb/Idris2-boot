@@ -16,15 +16,15 @@ showRHSName n
 export
 makeWith : Name -> String -> String
 makeWith n srcline
-    = let (lit, src) = isLit srcline
+    = let (markerM, src) = isLitLine srcline
           isrc : (Nat, String) =
              case span isSpace src of
                   (spc, rest) => (length spc, rest)
           indent = fst isrc
           src = snd isrc
           lhs = pack (readLHS 0 (unpack src)) in
-          mkWithArg lit indent lhs ++ "\n" ++
-          mkWithPat lit indent lhs ++ "\n"
+          mkWithArg markerM indent lhs ++ "\n" ++
+          mkWithPat markerM indent lhs ++ "\n"
   where
     readLHS : (brackets : Nat) -> List Char -> List Char
     readLHS Z ('=' :: rest) = []
@@ -35,17 +35,14 @@ makeWith n srcline
     readLHS n (x :: rest) = x :: readLHS n rest
     readLHS n [] = []
 
-    pref : Bool -> Nat -> String
-    pref l ind
-        = (if l then ">" else "") ++
-          pack (replicate ind ' ')
+    pref : Maybe String -> Nat -> String
+    pref mark ind = relit mark $ pack (replicate ind ' ')
 
-    mkWithArg : Bool -> Nat -> String -> String
-    mkWithArg lit indent lhs
-        = pref lit indent ++ lhs ++ "with (_)"
+    mkWithArg : Maybe String -> Nat -> String -> String
+    mkWithArg mark indent lhs
+        = pref mark indent ++ lhs ++ "with (_)"
 
-    mkWithPat : Bool -> Nat -> String -> String
-    mkWithPat lit indent lhs
-        = pref lit (indent + 2) ++ lhs ++ "| with_pat = ?" ++
+    mkWithPat : Maybe String -> Nat -> String -> String
+    mkWithPat mark indent lhs
+        = pref mark (indent + 2) ++ lhs ++ "| with_pat = ?" ++
               showRHSName n ++ "_rhs"
-
