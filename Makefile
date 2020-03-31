@@ -24,7 +24,7 @@ endif
 
 # current Idris2 version components
 MAJOR=0
-MINOR=0
+MINOR=1
 PATCH=0
 
 GIT_SHA1=
