@@ -432,12 +432,16 @@ successful : {vars : _} ->
              {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
              {auto e : Ref EST (EState vars)} ->
+             Bool -> -- constraints allowed
              List (Maybe Name, Core a) ->
              Core (List (Either (Maybe Name, Error)
-                                (a, Defs, UState, EState vars)))
-successful [] = pure []
-successful ((tm, elab) :: elabs)
+                                (Nat, a, Defs, UState, EState vars)))
+successful allowCons [] = pure []
+successful allowCons ((tm, elab) :: elabs)
     = do ust <- get UST
+         let ncons = if allowCons
+                        then 0
+                        else length (toList (guesses ust))
          est <- get EST
          md <- get MD
          defs <- branch
@@ -448,6 +452,10 @@ successful ((tm, elab) :: elabs)
                    res <- elab
                    -- Record post-elaborator state
                    ust' <- get UST
+                   let ncons' = if allowCons
+                                   then 0
+                                   else length (toList (guesses ust))
+
                    est' <- get EST
                    md' <- get MD
                    defs' <- get Ctxt
@@ -460,37 +468,46 @@ successful ((tm, elab) :: elabs)
                    logC 5 $ do tm' <- maybe (pure (UN "__"))
                                             toFullNames tm
                                pure ("Success " ++ show tm')
-                   elabs' <- successful elabs
+                   elabs' <- successful allowCons elabs
                    -- Record success, and the state we ended at
-                   pure (Right (res, defs', ust', est') :: elabs'))
+                   pure (Right (minus ncons' ncons,
+                                res, defs', ust', est') :: elabs'))
                (\err => do put UST ust
                            put EST est
                            put MD md
                            put Ctxt defs
-                           elabs' <- successful elabs
+                           elabs' <- successful allowCons elabs
                            pure (Left (tm, !(normaliseErr err)) :: elabs'))
 
 export
-exactlyOne : {vars : _} ->
-             {auto c : Ref Ctxt Defs} ->
-             {auto m : Ref MD Metadata} ->
-             {auto u : Ref UST UState} ->
-             {auto e : Ref EST (EState vars)} ->
-             FC -> Env Term vars ->
-             List (Maybe Name, Core (Term vars, Glued vars)) ->
-             Core (Term vars, Glued vars)
-exactlyOne fc env [(tm, elab)] = elab
-exactlyOne {vars} fc env all
-    = do elabs <- successful all
-         case rights elabs of
-              [(res, defs, ust, est)] =>
+exactlyOne' : {vars : _} ->
+              {auto c : Ref Ctxt Defs} ->
+              {auto m : Ref MD Metadata} ->
+              {auto u : Ref UST UState} ->
+              {auto e : Ref EST (EState vars)} ->
+              Bool -> FC -> Env Term vars ->
+              List (Maybe Name, Core (Term vars, Glued vars)) ->
+              Core (Term vars, Glued vars)
+exactlyOne' allowCons fc env [(tm, elab)] = elab
+exactlyOne' {vars} allowCons fc env all
+    = do elabs <- successful allowCons all
+         case getRight elabs of
+              Right (res, defs, ust, est) =>
                     do put UST ust
                        put EST est
                        put Ctxt defs
                        commit
                        pure res
-              rs => throw (altError (lefts elabs) rs)
+              Left rs => throw (altError (lefts elabs) rs)
   where
+    getRight : List (Either err (Nat, res)) -> Either (List res) res
+    getRight es
+        = case rights es of
+               [(_, res)] => Right res
+               rs => case filter (\x => fst x == Z) rs of
+                          [(_, res)] => Right res
+                          _ => Left (map snd rs)
+
     getRes : ((Term vars, Glued vars), st) -> Term vars
     getRes ((tm, _), thisst) = tm
 
@@ -501,6 +518,17 @@ exactlyOne {vars} fc env all
                Error
     altError ls [] = AllFailed ls
     altError ls rs = AmbiguousElab fc env (map getRes rs)
+
+export
+exactlyOne : {vars : _} ->
+             {auto c : Ref Ctxt Defs} ->
+             {auto m : Ref MD Metadata} ->
+             {auto u : Ref UST UState} ->
+             {auto e : Ref EST (EState vars)} ->
+             FC -> Env Term vars ->
+             List (Maybe Name, Core (Term vars, Glued vars)) ->
+             Core (Term vars, Glued vars)
+exactlyOne = exactlyOne' True
 
 export
 anyOne : {vars : _} ->

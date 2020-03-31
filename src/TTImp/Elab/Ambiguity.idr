@@ -314,14 +314,14 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
 
                   if delayed -- use the default if there's still ambiguity
                      then try
-                            (exactlyOne fc env
+                            (exactlyOne' False fc env
                                 (map (\t =>
                                    (getName t,
                                     checkImp rig elabinfo nest env t
                                              (Just exp'))) alts'))
                             (do log 5 "All failed, running default"
                                 checkImp rig elabinfo nest env def (Just exp'))
-                     else exactlyOne fc env
+                     else exactlyOne' True fc env
                            (map (\t =>
                              (getName t,
                               checkImp rig elabinfo nest env t (Just exp')))
@@ -358,7 +358,7 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
                                        "\nTarget type ") env exp'
                           let tryall = case uniq of
                                             FirstSuccess => anyOne fc
-                                            _ => exactlyOne fc env
+                                            _ => exactlyOne' (not delayed) fc env
                           tryall (map (\t =>
                               (getName t,
                                do res <- checkImp rig elabinfo nest env t (Just exp')
