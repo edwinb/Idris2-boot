@@ -109,6 +109,7 @@ export
 ambiguous : Error -> Bool
 ambiguous (AmbiguousElab _ _ _) = True
 ambiguous (AmbiguousName _ _) = True
+ambiguous (AmbiguityTooDeep _ _ _) = True
 ambiguous (InType _ _ err) = ambiguous err
 ambiguous (InCon _ _ err) = ambiguous err
 ambiguous (InLHS _ _ err) = ambiguous err
@@ -120,6 +121,11 @@ data RetryError
      = NoError
      | AmbigError
      | AllErrors
+
+Show RetryError where
+  show NoError = "NoError"
+  show AmbigError = "AmbigError"
+  show AllErrors = "AllErrors"
 
 -- Try all the delayed elaborators. If there's a failure, we want to
 -- show the ambiguity errors first (since that's the likely cause)
@@ -150,7 +156,9 @@ retryDelayed' errmode ((_, i, elab) :: ds)
                logTermNF 5 ("Resolved delayed hole NF " ++ show i) [] tm
                removeHole i
                retryDelayed' errmode ds')
-           (\err => case errmode of
+           (\err => do log 5 $ show errmode ++ ":Error in " ++ show !(getFullName (Resolved i))
+                                ++ "\n" ++ show err
+                       case errmode of
                          NoError => retryDelayed' errmode ds
                          AmbigError =>
                             if ambiguous err -- give up on ambiguity
@@ -184,10 +192,10 @@ runDelays pri elab
          tm <- elab
          ust <- get UST
          log 2 $ "Rerunning delayed in elaborator"
-         handleUnify (retryDelayed' AllErrors
-                        (reverse (filter hasPri (delayedElab ust))))
-                        (\err => do put UST (record { delayedElab = olddelayed } ust)
-                                    throw err)
+         handle (retryDelayed' AllErrors
+                     (reverse (filter hasPri (delayedElab ust))))
+                (\err => do put UST (record { delayedElab = olddelayed } ust)
+                            throw err)
          ust <- get UST
          put UST (record { delayedElab $= (++ olddelayed) } ust)
          pure tm
