@@ -46,10 +46,12 @@ comment = is '-' <+> is '-' <+> many (isNot '\n')
 toEndComment : (k : Nat) -> Recognise (k /= 0)
 toEndComment Z = empty
 toEndComment (S k)
-             = some (pred (\c => c /= '-' && c /= '{'))
+             = some (pred (\c => c /= '-' && c /= '{' && c /= '"'))
                       <+> toEndComment (S k)
            <|> is '{' <+> is '-' <+> toEndComment (S (S k))
            <|> is '-' <+> is '}' <+> toEndComment k
+           <|> comment <+> toEndComment (S k)
+           <|> stringLit <+> toEndComment (S k)
            <|> is '{' <+> toEndComment (S k)
            <|> is '-' <+> toEndComment (S k)
 
