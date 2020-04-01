@@ -325,7 +325,7 @@ compileExpr c execDir tm outfile
 executeExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> Core ()
 executeExpr c execDir tm
     = do tmp <- coreLift $ tmpName
-         let outn = execDir ++ dirSep ++ tmp ++ ".rkt"
+         let outn = tmp ++ ".rkt"
          compileToRKT c tm outn
          racket <- coreLift findRacket
          coreLift $ system (racket ++ " " ++ outn)

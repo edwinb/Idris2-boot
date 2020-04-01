@@ -88,7 +88,7 @@ compileExpr : Ref Ctxt Defs -> (execDir : String) ->
               ClosedTerm -> (outfile : String) -> Core (Maybe String)
 compileExpr c execDir tm outfile
     = do tmp <- coreLift $ tmpName
-         let outn = execDir ++ dirSep ++ tmp ++ ".scm"
+         let outn = tmp ++ ".scm"
          compileToSCM c tm outn
          csc <- coreLift findCSC
          ok <- coreLift $ system (csc ++ " " ++ outn ++ " -o " ++ outfile)
@@ -99,7 +99,7 @@ compileExpr c execDir tm outfile
 executeExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> Core ()
 executeExpr c execDir tm
     = do tmp <- coreLift $ tmpName
-         let outn = execDir ++ dirSep ++ tmp ++ ".scm"
+         let outn = tmp ++ ".scm"
          compileToSCM c tm outn
          csi <- coreLift findCSI
          coreLift $ system (csi ++ " -s " ++ outn)

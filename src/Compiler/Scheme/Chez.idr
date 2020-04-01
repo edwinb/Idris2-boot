@@ -353,16 +353,15 @@ compileToSS c tm outfile
 compileToSO : {auto c : Ref Ctxt Defs} ->
               (appDirRel : String) -> (outSsAbs : String) -> Core ()
 compileToSO appDirRel outSsAbs
-    = do tmpfn <- coreLift tmpName
-         let tmpFileRel = appDirRel ++ dirSep ++ tmpfn
+    = do tmpFileAbs <- coreLift tmpName
          chez <- coreLift $ findChez
          let build= "#!" ++ chez ++ " --script\n" ++
                     "(parameterize ([optimize-level 3]) (compile-program \"" ++
                     outSsAbs ++ "\"))"
-         Right () <- coreLift $ writeFile tmpFileRel build
-            | Left err => throw (FileErr tmpFileRel err)
-         coreLift $ chmod tmpFileRel 0o755
-         coreLift $ system tmpFileRel
+         Right () <- coreLift $ writeFile tmpFileAbs build
+            | Left err => throw (FileErr tmpFileAbs err)
+         coreLift $ chmod tmpFileAbs 0o755
+         coreLift $ system tmpFileAbs
          pure ()
 
 makeSh : String -> String -> Core ()
