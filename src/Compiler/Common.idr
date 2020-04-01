@@ -21,10 +21,10 @@ public export
 record Codegen where
   constructor MkCG
   ||| Compile an Idris 2 expression, saving it to a file.
-  compileExpr : Ref Ctxt Defs ->
+  compileExpr : Ref Ctxt Defs -> (execDir : String) ->
                 ClosedTerm -> (outfile : String) -> Core (Maybe String)
   ||| Execute an Idris 2 expression directly.
-  executeExpr : Ref Ctxt Defs -> ClosedTerm -> Core ()
+  executeExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> Core ()
 
 ||| compile
 ||| Given a value of type Codegen, produce a standalone function
@@ -35,12 +35,8 @@ compile : {auto c : Ref Ctxt Defs} ->
           ClosedTerm -> (outfile : String) -> Core (Maybe String)
 compile {c} cg tm out
     = do makeExecDirectory
-         cwd <- coreLift $ currentDir
          d <- getDirs
-         coreLift $ changeDir (exec_dir d)
-         fn <- compileExpr cg c tm out
-         coreLift $ changeDir cwd
-         pure fn
+         compileExpr cg c (exec_dir d) tm out
 
 ||| execute
 ||| As with `compile`, produce a functon that executes
@@ -50,11 +46,8 @@ execute : {auto c : Ref Ctxt Defs} ->
           Codegen -> ClosedTerm -> Core ()
 execute {c} cg tm
     = do makeExecDirectory
-         cwd <- coreLift $ currentDir
          d <- getDirs
-         coreLift $ changeDir (exec_dir d)
-         executeExpr cg c tm
-         coreLift $ changeDir cwd
+         executeExpr cg c (exec_dir d) tm
          pure ()
 
 -- ||| Recursively get all calls in a function definition
