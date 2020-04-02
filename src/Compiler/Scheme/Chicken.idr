@@ -84,9 +84,9 @@ compileToSCM c tm outfile
          coreLift $ chmod outfile 0o755
          pure ()
 
-compileExpr : Ref Ctxt Defs ->
+compileExpr : Ref Ctxt Defs -> (execDir : String) ->
               ClosedTerm -> (outfile : String) -> Core (Maybe String)
-compileExpr c tm outfile
+compileExpr c execDir tm outfile
     = do tmp <- coreLift $ tmpName
          let outn = tmp ++ ".scm"
          compileToSCM c tm outn
@@ -96,8 +96,8 @@ compileExpr c tm outfile
             then pure (Just outfile)
             else pure Nothing
 
-executeExpr : Ref Ctxt Defs -> ClosedTerm -> Core ()
-executeExpr c tm
+executeExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> Core ()
+executeExpr c execDir tm
     = do tmp <- coreLift $ tmpName
          let outn = tmp ++ ".scm"
          compileToSCM c tm outn

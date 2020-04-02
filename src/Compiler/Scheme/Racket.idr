@@ -5,6 +5,7 @@ import Compiler.CompileExpr
 import Compiler.Inline
 import Compiler.Scheme.Common
 
+import Core.Options
 import Core.Context
 import Core.Directory
 import Core.Name
@@ -309,19 +310,20 @@ compileToRKT c tm outfile
          coreLift $ chmod outfile 0o755
          pure ()
 
-compileExpr : Ref Ctxt Defs ->
+compileExpr : Ref Ctxt Defs -> (execDir : String) ->
               ClosedTerm -> (outfile : String) -> Core (Maybe String)
-compileExpr c tm outfile
-    = do let outn = outfile ++ ".rkt"
-         compileToRKT c tm outn
+compileExpr c execDir tm outfile
+    = do let outSs = execDir ++ dirSep ++ outfile ++ ".rkt"
+         let outBin = execDir ++ dirSep ++ outfile
+         compileToRKT c tm outSs
          raco <- coreLift findRacoExe
-         ok <- coreLift $ system (raco ++ " -o " ++ outfile ++ " " ++ outn)
+         ok <- coreLift $ system (raco ++ " -o " ++ outBin ++ " " ++ outSs)
          if ok == 0
             then pure (Just outfile)
             else pure Nothing
 
-executeExpr : Ref Ctxt Defs -> ClosedTerm -> Core ()
-executeExpr c tm
+executeExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> Core ()
+executeExpr c execDir tm
     = do tmp <- coreLift $ tmpName
          let outn = tmp ++ ".rkt"
          compileToRKT c tm outn

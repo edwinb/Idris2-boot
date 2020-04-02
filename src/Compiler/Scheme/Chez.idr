@@ -315,11 +315,13 @@ getFgnCall n
                              throw (InternalError ("No compiled definition for " ++ show n))
                           Just d => schFgnDef (location def) n d
 
-startChez : String -> String -> String
-startChez target ext
-    = "#!/bin/sh\n\n" ++
-      "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`dirname $0`/" ++ target ++ "_app\n" ++
-      "`dirname $0`/" ++ target ++ "_app/" ++ target ++ "." ++ ext ++ " $*\n"
+startChez : String -> String
+startChez target = unlines
+    [ "#!/bin/sh"
+    , ""
+    , "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`dirname " ++ target ++ "`"
+    , target ++ " \"$@\""
+    ]
 
 ||| Compile a TT expression to Chez Scheme
 compileToSS : Ref Ctxt Defs ->
@@ -349,46 +351,48 @@ compileToSS c tm outfile
 
 ||| Compile a Chez Scheme source file to an executable, daringly with runtime checks off.
 compileToSO : {auto c : Ref Ctxt Defs} ->
-              (ssFile : String) -> Core ()
-compileToSO ssFile
-    = do tmpFile <- coreLift $ tmpName
+              (appDirRel : String) -> (outSsAbs : String) -> Core ()
+compileToSO appDirRel outSsAbs
+    = do tmpFileAbs <- coreLift tmpName
          chez <- coreLift $ findChez
          let build= "#!" ++ chez ++ " --script\n" ++
                     "(parameterize ([optimize-level 3]) (compile-program \"" ++
-                    ssFile ++ "\"))"
-         Right () <- coreLift $ writeFile tmpFile build
-            | Left err => throw (FileErr tmpFile err)
-         coreLift $ chmod tmpFile 0o755
-         coreLift $ system tmpFile
+                    outSsAbs ++ "\"))"
+         Right () <- coreLift $ writeFile tmpFileAbs build
+            | Left err => throw (FileErr tmpFileAbs err)
+         coreLift $ chmod tmpFileAbs 0o755
+         coreLift $ system tmpFileAbs
          pure ()
 
 makeSh : String -> String -> Core ()
-makeSh outfile ext
-    = do Right () <- coreLift $ writeFile outfile (startChez outfile ext)
-            | Left err => throw (FileErr outfile err)
+makeSh outShRel outAbs
+    = do Right () <- coreLift $ writeFile outShRel (startChez outAbs)
+            | Left err => throw (FileErr outShRel err)
          pure ()
 
 ||| Chez Scheme implementation of the `compileExpr` interface.
-compileExpr : Bool -> Ref Ctxt Defs ->
+compileExpr : Bool -> Ref Ctxt Defs -> (execDir : String) ->
               ClosedTerm -> (outfile : String) -> Core (Maybe String)
-compileExpr makeitso c tm outfile
-    = do coreLift $ mkdirs [outfile ++ "_app"]
-         coreLift $ changeDir (outfile ++ "_app")
-         let outSs = outfile ++ ".ss"
-         compileToSS c tm outSs
-         logTime "Make SO" $ when makeitso $ compileToSO outSs
-         coreLift $ changeDir ".."
-         makeSh outfile (if makeitso then "so" else "ss")
-         coreLift $ chmod outfile 0o755
-         pure (Just outfile)
+compileExpr makeitso c execDir tm outfile
+    = do let appDirRel = execDir ++ dirSep ++ outfile ++ "_app"
+         coreLift $ mkdirs (splitDir appDirRel)
+         cwd <- coreLift currentDir
+         let outSsAbs = cwd ++ dirSep ++ appDirRel ++ dirSep ++ outfile ++ ".ss"
+         let outSoAbs = cwd ++ dirSep ++ appDirRel ++ dirSep ++ outfile ++ ".so"
+         compileToSS c tm outSsAbs
+         logTime "Make SO" $ when makeitso $ compileToSO appDirRel outSsAbs
+         let outShRel = execDir ++ dirSep ++ outfile
+         makeSh outShRel (if makeitso then outSoAbs else outSsAbs)
+         coreLift $ chmod outShRel 0o755
+         pure (Just outShRel)
 
 ||| Chez Scheme implementation of the `executeExpr` interface.
 ||| This implementation simply runs the usual compiler, saving it to a temp file, then interpreting it.
-executeExpr : Ref Ctxt Defs -> ClosedTerm -> Core ()
-executeExpr c tm
-    = do compileExpr False c tm "_tmpchez"
-         cwd <- coreLift $ currentDir
-         coreLift $ system (cwd ++ dirSep ++ "_tmpchez")
+executeExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> Core ()
+executeExpr c execDir tm
+    = do Just sh <- compileExpr False c execDir tm "_tmpchez"
+            | Nothing => throw (InternalError "compileExpr returned Nothing")
+         coreLift $ system sh
          pure ()
 
 ||| Codegen wrapper for Chez scheme implementation.

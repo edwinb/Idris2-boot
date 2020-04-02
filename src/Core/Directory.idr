@@ -135,6 +135,7 @@ mkdirs (d :: ds)
 isDirSep : Char -> Bool
 isDirSep c = cast c == dirSep
 
+export
 splitDir : String -> List String
 splitDir = split isDirSep
 
