@@ -1,6 +1,6 @@
 package idris2
 
-modules = 
+modules =
     Compiler.Common,
     Compiler.CompileExpr,
     Compiler.Inline,
