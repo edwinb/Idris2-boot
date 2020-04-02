@@ -34,7 +34,7 @@ export %inline
 (<+>) {c1 = True} = SeqEat
 
 ||| Alternative recognisers. If both consume, the combination is guaranteed
-||| to consumer a character.
+||| to consume a character.
 export
 (<|>) : Recognise c1 -> Recognise c2 -> Recognise (c1 && c2)
 (<|>) = Alt
@@ -91,8 +91,7 @@ strTail : Nat -> StrLen -> StrLen
 strTail start (MkStrLen str len)
     = MkStrLen (substr start len str) (minus len start)
 
--- If the string is recognised, returns the index at which the token
--- ends
+||| If the string is recognised, returns the index at which the token ends
 scan : Recognise c -> Nat -> StrLen -> Maybe Nat
 scan Empty idx str = pure idx
 scan Fail idx str = Nothing
@@ -140,6 +139,9 @@ record TokenData a where
   col : Int
   tok : a
 
+||| `fspanEnd 0` returns the index at which the span stopped together
+||| with the leftover string.
+||| BEWARE: It is NOT a `span` starting from the string's end!
 fspanEnd : Nat -> (Char -> Bool) -> String -> (Nat, String)
 fspanEnd k p "" = (k, "")
 fspanEnd k p xxs
@@ -149,7 +151,7 @@ fspanEnd k p xxs
           if p x then fspanEnd (S k) p xs
                  else (k, xxs)
 
--- Faster version of 'span' from the prelude (avoids unpacking)
+||| Faster version of 'span' from the prelude (avoids unpacking)
 export
 fspan : (Char -> Bool) -> String -> (String, String)
 fspan p xs
