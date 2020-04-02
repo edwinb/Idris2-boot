@@ -87,13 +87,47 @@ natHackNames
        NS ["Prelude"] (UN "natToInteger"),
        NS ["Prelude"] (UN "integerToNat")]
 
+export
+fastAppend : List String -> String
+fastAppend xs
+    = let len = cast (foldr (+) 0 (map length xs)) in
+          unsafePerformIO $
+             do b <- newStringBuffer (len+1)
+                build b xs
+                getStringFromBuffer b
+  where
+    build : StringBuffer -> List String -> IO ()
+    build b [] = pure ()
+    build b (x :: xs) = do addToStringBuffer b x
+                           build b xs
+
+dumpCases : {auto c : Ref Ctxt Defs} ->
+            String -> List Name ->
+            Core ()
+dumpCases fn cns
+    = do defs <- get Ctxt
+         cstrs <- traverse (dumpCase defs) cns
+         Right () <- coreLift $ writeFile fn (fastAppend cstrs)
+               | Left err => throw (FileErr fn err)
+         pure ()
+  where
+    dumpCase : Defs -> Name -> Core String
+    dumpCase defs n
+        = case !(lookupCtxtExact n (gamma defs)) of
+               Nothing => pure ""
+               Just d =>
+                    case compexpr d of
+                         Nothing => pure ""
+                         Just def => pure (show n ++ " = " ++ show def ++ "\n")
+
 -- Find all the names which need compiling, from a given expression, and compile
 -- them to CExp form (and update that in the Defs)
 export
-findUsedNames : {auto c : Ref Ctxt Defs} -> Term vars ->
-                Core (List Name, NameTags)
+findUsedNames : {auto c : Ref Ctxt Defs} ->
+                Term vars -> Core (List Name, NameTags)
 findUsedNames tm
     = do defs <- get Ctxt
+         sopts <- getSession
          let ns = getRefs (Resolved (-1)) tm
          natHackNames' <- traverse toResolvedNames natHackNames
          -- make an array of Bools to hold which names we've found (quicker
@@ -116,6 +150,10 @@ findUsedNames tm
          logTime ("Compile defs " ++ show (length cns) ++ "/" ++ show asize) $
            traverse_ (compileDef tycontags) cns
          logTime "Inline" $ traverse_ inlineDef cns
+         maybe (pure ())
+               (\f => do coreLift $ putStrLn $ "Dumping case trees to " ++ f
+                         dumpCases f cns)
+               (dumpcases sopts)
          pure (cns, tycontags)
   where
     primTags : Int -> NameTags -> List Constant -> NameTags
@@ -212,17 +250,3 @@ copyLib (lib, fullname)
                  Right _ <- coreLift $ writeToFile lib bin
                     | Left err => throw (FileErr lib err)
                  pure ()
-
-export
-fastAppend : List String -> String
-fastAppend xs
-    = let len = cast (foldr (+) 0 (map length xs)) in
-          unsafePerformIO $
-             do b <- newStringBuffer (len+1)
-                build b xs
-                getStringFromBuffer b
-  where
-    build : StringBuffer -> List String -> IO ()
-    build b [] = pure ()
-    build b (x :: xs) = do addToStringBuffer b x
-                           build b xs

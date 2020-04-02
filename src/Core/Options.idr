@@ -98,6 +98,7 @@ record Session where
   logLevel : Nat
   logTimings : Bool
   debugElabCheck : Bool -- do conversion check to verify results of elaborator
+  dumpcases : Maybe String -- file to output compiled case trees
 
 public export
 record PPrinter where
@@ -142,7 +143,7 @@ defaultPPrint : PPrinter
 defaultPPrint = MkPPOpts False True False
 
 defaultSession : Session
-defaultSession = MkSessionOpts False False False Chez 0 False False
+defaultSession = MkSessionOpts False False False Chez 0 False False Nothing
 
 defaultElab : ElabDirectives
 defaultElab = MkElabDirectives True True PartialOK 3
