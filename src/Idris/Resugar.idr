@@ -44,6 +44,7 @@ addBracket fc tm = if needed tm then PBracketed fc tm else tm
     needed (PUnit _) = False
     needed (PComprehension _ _ _) = False
     needed (PList _ _) = False
+    needed (PPrimVal _ _) = False
     needed tm = True
 
 bracket : {auto s : Ref Syn SyntaxInfo} ->
@@ -88,33 +89,50 @@ unbracket : PTerm -> PTerm
 unbracket (PBracketed _ tm) = tm
 unbracket tm = tm
 
--- Put the special names (Nil, ::, Pair etc) back as syntax
-sugarApp : PTerm -> PTerm
-sugarApp (PApp fc (PApp _ (PRef _ (UN "Pair")) l) r)
-    = PPair fc (unbracket l) (unbracket r)
-sugarApp (PApp fc (PApp _ (PRef _ (UN "MkPair")) l) r)
-    = PPair fc (unbracket l) (unbracket r)
-sugarApp tm@(PApp fc (PApp _ (PRef _ (UN "DPair")) l) rb)
-    = case unbracket rb of
-           PLam _ _ _ n _ r
-               => PDPair fc n (unbracket l) (unbracket r)
-           _ => tm
-sugarApp (PApp fc (PApp _ (PRef _ (UN "MkDPair")) l) r)
-    = PDPair fc (unbracket l) (PImplicit fc) (unbracket r)
-sugarApp (PApp fc (PApp _ (PRef _ (UN "Equal")) l) r)
-    = PEq fc (unbracket l) (unbracket r)
-sugarApp (PApp fc (PApp _ (PRef _ (UN "===")) l) r)
-    = PEq fc (unbracket l) (unbracket r)
-sugarApp (PApp fc (PApp _ (PRef _ (UN "~=~")) l) r)
-    = PEq fc (unbracket l) (unbracket r)
-sugarApp (PRef fc (UN "Nil")) = PList fc []
-sugarApp (PRef fc (UN "Unit")) = PUnit fc
-sugarApp (PRef fc (UN "MkUnit")) = PUnit fc
-sugarApp tm@(PApp fc (PApp _ (PRef _ (UN "::")) x) xs)
-    = case sugarApp (unbracket xs) of
-           PList fc xs' => PList fc (unbracketApp x :: xs')
-           _ => tm
-sugarApp tm = tm
+||| Attempt to extract a constant natural number
+extractNat : Nat -> PTerm -> Maybe Nat
+extractNat acc tm = case tm of
+  PRef _ (NS ["Prelude"] (UN "Z"))            => pure acc
+  PApp _ (PRef _ (NS ["Prelude"] (UN "S"))) k => extractNat (1 + acc) k
+  PPrimVal _ (BI n)                           => pure (acc + cast n)
+  PBracketed _ k                              => extractNat acc k
+  _                                           => Nothing
+
+mutual
+
+  ||| Put the special names (Nil, ::, Pair, Z, S, etc) back as syntax
+  ||| Returns `Nothing` in case there was nothing to resugar.
+  sugarAppM : PTerm -> Maybe PTerm
+  sugarAppM (PApp fc (PApp _ (PRef _ nm) l) r) =
+    case userNameRoot nm of
+      Just "Pair"   => pure $ PPair fc (unbracket l) (unbracket r)
+      Just "MkPair" => pure $ PPair fc (unbracket l) (unbracket r)
+      Just "DPair"  => case unbracket r of
+        PLam _ _ _ n _ r' => pure $ PDPair fc n (unbracket l) (unbracket r')
+        _                 => Nothing
+      Just "Equal"  => pure $ PEq fc (unbracket l) (unbracket r)
+      Just "==="    => pure $ PEq fc (unbracket l) (unbracket r)
+      Just "~=~"    => pure $ PEq fc (unbracket l) (unbracket r)
+      Just "::"     => case sugarApp (unbracket r) of
+        PList fc xs => pure $ PList fc (unbracketApp l :: xs)
+        _           => Nothing
+      _             => Nothing
+  -- refolding natural numbers if the expression is a constant
+  sugarAppM (PRef fc (NS ["Prelude"] (UN "Z"))) = pure $ PPrimVal fc (BI 0)
+  sugarAppM (PApp fc (PRef _ (NS ["Prelude"] (UN "S"))) k) =
+    PPrimVal fc . BI . cast <$> extractNat 1 k
+  -- NB: this needs to come after the case for Z, otherwise it will shadow it.
+  sugarAppM (PRef fc nm) = case userNameRoot nm of
+    Just "Nil"    => pure $ PList fc []
+    Just "Unit"   => pure $ PUnit fc
+    Just "MkUnit" => pure $ PUnit fc
+    _             => Nothing
+  sugarAppM tm = Nothing
+
+  ||| Put the special names (Nil, ::, Pair, Z, S, etc.) back as syntax
+
+  sugarApp : PTerm -> PTerm
+  sugarApp tm = fromMaybe tm (sugarAppM tm)
 
 export
 sugarName : Name -> String
@@ -136,8 +154,7 @@ mutual
   toPTerm p (IVar loc (Nested _ n))
       = toPTerm p (IVar loc n)
   toPTerm p (IVar fc n)
-      = do ns <- fullNamespace
-           pure (sugarApp (PRef fc (if ns then n else UN !(prettyName n))))
+      = pure $ sugarApp (PRef fc n)
   toPTerm p (IPi fc rig Implicit n arg ret)
       = do imp <- showImplicits
            if imp
