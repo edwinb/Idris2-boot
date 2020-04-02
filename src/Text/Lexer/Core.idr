@@ -17,6 +17,7 @@ data Recognise : (consumes : Bool) -> Type where
      Pred : (Char -> Bool) -> Recognise True
      SeqEat : Recognise True -> Inf (Recognise e) -> Recognise True
      SeqEmpty : Recognise e1 -> Recognise e2 -> Recognise (e1 || e2)
+     SeqSame : Recognise e -> Recognise e -> Recognise e
      Alt : Recognise e1 -> Recognise e2 -> Recognise (e1 && e2)
 
 ||| A token recogniser. Guaranteed to consume at least one character.
@@ -67,12 +68,10 @@ reject = Lookahead False
 ||| of a list. The resulting recogniser will consume input if the produced
 ||| recognisers consume and the list is non-empty.
 export
-concatMap : {c : Bool} ->
-            (a -> Recognise c) -> (xs : List a) -> Recognise (c && isCons xs)
-concatMap {c} _ [] = rewrite andFalseFalse c in Empty
-concatMap {c} f (x :: xs) = rewrite andTrueNeutral c in
-                            rewrite sym (orSameAndRightNeutral c (isCons xs)) in
-                                    SeqEmpty (f x) (concatMap f xs)
+concatMap : (a -> Recognise c) -> (xs : List a) -> Recognise (isCons xs && c)
+concatMap _ []                 = Empty
+concatMap f (x :: [])          = f x
+concatMap f (x :: xs@(_ :: _)) = SeqSame (f x) (concatMap f xs)
 
 data StrLen : Type where
      MkStrLen : String -> Nat -> StrLen
@@ -112,6 +111,9 @@ scan (SeqEat r1 r2) idx str
          -- TODO: Can we prove totality instead by showing idx has increased?
          assert_total (scan r2 idx' str)
 scan (SeqEmpty r1 r2) idx str
+    = do idx' <- scan r1 idx str
+         scan r2 idx' str
+scan (SeqSame r1 r2) idx str
     = do idx' <- scan r1 idx str
          scan r2 idx' str
 scan (Alt r1 r2) idx str

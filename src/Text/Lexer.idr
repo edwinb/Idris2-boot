@@ -44,7 +44,7 @@ choice = choiceMap id
 
 ||| Sequence a list of recognisers. Guaranteed to consume input if the list is
 ||| non-empty and the recognisers consume.
-concat : (xs : List (Recognise c)) -> Recognise (c && isCons xs)
+concat : (xs : List (Recognise c)) -> Recognise (isCons xs && c)
 concat = concatMap id
 
 ||| Recognise a specific character.
