@@ -50,6 +50,44 @@ processFnOpt fc ndef (Totality tot)
     = setFlag fc ndef (SetTotal tot)
 processFnOpt fc ndef Macro
     = setFlag fc ndef Macro
+processFnOpt fc ndef (SpecArgs ns)
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact ndef (gamma defs)
+              | Nothing => throw (UndefinedName fc ndef)
+         nty <- nf defs [] (type gdef)
+         ps <- getNamePos 0 nty
+         specs <- collectSpec [] ps nty
+         addDef ndef (record { specArgs = specs } gdef)
+         pure ()
+  where
+    insertDeps : List Nat -> List (Name, Nat) -> List Name -> List Nat
+    insertDeps acc ps [] = acc
+    insertDeps acc ps (n :: ns)
+        = case lookup n ps of
+               Nothing => insertDeps acc ps ns
+               Just pos => if pos `elem` acc
+                              then insertDeps acc ps ns
+                              else insertDeps (pos :: acc) ps ns
+
+    collectSpec : List Nat -> List (Name, Nat) -> NF [] -> Core (List Nat)
+    collectSpec acc ps (NBind tfc x (Pi _ _ nty) sc)
+        = do defs <- get Ctxt
+             empty <- clearDefs defs
+             sc' <- sc defs (toClosure defaultOpts [] (Ref tfc Bound x))
+             if x `elem` ns
+                then do aty <- quote empty [] nty
+                        let rs = getRefs (UN "_") aty
+                        let acc' = insertDeps acc ps (x :: keys rs)
+                        collectSpec acc' ps sc'
+                else collectSpec acc ps sc'
+    collectSpec acc ps _ = pure acc
+
+    getNamePos : Nat -> NF [] -> Core (List (Name, Nat))
+    getNamePos i (NBind tfc x (Pi _ _ _) sc)
+        = do defs <- get Ctxt
+             ns' <- getNamePos (1 + i) !(sc defs (toClosure defaultOpts [] (Erased tfc False)))
+             pure ((x, i) :: ns')
+    getNamePos _ _ = pure []
 
 getFnString : {auto c : Ref Ctxt Defs} ->
               {auto m : Ref MD Metadata} ->

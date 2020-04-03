@@ -903,6 +903,7 @@ TTC GlobalDef where
               do toBuf b (type gdef)
                  toBuf b (eraseArgs gdef)
                  toBuf b (safeErase gdef)
+                 toBuf b (specArgs gdef)
                  toBuf b (multiplicity gdef)
                  toBuf b (vars gdef)
                  toBuf b (visibility gdef)
@@ -921,16 +922,17 @@ TTC GlobalDef where
            loc <- fromBuf b
            if isUserName name
               then do ty <- fromBuf b; eargs <- fromBuf b;
-                      seargs <- fromBuf b
+                      seargs <- fromBuf b; specargs <- fromBuf b
                       mul <- fromBuf b; vars <- fromBuf b
                       vis <- fromBuf b; tot <- fromBuf b
                       fl <- fromBuf b
                       inv <- fromBuf b
                       c <- fromBuf b
                       sc <- fromBuf b
-                      pure (MkGlobalDef loc name ty eargs seargs mul vars vis
+                      pure (MkGlobalDef loc name ty eargs seargs specargs
+                                        mul vars vis
                                         tot fl refs inv c True def cdef sc)
-              else pure (MkGlobalDef loc name (Erased loc False) [] []
+              else pure (MkGlobalDef loc name (Erased loc False) [] [] []
                                      RigW [] Public unchecked [] refs
                                      False False True def cdef [])
 

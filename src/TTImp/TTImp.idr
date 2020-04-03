@@ -189,6 +189,7 @@ mutual
        Invertible : FnOpt
        Totality : TotalReq -> FnOpt
        Macro : FnOpt
+       SpecArgs : List Name -> FnOpt
 
   export
   Show FnOpt where
@@ -202,6 +203,7 @@ mutual
     show (Totality CoveringOnly) = "covering"
     show (Totality PartialOK) = "partial"
     show Macro = "%macro"
+    show (SpecArgs ns) = "%spec " ++ showSep " " (map show ns)
 
   export
   Eq FnOpt where
@@ -213,6 +215,7 @@ mutual
     Invertible == Invertible = True
     (Totality tot_lhs) == (Totality tot_rhs) = tot_lhs == tot_rhs
     Macro == Macro = True
+    (SpecArgs ns) == (SpecArgs ns') = ns == ns'
     _ == _ = False
 
   public export
@@ -869,6 +872,7 @@ mutual
     toBuf b (Totality CoveringOnly) = tag 7
     toBuf b (Totality PartialOK) = tag 8
     toBuf b Macro = tag 9
+    toBuf b (SpecArgs ns) = do tag 10; toBuf b ns
 
     fromBuf b
         = case !getTag of
@@ -882,6 +886,7 @@ mutual
                7 => pure (Totality CoveringOnly)
                8 => pure (Totality PartialOK)
                9 => pure Macro
+               10 => do ns <- fromBuf b; pure (SpecArgs ns)
                _ => corrupt "FnOpt"
 
   export

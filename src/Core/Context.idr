@@ -183,6 +183,7 @@ record GlobalDef where
   safeErase : List Nat -- which argument positions are safe to assume
                        -- erasable without 'dotting', because their types
                        -- are collapsible relative to non-erased arguments
+  specArgs : List Nat -- arguments to specialise by
   multiplicity : RigCount
   vars : List Name -- environment name is defined in
   visibility : Visibility
@@ -462,7 +463,8 @@ export
 newDef : FC -> Name -> RigCount -> List Name ->
          ClosedTerm -> Visibility -> Def -> GlobalDef
 newDef fc n rig vars ty vis def
-    = MkGlobalDef fc n ty [] [] rig vars vis unchecked [] empty False False False def
+    = MkGlobalDef fc n ty [] [] []
+                  rig vars vis unchecked [] empty False False False def
                   Nothing []
 
 -- Rewrite rules, applied after type checking, for runtime code only
@@ -892,7 +894,7 @@ addBuiltin : {auto x : Ref Ctxt Defs} ->
              Name -> ClosedTerm -> Totality ->
              PrimFn arity -> Core ()
 addBuiltin n ty tot op
-    = do addDef n (MkGlobalDef emptyFC n ty [] [] RigW [] Public tot
+    = do addDef n (MkGlobalDef emptyFC n ty [] [] [] RigW [] Public tot
                                [Inline] empty False False True (Builtin op)
                                Nothing [])
          pure ()
