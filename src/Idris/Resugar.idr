@@ -104,29 +104,29 @@ mutual
   ||| Returns `Nothing` in case there was nothing to resugar.
   sugarAppM : PTerm -> Maybe PTerm
   sugarAppM (PApp fc (PApp _ (PRef _ nm) l) r) =
-    case userNameRoot nm of
-      Just "Pair"   => pure $ PPair fc (unbracket l) (unbracket r)
-      Just "MkPair" => pure $ PPair fc (unbracket l) (unbracket r)
-      Just "DPair"  => case unbracket r of
+    case nameRoot nm of
+      "Pair"   => pure $ PPair fc (unbracket l) (unbracket r)
+      "MkPair" => pure $ PPair fc (unbracket l) (unbracket r)
+      "DPair"  => case unbracket r of
         PLam _ _ _ n _ r' => pure $ PDPair fc n (unbracket l) (unbracket r')
         _                 => Nothing
-      Just "Equal"  => pure $ PEq fc (unbracket l) (unbracket r)
-      Just "==="    => pure $ PEq fc (unbracket l) (unbracket r)
-      Just "~=~"    => pure $ PEq fc (unbracket l) (unbracket r)
-      Just "::"     => case sugarApp (unbracket r) of
+      "Equal"  => pure $ PEq fc (unbracket l) (unbracket r)
+      "==="    => pure $ PEq fc (unbracket l) (unbracket r)
+      "~=~"    => pure $ PEq fc (unbracket l) (unbracket r)
+      "::"     => case sugarApp (unbracket r) of
         PList fc xs => pure $ PList fc (unbracketApp l :: xs)
         _           => Nothing
-      _             => Nothing
+      _        => Nothing
   -- refolding natural numbers if the expression is a constant
   sugarAppM (PRef fc (NS ["Prelude"] (UN "Z"))) = pure $ PPrimVal fc (BI 0)
   sugarAppM (PApp fc (PRef _ (NS ["Prelude"] (UN "S"))) k) =
     PPrimVal fc . BI . cast <$> extractNat 1 k
   -- NB: this needs to come after the case for Z, otherwise it will shadow it.
-  sugarAppM (PRef fc nm) = case userNameRoot nm of
-    Just "Nil"    => pure $ PList fc []
-    Just "Unit"   => pure $ PUnit fc
-    Just "MkUnit" => pure $ PUnit fc
-    _             => Nothing
+  sugarAppM (PRef fc nm) = case nameRoot nm of
+    "Nil"    => pure $ PList fc []
+    "Unit"   => pure $ PUnit fc
+    "MkUnit" => pure $ PUnit fc
+    _           => Nothing
   sugarAppM tm = Nothing
 
   ||| Put the special names (Nil, ::, Pair, Z, S, etc.) back as syntax
@@ -141,20 +141,19 @@ sugarName (PV n _) = sugarName n
 sugarName (DN n _) = n
 sugarName x = show x
 
+toPRef : FC -> Name -> Core PTerm
+toPRef fc nm = case nm of
+  MN n _     => pure (sugarApp (PRef fc (UN n)))
+  PV n _     => pure (sugarApp (PRef fc n))
+  DN n _     => pure (sugarApp (PRef fc (UN n)))
+  Nested _ n => toPRef fc n
+  _          => pure (sugarApp (PRef fc nm))
+
 mutual
   toPTerm : {auto c : Ref Ctxt Defs} ->
             {auto s : Ref Syn SyntaxInfo} ->
             (prec : Nat) -> RawImp -> Core PTerm
-  toPTerm p (IVar fc (MN n _))
-      = pure (sugarApp (PRef fc (UN n)))
-  toPTerm p (IVar fc (PV n _))
-      = pure (sugarApp (PRef fc n))
-  toPTerm p (IVar fc (DN n _))
-      = pure (sugarApp (PRef fc (UN n)))
-  toPTerm p (IVar loc (Nested _ n))
-      = toPTerm p (IVar loc n)
-  toPTerm p (IVar fc n)
-      = pure $ sugarApp (PRef fc n)
+  toPTerm p (IVar fc nm) = toPRef fc nm
   toPTerm p (IPi fc rig Implicit n arg ret)
       = do imp <- showImplicits
            if imp
@@ -386,12 +385,49 @@ mutual
   toPDecl (ILog _) = pure Nothing
 
 export
+cleanPTerm : {auto c : Ref Ctxt Defs} ->
+             PTerm -> Core PTerm
+cleanPTerm ptm
+   = do ns <- fullNamespace
+        if ns then pure ptm else mapPTermM cleanNode ptm
+
+  where
+
+    cleanName : Name -> Core Name
+    cleanName nm = case nm of
+      MN n _     => pure (UN n)
+      PV n _     => pure n
+      DN n _     => pure (UN n)
+      Nested _ n => cleanName n
+      _          => UN <$> prettyName nm
+
+    cleanNode : PTerm -> Core PTerm
+    cleanNode (PRef fc nm)    =
+      PRef fc <$> cleanName nm
+    cleanNode (POp fc op x y) =
+      (\ op => POp fc op x y) <$> cleanName op
+    cleanNode (PPrefixOp fc op x) =
+      (\ op => PPrefixOp fc op x) <$> cleanName op
+    cleanNode (PSectionL fc op x) =
+      (\ op => PSectionL fc op x) <$> cleanName op
+    cleanNode (PSectionR fc x op) =
+      PSectionR fc x <$> cleanName op
+    cleanNode tm = pure tm
+
+toCleanPTerm : {auto c : Ref Ctxt Defs} ->
+               {auto s : Ref Syn SyntaxInfo} ->
+               (prec : Nat) -> RawImp -> Core PTerm
+toCleanPTerm prec tti = do
+  ptm <- toPTerm prec tti
+  cleanPTerm ptm
+
+export
 resugar : {auto c : Ref Ctxt Defs} ->
           {auto s : Ref Syn SyntaxInfo} ->
           Env Term vars -> Term vars -> Core PTerm
 resugar env tm
     = do tti <- unelab env tm
-         toPTerm startPrec tti
+         toCleanPTerm startPrec tti
 
 export
 resugarNoPatvars : {auto c : Ref Ctxt Defs} ->
@@ -399,10 +435,10 @@ resugarNoPatvars : {auto c : Ref Ctxt Defs} ->
                    Env Term vars -> Term vars -> Core PTerm
 resugarNoPatvars env tm
     = do tti <- unelabNoPatvars env tm
-         toPTerm startPrec tti
+         toCleanPTerm startPrec tti
 
 export
 pterm : {auto c : Ref Ctxt Defs} ->
         {auto s : Ref Syn SyntaxInfo} ->
         RawImp -> Core PTerm
-pterm raw = toPTerm startPrec raw
+pterm raw = toCleanPTerm startPrec raw
