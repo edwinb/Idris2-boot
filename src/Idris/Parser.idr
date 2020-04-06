@@ -1258,6 +1258,18 @@ fieldDecl fname indents
              end <- location
              pure (map (\n => MkField (MkFC fname start end)
                                       rig p n ty) ns)
+recordParam : FileName -> IndentInfo -> Rule (Name, PTerm)
+recordParam fname indents
+    = do symbol "("
+         n <- name
+         symbol ":"
+         tm <- expr pdef fname indents
+         symbol ")"
+         pure (n, tm)
+  <|> do start <- location
+         n <- name
+         end <- location
+         pure (n, PInfer (MkFC fname start end))
 
 recordDecl : FileName -> IndentInfo -> Rule PDecl
 recordDecl fname indents
@@ -1267,7 +1279,7 @@ recordDecl fname indents
          keyword "record"
          commit
          n <- name
-         params <- many (ifaceParam fname indents)
+         params <- many (recordParam fname indents)
          keyword "where"
          dcflds <- blockWithOptHeaderAfter col ctor (fieldDecl fname)
          end <- location
