@@ -94,39 +94,40 @@ treeLookup k (Branch3 t1 k1 t2 k2 t3) =
   else
     treeLookup k t3
 
-treeInsert' : Key -> v -> Tree n v -> Either (Tree n v) (Tree n v, Key, Tree n v)
-treeInsert' k v (Leaf k' v') =
+treeInsertWith' : Key -> (Maybe v -> v) -> Tree n v ->
+                  Either (Tree n v) (Tree n v, Key, Tree n v)
+treeInsertWith' k f (Leaf k' v') =
   case compare k k' of
-    LT => Right (Leaf k v, k, Leaf k' v')
-    EQ => Left (Leaf k v)
-    GT => Right (Leaf k' v', k', Leaf k v)
-treeInsert' k v (Branch2 t1 k' t2) =
+    LT => Right (Leaf k (f Nothing), k, Leaf k' v')
+    EQ => Left (Leaf k (f (Just v')))
+    GT => Right (Leaf k' v', k', Leaf k (f Nothing))
+treeInsertWith' k f (Branch2 t1 k' t2) =
   if k <= k' then
-    case treeInsert' k v t1 of
+    case treeInsertWith' k f t1 of
       Left t1' => Left (Branch2 t1' k' t2)
       Right (a, b, c) => Left (Branch3 a b c k' t2)
   else
-    case treeInsert' k v t2 of
+    case treeInsertWith' k f t2 of
       Left t2' => Left (Branch2 t1 k' t2')
       Right (a, b, c) => Left (Branch3 t1 k' a b c)
-treeInsert' k v (Branch3 t1 k1 t2 k2 t3) =
+treeInsertWith' k f (Branch3 t1 k1 t2 k2 t3) =
   if k <= k1 then
-    case treeInsert' k v t1 of
+    case treeInsertWith' k f t1 of
       Left t1' => Left (Branch3 t1' k1 t2 k2 t3)
       Right (a, b, c) => Right (Branch2 a b c, k1, Branch2 t2 k2 t3)
   else
     if k <= k2 then
-      case treeInsert' k v t2 of
+      case treeInsertWith' k f t2 of
         Left t2' => Left (Branch3 t1 k1 t2' k2 t3)
         Right (a, b, c) => Right (Branch2 t1 k1 a, b, Branch2 c k2 t3)
     else
-      case treeInsert' k v t3 of
+      case treeInsertWith' k f t3 of
         Left t3' => Left (Branch3 t1 k1 t2 k2 t3')
         Right (a, b, c) => Right (Branch2 t1 k1 t2, k2, Branch2 a b c)
 
-treeInsert : Key -> v -> Tree n v -> Either (Tree n v) (Tree (S n) v)
-treeInsert k v t =
-  case treeInsert' k v t of
+treeInsertWith : Key -> (Maybe v -> v) -> Tree n v -> Either (Tree n v) (Tree (S n) v)
+treeInsertWith k f t =
+  case treeInsertWith' k f t of
     Left t' => Left t'
     Right (a, b, c) => Right (Branch2 a b c)
 
@@ -216,12 +217,22 @@ lookup _ Empty = Nothing
 lookup k (M _ t) = treeLookup k t
 
 export
-insert : Int -> v -> IntMap v -> IntMap v
-insert k v Empty = M Z (Leaf k v)
-insert k v (M _ t) =
-  case treeInsert k v t of
+insertWith : Int -> (Maybe v -> v) -> IntMap v -> IntMap v
+insertWith k f Empty = M Z (Leaf k (f Nothing))
+insertWith k f (M _ t) =
+  case treeInsertWith k f t of
     Left t' => (M _ t')
     Right t' => (M _ t')
+
+export
+insert : Int -> v -> IntMap v -> IntMap v
+insert k = insertWith k . const
+
+export
+insertWithFrom : (v -> v -> v) -> List (Int, v) -> IntMap v -> IntMap v
+insertWithFrom f ivs m =
+  let merger = flip (maybe id f) in
+  foldl (\ m, (i, v) => insertWith i (merger v) m) m ivs
 
 export
 insertFrom : List (Int, v) -> IntMap v -> IntMap v
@@ -269,16 +280,12 @@ implementation Functor IntMap where
   map _ Empty = Empty
   map f (M n t) = M _ (treeMap f t)
 
-||| Merge two maps. When encountering duplicate keys, using a function to combine the values.
+||| Merge two maps. When encountering duplicate keys,
+||| using a function to combine the values.
 ||| Uses the ordering of the first map given.
 export
-mergeWith : (v -> v -> v) -> IntMap v -> IntMap v -> IntMap v
-mergeWith f x y = insertFrom inserted x where
-  inserted : List (Key, v)
-  inserted = do
-    (k, v) <- toList y
-    let v' = (maybe id f $ lookup k x) v
-    pure (k, v')
+mergeWith : ((old, new : v) -> v) -> IntMap v -> IntMap v -> IntMap v
+mergeWith f x y = insertWithFrom f (toList y) x
 
 ||| Merge two maps using the Semigroup (and by extension, Monoid) operation.
 ||| Uses mergeWith internally, so the ordering of the left map is kept.
