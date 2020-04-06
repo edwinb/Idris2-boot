@@ -18,6 +18,7 @@ import TTImp.BindImplicits
 import TTImp.Elab
 import TTImp.Elab.Check
 import TTImp.Impossible
+import TTImp.PartialEval
 import TTImp.TTImp
 import TTImp.Unelab
 import TTImp.Utils
@@ -517,6 +518,7 @@ nameListEq _ _ = Nothing
 
 -- Compile run time case trees for the given name
 mkRunTime : {auto c : Ref Ctxt Defs} ->
+            {auto m : Ref MD Metadata} ->
             {auto u : Ref UST UState} ->
             Name -> Core ()
 mkRunTime n
@@ -541,10 +543,12 @@ mkRunTime n
                Core Clause
     toClause fc (_ ** (env, lhs, rhs))
         = do lhs_erased <- linearCheck fc Rig1 True env lhs
+             rhs' <- applySpecialise env rhs
              rhs_erased <- linearCheck fc Rig1 True env rhs
              pure $ MkClause env lhs_erased rhs_erased
 
 compileRunTime : {auto c : Ref Ctxt Defs} ->
+                 {auto m : Ref MD Metadata} ->
                  {auto u : Ref UST UState} ->
                  Core ()
 compileRunTime

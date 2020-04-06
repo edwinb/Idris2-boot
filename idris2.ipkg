@@ -5,7 +5,7 @@ modules =
     Compiler.CompileExpr,
     Compiler.Inline,
     Compiler.Scheme.Chez,
-    Compiler.Scheme.Chicken,
+--     Compiler.Scheme.Chicken,
     Compiler.Scheme.Racket,
     Compiler.Scheme.Common,
 
@@ -29,7 +29,7 @@ modules =
     Core.Name,
     Core.Normalise,
     Core.Options,
-    Core.Reflect,
+--     Core.Reflect,
     Core.Termination,
     Core.TT,
     Core.TTC,
@@ -97,7 +97,7 @@ modules =
     TTImp.Elab.Lazy,
     TTImp.Elab.Local,
     TTImp.Elab.Prim,
-    TTImp.Elab.Quote,
+--     TTImp.Elab.Quote,
     TTImp.Elab.Record,
     TTImp.Elab.Rewrite,
     TTImp.Elab.Term,
@@ -108,13 +108,14 @@ modules =
     TTImp.Interactive.GenerateDef,
     TTImp.Interactive.MakeLemma,
     TTImp.Parser,
+    TTImp.PartialEval,
     TTImp.ProcessData,
     TTImp.ProcessDecls,
     TTImp.ProcessDef,
     TTImp.ProcessParams,
     TTImp.ProcessRecord,
     TTImp.ProcessType,
-    TTImp.Reflect,
+--     TTImp.Reflect,
     TTImp.TTImp,
     TTImp.Unelab,
     TTImp.Utils,
@@ -132,4 +133,3 @@ executable = idris2.c
 opts = "--partial-eval -S"
 
 main = Idris.Main
-
