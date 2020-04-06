@@ -630,12 +630,11 @@ mutual
            params' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
                                             pure (fst ntm, tm')) params
            -- Look for implicitly bindable names in the parameters
-           pnames <- if !isUnboundImplicits
-                     then pure $ 
-                        concatMap (findBindableNames True
-                                    (ps ++ map fst params) [])
-                                    (map snd params')
-                     else pure []
+           let pnames = if !isUnboundImplicits
+                        then concatMap (findBindableNames True
+                                         (ps ++ map fst params) [])
+                                       (map snd params')
+                        else []
            let paramsb = map (\ (n, tm) => (n, doBind pnames tm)) params'
            pure [IParameters fc paramsb (concat pds')]
   desugarDecl ps (PUsing fc uimpls uds)
@@ -661,15 +660,15 @@ mutual
                                             pure (fst ntm, tm')) params
            -- Look for bindable names in all the constraints and parameters
            let mnames = map dropNS (definedIn body)
-           bnames <- if !isUnboundImplicits
-                     then pure $ 
+           let bnames = if !isUnboundImplicits
+                        then 
                         concatMap (findBindableNames True
                                       (ps ++ mnames ++ map fst params) [])
                                   (map snd cons') ++
                         concatMap (findBindableNames True
                                       (ps ++ mnames ++ map fst params) [])
                                   (map snd params')
-                     else pure []
+                        else []
            let paramsb = map (\ (n, tm) => (n, doBind bnames tm)) params'
            let consb = map (\ (n, tm) => (n, doBind bnames tm)) cons'
 
@@ -698,11 +697,11 @@ mutual
                                           pure (fst ntm, tm')) cons
            params' <- traverse (desugar AnyExpr ps) params
            -- Look for bindable names in all the constraints and parameters
-           bnames <- if !isUnboundImplicits
-                     then pure $ 
+           let bnames = if !isUnboundImplicits
+                        then  
                         concatMap (findBindableNames True ps []) (map snd cons') ++
                         concatMap (findBindableNames True ps []) params'
-                     else pure []
+                        else []
            let paramsb = map (doBind bnames) params'
            let isb = map (\ (n, r, tm) => (n, r, doBind bnames tm)) is'
            let consb = map (\ (n, tm) => (n, doBind bnames tm)) cons'
@@ -720,12 +719,11 @@ mutual
            let fnames = map fname fields
            -- Look for bindable names in the parameters
            
-           bnames <- if !isUnboundImplicits
-                     then pure $ 
-                        concatMap (findBindableNames True
-                                      (ps ++ fnames ++ map fst params) [])
-                                  (map snd params')
-                     else pure []
+           let bnames = if !isUnboundImplicits
+                        then concatMap (findBindableNames True
+                                         (ps ++ fnames ++ map fst params) [])
+                                       (map snd params')
+                     else []
            fields' <- traverse (desugarField (ps ++ fnames ++ map fst params))
                                fields
            let paramsb = map (\ (n, tm) => (n, doBind bnames tm)) params'
