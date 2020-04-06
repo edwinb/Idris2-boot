@@ -630,9 +630,11 @@ mutual
            params' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
                                             pure (fst ntm, tm')) params
            -- Look for implicitly bindable names in the parameters
-           let pnames = concatMap (findBindableNames True
-                                    (ps ++ map fst params) [])
-                                    (map snd params')
+           let pnames = if !isUnboundImplicits
+                        then concatMap (findBindableNames True
+                                         (ps ++ map fst params) [])
+                                       (map snd params')
+                        else []
            let paramsb = map (\ (n, tm) => (n, doBind pnames tm)) params'
            pure [IParameters fc paramsb (concat pds')]
   desugarDecl ps (PUsing fc uimpls uds)
@@ -658,12 +660,15 @@ mutual
                                             pure (fst ntm, tm')) params
            -- Look for bindable names in all the constraints and parameters
            let mnames = map dropNS (definedIn body)
-           let bnames = concatMap (findBindableNames True
+           let bnames = if !isUnboundImplicits
+                        then 
+                        concatMap (findBindableNames True
                                       (ps ++ mnames ++ map fst params) [])
                                   (map snd cons') ++
                         concatMap (findBindableNames True
                                       (ps ++ mnames ++ map fst params) [])
                                   (map snd params')
+                        else []
            let paramsb = map (\ (n, tm) => (n, doBind bnames tm)) params'
            let consb = map (\ (n, tm) => (n, doBind bnames tm)) cons'
 
@@ -692,8 +697,11 @@ mutual
                                           pure (fst ntm, tm')) cons
            params' <- traverse (desugar AnyExpr ps) params
            -- Look for bindable names in all the constraints and parameters
-           let bnames = concatMap (findBindableNames True ps []) (map snd cons') ++
+           let bnames = if !isUnboundImplicits
+                        then  
+                        concatMap (findBindableNames True ps []) (map snd cons') ++
                         concatMap (findBindableNames True ps []) params'
+                        else []
            let paramsb = map (doBind bnames) params'
            let isb = map (\ (n, r, tm) => (n, r, doBind bnames tm)) is'
            let consb = map (\ (n, tm) => (n, doBind bnames tm)) cons'
@@ -710,9 +718,12 @@ mutual
                                             pure (fst ntm, tm')) params
            let fnames = map fname fields
            -- Look for bindable names in the parameters
-           let bnames = concatMap (findBindableNames True
-                                      (ps ++ fnames ++ map fst params) [])
-                                  (map snd params')
+           
+           let bnames = if !isUnboundImplicits
+                        then concatMap (findBindableNames True
+                                         (ps ++ fnames ++ map fst params) [])
+                                       (map snd params')
+                        else []
            fields' <- traverse (desugarField (ps ++ fnames ++ map fst params))
                                fields
            let paramsb = map (\ (n, tm) => (n, doBind bnames tm)) params'
@@ -757,7 +768,9 @@ mutual
              Hide n => pure [IPragma (\c, nest, env => hide fc n)]
              Logging i => pure [ILog i]
              LazyOn a => pure [IPragma (\c, nest, env => lazyActive a)]
-             UnboundImplicits a => pure [IPragma (\c, nest, env => setUnboundImplicits a)]
+             UnboundImplicits a => do 
+               setUnboundImplicits a
+               pure [IPragma (\c, nest, env => setUnboundImplicits a)]
              AmbigDepth n => pure [IPragma (\c, nest, env => setAmbigLimit n)]
              PairNames ty f s => pure [IPragma (\c, nest, env => setPair fc ty f s)]
              RewriteName eq rw => pure [IPragma (\c, nest, env => setRewrite fc eq rw)]
