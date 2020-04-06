@@ -723,7 +723,7 @@ mutual
                         then concatMap (findBindableNames True
                                          (ps ++ fnames ++ map fst params) [])
                                        (map snd params')
-                     else []
+                        else []
            fields' <- traverse (desugarField (ps ++ fnames ++ map fst params))
                                fields
            let paramsb = map (\ (n, tm) => (n, doBind bnames tm)) params'
