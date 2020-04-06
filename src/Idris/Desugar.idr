@@ -724,8 +724,6 @@ mutual
                                          (ps ++ fnames ++ map fst params) [])
                                        (map snd params')
                         else []
-           fields' <- traverse (desugarField (ps ++ fnames ++ map fst params))
-                               fields
            let paramsb = map (\ (n, tm) => (n, doBind bnames tm)) params'
            fields' <- traverse (desugarField (ps ++ map fname fields ++
                                               map fst params)) fields
