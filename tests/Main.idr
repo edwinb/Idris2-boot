@@ -162,16 +162,26 @@ runTest opts testPath
             _   => do putStrLn "Invalid Answer."
                       getAnswer
 
-        mayOverwrite : Bool -> String -> IO ()
-        mayOverwrite missing out = do
-          putStr $ unlines $ if missing
-            then [ "Golden value missing. I computed the following result:"
-                 , out
-                 , "Accept new golden value? [yn]"
-                 ]
-            else [ "Golden value differs from actual value."
-                 , "Accept actual value as new golden value? [yn]"
-                 ]
+        printExpectedVsOutput : String -> String -> IO ()
+        printExpectedVsOutput exp out = do
+          putStrLn "Expected:"
+          printLn exp
+          putStrLn "Given:"
+          printLn out
+
+        mayOverwrite : Maybe String -> String -> IO ()
+        mayOverwrite mexp out = do
+          case mexp of
+            Nothing => putStr $ unlines
+              [ "Golden value missing. I computed the following result:"
+              , out
+              , "Accept new golden value? [yn]"
+              ]
+            Just exp => do
+              putStrLn "Golden value differs from actual value."
+              code <- system "git diff expected output"
+              when (code /= 0) $ printExpectedVsOutput exp out
+              putStrLn "Accept actual value as new golden value? [yn]"
           b <- getAnswer
           when b $ do Right _ <- writeFile "expected" out
                           | Left err => print err
@@ -186,7 +196,9 @@ runTest opts testPath
                                       pure False
                  Right exp <- readFile "expected"
                      | Left FileNotFound => do
-                         if interactive opts then mayOverwrite True out else print FileNotFound
+                         if interactive opts
+                           then mayOverwrite Nothing out
+                           else print FileNotFound
                          pure False
                      | Left err => do print err
                                       pure False
@@ -195,11 +207,8 @@ runTest opts testPath
                     then putStrLn "success"
                     else do
                       putStrLn "FAILURE"
-                      putStrLn "Expected:"
-                      printLn exp
-                      putStrLn "Given:"
-                      printLn out
-                      when (interactive opts) $ mayOverwrite False out
+                      if interactive opts then mayOverwrite (Just exp) out
+                      else printExpectedVsOutput exp out
 
                  pure (out == exp)
 
