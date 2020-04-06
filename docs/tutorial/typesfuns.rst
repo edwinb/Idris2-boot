@@ -565,7 +565,7 @@ We can also read strings from user input:
 
 A number of other I/O operations are available. For example, by adding
 ``import System.File`` to your program, you get access to functions for
-for reading and writing files, including:
+reading and writing files, including:
 
 .. code-block:: idris
 
