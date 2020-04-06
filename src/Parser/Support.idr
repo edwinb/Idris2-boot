@@ -388,12 +388,12 @@ continueF err indent
             then err
             else pure ()
 
--- Fail if this is the end of a block entry or end of file
+||| Fail if this is the end of a block entry or end of file
 export
 continue : (indent : IndentInfo) -> EmptyRule ()
 continue = continueF (fail "Unexpected end of expression")
 
--- As 'continue' but failing is fatal (i.e. entire parse fails)
+||| As 'continue' but failing is fatal (i.e. entire parse fails)
 export
 mustContinue : (indent : IndentInfo) -> Maybe String -> EmptyRule ()
 mustContinue indent Nothing
@@ -401,11 +401,15 @@ mustContinue indent Nothing
 mustContinue indent (Just req)
    = continueF (fatalError ("Expected '" ++ req ++ "'")) indent
 
-data ValidIndent
-     = AnyIndent -- In {}, entries can begin in any column
-     | AtPos Int -- Entry must begin in a specific column
-     | AfterPos Int -- Entry can begin in this column or later
-     | EndOfBlock -- Block is finished
+data ValidIndent =
+  |||  In {}, entries can begin in any column
+  AnyIndent |
+  ||| Entry must begin in a specific column
+  AtPos Int |
+  ||| Entry can begin in this column or later
+  AfterPos Int |
+  ||| Block is finished
+  EndOfBlock
 
 Show ValidIndent where
   show AnyIndent = "[any]"
@@ -423,7 +427,7 @@ checkValid (AfterPos x) c = if c >= x
                                else fail "Invalid indentation"
 checkValid EndOfBlock c = fail "End of block"
 
--- Any token which indicates the end of a statement/block
+||| Any token which indicates the end of a statement/block
 isTerminator : Token -> Bool
 isTerminator (Symbol ",") = True
 isTerminator (Symbol "]") = True
@@ -438,10 +442,10 @@ isTerminator (Keyword "where") = True
 isTerminator EndInput = True
 isTerminator _ = False
 
--- Check we're at the end of a block entry, given the start column
--- of the block.
--- It's the end if we have a terminating token, or the next token starts
--- in or before indent. Works by looking ahead but not consuming.
+||| Check we're at the end of a block entry, given the start column
+||| of the block.
+||| It's the end if we have a terminating token, or the next token starts
+||| in or before indent. Works by looking ahead but not consuming.
 export
 atEnd : (indent : IndentInfo) -> EmptyRule ()
 atEnd indent
@@ -533,6 +537,11 @@ block item
   <|> do col <- column
          blockEntries (AtPos col) item
 
+
+||| `blockAfter col rule` parses a `rule`-block indented by at
+||| least `col` spaces (unless the block is explicitly delimited
+||| by curly braces). `rule` is a function of the actual indentation
+||| level.
 export
 blockAfter : Int -> (IndentInfo -> Rule ty) -> EmptyRule (List ty)
 blockAfter mincol item
