@@ -44,6 +44,7 @@ addBracket fc tm = if needed tm then PBracketed fc tm else tm
     needed (PUnit _) = False
     needed (PComprehension _ _ _) = False
     needed (PList _ _) = False
+    needed (PPrimVal _ _) = False
     needed tm = True
 
 bracket : {auto s : Ref Syn SyntaxInfo} ->
@@ -88,33 +89,50 @@ unbracket : PTerm -> PTerm
 unbracket (PBracketed _ tm) = tm
 unbracket tm = tm
 
--- Put the special names (Nil, ::, Pair etc) back as syntax
-sugarApp : PTerm -> PTerm
-sugarApp (PApp fc (PApp _ (PRef _ (UN "Pair")) l) r)
-    = PPair fc (unbracket l) (unbracket r)
-sugarApp (PApp fc (PApp _ (PRef _ (UN "MkPair")) l) r)
-    = PPair fc (unbracket l) (unbracket r)
-sugarApp tm@(PApp fc (PApp _ (PRef _ (UN "DPair")) l) rb)
-    = case unbracket rb of
-           PLam _ _ _ n _ r
-               => PDPair fc n (unbracket l) (unbracket r)
-           _ => tm
-sugarApp (PApp fc (PApp _ (PRef _ (UN "MkDPair")) l) r)
-    = PDPair fc (unbracket l) (PImplicit fc) (unbracket r)
-sugarApp (PApp fc (PApp _ (PRef _ (UN "Equal")) l) r)
-    = PEq fc (unbracket l) (unbracket r)
-sugarApp (PApp fc (PApp _ (PRef _ (UN "===")) l) r)
-    = PEq fc (unbracket l) (unbracket r)
-sugarApp (PApp fc (PApp _ (PRef _ (UN "~=~")) l) r)
-    = PEq fc (unbracket l) (unbracket r)
-sugarApp (PRef fc (UN "Nil")) = PList fc []
-sugarApp (PRef fc (UN "Unit")) = PUnit fc
-sugarApp (PRef fc (UN "MkUnit")) = PUnit fc
-sugarApp tm@(PApp fc (PApp _ (PRef _ (UN "::")) x) xs)
-    = case sugarApp (unbracket xs) of
-           PList fc xs' => PList fc (unbracketApp x :: xs')
-           _ => tm
-sugarApp tm = tm
+||| Attempt to extract a constant natural number
+extractNat : Nat -> PTerm -> Maybe Nat
+extractNat acc tm = case tm of
+  PRef _ (NS ["Prelude"] (UN "Z"))            => pure acc
+  PApp _ (PRef _ (NS ["Prelude"] (UN "S"))) k => extractNat (1 + acc) k
+  PPrimVal _ (BI n)                           => pure (acc + cast n)
+  PBracketed _ k                              => extractNat acc k
+  _                                           => Nothing
+
+mutual
+
+  ||| Put the special names (Nil, ::, Pair, Z, S, etc) back as syntax
+  ||| Returns `Nothing` in case there was nothing to resugar.
+  sugarAppM : PTerm -> Maybe PTerm
+  sugarAppM (PApp fc (PApp _ (PRef _ nm) l) r) =
+    case nameRoot nm of
+      "Pair"   => pure $ PPair fc (unbracket l) (unbracket r)
+      "MkPair" => pure $ PPair fc (unbracket l) (unbracket r)
+      "DPair"  => case unbracket r of
+        PLam _ _ _ n _ r' => pure $ PDPair fc n (unbracket l) (unbracket r')
+        _                 => Nothing
+      "Equal"  => pure $ PEq fc (unbracket l) (unbracket r)
+      "==="    => pure $ PEq fc (unbracket l) (unbracket r)
+      "~=~"    => pure $ PEq fc (unbracket l) (unbracket r)
+      "::"     => case sugarApp (unbracket r) of
+        PList fc xs => pure $ PList fc (unbracketApp l :: xs)
+        _           => Nothing
+      _        => Nothing
+  -- refolding natural numbers if the expression is a constant
+  sugarAppM (PRef fc (NS ["Prelude"] (UN "Z"))) = pure $ PPrimVal fc (BI 0)
+  sugarAppM (PApp fc (PRef _ (NS ["Prelude"] (UN "S"))) k) =
+    PPrimVal fc . BI . cast <$> extractNat 1 k
+  -- NB: this needs to come after the case for Z, otherwise it will shadow it.
+  sugarAppM (PRef fc nm) = case nameRoot nm of
+    "Nil"    => pure $ PList fc []
+    "Unit"   => pure $ PUnit fc
+    "MkUnit" => pure $ PUnit fc
+    _           => Nothing
+  sugarAppM tm = Nothing
+
+  ||| Put the special names (Nil, ::, Pair, Z, S, etc.) back as syntax
+
+  sugarApp : PTerm -> PTerm
+  sugarApp tm = fromMaybe tm (sugarAppM tm)
 
 export
 sugarName : Name -> String
@@ -123,21 +141,19 @@ sugarName (PV n _) = sugarName n
 sugarName (DN n _) = n
 sugarName x = show x
 
+toPRef : FC -> Name -> Core PTerm
+toPRef fc nm = case nm of
+  MN n _     => pure (sugarApp (PRef fc (UN n)))
+  PV n _     => pure (sugarApp (PRef fc n))
+  DN n _     => pure (sugarApp (PRef fc (UN n)))
+  Nested _ n => toPRef fc n
+  _          => pure (sugarApp (PRef fc nm))
+
 mutual
   toPTerm : {auto c : Ref Ctxt Defs} ->
             {auto s : Ref Syn SyntaxInfo} ->
             (prec : Nat) -> RawImp -> Core PTerm
-  toPTerm p (IVar fc (MN n _))
-      = pure (sugarApp (PRef fc (UN n)))
-  toPTerm p (IVar fc (PV n _))
-      = pure (sugarApp (PRef fc n))
-  toPTerm p (IVar fc (DN n _))
-      = pure (sugarApp (PRef fc (UN n)))
-  toPTerm p (IVar loc (Nested _ n))
-      = toPTerm p (IVar loc n)
-  toPTerm p (IVar fc n)
-      = do ns <- fullNamespace
-           pure (sugarApp (PRef fc (if ns then n else UN !(prettyName n))))
+  toPTerm p (IVar fc nm) = toPRef fc nm
   toPTerm p (IPi fc rig Implicit n arg ret)
       = do imp <- showImplicits
            if imp
@@ -369,12 +385,49 @@ mutual
   toPDecl (ILog _) = pure Nothing
 
 export
+cleanPTerm : {auto c : Ref Ctxt Defs} ->
+             PTerm -> Core PTerm
+cleanPTerm ptm
+   = do ns <- fullNamespace
+        if ns then pure ptm else mapPTermM cleanNode ptm
+
+  where
+
+    cleanName : Name -> Core Name
+    cleanName nm = case nm of
+      MN n _     => pure (UN n)
+      PV n _     => pure n
+      DN n _     => pure (UN n)
+      Nested _ n => cleanName n
+      _          => UN <$> prettyName nm
+
+    cleanNode : PTerm -> Core PTerm
+    cleanNode (PRef fc nm)    =
+      PRef fc <$> cleanName nm
+    cleanNode (POp fc op x y) =
+      (\ op => POp fc op x y) <$> cleanName op
+    cleanNode (PPrefixOp fc op x) =
+      (\ op => PPrefixOp fc op x) <$> cleanName op
+    cleanNode (PSectionL fc op x) =
+      (\ op => PSectionL fc op x) <$> cleanName op
+    cleanNode (PSectionR fc x op) =
+      PSectionR fc x <$> cleanName op
+    cleanNode tm = pure tm
+
+toCleanPTerm : {auto c : Ref Ctxt Defs} ->
+               {auto s : Ref Syn SyntaxInfo} ->
+               (prec : Nat) -> RawImp -> Core PTerm
+toCleanPTerm prec tti = do
+  ptm <- toPTerm prec tti
+  cleanPTerm ptm
+
+export
 resugar : {auto c : Ref Ctxt Defs} ->
           {auto s : Ref Syn SyntaxInfo} ->
           Env Term vars -> Term vars -> Core PTerm
 resugar env tm
     = do tti <- unelab env tm
-         toPTerm startPrec tti
+         toCleanPTerm startPrec tti
 
 export
 resugarNoPatvars : {auto c : Ref Ctxt Defs} ->
@@ -382,10 +435,10 @@ resugarNoPatvars : {auto c : Ref Ctxt Defs} ->
                    Env Term vars -> Term vars -> Core PTerm
 resugarNoPatvars env tm
     = do tti <- unelabNoPatvars env tm
-         toPTerm startPrec tti
+         toCleanPTerm startPrec tti
 
 export
 pterm : {auto c : Ref Ctxt Defs} ->
         {auto s : Ref Syn SyntaxInfo} ->
         RawImp -> Core PTerm
-pterm raw = toPTerm startPrec raw
+pterm raw = toCleanPTerm startPrec raw

@@ -612,3 +612,306 @@ initSyntax
 -- A label for Syntax info in the global state
 export
 data Syn : Type where
+
+export
+mapPTermM : (PTerm -> Core PTerm) -> PTerm -> Core PTerm
+mapPTermM f = goPTerm where
+
+  mutual
+
+    goPTerm : PTerm -> Core PTerm
+    goPTerm t@(PRef _ _) = f t
+    goPTerm (PPi fc x info z argTy retTy) =
+      PPi fc x <$> goPiInfo info
+               <*> pure z
+               <*> goPTerm argTy
+               <*> goPTerm retTy
+      >>= f
+    goPTerm (PLam fc x info z argTy scope) =
+      PLam fc x <$> goPiInfo info
+                <*> pure z
+                <*> goPTerm argTy
+                <*> goPTerm scope
+      >>= f
+    goPTerm (PLet fc x pat nTy nVal scope alts) =
+      PLet fc x <$> goPTerm pat
+                <*> goPTerm nTy
+                <*> goPTerm nVal
+                <*> goPTerm scope
+                <*> goPClauses alts
+      >>= f
+    goPTerm (PCase fc x xs) =
+      PCase fc <$> goPTerm x
+               <*> goPClauses xs
+      >>= f
+    goPTerm (PLocal fc xs scope) =
+      PLocal fc <$> goPDecls xs
+                <*> goPTerm scope
+      >>= f
+    goPTerm (PUpdate fc xs) =
+      PUpdate fc <$> goPFieldUpdates xs
+      >>= f
+    goPTerm (PApp fc x y) =
+      PApp fc <$> goPTerm x
+              <*> goPTerm y
+      >>= f
+    goPTerm (PWithApp fc x y) =
+      PWithApp fc <$> goPTerm x
+                  <*> goPTerm y
+      >>= f
+    goPTerm (PImplicitApp fc x argn y) =
+      PImplicitApp fc <$> goPTerm x
+                      <*> pure argn
+                      <*> goPTerm y
+      >>= f
+    goPTerm (PDelayed fc x y) =
+      PDelayed fc x <$> goPTerm y
+      >>= f
+    goPTerm (PDelay fc x) =
+      PDelay fc <$> goPTerm x
+      >>= f
+    goPTerm (PForce fc x) =
+      PForce fc <$> goPTerm x
+      >>= f
+    goPTerm t@(PSearch _ _) = f t
+    goPTerm t@(PPrimVal _ _) = f t
+    goPTerm (PQuote fc x) =
+      PQuote fc <$> goPTerm x
+      >>= f
+    goPTerm (PQuoteDecl fc x) =
+      PQuoteDecl fc <$> goPDecl x
+      >>= f
+    goPTerm (PUnquote fc x) =
+      PUnquote fc <$> goPTerm x
+      >>= f
+    goPTerm (PRunElab fc x) =
+      PRunElab fc <$> goPTerm x
+      >>= f
+    goPTerm t@(PHole _ _ _) = f t
+    goPTerm t@(PType _) = f t
+    goPTerm (PAs fc x pat) =
+      PAs fc x <$> goPTerm pat
+      >>= f
+    goPTerm (PDotted fc x) =
+      PDotted fc <$> goPTerm x
+      >>= f
+    goPTerm t@(PImplicit _) = f t
+    goPTerm t@(PInfer _) = f t
+    goPTerm (POp fc x y z) =
+      POp fc x <$> goPTerm y
+               <*> goPTerm z
+      >>= f
+    goPTerm (PPrefixOp fc x y) =
+      PPrefixOp fc x <$> goPTerm y
+      >>= f
+    goPTerm (PSectionL fc x y) =
+      PSectionL fc x <$> goPTerm y
+      >>= f
+    goPTerm (PSectionR fc x y) =
+      PSectionR fc <$> goPTerm x
+                   <*> pure y
+      >>= f
+    goPTerm (PEq fc x y) =
+      PEq fc <$> goPTerm x
+             <*> goPTerm y
+      >>= f
+    goPTerm (PBracketed fc x) =
+      PBracketed fc <$> goPTerm x
+      >>= f
+    goPTerm (PDoBlock fc xs) =
+      PDoBlock fc <$> goPDos xs
+      >>= f
+    goPTerm (PBang fc x) =
+      PBang fc <$> goPTerm x
+      >>= f
+    goPTerm (PIdiom fc x) =
+      PIdiom fc <$> goPTerm x
+      >>= f
+    goPTerm (PList fc xs) =
+      PList fc <$> goPTerms xs
+      >>= f
+    goPTerm (PPair fc x y) =
+      PPair fc <$> goPTerm x
+               <*> goPTerm y
+      >>= f
+    goPTerm (PDPair fc x y z) =
+      PDPair fc <$> goPTerm x
+                <*> goPTerm y
+                <*> goPTerm z
+      >>= f
+    goPTerm t@(PUnit _) = f t
+    goPTerm (PIfThenElse fc x y z) =
+      PIfThenElse fc <$> goPTerm x
+                     <*> goPTerm y
+                     <*> goPTerm z
+      >>= f
+    goPTerm (PComprehension fc x xs) =
+      PComprehension fc <$> goPTerm x
+                        <*> goPDos xs
+      >>= f
+    goPTerm (PRewrite fc x y) =
+      PRewrite fc <$> goPTerm x
+                  <*> goPTerm y
+      >>= f
+    goPTerm (PRange fc x y z) =
+      PRange fc <$> goPTerm x
+                <*> goMPTerm y
+                <*> goPTerm z
+      >>= f
+    goPTerm (PRangeStream fc x y) =
+      PRangeStream fc <$> goPTerm x
+                      <*> goMPTerm y
+      >>= f
+    goPTerm (PUnifyLog fc k x) =
+      PUnifyLog fc k <$> goPTerm x
+      >>= f
+
+    goPFieldUpdate : PFieldUpdate -> Core PFieldUpdate
+    goPFieldUpdate (PSetField p t)    = PSetField p <$> goPTerm t
+    goPFieldUpdate (PSetFieldApp p t) = PSetFieldApp p <$> goPTerm t
+
+    goPDo : PDo -> Core PDo
+    goPDo (DoExp fc t) = DoExp fc <$> goPTerm t
+    goPDo (DoBind fc n t) = DoBind fc n <$> goPTerm t
+    goPDo (DoBindPat fc t u cls) =
+      DoBindPat fc <$> goPTerm t
+                   <*> goPTerm u
+                   <*> goPClauses cls
+    goPDo (DoLet fc n c t scope) =
+       DoLet fc n c <$> goPTerm t
+                    <*> goPTerm scope
+    goPDo (DoLetPat fc pat t scope cls) =
+       DoLetPat fc <$> goPTerm pat
+                   <*> goPTerm t
+                   <*> goPTerm scope
+                   <*> goPClauses cls
+    goPDo (DoLetLocal fc decls) = DoLetLocal fc <$> goPDecls decls
+    goPDo (DoRewrite fc t) = DoRewrite fc <$> goPTerm t
+
+    goPClause : PClause -> Core PClause
+    goPClause (MkPatClause fc lhs rhs wh) =
+      MkPatClause fc <$> goPTerm lhs
+                     <*> goPTerm rhs
+                     <*> goPDecls wh
+    goPClause (MkWithClause fc lhs wVal cls) =
+      MkWithClause fc <$> goPTerm lhs
+                      <*> goPTerm wVal
+                      <*> goPClauses cls
+    goPClause (MkImpossible fc lhs) = MkImpossible fc <$> goPTerm lhs
+
+    goPDecl : PDecl -> Core PDecl
+    goPDecl (PClaim fc c v opts tdecl) =
+      PClaim fc c v <$> goPFnOpts opts
+                    <*> goPTypeDecl tdecl
+    goPDecl (PDef fc cls) = PDef fc <$> goPClauses cls
+    goPDecl (PData fc v d) = PData fc v <$> goPDataDecl d
+    goPDecl (PParameters fc nts ps) =
+      PParameters fc <$> goPairedPTerms nts
+                     <*> goPDecls ps
+    goPDecl (PUsing fc mnts ps) =
+      PUsing fc <$> goPairedPTerms mnts
+                <*> goPDecls ps
+    goPDecl (PReflect fc t) = PReflect fc <$> goPTerm t
+    goPDecl (PInterface fc v mnts n nts ns mn ps) =
+      PInterface fc v <$> goPairedPTerms mnts
+                      <*> pure n
+                      <*> goPairedPTerms nts
+                      <*> pure ns
+                      <*> pure mn
+                      <*> goPDecls ps
+    goPDecl (PImplementation fc v p is cs n ts mn ns mps) =
+      PImplementation fc v p <$> go3TupledPTerms is
+                             <*> goPairedPTerms cs
+                             <*> pure n
+                             <*> goPTerms ts
+                             <*> pure mn
+                             <*> pure ns
+                             <*> goMPDecls mps
+    goPDecl (PRecord fc v n nts mn fs) =
+      PRecord fc v n <$> goPairedPTerms nts
+                     <*> pure mn
+                     <*> goPFields fs
+    goPDecl (PMutual fc ps) = PMutual fc <$> goPDecls ps
+    goPDecl p@(PFixity _ _ _ _) = pure p
+    goPDecl (PNamespace fc strs ps) = PNamespace fc strs <$> goPDecls ps
+    goPDecl (PTransform fc a b) = PTransform fc <$> goPTerm a <*> goPTerm b
+    goPDecl p@(PDirective _ _) = pure p
+
+
+    goPTypeDecl : PTypeDecl -> Core PTypeDecl
+    goPTypeDecl (MkPTy fc n t) = MkPTy fc n <$> goPTerm t
+
+    goPDataDecl : PDataDecl -> Core PDataDecl
+    goPDataDecl (MkPData fc n t opts tdecls) =
+      MkPData fc n <$> goPTerm t
+                   <*> pure opts
+                   <*> goPTypeDecls tdecls
+    goPDataDecl (MkPLater fc n t) = MkPLater fc n <$> goPTerm t
+
+    goPField : PField -> Core PField
+    goPField (MkField fc c info n t) =
+      MkField fc c <$> goPiInfo info
+                   <*> pure n
+                   <*> goPTerm t
+
+    goPiInfo : PiInfo PTerm -> Core (PiInfo PTerm)
+    goPiInfo (DefImplicit t) = DefImplicit <$> goPTerm t
+    goPiInfo t = pure t
+
+    goPFnOpt : PFnOpt -> Core PFnOpt
+    goPFnOpt o@(IFnOpt _) = pure o
+    goPFnOpt (PForeign ts) = PForeign <$> goPTerms ts
+
+    -- Traversable stuff. Inlined for termination checking.
+
+    goMPTerm : Maybe PTerm -> Core (Maybe PTerm)
+    goMPTerm Nothing  = pure Nothing
+    goMPTerm (Just t) = Just <$> goPTerm t
+
+    goPTerms : List PTerm -> Core (List PTerm)
+    goPTerms []        = pure []
+    goPTerms (t :: ts) = (::) <$> goPTerm t <*> goPTerms ts
+
+    goPairedPTerms : List (a, PTerm) -> Core (List (a, PTerm))
+    goPairedPTerms []             = pure []
+    goPairedPTerms ((a, t) :: ts) =
+       (::) . MkPair a <$> goPTerm t
+                       <*> goPairedPTerms ts
+
+    go3TupledPTerms : List (a, b, PTerm) -> Core (List (a, b, PTerm))
+    go3TupledPTerms [] = pure []
+    go3TupledPTerms ((a, b, t) :: ts) =
+      (::) . (\ c => (a, b, c)) <$> goPTerm t
+                                <*> go3TupledPTerms ts
+
+    goPDos : List PDo -> Core (List PDo)
+    goPDos []        = pure []
+    goPDos (d :: ds) = (::) <$> goPDo d <*> goPDos ds
+
+    goPClauses : List PClause -> Core (List PClause)
+    goPClauses []          = pure []
+    goPClauses (cl :: cls) = (::) <$> goPClause cl <*> goPClauses cls
+
+    goMPDecls : Maybe (List PDecl) -> Core (Maybe (List PDecl))
+    goMPDecls Nothing   = pure Nothing
+    goMPDecls (Just ps) = Just <$> goPDecls ps
+
+    goPDecls : List PDecl -> Core (List PDecl)
+    goPDecls []          = pure []
+    goPDecls (d :: ds) = (::) <$> goPDecl d <*> goPDecls ds
+
+    goPFieldUpdates : List PFieldUpdate -> Core (List PFieldUpdate)
+    goPFieldUpdates []          = pure []
+    goPFieldUpdates (fu :: fus) = (::) <$> goPFieldUpdate fu <*> goPFieldUpdates fus
+
+    goPFields : List PField -> Core (List PField)
+    goPFields []        = pure []
+    goPFields (f :: fs) = (::) <$> goPField f <*> goPFields fs
+
+    goPFnOpts : List PFnOpt -> Core (List PFnOpt)
+    goPFnOpts []        = pure []
+    goPFnOpts (o :: os) = (::) <$> goPFnOpt o <*> goPFnOpts os
+
+    goPTypeDecls : List PTypeDecl -> Core (List PTypeDecl)
+    goPTypeDecls []        = pure []
+    goPTypeDecls (t :: ts) = (::) <$> goPTypeDecl t <*> goPTypeDecls ts
