@@ -51,9 +51,12 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
                       -- at private names in the nested namespace
                       put Ctxt (record { currentNS = cns,
                                          nestedNS = newns :: nns } defs)
-  where
-    jname : (Name, RawImp) -> (Maybe Name, RigCount, PiInfo RawImp, RawImp)
-    jname (n, t) = (Just n, Rig0, Implicit, t)
+  where    
+    paramTelescope : List (Maybe Name, RigCount, PiInfo RawImp, RawImp)
+    paramTelescope = map jname params
+      where
+        jname : (Name, RawImp) -> (Maybe Name, RigCount, PiInfo RawImp, RawImp)
+        jname (n, t) = (Just n, Rig0, Implicit, t)
 
     fname : IField -> Name
     fname (MkIField fc c p n ty) = n
@@ -73,7 +76,7 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
 
     elabAsData : Name -> Core ()
     elabAsData cname
-        = do let conty = mkTy (map jname params) $
+        = do let conty = mkTy paramTelescope $
                          mkTy (map farg fields) recTy
              let con = MkImpTy fc cname !(bindTypeNames [] (map fst params ++
                                            map fname fields ++ vars) conty)
@@ -112,7 +115,7 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
                    let rname = MN "rec" 0
                    gty <- bindTypeNames []
                                  (map fst params ++ map fname fields ++ vars) $
-                                    mkTy (map jname params) $
+                                    mkTy paramTelescope $
                                       IPi fc RigW Explicit (Just rname) recTy ty'
                    log 5 $ "Projection " ++ show gname ++ " : " ++ show gty
                    let lhs_exp
