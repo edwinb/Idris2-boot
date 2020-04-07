@@ -550,8 +550,8 @@ dataDecl fname indents
          end <- location
          pure (MkImpData (MkFC fname start end) n ty opts cs)
 
-ifaceParam : FileName -> IndentInfo -> Rule (Name, RawImp)
-ifaceParam fname indents
+recordParam : FileName -> IndentInfo -> Rule (Name, RawImp)
+recordParam fname indents
     = do symbol "("
          n <- name
          symbol ":"
@@ -593,7 +593,7 @@ recordDecl fname indents
          keyword "record"
          commit
          n <- name
-         params <- many (ifaceParam fname indents)
+         params <- many (recordParam fname indents)
          keyword "where"
          exactIdent "constructor"
          dc <- name
