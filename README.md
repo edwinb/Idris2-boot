@@ -1,6 +1,8 @@
 Idris 2
 =======
 
+[![Build Status](https://travis-ci.org/edwinb/Idris2.svg?branch=master)](https://travis-ci.org/edwinb/Idris2)
+
 This is a pre-alpha implementation of Idris 2, the successor to Idris.
 
 *** Please note: To build, this requires Idris version 1.3.2 ***
