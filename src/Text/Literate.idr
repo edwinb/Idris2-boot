@@ -101,7 +101,7 @@ record LiterateError where
 ||| + Bird Style
 |||
 |||```
-|||MkLitStyle Nil [">", "<"] [".lidr"]
+|||MkLitStyle Nil [">"] [".lidr"]
 |||```
 |||
 ||| + Literate Haskell (for LaTeX)
@@ -109,7 +109,7 @@ record LiterateError where
 |||```
 |||MkLitStyle [("\\begin{code}", "\\end{code}"),("\\begin{spec}","\\end{spec}")]
 |||           Nil
-|||           ["lhs", "tex"]
+|||           [".lhs", ".tex"]
 |||```
 |||
 ||| + OrgMode
@@ -117,7 +117,7 @@ record LiterateError where
 |||```
 |||MkLitStyle [("#+BEGIN_SRC idris","#+END_SRC"), ("#+COMMENT idris","#+END_COMMENT")]
 |||           ["#+IDRIS:"]
-|||           ["org"]
+|||           [".org"]
 |||```
 |||
 ||| + Common Mark
@@ -125,7 +125,7 @@ record LiterateError where
 |||```
 |||MkLitStyle [("```idris","```"), ("<!-- idris","--!>")]
 |||           Nil
-|||           [".md", ".idris.md"]
+|||           [".md", ".markdown"]
 |||```
 |||
 public export
