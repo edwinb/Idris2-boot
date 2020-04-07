@@ -64,7 +64,7 @@ getAllDesc (n@(Resolved i) :: rest) arr defs
             Nothing => getAllDesc rest arr defs
             Just def =>
               do coreLift $ writeArray arr i i
-                 let refs = refersTo def
+                 let refs = refersToRuntime def
                  getAllDesc (keys refs ++ rest) arr defs
 getAllDesc (n :: rest) arr defs
   = getAllDesc rest arr defs

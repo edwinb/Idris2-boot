@@ -898,6 +898,7 @@ TTC GlobalDef where
            toBuf b (definition gdef)
            toBuf b (compexpr gdef)
            toBuf b (map toList (refersToM gdef))
+           toBuf b (map toList (refersToRuntimeM gdef))
            toBuf b (location gdef)
            when (isUserName (fullname gdef)) $
               do toBuf b (type gdef)
@@ -918,7 +919,9 @@ TTC GlobalDef where
            def <- fromBuf b
            cdef <- fromBuf b
            refsList <- fromBuf b
+           refsRList <- fromBuf b
            let refs = map fromList refsList
+           let refsR = map fromList refsRList
            loc <- fromBuf b
            if isUserName name
               then do ty <- fromBuf b; eargs <- fromBuf b;
@@ -931,9 +934,9 @@ TTC GlobalDef where
                       sc <- fromBuf b
                       pure (MkGlobalDef loc name ty eargs seargs specargs
                                         mul vars vis
-                                        tot fl refs inv c True def cdef sc)
+                                        tot fl refs refsR inv c True def cdef sc)
               else pure (MkGlobalDef loc name (Erased loc False) [] [] []
-                                     RigW [] Public unchecked [] refs
+                                     RigW [] Public unchecked [] refs refsR
                                      False False True def cdef [])
 
 TTC Transform where

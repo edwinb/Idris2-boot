@@ -87,7 +87,8 @@ export
 Show Def where
   show None = "undefined"
   show (PMDef _ args ct rt pats)
-      = show args ++ "; " ++ show ct
+      = show args ++ ";\nCompile time tree: " ++ show ct ++
+        "\nRun time tree: " ++ show rt
   show (DCon t a) = "DataCon " ++ show t ++ " " ++ show a
   show (TCon t a ps ds u ms cons det)
       = "TyCon " ++ show t ++ " " ++ show a ++ " params: " ++ show ps ++
@@ -190,6 +191,7 @@ record GlobalDef where
   totality : Totality
   flags : List DefFlag
   refersToM : Maybe (NameMap Bool)
+  refersToRuntimeM : Maybe (NameMap Bool)
   invertible : Bool -- for an ordinary definition, is it invertible in unification
   noCycles : Bool -- for metavariables, whether they can be cyclic (this
                   -- would only be allowed when using a metavariable as a
@@ -204,6 +206,10 @@ record GlobalDef where
 export
 refersTo : GlobalDef -> NameMap Bool
 refersTo def = maybe empty id (refersToM def)
+
+export
+refersToRuntime : GlobalDef -> NameMap Bool
+refersToRuntime def = maybe empty id (refersToRuntimeM def)
 
 -- Label for array references
 export
@@ -264,7 +270,7 @@ initCtxtS : Int -> Core Context
 initCtxtS s
     = do arr <- coreLift $ newArray s
          aref <- newRef Arr arr
-         pure (MkContext 0 0 empty empty aref 0 empty [] False)
+         pure (MkContext 0 0 empty empty aref 0 empty [["_PE"]] False)
 
 export
 initCtxt : Core Context
@@ -464,7 +470,7 @@ newDef : FC -> Name -> RigCount -> List Name ->
          ClosedTerm -> Visibility -> Def -> GlobalDef
 newDef fc n rig vars ty vis def
     = MkGlobalDef fc n ty [] [] []
-                  rig vars vis unchecked [] empty False False False def
+                  rig vars vis unchecked [] Nothing Nothing False False False def
                   Nothing []
 
 -- Rewrite rules, applied after type checking, for runtime code only
@@ -719,6 +725,7 @@ HasNames GlobalDef where
                            definition = !(full gam (definition def)),
                            totality = !(full gam (totality def)),
                            refersToM = !(full gam (refersToM def)),
+                           refersToRuntimeM = !(full gam (refersToRuntimeM def)),
                            sizeChange = !(traverse (full gam) (sizeChange def))
                          } def
   resolved gam def
@@ -726,6 +733,7 @@ HasNames GlobalDef where
                         definition = !(resolved gam (definition def)),
                         totality = !(resolved gam (totality def)),
                         refersToM = !(resolved gam (refersToM def)),
+                        refersToRuntimeM = !(resolved gam (refersToRuntimeM def)),
                         sizeChange = !(traverse (resolved gam) (sizeChange def))
                       } def
 
@@ -895,7 +903,8 @@ addBuiltin : {auto x : Ref Ctxt Defs} ->
              PrimFn arity -> Core ()
 addBuiltin n ty tot op
     = do addDef n (MkGlobalDef emptyFC n ty [] [] [] RigW [] Public tot
-                               [Inline] empty False False True (Builtin op)
+                               [Inline] Nothing Nothing
+                               False False True (Builtin op)
                                Nothing [])
          pure ()
 

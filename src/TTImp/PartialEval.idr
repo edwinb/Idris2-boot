@@ -16,6 +16,8 @@ import TTImp.Unelab
 
 import Utils.Hex
 
+%default covering
+
 unload : List (FC, Term vars) -> Term vars -> Term vars
 unload [] fn = fn
 unload ((fc, arg) :: args) fn = unload args (App fc fn arg)
@@ -32,7 +34,9 @@ substLoc : Nat -> Term vs -> Term vs -> Term vs
 substLoc i tm (Local fc l idx p)
     = if i == idx then tm else (Local fc l idx p)
 substLoc i tm (Bind fc x b sc)
-    = Bind fc x (map (substLoc i tm) b) (substLoc i (weaken tm) sc)
+    = Bind fc x (map (substLoc i tm) b) (substLoc (1 + i) (weaken tm) sc)
+substLoc i tm (Meta fc n r args)
+    = Meta fc n r (map (substLoc i tm) args)
 substLoc i tm (App fc f a) = App fc (substLoc i tm f) (substLoc i tm a)
 substLoc i tm (As fc s f a) = As fc s (substLoc i tm f) (substLoc i tm a)
 substLoc i tm (TDelayed fc r d) = TDelayed fc r (substLoc i tm d)
@@ -66,16 +70,8 @@ specialisePat : List (Nat, Term []) ->
 specialisePat specs (vs ** (env, lhs, rhs))
     = do let (fn, args) = getFnArgs lhs
          psubs <- mkSubsts 0 specs args rhs
-         let args' = dropSpec 0 args
-         let lhs' = apply (getLoc fn) fn args'
+         let lhs' = apply (getLoc fn) fn args
          pure (vs ** (env, substLocs psubs lhs', substLocs psubs rhs))
-  where
-    dropSpec : Nat -> List a -> List a
-    dropSpec i [] = []
-    dropSpec i (x :: xs)
-        = case lookup i specs of
-               Nothing => x :: dropSpec (1 + i) xs
-               Just _ => dropSpec (1 + i) xs
 
 specialisePats : List (Nat, Term []) ->
                  List (vs ** (Env Term vs, Term vs, Term vs)) ->
@@ -85,6 +81,86 @@ specialisePats specs (p :: ps)
     = do p' <- specialisePat specs p
          ps' <- specialisePats specs ps
          pure (p' :: ps')
+
+mkSpecDef : {auto c : Ref Ctxt Defs} ->
+            {auto m : Ref MD Metadata} ->
+            {auto u : Ref UST UState} ->
+            FC -> Env Term vars -> GlobalDef ->
+            Name -> List (Nat, Term []) -> Name -> List (FC, Term vars) ->
+            Core (Term vars)
+mkSpecDef {vars} fc env gdef pename sargs fn stk
+    = do defs <- get Ctxt
+         let peapp = unload (dropSpec 0 stk) (Ref fc Func pename)
+         Nothing <- lookupCtxtExact pename (gamma defs)
+             | Just _ => -- already specialised
+                         pure peapp
+         logC 3 (do fnfull <- toFullNames fn
+                    args' <- traverse (\ (i, arg) =>
+                                 do arg' <- toFullNames arg
+                                    pure (show (i, arg'))) sargs
+                    pure $ "Specialising " ++ show fnfull ++ " by " ++
+                           showSep ", " args')
+         let sty = specialiseTy 0 sargs (type gdef)
+         logTermNF 3 ("Specialised type " ++ show pename) [] sty
+
+         -- Add as RigW - if it's something else, we don't need it at
+         -- runtime anyway so this is wasted effort, therefore a failure
+         -- is okay!
+         peidx <- addDef pename (newDef fc pename RigW [] sty Public None)
+         addToSave (Resolved peidx)
+
+         let PMDef pminfo pmargs ct tr pats = definition gdef
+             | _ => pure (unload stk (Ref fc Func fn))
+         let Just specpats = specialisePats sargs pats
+             | _ => pure (unload stk (Ref fc Func fn))
+         newpats <- traverse (unelabPat pename) specpats
+
+         log 5 $ "New patterns for " ++ show pename ++ ":\n" ++
+                  showSep "\n" (map showPat newpats)
+
+         processDecl [] (MkNested []) [] (IDef fc (Resolved peidx) newpats)
+         pure peapp
+  where
+    dropSpec : Nat -> List a -> List a
+    dropSpec i [] = []
+    dropSpec i (x :: xs)
+        = case lookup i sargs of
+               Nothing => x :: dropSpec (1 + i) xs
+               Just _ => dropSpec (1 + i) xs
+
+    updateApp : Name -> RawImp -> RawImp
+    updateApp n (IApp fc f a) = IApp fc (updateApp n f) a
+    updateApp n (IImplicitApp fc f m a) = IImplicitApp fc (updateApp n f) m a
+    updateApp n f = IVar fc n
+
+    getRawArgs : List (Maybe Name, RawImp) -> RawImp -> List (Maybe Name, RawImp)
+    getRawArgs args (IApp _ f arg) = getRawArgs ((Nothing, arg) :: args) f
+    getRawArgs args (IImplicitApp _ f (Just n) arg)
+        = getRawArgs ((Just n, arg) :: args) f
+    getRawArgs args tm = args
+
+    reapply : RawImp -> List (Maybe Name, RawImp) -> RawImp
+    reapply f [] = f
+    reapply f ((Nothing, arg) :: args) = reapply (IApp fc f arg) args
+    reapply f ((Just t, arg) :: args)
+        = reapply (IImplicitApp fc f (Just t) arg) args
+
+    dropArgs : Name -> RawImp -> RawImp
+    dropArgs pename tm = reapply (IVar fc pename) (dropSpec 0 (getRawArgs [] tm))
+
+    unelabPat : Name -> (vs ** (Env Term vs, Term vs, Term vs)) ->
+                Core ImpClause
+    unelabPat pename (_ ** (env, lhs, rhs))
+        = do lhsapp <- unelabNoSugar env lhs
+             let lhs' = dropArgs pename lhsapp
+             defs <- get Ctxt
+             rhsnf <- normaliseArgHoles defs env rhs
+             rhs' <- unelabNoSugar env rhsnf
+             pure (PatClause fc lhs' rhs')
+
+    showPat : ImpClause -> String
+    showPat (PatClause _ lhs rhs) = show lhs ++ " = " ++ show rhs
+    showPat _ = "Can't happen"
 
 specialise : {auto c : Ref Ctxt Defs} ->
              {auto m : Ref MD Metadata} ->
@@ -98,47 +174,24 @@ specialise {vars} fc env gdef fn stk
         specs =>
             do fnfull <- toFullNames fn
                sargs <- getSpecArgs 0 specs stk
-               let hash = hash (map snd sargs)
-               let pename 
-                      = NS ["_PE"] 
-                            (UN ("PE_" ++ nameRoot fnfull ++ "_" ++ asHex hash))
-
                -- If all the arguments are concrete (meaning, no local variables
                -- or holes in them, so they can be a Term []) we can specialise
                let Just sargs = allConcrete sargs
                    | Nothing => pure (unload stk (Ref fc Func fn))
-               logC 0 (do args' <- traverse (\ (i, arg) =>
-                                       do arg' <- toFullNames arg
-                                          pure (show (i, arg'))) sargs
-                          pure $ "Specialising " ++ show fnfull ++ " by " ++
-                                 showSep ", " args')
-               let sty = specialiseTy 0 sargs (type gdef)
-               logTermNF 0 ("Specialised type " ++ show pename) [] sty
-
-               -- Add as RigW - if it's something else, we don't need it at
-               -- runtime anyway so this is wasted effort, therefore a failure
-               -- is okay!
-               peidx <- addDef pename (newDef fc pename RigW [] sty Public None)
-               addToSave (Resolved peidx)
-
-               let PMDef pminfo pmargs ct tr pats = definition gdef
-                   | _ => pure (unload stk (Ref fc Func fn))
-               let Just specpats = specialisePats sargs pats
-                   | _ => pure (unload stk (Ref fc Func fn))
-               newpats <- traverse unelabPat specpats
-
-               log 0 $ "New patterns for " ++ show pename ++ ":\n" ++
-                        showSep "\n" (map showPat newpats)
-               pure $ unload stk (Ref fc Func fn)
+               let hash = hash (map snd sargs)
+               let pename = NS ["_PE"]
+                            (UN ("PE_" ++ nameRoot fnfull ++ "_" ++ asHex hash))
+               mkSpecDef fc env gdef pename sargs fn stk
   where
-    unelabPat : (vs ** (Env Term vs, Term vs, Term vs)) -> Core (RawImp, RawImp)
-    unelabPat (_ ** (env, lhs, rhs))
-        = do lhs' <- unelabNoSugar env lhs
-             rhs' <- unelabNoSugar env rhs
-             pure (lhs', rhs')
-
-    showPat : (RawImp, RawImp) -> String
-    showPat (lhs, rhs) = show lhs ++ " = " ++ show rhs
+    getSpecArgs : Nat -> List Nat -> List (FC, Term vars) ->
+                  Core (List (Nat, Term vars))
+    getSpecArgs i specs [] = pure []
+    getSpecArgs i specs ((_, x) :: xs)
+        = if i `elem` specs
+             then do defs <- get Ctxt
+                     x' <- normaliseHoles defs env x
+                     pure $ (i, x') :: !(getSpecArgs (1 + i) specs xs)
+             else getSpecArgs (1 + i) specs xs
 
     dropAll : {vs : _} -> SubVars [] vs
     dropAll {vs = []} = SubRefl
@@ -153,16 +206,6 @@ specialise {vars} fc env gdef fn stk
         = do tm' <- concrete tm
              ts' <- allConcrete ts
              pure ((i, tm') :: ts')
-
-    getSpecArgs : Nat -> List Nat -> List (FC, Term vars) ->
-                  Core (List (Nat, Term vars))
-    getSpecArgs i specs [] = pure []
-    getSpecArgs i specs ((_, x) :: xs)
-        = if i `elem` specs
-             then do defs <- get Ctxt
-                     x' <- normaliseHoles defs env x
-                     pure $ (i, x') :: !(getSpecArgs (1 + i) specs xs)
-             else getSpecArgs (1 + i) specs xs
 
 findSpecs : {auto c : Ref Ctxt Defs} ->
             {auto m : Ref MD Metadata} ->
