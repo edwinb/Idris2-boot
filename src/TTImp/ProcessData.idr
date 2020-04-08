@@ -192,6 +192,33 @@ getDetags fc tys
                 then pure (i :: rest)
                 else pure rest
 
+-- If exactly one argument is unerased, return its position
+getRelevantArg : Defs -> Nat -> Maybe Nat -> NF [] -> Core (Maybe Nat)
+getRelevantArg defs i rel (NBind fc _ (Pi Rig0 _ _) sc)
+    = getRelevantArg defs (1 + i) rel
+           !(sc defs (toClosure defaultOpts [] (Erased fc False)))
+getRelevantArg defs i Nothing (NBind fc _ (Pi _ _ _) sc) -- found a relevant arg
+    = getRelevantArg defs (1 + i) (Just i)
+           !(sc defs (toClosure defaultOpts [] (Erased fc False)))
+getRelevantArg defs i (Just _) (NBind _ _ (Pi _ _ _) sc) -- more than one relevant
+    = pure Nothing
+getRelevantArg defs i rel tm = pure rel
+
+-- If there's one constructor with only one non-Rig0 argument, flag it as
+-- a newtype for optimisation
+export
+findNewtype : {auto c : Ref Ctxt Defs} ->
+              List Constructor -> Core ()
+findNewtype [con]
+    = do defs <- get Ctxt
+         Just arg <- getRelevantArg defs 0 Nothing !(nf defs [] (type con))
+              | Nothing => pure ()
+         updateDef (name con)
+               (\d => case d of
+                           DCon t a _ => Just (DCon t a (Just arg))
+                           _ => Nothing)
+findNewtype _ = pure ()
+
 export
 processData : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
@@ -288,6 +315,7 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
 
          let ddef = MkData (MkCon dfc n arity fullty) cons
          addData vars vis tidx ddef
+         findNewtype cons
 
          -- Type is defined mutually with every data type undefined at the
          -- point it was declared, and every data type undefined right now

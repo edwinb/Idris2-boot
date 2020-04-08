@@ -111,6 +111,10 @@ dumpCases fn cns
                | Left err => throw (FileErr fn err)
          pure ()
   where
+    fullShow : Name -> String
+    fullShow (DN _ n) = show n
+    fullShow n = show n
+
     dumpCase : Defs -> Name -> Core String
     dumpCase defs n
         = case !(lookupCtxtExact n (gamma defs)) of
@@ -118,7 +122,7 @@ dumpCases fn cns
                Just d =>
                     case compexpr d of
                          Nothing => pure ""
-                         Just def => pure (show n ++ " = " ++ show def ++ "\n")
+                         Just def => pure (fullShow n ++ " = " ++ show def ++ "\n")
 
 -- Find all the names which need compiling, from a given expression, and compile
 -- them to CExp form (and update that in the Defs)

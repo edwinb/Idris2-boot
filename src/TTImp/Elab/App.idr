@@ -55,7 +55,7 @@ getNameType rigc env fc x
                  rigSafe (multiplicity def) rigc
                  let nt = case definition def of
                                PMDef _ _ _ _ _ => Func
-                               DCon t a => DataCon t a
+                               DCon t a _ => DataCon t a
                                TCon t a _ _ _ _ _ _ => TyCon t a
                                _ => Func
                  pure (Ref fc nt (Resolved i), gnf env (embed (type def)))
@@ -90,7 +90,7 @@ getVarType rigc nest env fc x
                       Just ndef =>
                          let nt = case definition ndef of
                                        PMDef _ _ _ _ _ => Func
-                                       DCon t a => DataCon t a
+                                       DCon t a _ => DataCon t a
                                        TCon t a _ _ _ _ _ _ => TyCon t a
                                        _ => Func
                              tm = tmf fc nt

@@ -46,7 +46,7 @@ unloadApp n args e = unload (drop n args) (CApp (getFC e) e (take n args))
 
 getArity : CDef -> Nat
 getArity (MkFun args _) = length args
-getArity (MkCon _ arity) = arity
+getArity (MkCon _ arity _) = arity
 getArity (MkForeign _ args _) = length args
 getArity (MkError _) = 0
 
@@ -111,7 +111,7 @@ mutual
   eval {vars} {free} rec env stk (CLet fc x val sc)
       = do let thinsc = thin x {outer = x :: vars} {inner = free} sc
            sc' <- eval rec (CLocal fc First :: weakenEnv env) [] thinsc
-           pure $ CLet fc x !(eval rec env [] val) sc'
+           pure $ unload stk $ CLet fc x !(eval rec env [] val) sc'
   eval rec env stk (CApp fc f args)
       = eval rec env (!(traverse (eval rec env []) args) ++ stk) f
   eval rec env stk (CCon fc n t args)

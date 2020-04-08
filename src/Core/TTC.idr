@@ -693,7 +693,7 @@ TTC CFType where
 export
 TTC CDef where
   toBuf b (MkFun args cexpr) = do tag 0; toBuf b args; toBuf b cexpr
-  toBuf b (MkCon t arity) = do tag 1; toBuf b t; toBuf b arity
+  toBuf b (MkCon t arity pos) = do tag 1; toBuf b t; toBuf b arity; toBuf b pos
   toBuf b (MkForeign cs args ret) = do tag 2; toBuf b cs; toBuf b args; toBuf b ret
   toBuf b (MkError cexpr) = do tag 3; toBuf b cexpr
 
@@ -701,8 +701,8 @@ TTC CDef where
       = case !getTag of
              0 => do args <- fromBuf b; cexpr <- fromBuf b
                      pure (MkFun args cexpr)
-             1 => do t <- fromBuf b; arity <- fromBuf b
-                     pure (MkCon t arity)
+             1 => do t <- fromBuf b; arity <- fromBuf b; pos <- fromBuf b
+                     pure (MkCon t arity pos)
              2 => do cs <- fromBuf b; args <- fromBuf b; ret <- fromBuf b
                      pure (MkForeign cs args ret)
              3 => do cexpr <- fromBuf b
@@ -788,7 +788,7 @@ TTC Def where
       = do tag 3; toBuf b a; toBuf b cs
   toBuf b (Builtin a)
       = throw (InternalError "Trying to serialise a Builtin")
-  toBuf b (DCon t arity) = do tag 4; toBuf b t; toBuf b arity
+  toBuf b (DCon t arity nt) = do tag 4; toBuf b t; toBuf b arity; toBuf b nt
   toBuf b (TCon t arity parampos detpos u ms datacons dets)
       = do tag 5; toBuf b t; toBuf b arity; toBuf b parampos
            toBuf b detpos; toBuf b u; toBuf b ms; toBuf b datacons
@@ -816,8 +816,8 @@ TTC Def where
              3 => do a <- fromBuf b
                      cs <- fromBuf b
                      pure (ForeignDef a cs)
-             4 => do t <- fromBuf b; a <- fromBuf b
-                     pure (DCon t a)
+             4 => do t <- fromBuf b; a <- fromBuf b; nt <- fromBuf b
+                     pure (DCon t a nt)
              5 => do t <- fromBuf b; a <- fromBuf b
                      ps <- fromBuf b; dets <- fromBuf b;
                      u <- fromBuf b

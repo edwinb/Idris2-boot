@@ -54,7 +54,10 @@ data Def : Type where
                                 -- e.g "C:printf,libc,stdlib.h", "scheme:display", ...
                  Def
     Builtin : {arity : Nat} -> PrimFn arity -> Def
-    DCon : (tag : Int) -> (arity : Nat) -> Def -- data constructor
+    DCon : (tag : Int) -> (arity : Nat) ->
+           (newtypeArg : Maybe Nat) -> -- if only constructor, and only one
+                                       -- argument is non-Rig0, flag it here,
+           Def -- data constructor
     TCon : (tag : Int) -> (arity : Nat) ->
            (parampos : List Nat) -> -- parameters
            (detpos : List Nat) -> -- determining arguments
@@ -89,7 +92,9 @@ Show Def where
   show (PMDef _ args ct rt pats)
       = show args ++ ";\nCompile time tree: " ++ show ct ++
         "\nRun time tree: " ++ show rt
-  show (DCon t a) = "DataCon " ++ show t ++ " " ++ show a
+  show (DCon t a nt)
+      = "DataCon " ++ show t ++ " " ++ show a
+           ++ maybe "" (\n => " (newtype by " ++ show n ++ ")") nt
   show (TCon t a ps ds u ms cons det)
       = "TyCon " ++ show t ++ " " ++ show a ++ " params: " ++ show ps ++
         " constructors: " ++ show cons ++
@@ -1611,7 +1616,7 @@ addData vars vis tidx (MkData (MkCon dfc tyn arity tycon) datacons)
                           Context -> Core Context
     addDataConstructors tag [] gam = pure gam
     addDataConstructors tag (MkCon fc n a ty :: cs) gam
-        = do let condef = newDef fc n RigW vars ty (conVisibility vis) (DCon tag a)
+        = do let condef = newDef fc n RigW vars ty (conVisibility vis) (DCon tag a Nothing)
              (idx, gam') <- addCtxt n condef gam
              addDataConstructors (tag + 1) cs gam'
 

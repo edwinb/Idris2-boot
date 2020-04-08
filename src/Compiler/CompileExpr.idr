@@ -21,18 +21,24 @@ public export
 NameTags : Type
 NameTags = NameMap Int
 
-||| Extract the number of arguments from a term
-numArgs : Defs -> Term vars -> Core Nat
-numArgs defs (Ref _ (DataCon tag arity) n) = pure arity
-numArgs defs (Ref _ (TyCon tag arity) n) = pure arity
+data Args
+    = NewTypeBy Nat Nat
+    | Arity Nat
+
+||| Extract the number of arguments from a term, or return that it's
+||| a newtype by a given argument position
+numArgs : Defs -> Term vars -> Core Args
+numArgs defs (Ref _ (TyCon tag arity) n) = pure (Arity arity)
 numArgs defs (Ref _ _ n)
     = case !(lookupDefExact n (gamma defs)) of
-           Just (PMDef _ args _ _ _) => pure (length args)
-           Just (ExternDef arity) => pure arity
-           Just (ForeignDef arity _) => pure arity
-           Just (Builtin {arity} f) => pure arity
-           _ => pure 0
-numArgs _ tm = pure 0
+           Just (DCon _ arity Nothing) => pure (Arity arity)
+           Just (DCon _ arity (Just pos)) => pure (NewTypeBy arity pos)
+           Just (PMDef _ args _ _ _) => pure (Arity (length args))
+           Just (ExternDef arity) => pure (Arity arity)
+           Just (ForeignDef arity _) => pure (Arity arity)
+           Just (Builtin {arity} f) => pure (Arity arity)
+           _ => pure (Arity 0)
+numArgs _ tm = pure (Arity 0)
 
 weakenVar : Var ns -> Var (a :: ns)
 weakenVar (MkVar p) = (MkVar (Later p))
@@ -72,6 +78,23 @@ expandToArity (S k) f (a :: args) = expandToArity k (addArg f a) args
     addArg f a = CApp (getFC f) f [a]
 -- Underapplied, saturate with lambdas
 expandToArity num fn [] = etaExpand 0 num fn []
+
+applyNewType : Nat -> Nat -> CExp vars -> List (CExp vars) -> CExp vars
+applyNewType arity pos fn args
+    = let fn' = expandToArity arity fn args in
+          keepArg fn' -- fn' might be lambdas, after eta expansion
+  where
+    keep : Nat -> List (CExp vs) -> CExp vs
+    keep i [] = CErased (getFC fn) -- can't happen if all is well!
+    keep i (x :: xs)
+        = if i == pos
+             then x
+             else keep (1 + i) xs
+
+    keepArg : CExp vs -> CExp vs
+    keepArg (CLam fc x sc) = CLam fc x (keepArg sc)
+    keepArg (CCon fc _ _ args) = keep 0 args
+    keepArg tm = CErased (getFC fn)
 
 -- Rewrite applications of Nat constructors and functions to more optimal
 -- versions using Integer
@@ -192,8 +215,11 @@ mutual
              (f, args) =>
                 do args' <- traverse (toCExp tags n) args
                    defs <- get Ctxt
-                   let res = expandToArity !(numArgs defs f)
-                                           !(toCExpTm tags n f) args'
+                   Arity a <- numArgs defs f
+                      | NewTypeBy arity pos =>
+                            do let res = applyNewType arity pos !(toCExpTm tags n f) args'
+                               pure $ natHack res
+                   let res = expandToArity a !(toCExpTm tags n f) args'
                    pure $ natHack res
 
 mutual
@@ -202,12 +228,15 @@ mutual
              Core (List (CConAlt vars))
   conCases tags n [] = pure []
   conCases tags n (ConCase x tag args sc :: ns)
-      = do let tag' = case lookup x tags of
-                           Just t => t
-                           _ => tag
-           xn <- getFullName x
-           pure $ MkConAlt xn tag' args !(toCExpTree tags n sc)
-                     :: !(conCases tags n ns)
+      = do defs <- get Ctxt
+           case !(lookupDefExact x (gamma defs)) of
+                Just (DCon _ arity (Just pos)) => conCases tags n ns -- skip it
+                _ => do let tag' = case lookup x tags of
+                                        Just t => t
+                                        _ => tag
+                        xn <- getFullName x
+                        pure $ MkConAlt xn tag' args !(toCExpTree tags n sc)
+                                  :: !(conCases tags n ns)
   conCases tags n (_ :: ns) = conCases tags n ns
 
   constCases : {auto c : Ref Ctxt Defs} ->
@@ -220,12 +249,27 @@ mutual
   constCases tags n (_ :: ns) = constCases tags n ns
 
   getDef : {auto c : Ref Ctxt Defs} ->
+           FC -> CExp vars ->
            NameTags -> Name -> List (CaseAlt vars) ->
            Core (Maybe (CExp vars))
-  getDef tags n [] = pure Nothing
-  getDef tags n (DefaultCase sc :: ns)
+  getDef fc scr tags n [] = pure Nothing
+  getDef fc scr tags n (DefaultCase sc :: ns)
       = pure $ Just !(toCExpTree tags n sc)
-  getDef tags n (_ :: ns) = getDef tags n ns
+  getDef {vars} fc scr tags n (ConCase x tag args sc :: ns)
+      = do defs <- get Ctxt
+           case !(lookupDefExact x (gamma defs)) of
+                Just (DCon _ arity (Just pos)) =>
+                     let env : SubstCEnv args vars = mkSubst 0 pos args in
+                         pure $ Just (substs env !(toCExpTree tags n sc))
+                _ => getDef fc scr tags n ns
+    where
+      mkSubst : Nat -> Nat -> (args : List Name) -> SubstCEnv args vars
+      mkSubst _ _ [] = Nil
+      mkSubst i pos (a :: as)
+          = if i == pos
+               then scr :: mkSubst (1 + i) pos as
+               else CErased fc :: mkSubst (1 + i) pos as
+  getDef fc scr tags n (_ :: ns) = getDef fc scr tags n ns
 
   toCExpTree : {auto c : Ref Ctxt Defs} ->
                NameTags -> Name -> CaseTree vars ->
@@ -241,17 +285,24 @@ mutual
   toCExpTree' : {auto c : Ref Ctxt Defs} ->
                 NameTags -> Name -> CaseTree vars ->
                 Core (CExp vars)
-  toCExpTree' tags n (Case _ x scTy alts@(ConCase _ _ _ _ :: _))
+  toCExpTree' tags n (Case fc x scTy alts@(ConCase _ _ _ _ :: _))
       = let fc = getLoc scTy in
-            pure $ natHackTree
-             (CConCase fc (CLocal fc x) !(conCases tags n alts)
-                                        !(getDef tags n alts))
+            do defs <- get Ctxt
+               cases <- conCases tags n alts
+               def <- getDef fc (CLocal fc x) tags n alts
+               if isNil cases
+                  then pure (fromMaybe (CErased fc) def)
+                  else pure $ natHackTree $
+                            CConCase fc (CLocal fc x) cases def
   toCExpTree' tags n (Case _ x scTy alts@(DelayCase _ _ _ :: _))
       = throw (InternalError "Unexpected DelayCase")
-  toCExpTree' tags n (Case _ x scTy alts@(ConstCase _ _ :: _))
+  toCExpTree' tags n (Case fc x scTy alts@(ConstCase _ _ :: _))
       = let fc = getLoc scTy in
-            pure $ CConstCase fc (CLocal fc x)
-                !(constCases tags n alts) !(getDef tags n alts)
+            do cases <- constCases tags n alts
+               def <- getDef fc (CLocal fc x) tags n alts
+               if isNil cases
+                  then pure (fromMaybe (CErased fc) def)
+                  else pure $ CConstCase fc (CLocal fc x) cases def
   toCExpTree' tags n (Case _ x scTy alts@(DefaultCase sc :: _))
       = toCExpTree tags n sc
   toCExpTree' tags n (Case _ x scTy [])
@@ -400,10 +451,10 @@ toCDef tags n ty (Builtin {arity} op)
     getVars : ArgList k ns -> Vect k (Var ns)
     getVars NoArgs = []
     getVars (ConsArg a rest) = MkVar First :: map weakenVar (getVars rest)
-toCDef tags n _ (DCon tag arity)
-    = pure $ MkCon (fromMaybe tag $ lookup n tags) arity
+toCDef tags n _ (DCon tag arity pos)
+    = pure $ MkCon (fromMaybe tag $ lookup n tags) arity pos
 toCDef tags n _ (TCon tag arity _ _ _ _ _ _)
-    = pure $ MkCon (fromMaybe tag $ lookup n tags) arity
+    = pure $ MkCon (fromMaybe tag $ lookup n tags) arity Nothing
 -- We do want to be able to compile these, but also report an error at run time
 -- (and, TODO: warn at compile time)
 toCDef tags n ty (Hole _ _)

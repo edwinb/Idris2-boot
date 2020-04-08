@@ -18,7 +18,7 @@ conflict defs nfty n
     = do Just gdef <- lookupCtxtExact n (gamma defs)
               | Nothing => pure False
          case (definition gdef, type gdef) of
-              (DCon t arity, dty)
+              (DCon t arity _, dty)
                   => conflictNF nfty !(nf defs [] dty)
               _ => pure False
   where
@@ -76,7 +76,7 @@ getCons defs (NTCon _ tn _ _ _)
         = do Just gdef <- lookupCtxtExact cn (gamma defs)
                   | _ => pure Nothing
              case (definition gdef, type gdef) of
-                  (DCon t arity, ty) =>
+                  (DCon t arity _, ty) =>
                         pure (Just (!(nf defs [] ty), cn, t, arity))
                   _ => pure Nothing
 getCons defs _ = pure []
