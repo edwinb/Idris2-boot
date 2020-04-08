@@ -234,7 +234,7 @@ toPrim pn = Unknown pn
 
 export
 mkWorld : String -> String
-mkWorld res = schConstructor 0 ["#f", res, "#f"] -- MkIORes
+mkWorld res = res -- MkIORes is a newtype now! schConstructor 0 ["#f", res, "#f"] -- MkIORes
 
 schConstant : (String -> String) -> Constant -> String
 schConstant _ (I x) = show x

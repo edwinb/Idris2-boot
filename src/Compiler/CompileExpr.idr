@@ -223,6 +223,7 @@ mutual
                    pure $ natHack res
 
 mutual
+  -- In the below, treat %World, and newtypes, as default cases
   conCases : {auto c : Ref Ctxt Defs} ->
              NameTags -> Name -> List (CaseAlt vars) ->
              Core (List (CConAlt vars))
@@ -243,6 +244,8 @@ mutual
                NameTags -> Name -> List (CaseAlt vars) ->
                Core (List (CConstAlt vars))
   constCases tags n [] = pure []
+  constCases tags n (ConstCase WorldVal sc :: ns)
+      = constCases tags n ns
   constCases tags n (ConstCase x sc :: ns)
       = pure $ MkConstAlt x !(toCExpTree tags n sc) ::
                     !(constCases tags n ns)
@@ -254,6 +257,8 @@ mutual
            Core (Maybe (CExp vars))
   getDef fc scr tags n [] = pure Nothing
   getDef fc scr tags n (DefaultCase sc :: ns)
+      = pure $ Just !(toCExpTree tags n sc)
+  getDef fc scr tags n (ConstCase WorldVal sc :: ns)
       = pure $ Just !(toCExpTree tags n sc)
   getDef {vars} fc scr tags n (ConCase x tag args sc :: ns)
       = do defs <- get Ctxt

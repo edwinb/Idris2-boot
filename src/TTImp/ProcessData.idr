@@ -197,6 +197,10 @@ getRelevantArg : Defs -> Nat -> Maybe Nat -> NF [] -> Core (Maybe Nat)
 getRelevantArg defs i rel (NBind fc _ (Pi Rig0 _ _) sc)
     = getRelevantArg defs (1 + i) rel
            !(sc defs (toClosure defaultOpts [] (Erased fc False)))
+-- %World is never inspected, so might as well be deleted from data types
+getRelevantArg defs i rel (NBind fc _ (Pi _ _ (NPrimVal _ WorldType)) sc)
+    = getRelevantArg defs (1 + i) rel
+           !(sc defs (toClosure defaultOpts [] (Erased fc False)))
 getRelevantArg defs i Nothing (NBind fc _ (Pi _ _ _) sc) -- found a relevant arg
     = getRelevantArg defs (1 + i) (Just i)
            !(sc defs (toClosure defaultOpts [] (Erased fc False)))
