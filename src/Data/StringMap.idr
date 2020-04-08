@@ -193,13 +193,21 @@ treeDelete {n=(S (S _))} k (Branch3 t1 k1 t2 k2 t3) =
       Left t3' => Left (Branch3 t1 k1 t2 k2 t3')
       Right t3' => Left (merge3 t1 k1 t2 k2 t3')
 
+treeFoldl : (acc -> (Key, v) -> acc) -> acc -> Tree n v -> acc
+treeFoldl c n (Leaf k v) = c n (k, v)
+treeFoldl c n (Branch2 t1 _ t2) = treeFoldl c (treeFoldl c n t1) t2
+treeFoldl c n (Branch3 t1 _ t2 _ t3) =
+  treeFoldl c (treeFoldl c (treeFoldl c n t1) t2) t3
+
+treeFoldr : ((Key, v) -> acc -> acc) -> acc -> Tree n v -> acc
+treeFoldr c n (Leaf k v) = c (k, v) n
+treeFoldr c n (Branch2 t1 _ t2) =
+  treeFoldr c (treeFoldr c n t2) t1
+treeFoldr c n (Branch3 t1 _ t2 _ t3) =
+  treeFoldr c (treeFoldr c (treeFoldr c n t3) t2) t1
+
 treeToList : Tree n v -> List (Key, v)
-treeToList = treeToList' (:: [])
-  where
-    treeToList' : ((Key, v) -> List (Key, v)) -> Tree n v -> List (Key, v)
-    treeToList' cont (Leaf k v) = cont (k, v)
-    treeToList' cont (Branch2 t1 _ t2) = treeToList' (:: treeToList' cont t2) t1
-    treeToList' cont (Branch3 t1 _ t2 _ t3) = treeToList' (:: treeToList' (:: treeToList' cont t3) t2) t1
+treeToList = treeFoldr (::) []
 
 export
 data StringMap : Type -> Type where
@@ -286,8 +294,11 @@ implementation Functor StringMap where
 ||| Merge two maps. When encountering duplicate keys, using a function to combine the values.
 ||| Uses the ordering of the first map given.
 export
-mergeWith : (v -> v -> v) -> StringMap v -> StringMap v -> StringMap v
-mergeWith f x y = insertWithFrom f (toList y) x
+mergeWith : ((old, new : v) -> v) -> StringMap v -> StringMap v -> StringMap v
+mergeWith f x Empty   = x
+mergeWith f x (M _ t) =
+  let merger = flip (maybe id f) in
+  treeFoldl (\ m, (i, v) => insertWith i (merger v) m) x t
 
 ||| Merge two maps using the Semigroup (and by extension, Monoid) operation.
 ||| Uses mergeWith internally, so the ordering of the left map is kept.

@@ -192,15 +192,21 @@ treeDelete {n=(S (S _))} k (Branch3 t1 k1 t2 k2 t3) =
       Left t3' => Left (Branch3 t1 k1 t2 k2 t3')
       Right t3' => Left (merge3 t1 k1 t2 k2 t3')
 
+treeFoldl : (acc -> (Key, v) -> acc) -> acc -> Tree n v -> acc
+treeFoldl c n (Leaf k v) = c n (k, v)
+treeFoldl c n (Branch2 t1 _ t2) = treeFoldl c (treeFoldl c n t1) t2
+treeFoldl c n (Branch3 t1 _ t2 _ t3) =
+  treeFoldl c (treeFoldl c (treeFoldl c n t1) t2) t3
+
+treeFoldr : ((Key, v) -> acc -> acc) -> acc -> Tree n v -> acc
+treeFoldr c n (Leaf k v) = c (k, v) n
+treeFoldr c n (Branch2 t1 _ t2) =
+  treeFoldr c (treeFoldr c n t2) t1
+treeFoldr c n (Branch3 t1 _ t2 _ t3) =
+  treeFoldr c (treeFoldr c (treeFoldr c n t3) t2) t1
+
 treeToList : Tree n v -> List (Key, v)
-treeToList = treeToList' []
-  where
-    treeToList' : List (Key, v) -> Tree n v -> List (Key, v)
-    treeToList' rest (Leaf k v) = (k, v) :: rest
-    treeToList' rest (Branch2 t1 _ t2)
-        = treeToList' (treeToList' rest t2) t1
-    treeToList' rest (Branch3 t1 _ t2 _ t3)
-        = treeToList' (treeToList' (treeToList' rest t3) t2) t1
+treeToList = treeFoldr (::) []
 
 export
 data IntMap : Type -> Type where
@@ -285,7 +291,10 @@ implementation Functor IntMap where
 ||| Uses the ordering of the first map given.
 export
 mergeWith : ((old, new : v) -> v) -> IntMap v -> IntMap v -> IntMap v
-mergeWith f x y = insertWithFrom f (toList y) x
+mergeWith f x Empty   = x
+mergeWith f x (M _ t) =
+  let merger = flip (maybe id f) in
+  treeFoldl (\ m, (i, v) => insertWith i (merger v) m) x t
 
 ||| Merge two maps using the Semigroup (and by extension, Monoid) operation.
 ||| Uses mergeWith internally, so the ordering of the left map is kept.
