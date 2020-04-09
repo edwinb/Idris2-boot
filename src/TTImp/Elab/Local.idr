@@ -54,7 +54,8 @@ checkLocal {vars} rig elabinfo nest env fc nestdecls scope expty
     applyEnv outer inner
           = do ust <- get UST
                put UST (record { nextName $= (+1) } ust)
-               let nestedName = Nested (outer, nextName ust) inner
+               let nestedName_in = Nested (outer, nextName ust) inner
+               nestedName <- inCurrentNS nestedName_in
                n' <- addName nestedName
                pure (inner, (Just nestedName, lengthNoLet env,
                         \fc, nt => applyTo fc

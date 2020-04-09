@@ -1646,6 +1646,9 @@ inCurrentNS n@(CaseBlock _ _)
 inCurrentNS n@(WithBlock _ _)
     = do defs <- get Ctxt
          pure (NS (currentNS defs) n)
+inCurrentNS n@(Nested _ _)
+    = do defs <- get Ctxt
+         pure (NS (currentNS defs) n)
 inCurrentNS n@(MN _ _)
     = do defs <- get Ctxt
          pure (NS (currentNS defs) n)
