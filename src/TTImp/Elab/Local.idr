@@ -50,14 +50,14 @@ checkLocal {vars} rig elabinfo nest env fc nestdecls scope expty
              else b :: dropLinear bs
 
     applyEnv : {auto c : Ref Ctxt Defs} -> Int -> Name ->
-               Core (Name, (Maybe Name, Nat, FC -> NameType -> Term vars))
+               Core (Name, (Maybe Name, List Name, FC -> NameType -> Term vars))
     applyEnv outer inner
           = do ust <- get UST
                put UST (record { nextName $= (+1) } ust)
                let nestedName_in = Nested (outer, nextName ust) inner
                nestedName <- inCurrentNS nestedName_in
                n' <- addName nestedName
-               pure (inner, (Just nestedName, lengthNoLet env,
+               pure (inner, (Just nestedName, namesNoLet env,
                         \fc, nt => applyTo fc
                                (Ref fc nt (Resolved n')) env))
 
@@ -120,7 +120,9 @@ checkCaseLocal {vars} rig elabinfo nest env fc uname iname args sc expty
                          TCon t a _ _ _ _ _ _ => Ref fc (TyCon t a) iname
                          _ => Ref fc Func iname
          app <- getLocalTerm fc env name args
-         let nest' = record { names $= ((uname, (Just iname, length args,
+         log 5 $ "Updating case local " ++ show uname ++ " " ++ show args
+         logTermNF 10 "To" env app
+         let nest' = record { names $= ((uname, (Just iname, reverse args,
                                                 (\fc, nt => app))) :: ) }
                             nest
          check rig elabinfo nest' env sc expty

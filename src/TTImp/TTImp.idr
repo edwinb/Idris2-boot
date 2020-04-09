@@ -19,15 +19,15 @@ record NestedNames (vars : List Name) where
   -- Takes the location and name type, because we don't know them until we
   -- elaborate the name at the point of use
   names : List (Name, (Maybe Name,  -- new name if there is one
-                       Nat, -- length of the environment
+                       List Name, -- names used from the environment
                        FC -> NameType -> Term vars))
 
 export
 Weaken NestedNames where
   weaken (MkNested ns) = MkNested (map wknName ns)
     where
-      wknName : (Name, (Maybe Name, Nat, FC -> NameType -> Term vars)) ->
-                (Name, (Maybe Name, Nat, FC -> NameType -> Term (n :: vars)))
+      wknName : (Name, (Maybe Name, List Name, FC -> NameType -> Term vars)) ->
+                (Name, (Maybe Name, List Name, FC -> NameType -> Term (n :: vars)))
       wknName (n, (mn, len, rep)) = (n, (mn, len, \fc, nt => weaken (rep fc nt)))
 
 -- Unchecked terms, with implicit arguments

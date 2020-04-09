@@ -57,9 +57,9 @@ processParams {vars} {c} {m} {u} nest env fc ps ds
        = IPi fc RigW Explicit (Just n) ty (mkParamTy ps)
 
     applyEnv : Env Term vs -> Name ->
-               Core (Name, (Maybe Name, Nat, FC -> NameType -> Term vs))
+               Core (Name, (Maybe Name, List Name, FC -> NameType -> Term vs))
     applyEnv env n
           = do n' <- resolveName n -- it'll be Resolved by expandAmbigName
-               pure (Resolved n', (Nothing, lengthNoLet env,
+               pure (Resolved n', (Nothing, namesNoLet env,
                         \fc, nt => applyTo fc
                                (Ref fc nt (Resolved n')) env))
