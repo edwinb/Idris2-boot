@@ -27,6 +27,8 @@ processDataOpt fc ndef (SearchBy dets)
     = setDetermining fc ndef dets
 processDataOpt fc ndef UniqueSearch
     = setUniqueSearch fc ndef True
+processDataOpt fc ndef External
+    = setExternal fc ndef True
 
 checkRetType : {auto c : Ref Ctxt Defs} ->
                Env Term vars -> NF vars ->
@@ -253,7 +255,7 @@ processData {vars} eopts nest env fc vis (MkImpLater dfc n_in ty_raw)
 
          -- Add the type constructor as a placeholder
          tidx <- addDef n (newDef fc n Rig1 vars fullty vis
-                          (TCon 0 arity [] [] False [] [] Nothing))
+                          (TCon 0 arity [] [] defaultFlags [] [] Nothing))
          addMutData (Resolved tidx)
          defs <- get Ctxt
          traverse_ (\n => setMutWith fc n (mutData defs)) (mutData defs)
@@ -306,7 +308,7 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
          -- Add the type constructor as a placeholder while checking
          -- data constructors
          tidx <- addDef n (newDef fc n Rig1 vars fullty vis
-                          (TCon 0 arity [] [] False [] [] Nothing))
+                          (TCon 0 arity [] [] defaultFlags [] [] Nothing))
          case vis of
               Private => pure ()
               _ => do addHash n

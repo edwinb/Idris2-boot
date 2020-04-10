@@ -778,6 +778,16 @@ TTC PMDefInfo where
            pure (MkPMDefInfo h r)
 
 export
+TTC TypeFlags where
+  toBuf b l
+      = do toBuf b (uniqueAuto l)
+           toBuf b (external l)
+  fromBuf b
+      = do u <- fromBuf b
+           e <- fromBuf b
+           pure (MkTypeFlags u e)
+
+export
 TTC Def where
   toBuf b None = tag 0
   toBuf b (PMDef pi args ct rt pats)

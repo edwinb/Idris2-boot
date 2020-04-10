@@ -231,12 +231,14 @@ mutual
        SearchBy : List Name -> DataOpt -- determining arguments
        NoHints : DataOpt -- Don't generate search hints for constructors
        UniqueSearch : DataOpt -- auto implicit search must check result is unique
+       External : DataOpt -- implemented externally
 
   export
   Eq DataOpt where
     (==) (SearchBy xs) (SearchBy ys) = xs == ys
     (==) NoHints NoHints = True
     (==) UniqueSearch UniqueSearch = True
+    (==) External External = True
     (==) _ _ = False
 
   public export
@@ -812,6 +814,7 @@ mutual
         = do tag 0; toBuf b ns
     toBuf b NoHints = tag 1
     toBuf b UniqueSearch = tag 2
+    toBuf b External = tag 3
 
     fromBuf b
         = case !getTag of
@@ -819,6 +822,7 @@ mutual
                        pure (SearchBy ns)
                1 => pure NoHints
                2 => pure UniqueSearch
+               3 => pure External
                _ => corrupt "DataOpt"
 
   export
