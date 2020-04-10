@@ -19,7 +19,7 @@ Recommended way is to use virtual environment for building documentation.
  of readthedocs and be ignored. In the past we had several code-blocks
  disappear because of that.
 
-The ReadTheDocs theme can be installed using pip as follows:
+The ReadTheDocs theme can be installed in virtual environment using pip as follows:
 
 ```sh
 python3 -m venv idris2docs_venv
@@ -27,7 +27,7 @@ source idris2docs_venv/bin/activate
 pip install --upgrade pip
 pip install sphinx==1.2.2
 pip install sphinx_rtd_theme
-pip intsall recommonmark
+pip install recommonmark
 ```
 
 ### LaTeX
