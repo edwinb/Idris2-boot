@@ -2086,8 +2086,7 @@ logC lvl cmsg
             else pure ()
 
 export
-logTimeOver : {auto c : Ref Ctxt Defs} ->
-              Integer -> Core String -> Core a -> Core a
+logTimeOver : Integer -> Core String -> Core a -> Core a
 logTimeOver nsecs str act
     = do clock <- coreLift clockTime
          let nano = 1000000000
