@@ -63,8 +63,81 @@ thinAll [] exp = exp
 thinAll {outer} {inner} (n :: ns) exp
     = thin {outer} {inner = ns ++ inner} n (thinAll ns exp)
 
+data LVar : Type where
+
+genName : {auto l : Ref LVar Int} ->
+          String -> Core Name
+genName n
+    = do i <- get LVar
+         put LVar (i + 1)
+         pure (MN n i)
+
+mkPrf : (later : List Name) -> Var (later ++ x :: vars)
+mkPrf [] = MkVar First
+mkPrf {x} {vars} (n :: ns)
+    = let MkVar p' = mkPrf {x} {vars} ns in
+          MkVar (Later p')
+
+mutual
+  mkLocal : {later, vars : _} ->
+            Name -> (x : Name) ->
+            CExp (later ++ vars) -> CExp (later ++ (x :: vars))
+  mkLocal old new (CLocal {idx} fc p)
+      = let MkVar p' = insertVar {n=new} idx p in CLocal fc p'
+  mkLocal {later} {vars} old new (CRef fc var)
+      = if var == old
+           then let MkVar p' = mkPrf {x=new} {vars} later in
+                    CLocal fc p'
+           else CRef fc var
+  mkLocal {later} {vars} old new (CLam fc x sc)
+      = let sc' = mkLocal old new {later = x :: later} {vars} sc in
+            CLam fc x sc'
+  mkLocal {later} {vars} old new (CLet fc x val sc)
+      = let sc' = mkLocal old new {later = x :: later} {vars} sc in
+            CLet fc x (mkLocal old new val) sc'
+  mkLocal old new (CApp fc f xs)
+      = CApp fc (mkLocal old new f) (assert_total (map (mkLocal old new) xs))
+  mkLocal old new (CCon fc x tag xs)
+      = CCon fc x tag (assert_total (map (mkLocal old new) xs))
+  mkLocal old new (COp fc x xs)
+      = COp fc x (assert_total (map (mkLocal old new) xs))
+  mkLocal old new (CExtPrim fc x xs)
+      = CExtPrim fc x (assert_total (map (mkLocal old new) xs))
+  mkLocal old new (CForce fc x)
+      = CForce fc (mkLocal old new x)
+  mkLocal old new (CDelay fc x)
+      = CDelay fc (mkLocal old new x)
+  mkLocal old new (CConCase fc sc xs def)
+      = CConCase fc (mkLocal old new sc)
+                 (assert_total (map (mkLocalConAlt old new) xs))
+                 (assert_total (map (mkLocal old new) def))
+  mkLocal old new (CConstCase fc sc xs def)
+      = CConstCase fc (mkLocal old new sc)
+                 (assert_total (map (mkLocalConstAlt old new) xs))
+                 (assert_total (map (mkLocal old new) def))
+  mkLocal old new (CPrimVal fc x) = CPrimVal fc x
+  mkLocal old new (CErased fc) = CErased fc
+  mkLocal old new (CCrash fc x) = CCrash fc x
+
+  mkLocalConAlt : Name -> (x : Name) ->
+                  CConAlt (later ++ vars) -> CConAlt (later ++ x :: vars)
+  mkLocalConAlt {later} {vars} old new (MkConAlt x tag args sc)
+        = let sc' : CExp ((args ++ later) ++ vars)
+                  = rewrite sym (appendAssociative args later vars) in sc in
+              MkConAlt x tag args
+               (rewrite appendAssociative args later (new :: vars) in
+                        mkLocal old new sc')
+
+  mkLocalConstAlt : Name -> (x : Name) ->
+                    CConstAlt (later ++ vars) -> CConstAlt (later ++ x :: vars)
+  mkLocalConstAlt old new (MkConstAlt x sc) = MkConstAlt x (mkLocal old new sc)
+
+refToLocal : Name -> (x : Name) -> CExp vars -> CExp (x :: vars)
+refToLocal old new tm = mkLocal {later = []} old new tm
+
 mutual
   evalLocal : {auto c : Ref Ctxt Defs} ->
+              {auto l : Ref LVar Int} ->
               FC -> List Name -> Stack free ->
               EEnv free vars ->
               {idx : Nat} -> .(IsVar x idx (vars ++ free)) ->
@@ -77,6 +150,7 @@ mutual
       = evalLocal fc rec stk env p
 
   tryApply : {auto c : Ref Ctxt Defs} ->
+             {auto l : Ref LVar Int} ->
              List Name -> Stack free -> EEnv free vars -> CDef ->
              Core (Maybe (CExp free))
   tryApply {free} {vars} rec stk env (MkFun args exp)
@@ -89,6 +163,7 @@ mutual
   tryApply rec stk env _ = pure Nothing
 
   eval : {auto c : Ref Ctxt Defs} ->
+         {auto l : Ref LVar Int} ->
          List Name -> EEnv free vars -> Stack free -> CExp (vars ++ free) ->
          Core (CExp free)
   eval rec env stk (CLocal fc p) = evalLocal fc rec stk env p
@@ -104,14 +179,15 @@ mutual
                       pure $ maybe (unloadApp arity stk (CRef fc n)) id ap
               else pure $ unloadApp arity stk (CRef fc n)
   eval {vars} {free} rec env [] (CLam fc x sc)
-      = do let thinsc = thin x {outer = x :: vars} {inner = free} sc
-           sc' <- eval rec (CLocal fc First :: weakenEnv env) [] thinsc
-           pure $ CLam fc x sc'
+      = do xn <- genName "lamv"
+           sc' <- eval rec (CRef fc xn :: env) [] sc
+           pure $ CLam fc x (refToLocal xn x sc')
   eval rec env (e :: stk) (CLam fc x sc) = eval rec (e :: env) stk sc
   eval {vars} {free} rec env stk (CLet fc x val sc)
-      = do let thinsc = thin x {outer = x :: vars} {inner = free} sc
-           sc' <- eval rec (CLocal fc First :: weakenEnv env) [] thinsc
-           pure $ unload stk $ CLet fc x !(eval rec env [] val) sc'
+      = do xn <- genName "letv"
+           sc' <- eval rec (CRef fc xn :: env) [] sc
+           pure $ unload stk $ CLet fc x !(eval rec env [] val)
+                                         (refToLocal xn x sc')
   eval rec env stk (CApp fc f args)
       = eval rec env (!(traverse (eval rec env []) args) ++ stk) f
   eval rec env stk (CCon fc n t args)
@@ -145,6 +221,7 @@ mutual
   eval rec env stk (CCrash fc str) = pure $ unload stk $ CCrash fc str
 
   evalAlt : {auto c : Ref Ctxt Defs} ->
+            {auto l : Ref LVar Int} ->
             FC -> List Name -> EEnv free vars -> Stack free -> CConAlt (vars ++ free) ->
             Core (CConAlt free)
   evalAlt {free} {vars} fc rec env stk (MkConAlt n t args sc)
@@ -154,12 +231,14 @@ mutual
            pure $ MkConAlt n t args scEval
 
   evalConstAlt : {auto c : Ref Ctxt Defs} ->
+                 {auto l : Ref LVar Int} ->
                  List Name -> EEnv free vars -> Stack free -> CConstAlt (vars ++ free) ->
                  Core (CConstAlt free)
   evalConstAlt rec env stk (MkConstAlt c sc)
       = MkConstAlt c <$> eval rec env stk sc
 
   pickAlt : {auto c : Ref Ctxt Defs} ->
+            {auto l : Ref LVar Int} ->
             List Name -> EEnv free vars -> Stack free ->
             CExp free -> List (CConAlt (vars ++ free)) ->
             Maybe (CExp (vars ++ free)) ->
@@ -180,6 +259,7 @@ mutual
   pickAlt rec env stk _ _ _ = pure Nothing
 
   pickConstAlt : {auto c : Ref Ctxt Defs} ->
+                 {auto l : Ref LVar Int} ->
                  List Name -> EEnv free vars -> Stack free ->
                  CExp free -> List (CConstAlt (vars ++ free)) ->
                  Maybe (CExp (vars ++ free)) ->
@@ -194,7 +274,9 @@ mutual
 
 inline : {auto c : Ref Ctxt Defs} ->
          CDef -> Core CDef
-inline (MkFun args exp) = MkFun args <$> eval [] [] [] exp
+inline (MkFun args exp)
+    = do l <- newRef LVar (the Int 0)
+         MkFun args <$> eval [] [] [] exp
 inline d = pure d
 
 export
