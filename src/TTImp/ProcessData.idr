@@ -220,7 +220,7 @@ getRelevantArg defs i (Just _) world (NBind _ _ (Pi _ _ _) sc) -- more than one 
 getRelevantArg defs i rel world tm
     = pure (maybe Nothing (\r => Just (world, r)) rel)
 
--- If there's one constructor with only one non-Rig0 argument, flag it as
+-- If there's one constructor with only one non-erased argument, flag it as
 -- a newtype for optimisation
 export
 findNewtype : {auto c : Ref Ctxt Defs} ->
@@ -331,6 +331,7 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
 
          let ddef = MkData (MkCon dfc n arity fullty) cons
          addData vars vis tidx ddef
+         findNewtype cons
 
          -- Type is defined mutually with every data type undefined at the
          -- point it was declared, and every data type undefined right now
