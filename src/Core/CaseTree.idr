@@ -77,7 +77,9 @@ mutual
   export
   eqTree : CaseTree vs -> CaseTree vs' -> Bool
   eqTree (Case i _ _ alts) (Case i' _ _ alts')
-      = i == i && and (map Delay (zipWith eqAlt alts alts'))
+      = i == i
+       && length alts == length alts
+       && and (zipWith (\ a, b => Delay (eqAlt a b)) alts alts')
   eqTree (STerm t) (STerm t') = eqTerm t t'
   eqTree (Unmatched _) (Unmatched _) = True
   eqTree Impossible Impossible = True
