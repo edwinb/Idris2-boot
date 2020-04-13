@@ -262,13 +262,16 @@ setMultiplicity (PVar c p ty) c' = PVar c' p ty
 setMultiplicity (PLet c val ty) c' = PLet c' val ty
 setMultiplicity (PVTy c ty) c' = PVTy c' ty
 
+showCount : RigCount -> String
+showCount = elimSemi "0 " "1 " (const "")
+
 Show ty => Show (Binder ty) where
-	show (Lam c _ t) = "\\" ++ show c ++ show t
-	show (Pi c _ t) = "Pi " ++ show c ++ show t
-	show (Let c v t) = "let " ++ show c ++ show v ++ " : " ++ show t
-	show (PVar c _ t) = "pat " ++ show c ++ show t
-	show (PLet c v t) = "plet " ++ show c ++ show v ++ " : " ++ show t
-	show (PVTy c t) = "pty " ++ show c ++ show t
+	show (Lam c _ t) = "\\" ++ showCount c ++ show t
+	show (Pi c _ t) = "Pi " ++ showCount c ++ show t
+	show (Let c v t) = "let " ++ showCount c ++ show v ++ " : " ++ show t
+	show (PVar c _ t) = "pat " ++ showCount c ++ show t
+	show (PLet c v t) = "plet " ++ showCount c ++ show v ++ " : " ++ show t
+	show (PVTy c t) = "pty " ++ showCount c ++ show t
 
 export
 setType : Binder tm -> tm -> Binder tm
@@ -759,7 +762,7 @@ fnType arg scope = Bind emptyFC (MN "_" 0) (Pi top Explicit arg) (weaken scope)
 
 export
 linFnType : Term vars -> Term vars -> Term vars
-linFnType arg scope = Bind emptyFC (MN "_" 0) (Pi timesNeutral Explicit arg) (weaken scope)
+linFnType arg scope = Bind emptyFC (MN "_" 0) (Pi linear Explicit arg) (weaken scope)
 
 export
 getFnArgs : Term vars -> (Term vars, List (Term vars))
@@ -1214,11 +1217,6 @@ nameAt : {vars : _} ->
          (idx : Nat) -> .(p : IsVar n idx vars) -> Name
 nameAt {vars = n :: ns} Z First = n
 nameAt {vars = n :: ns} (S k) (Later p) = nameAt k p
-
-showCount : RigCount -> String
-showCount = elimSemi "0 "
-                     "1 "
-                     (const "")
 
 export Show (Term vars) where
   show tm = let (fn, args) = getFnArgs tm in showApp fn args
