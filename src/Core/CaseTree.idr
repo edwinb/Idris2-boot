@@ -6,24 +6,36 @@ import Data.NameMap
 %default covering
 
 mutual
+  ||| Case trees in A-normal forms
+  ||| i.e. we may only dispatch on variables, not expressions
   public export
   data CaseTree : List Name -> Type where
+       ||| case x return scTy of { p1 => e1 ; ... }
        Case : {name : _} ->
               (idx : Nat) ->
               IsVar name idx vars ->
               (scTy : Term vars) -> List (CaseAlt vars) ->
               CaseTree vars
+       ||| RHS: no need for further inspection
        STerm : Term vars -> CaseTree vars
+       ||| error from a partial match
        Unmatched : (msg : String) -> CaseTree vars
+       ||| Absurd context
        Impossible : CaseTree vars
 
+  ||| Case alternatives. Unlike arbitrary patterns, they can be at most
+  ||| one constructor deep.
   public export
   data CaseAlt : List Name -> Type where
+       ||| Constructor for a data type; bind the arguments and subterms.
        ConCase : Name -> (tag : Int) -> (args : List Name) ->
                  CaseTree (args ++ vars) -> CaseAlt vars
+       ||| Lazy match for the Delay type use for codata types
        DelayCase : (ty : Name) -> (arg : Name) ->
                    CaseTree (ty :: arg :: vars) -> CaseAlt vars
+       ||| Match against a literal
        ConstCase : Constant -> CaseTree vars -> CaseAlt vars
+       ||| Catch-all case
        DefaultCase : CaseTree vars -> CaseAlt vars
 
 public export
