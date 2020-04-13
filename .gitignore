@@ -10,7 +10,7 @@
 
 /dist/idris2.c
 
-/docs/_build/
+/docs/build/
 
 /libs/**/build
 /tests/**/output
