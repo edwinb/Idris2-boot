@@ -263,7 +263,7 @@ Idris 1, it won't attempt significant backtracking. If you have deeply nested
 ambiguous names (beyond a small threshold, default 3) Idris 2 will report an
 error.  You can change this threshold with a directive, for example:
 
-.. code_block:: idris
+.. code-block:: idris
 
     %ambiguity_depth 10
 

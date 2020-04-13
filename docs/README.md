@@ -25,9 +25,7 @@ The ReadTheDocs theme can be installed in virtual environment using pip as follo
 python3 -m venv idris2docs_venv
 source idris2docs_venv/bin/activate
 pip install --upgrade pip
-pip install sphinx==1.2.2
 pip install sphinx_rtd_theme
-pip install recommonmark
 ```
 
 ### LaTeX
@@ -38,6 +36,7 @@ LaTeX can be install either using your systems package manager or direct from Te
 ## Build Instructions
 
 ```sh
+cd docs
 make html
 make latexpdf
 ```
