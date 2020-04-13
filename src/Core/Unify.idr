@@ -218,16 +218,8 @@ unifyArgs : (Unify tm, Quote tm) =>
 unifyArgs mode loc env [] [] = pure success
 unifyArgs mode loc env (cx :: cxs) (cy :: cys)
     = do res <- unify (lower mode) loc env cx cy
-         case constraints res of
-              [] => do cs <- unifyArgs mode loc env cxs cys
-                       pure (union res cs)
-              _ => do cs <- unifyArgs mode loc env cxs cys
-                      -- TODO: Fix this bit! See p59 Ulf's thesis
---                       c <- addConstraint
---                                (MkSeqConstraint loc env
---                                    (map (quote gam env) (cx :: cxs))
---                                    (map (quote gam env) (cy :: cys)))
-                      pure (union res cs) -- [c]
+         cs <- unifyArgs mode loc env cxs cys
+         pure (union res cs)
 unifyArgs mode loc env _ _ = ufail loc ""
 
 -- Get the variables in an application argument list; fail if any arguments
@@ -1120,11 +1112,8 @@ mutual
   Unify Term where
     unifyD _ _ mode loc env x y
           = do defs <- get Ctxt
-               ust <- get UST
-               when (logging ust) $
-                  do logTerm 0 "TOP LEVEL Unifying: " x
-                     logTerm 0 "          with: " y
-               if x == y
+               empty <- clearDefs defs
+               if !(convert empty env x y)
                   then do log 10 $ "Skipped unification (equal already): "
                                  ++ show x ++ " and " ++ show y
                           pure success
@@ -1133,7 +1122,8 @@ mutual
                           unify mode loc env xnf ynf
     unifyWithLazyD _ _ mode loc env x y
           = do defs <- get Ctxt
-               if x == y
+               empty <- clearDefs defs
+               if !(convert empty env x y)
                   then do log 10 $ "Skipped unification (equal already): "
                                  ++ show x ++ " and " ++ show y
                           pure success
@@ -1145,7 +1135,12 @@ mutual
   Unify Closure where
     unifyD _ _ mode loc env x y
         = do defs <- get Ctxt
-             unify mode loc env !(evalClosure defs x) !(evalClosure defs y)
+             empty <- clearDefs defs
+             if !(convert empty env x y)
+                then pure success
+                else do xnf <- evalClosure defs x
+                        ynf <- evalClosure defs y
+                        unify mode loc env xnf ynf
 
 export
 setInvertible : {auto c : Ref Ctxt Defs} ->

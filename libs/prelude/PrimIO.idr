@@ -44,14 +44,14 @@ io_bind (MkIO fn)
 -- The parameter is a phantom type, to help differentiate between
 -- different pointer types
 public export
-data Ptr : Type -> Type where
+data Ptr : Type -> Type where [external]
 
 -- A pointer to any type (representing a void* in foreign calls)
 public export
-data AnyPtr : Type where
+data AnyPtr : Type where [external]
 
 public export
-data ThreadID : Type where
+data ThreadID : Type where [external]
 
 public export
 data FArgList : Type where

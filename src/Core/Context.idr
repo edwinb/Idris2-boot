@@ -37,6 +37,16 @@ defaultPI : PMDefInfo
 defaultPI = MkPMDefInfo NotHole False
 
 public export
+record TypeFlags where
+  constructor MkTypeFlags
+  uniqueAuto : Bool  -- should 'auto' implicits check for uniqueness
+  external : Bool -- defined externally (e.g. in a C or Scheme library)
+
+export
+defaultFlags : TypeFlags
+defaultFlags = MkTypeFlags False False
+
+public export
 data Def : Type where
     None : Def -- Not yet defined
     PMDef : (pminfo : PMDefInfo) ->
@@ -61,8 +71,7 @@ data Def : Type where
     TCon : (tag : Int) -> (arity : Nat) ->
            (parampos : List Nat) -> -- parameters
            (detpos : List Nat) -> -- determining arguments
-           (uniqueAuto : Bool) -> -- should 'auto' implicits check
-                                  -- for uniqueness
+           (flags : TypeFlags) -> -- should 'auto' implicits check
            (mutwith : List Name) ->
            (datacons : List Name) ->
            (detagabbleBy : Maybe (List Nat)) ->
@@ -1286,7 +1295,7 @@ getSearchData fc defaults target
                      pure (MkSearchData dets (filter (isCons . snd)
                                [(False, opens),
                                 (False, autos),
-                                (not u, tyhs),
+                                (not (uniqueAuto u), tyhs),
                                 (True, chasers)]))
   where
     isDefault : (Name, Bool) -> Bool
@@ -1362,9 +1371,22 @@ setUniqueSearch fc tyn u
     = do defs <- get Ctxt
          Just g <- lookupCtxtExact tyn (gamma defs)
               | _ => throw (UndefinedName fc tyn)
-         let TCon t a ps ds _ cons ms det = definition g
+         let TCon t a ps ds fl cons ms det = definition g
               | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setDetermining]"))
-         updateDef tyn (const (Just (TCon t a ps ds u cons ms det)))
+         let fl' = record { uniqueAuto = u } fl
+         updateDef tyn (const (Just (TCon t a ps ds fl' cons ms det)))
+
+export
+setExternal : {auto c : Ref Ctxt Defs} ->
+              FC -> Name -> Bool -> Core ()
+setExternal fc tyn u
+    = do defs <- get Ctxt
+         Just g <- lookupCtxtExact tyn (gamma defs)
+              | _ => throw (UndefinedName fc tyn)
+         let TCon t a ps ds fl cons ms det = definition g
+              | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setDetermining]"))
+         let fl' = record { external = u } fl
+         updateDef tyn (const (Just (TCon t a ps ds fl' cons ms det)))
 
 export
 addHintFor : {auto c : Ref Ctxt Defs} ->
@@ -1598,7 +1620,7 @@ addData vars vis tidx (MkData (MkCon dfc tyn arity tycon) datacons)
                             (TCon tag arity
                                   (paramPos (Resolved tidx) (map type datacons))
                                   (allDet arity)
-                                  False [] (map name datacons) Nothing)
+                                  defaultFlags [] (map name datacons) Nothing)
          (idx, gam') <- addCtxt tyn tydef (gamma defs)
          gam'' <- addDataConstructors 0 datacons gam'
          put Ctxt (record { gamma = gam'' } defs)
@@ -2064,8 +2086,7 @@ logC lvl cmsg
             else pure ()
 
 export
-logTimeOver : {auto c : Ref Ctxt Defs} ->
-              Integer -> Core String -> Core a -> Core a
+logTimeOver : Integer -> Core String -> Core a -> Core a
 logTimeOver nsecs str act
     = do clock <- coreLift clockTime
          let nano = 1000000000

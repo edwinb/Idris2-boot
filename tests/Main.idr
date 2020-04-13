@@ -67,7 +67,7 @@ idrisTests
        "params001",
        -- Performance: things which have been slow in the past, or which
        -- pose interesting challenges for the elaborator
-       "perf001", "perf002", "perf003",
+       "perf001", "perf002", "perf003", "perf004",
        -- Parse errors
        "perror001", "perror002", "perror003", "perror004", "perror005",
        "perror006",
@@ -81,6 +81,7 @@ idrisTests
        -- Miscellaneous regressions
        "reg001", "reg002", "reg003", "reg004", "reg005", "reg006", "reg007",
        "reg008", "reg009", "reg010", "reg011", "reg012", "reg013", "reg014",
+       "reg015",
        -- Totality checking
        "total001", "total002", "total003", "total004", "total005",
        "total006",

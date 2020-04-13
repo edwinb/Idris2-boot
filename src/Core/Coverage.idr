@@ -51,8 +51,10 @@ export
 isEmpty : Defs -> NF vars -> Core Bool
 isEmpty defs (NTCon fc n t a args)
      = case !(lookupDefExact n (gamma defs)) of
-            Just (TCon _ _ _ _ _ _ cons _)
-                 => allM (conflict defs (NTCon fc n t a args)) cons
+            Just (TCon _ _ _ _ flags _ cons _)
+                 => if not (external flags)
+                       then allM (conflict defs (NTCon fc n t a args)) cons
+                       else pure False
             _ => pure False
 isEmpty defs _ = pure False
 
