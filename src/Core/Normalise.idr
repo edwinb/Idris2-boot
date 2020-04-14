@@ -140,7 +140,7 @@ parameters (defs : Defs, topopts : EvalOpts)
             = evalRef {vars = xs} env locs False fc nt fn (args ++ stk)
                       (NApp fc (NRef nt fn) args)
         applyToStack (NApp fc (NLocal mrig idx p) args) stk
-          = let MkVar p' = insertVarNames {outer=[]} {ns = xs} idx p in
+          = let MkNVar p' = insertNVarNames {outer=[]} {ns = xs} idx p in
                evalLocal env fc mrig _ p' (args ++ stk) locs
         applyToStack (NDCon fc n t a args) stk
             = pure $ NDCon fc n t a (args ++ stk)

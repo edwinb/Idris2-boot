@@ -148,7 +148,7 @@ mutual
   export
   thin : (n : Name) -> CExp (outer ++ inner) -> CExp (outer ++ n :: inner)
   thin n (CLocal fc prf)
-      = let MkVar var' = insertVar {n} _ prf in
+      = let MkNVar var' = insertNVar {n} _ prf in
             CLocal fc var'
   thin _ (CRef fc x) = CRef fc x
   thin {outer} {inner} n (CLam fc x sc)
@@ -194,7 +194,7 @@ mutual
                 (ns : List Name) -> CExp (outer ++ inner) ->
                 CExp (outer ++ (ns ++ inner))
   insertNames ns (CLocal fc prf)
-      = let MkVar var' = insertVarNames {ns} _ prf in
+      = let MkNVar var' = insertNVarNames {ns} _ prf in
             CLocal fc var'
   insertNames _ (CRef fc x) = CRef fc x
   insertNames {outer} {inner} ns (CLam fc x sc)
