@@ -136,12 +136,12 @@ schOp (Cast DoubleType StringType) [x] = op "number->string" [x]
 schOp (Cast CharType StringType) [x] = op "string" [x]
 
 schOp (Cast IntType IntegerType) [x] = x
-schOp (Cast DoubleType IntegerType) [x] = op "cast-double-int" [x]
+schOp (Cast DoubleType IntegerType) [x] = op "exact-floor" [x]
 schOp (Cast CharType IntegerType) [x] = op "char->integer" [x]
 schOp (Cast StringType IntegerType) [x] = op "cast-string-int" [x]
 
 schOp (Cast IntegerType IntType) [x] = x
-schOp (Cast DoubleType IntType) [x] = op "cast-double-int" [x]
+schOp (Cast DoubleType IntType) [x] = op "exact-floor" [x]
 schOp (Cast StringType IntType) [x] = op "cast-string-int" [x]
 schOp (Cast CharType IntType) [x] = op "char->integer" [x]
 
