@@ -11,3 +11,8 @@ main = do
   printLn $ cast {to = Int} "1.2"
   printLn $ cast {to = Integer} "2.7"
   printLn $ cast {to = Double} "5.9"
+
+  printLn $ (the Int 6 `div` the Int 3)
+  printLn $ (the Integer 6 `div` the Integer 3)
+  printLn $ (cast {to = Int} "6.6" `div` cast "3.9")
+  printLn $ (cast {to = Integer} "6.6" `div` cast "3.9")
