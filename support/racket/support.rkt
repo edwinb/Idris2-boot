@@ -23,9 +23,9 @@
       ((equal? x "") "")
       ((equal? (string-ref x 0) #\#) "")
       (else x))))
-(define cast-double-int
+(define cast-string-int
   (lambda (x)
-    (inexact->exact (floor x))))
+    (exact-floor (cast-num (string->number (destroy-prefix x))))))
 (define cast-string-double
   (lambda (x)
     (cast-num (string->number (destroy-prefix x)))))
