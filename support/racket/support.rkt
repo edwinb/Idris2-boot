@@ -26,6 +26,9 @@
 (define cast-string-int
   (lambda (x)
     (floor (cast-num (string->number (destroy-prefix x))))))
+(define cast-double-int
+  (lambda (x)
+    (inexact->exact (floor x))))
 (define cast-string-double
   (lambda (x)
     (cast-num (string->number (destroy-prefix x)))))
