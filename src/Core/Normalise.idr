@@ -120,6 +120,34 @@ parameters (defs : Defs, topopts : EvalOpts)
     eval env locs (Erased fc i) stk = pure $ NErased fc i
     eval env locs (TType fc) stk = pure $ NType fc
 
+    evalLocClosure : {vars : _} ->
+                     Env Term free ->
+                     FC -> Maybe Bool ->
+                     Stack free ->
+                     Closure free ->
+                     LocalEnv free vars ->
+                     Core (NF free)
+    evalLocClosure env fc mrig stk (MkClosure opts locs' env' tm') locs
+        = evalWithOpts defs opts env' locs' tm' stk
+    evalLocClosure {free} {vars = xs} env fc mrig stk (MkNFClosure nf) locs
+        = applyToStack nf stk
+      where
+        applyToStack : NF free -> Stack free -> Core (NF free)
+        applyToStack (NBind fc _ (Lam r e ty) sc) (arg :: stk)
+            = do arg' <- sc defs arg
+                 applyToStack arg' stk
+        applyToStack (NApp fc (NRef nt fn) args) stk
+            = evalRef {vars = xs} env locs False fc nt fn (args ++ stk)
+                      (NApp fc (NRef nt fn) args)
+        applyToStack (NApp fc (NLocal mrig idx p) args) stk
+          = let MkVar p' = insertVarNames {outer=[]} {ns = xs} idx p in
+               evalLocal env fc mrig _ p' (args ++ stk) locs
+        applyToStack (NDCon fc n t a args) stk
+            = pure $ NDCon fc n t a (args ++ stk)
+        applyToStack (NTCon fc n t a args) stk
+            = pure $ NTCon fc n t a (args ++ stk)
+        applyToStack nf _ = pure nf
+
     evalLocal : {vars : _} ->
                 Env Term free ->
                 FC -> Maybe Bool ->
@@ -144,28 +172,8 @@ parameters (defs : Defs, topopts : EvalOpts)
         isLet : Maybe Bool -> Nat -> Env tm vars -> Bool
         isLet (Just t) _ _ = t
         isLet _ n env = isLet' n env
-    evalLocal env fc mrig Z First stk (MkClosure opts locs' env' tm' :: locs)
-        = evalWithOpts defs opts env' locs' tm' stk
-    evalLocal {free} {vars = x :: xs}
-              env fc mrig Z First stk (MkNFClosure nf :: locs)
-        = applyToStack nf stk
-      where
-        applyToStack : NF free -> Stack free -> Core (NF free)
-        applyToStack (NBind fc _ (Lam r e ty) sc) (arg :: stk)
-            = do arg' <- sc defs arg
-                 applyToStack arg' stk
-        applyToStack (NApp fc (NRef nt fn) args) stk
-            = evalRef {vars = xs} env locs False fc nt fn (args ++ stk)
-                      (NApp fc (NRef nt fn) args)
-        applyToStack (NApp fc (NLocal mrig idx p) args) stk
-          = let MkVar p' = insertVarNames {outer=[]} {ns = xs} idx p in
-               evalLocal env fc mrig _ p' (args ++ stk) locs
-        applyToStack (NDCon fc n t a args) stk
-            = pure $ NDCon fc n t a (args ++ stk)
-        applyToStack (NTCon fc n t a args) stk
-            = pure $ NTCon fc n t a (args ++ stk)
-        applyToStack nf _ = pure nf
-
+    evalLocal env fc mrig Z First stk (x :: locs)
+        = evalLocClosure env fc mrig stk x locs
     evalLocal {vars = x :: xs} {free}
               env fc mrig (S idx) (Later p) stk (_ :: locs)
         = evalLocal {vars = xs} env fc mrig idx p stk locs

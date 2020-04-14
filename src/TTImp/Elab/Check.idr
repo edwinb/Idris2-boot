@@ -191,6 +191,11 @@ strengthenedEState {n} {vars} c e fc env
     dropSub (DropCons sub) = pure sub
     dropSub _ = throw (InternalError "Badly formed weakened environment")
 
+    -- This helps persuade the erasure checker that it can erase IsVar,
+    -- because there's no matching on it in removeArgVars below.
+    dropLater : IsVar name (S idx) (v :: vs) -> IsVar name idx vs
+    dropLater (Later p) = p
+
     -- Remove any instance of the top level local variable from an
     -- application. Fail if it turns out to be necessary.
     -- NOTE: While this isn't strictly correct given the type of the hole
@@ -200,10 +205,10 @@ strengthenedEState {n} {vars} c e fc env
     -- in scope.
     removeArgVars : List (Term (n :: vs)) -> Maybe (List (Term vs))
     removeArgVars [] = pure []
-    removeArgVars (Local fc r _ (Later p) :: args)
+    removeArgVars (Local fc r (S k) p :: args)
         = do args' <- removeArgVars args
-             pure (Local fc r _ p :: args')
-    removeArgVars (Local fc r _ First :: args)
+             pure (Local fc r _ (dropLater p) :: args')
+    removeArgVars (Local fc r Z p :: args)
         = removeArgVars args
     removeArgVars (a :: args)
         = do a' <- shrinkTerm a (DropCons SubRefl)
