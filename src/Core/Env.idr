@@ -69,15 +69,11 @@ getBinderUnder : Weaken tm =>
                  {idx : Nat} ->
                  (ns : List Name) ->
                  .(IsVar x idx vars) -> Env tm vars ->
-                 Binder (tm (reverse ns ++ vars))
+                 Binder (tm (reverseOnto vars ns))
 getBinderUnder {idx = Z} {vars = v :: vs} ns First (b :: env)
-    = rewrite appendAssociative (reverse ns) [v] vs in
-			 rewrite revNs [v] ns in
-         map (weakenNs (reverse (v :: ns))) b
+    = rewrite revOnto vs (v :: ns) in map (weakenNs (reverse (v :: ns))) b
 getBinderUnder {idx = S k} {vars = v :: vs} ns (Later lp) (b :: env)
-    = rewrite appendAssociative (reverse ns) [v] vs in
-			 rewrite revNs [v] ns in
-         getBinderUnder (v :: ns) lp env
+    = getBinderUnder (v :: ns) lp env
 
 export
 getBinder : Weaken tm =>
