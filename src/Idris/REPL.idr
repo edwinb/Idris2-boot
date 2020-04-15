@@ -1,6 +1,7 @@
 module Idris.REPL
 
 import Compiler.Scheme.Chez
+import Compiler.Coredris
 -- import Compiler.Scheme.Chicken
 import Compiler.Scheme.Racket
 import Compiler.Common
@@ -240,6 +241,7 @@ findCG
               Chicken => throw (InternalError "Chicken CG not available")
                          -- pure codegenChicken
               Racket => pure codegenRacket
+              Coredris => pure codegenCoredris
 
 anyAt : (FC -> Bool) -> FC -> a -> Bool
 anyAt p loc y = p loc
