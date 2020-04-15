@@ -2,7 +2,7 @@
 
 Idris 2 is built using Idris, and provides support for two default code
 generation targets: Chez Scheme, and Racket. To build from source, it requires
-at least Idris version 1.3.2 (see https://www.idris-lang.org/download). You
+at least Idris version 1.3.2 (see https://www.idris-lang.org/pages/download.html). You
 can also build from the generated C.
 
 ## Quick summary:
