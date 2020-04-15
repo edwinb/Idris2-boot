@@ -9,7 +9,7 @@ import Parser.Unlit
 showRHSName : Name -> String
 showRHSName n
     = let fn = show (dropNS n) in
-          if any (flip elem (unpack opChars)) (unpack fn)
+          if any isOpChar (unpack fn)
              then "op"
              else fn
 

@@ -72,11 +72,10 @@ toTokList (POp fc opn l r)
          let op = nameRoot opn
          case lookup op (infixes syn) of
               Nothing =>
-                let ops = unpack opChars in
-                    if any (\x => x `elem` ops) (unpack op)
-                       then throw (GenericMsg fc $ "Unknown operator '" ++ op ++ "'")
-                       else do rtoks <- toTokList r
-                               pure (Expr l :: Op fc opn backtickPrec :: rtoks)
+                  if any isOpChar (unpack op)
+                     then throw (GenericMsg fc $ "Unknown operator '" ++ op ++ "'")
+                     else do rtoks <- toTokList r
+                             pure (Expr l :: Op fc opn backtickPrec :: rtoks)
               Just (Prefix, _) =>
                       throw (GenericMsg fc $ "'" ++ op ++ "' is a prefix operator")
               Just (fix, prec) =>

@@ -1,7 +1,7 @@
+||| Tokenise a source line for easier processing
 module Idris.IDEMode.TokenLine
 
--- Tokenise a source line for easier processing
-
+import Parser.Lexer
 import Text.Lexer
 
 public export
@@ -14,24 +14,12 @@ data SourcePart
   | Equal
   | Other String
 
-ident : Lexer
-ident = pred startIdent <+> many (pred validIdent)
-  where
-    startIdent : Char -> Bool
-    startIdent '_' = True
-    startIdent x = isAlpha x
-
-    validIdent : Char -> Bool
-    validIdent '_' = True
-    validIdent '\'' = True
-    validIdent x = isAlphaNum x
-
 holeIdent : Lexer
-holeIdent = is '?' <+> ident
+holeIdent = is '?' <+> identStrict
 
 srcTokens : TokenMap SourcePart
 srcTokens =
-    [(ident, Name),
+    [(identStrict, Name),
      (holeIdent, \x => HoleName (assert_total (strTail x))),
      (space, Whitespace),
      (is '{', const LBrace),
@@ -47,4 +35,3 @@ tokens str
            -- number to read when storing spans in the file
            (srctoks, (l, c, rest)) =>
               map tok srctoks ++ (if rest == "" then [] else [Other rest])
-
