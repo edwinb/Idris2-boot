@@ -127,23 +127,17 @@ parameters (defs : Defs, topopts : EvalOpts)
                 Stack free ->
                 LocalEnv free vars ->
                 Core (NF free)
+    -- If it's one of the free variables, we are done unless the free
+    -- variable maps to a let-binding
     evalLocal {vars = []} env fc mrig idx prf stk locs
-        = if not (holesOnly topopts || argHolesOnly topopts) && isLet mrig idx env
+        = if not (holesOnly topopts || argHolesOnly topopts)
+             -- if we know it's not a let, no point in even running `getBinder`
+             && fromMaybe True mrig
              then
                case getBinder prf env of
                     Let _ val _ => eval env [] val stk
                     _ => pure $ NApp fc (NLocal mrig idx prf) stk
              else pure $ NApp fc (NLocal mrig idx prf) stk
-      where
-        isLet' : Nat -> Env tm vars -> Bool
-        isLet' Z (Let _ _ _ :: env) = True
-        isLet' Z _ = False
-        isLet' (S k) (b :: env) = isLet' k env
-        isLet' (S k) [] = False
-
-        isLet : Maybe Bool -> Nat -> Env tm vars -> Bool
-        isLet (Just t) _ _ = t
-        isLet _ n env = isLet' n env
     evalLocal env fc mrig Z First stk (MkClosure opts locs' env' tm' :: locs)
         = evalWithOpts defs opts env' locs' tm' stk
     evalLocal {free} {vars = x :: xs}
