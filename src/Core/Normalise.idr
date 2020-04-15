@@ -368,7 +368,7 @@ parameters (defs : Defs, topopts : EvalOpts)
        --   + It's a metavariable and we're not in 'argHolesOnly'
        --   + It's inlinable and we're in 'tcInline'
         = if alwaysReduce r
-             || (not (holesOnly opts) && not (argHolesOnly opts) && not (tcInline opts))
+             || (not (holesOnly opts || argHolesOnly opts || tcInline opts))
              || (meta && rigd /= Rig0)
              || (meta && holesOnly opts)
              || (tcInline opts && elem TCInline flags)
