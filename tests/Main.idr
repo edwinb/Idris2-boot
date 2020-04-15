@@ -51,6 +51,8 @@ idrisTests
        "literate001", "literate002", "literate003", "literate004",
        "literate005", "literate006", "literate007", "literate008",
        "literate009", "literate010", "literate011", "literate012",
+       -- Unicode
+       "unicode001",
        -- Interfaces
        "interface001", "interface002", "interface003", "interface004",
        "interface005", "interface006", "interface007", "interface008",
