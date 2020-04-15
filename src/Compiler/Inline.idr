@@ -140,7 +140,9 @@ mutual
   evalLocal {vars = []} fc rec stk env p
       = pure $ unload stk (CLocal fc p)
   evalLocal {vars = x :: xs} fc rec stk (v :: env) First
-      = eval rec env stk (weakenNs xs v)
+      = case stk of
+             [] => pure v
+             _ => eval rec env stk (weakenNs xs v)
   evalLocal {vars = x :: xs} fc rec stk (_ :: env) (Later p)
       = evalLocal fc rec stk env p
 
