@@ -76,30 +76,6 @@ coredrisName (CaseBlock x y) = "case__" ++ coredrisIdent (show x) ++ "_" ++ core
 coredrisName (WithBlock x y) = "with__" ++ coredrisIdent (show x) ++ "_" ++ coredrisIdent (show y)
 coredrisName (Resolved i) = "fn__" ++ coredrisIdent (show i)
 
--- local variable names as scheme names - we need to invent new names for the locals
--- because there might be shadows in the original expression which can't be resolved
--- by the same scoping rules. (e.g. something that computes \x, x => x + x where the
--- names are the same but refer to different bindings in the scope)
-public export
-data SVars : List Name -> Type where
-     Nil : SVars []
-     (::) : (svar : String) -> SVars ns -> SVars (n :: ns)
-
-extendSVars : (xs : List Name) -> SVars ns -> SVars (xs ++ ns)
-extendSVars {ns} xs vs = extSVars' (cast (length ns)) xs vs
-  where
-    extSVars' : Int -> (xs : List Name) -> SVars ns -> SVars (xs ++ ns)
-    extSVars' i [] vs = vs
-    extSVars' i (x :: xs) vs = coredrisName (MN "v" i) :: extSVars' (i + 1) xs vs
-
-export
-initSVars : (xs : List Name) -> SVars xs
-initSVars xs = rewrite sym (appendNilRightNeutral xs) in extendSVars xs []
-
-lookupSVar : {idx : Nat} -> .(IsVar n idx xs) -> SVars xs -> String
-lookupSVar First (n :: ns) = n
-lookupSVar (Later p) (n :: ns) = lookupSVar p ns
-
 export
 coredrisConstructor : Int -> List String -> String
 coredrisConstructor t args = "(^con :tag " ++ show t ++ " :args [" ++ showSep " " args ++ "])"
@@ -207,7 +183,7 @@ coredrisIfDef : Maybe String -> String
 coredrisIfDef Nothing = ""
 coredrisIfDef (Just tm) = "(^if-default " ++ tm ++ ")"
 
-coredrisType' : {auto c: Ref Ctxt Defs} -> List String -> Term args 
+coredrisType' : {auto c: Ref Ctxt Defs} -> List String -> Term args
           -> Core (String, List String)
 coredrisType' acc (Local {name} _ _ _ _) = do
   let rname = "T" ++ coredrisName !(getFullName name)
@@ -226,150 +202,155 @@ coredrisType' acc (Bind _ _ (Pi _ _ x) sc) = do
   pure ("(^arrow :from " ++ xty ++ " :to " ++ retty ++ ")", acc'')
 coredrisType' acc ty = pure (show ty, acc)
 
-coredrisType : {auto c: Ref Ctxt Defs} -> Term args -> Core (String, List String)
+coredrisType 
+  : {auto c: Ref Ctxt Defs} -> Term args 
+  -> Core (String, List String)
 coredrisType tm = coredrisType' [] tm
 
 export
-coredrisArglist : {auto c: Ref Ctxt Defs} -> SVars ns -> Term args -> Core (List String, String, List String)
-coredrisArglist [] ty = do
+coredrisArglist 
+  : {auto c: Ref Ctxt Defs} -> List Name -> Term args 
+  -> Core (List String, String, List String)
+coredrisArglist nms ty = do
   (rty, univs) <- coredrisType ty
   pure ([], rty, univs)
-coredrisArglist (x :: xs) (Bind _ _ (Pi _ _ (Ref _ _ name)) sc) = do
-  (rest, retty, univs) <- coredrisArglist xs sc
-  pure (("(^arg :name " ++ x ++ " :ty " ++ coredrisName !(getFullName name) ++ ")") :: rest, retty, univs)
-coredrisArglist (x :: xs) (Bind _ _ (Pi _ _ ty) sc) = do 
-  (rest, retty, univs) <- coredrisArglist xs sc
+coredrisArglist (n :: ns) (Bind _ _ (Pi _ _ (Ref _ _ name)) sc) = do
+  (rest, retty, univs) <- coredrisArglist ns sc
+  pure (("(^arg :name " ++ coredrisName n ++ " :ty " ++ coredrisName !(getFullName name) ++ ")") :: rest, retty, univs)
+coredrisArglist (n :: ns) (Bind _ _ (Pi _ _ ty) sc) = do 
+  (rest, retty, univs) <- coredrisArglist ns sc
   (ty_, univs') <- coredrisType ty
-  pure (("(^arg :name " ++ x ++ " :ty " ++ ty_ ++ ")") :: rest, retty, reverse univs {- ++ univs' -})
-coredrisArglist (x :: xs) ty = pure (["error: broken arglist"], show ty, [])
+  pure (("(^arg :name " ++ coredrisName n ++ " :ty " ++ ty_ ++ ")") :: rest, retty, reverse univs {- ++ univs' -})
+coredrisArglist _ ty = pure (["error: broken arglist"], show ty, [])
 
 mutual
-  coredrisConAlt : Int -> SVars vars -> String -> CConAlt vars -> Core String
-  coredrisConAlt {vars} i vs target (MkConAlt n tag args sc)
-      = let vs' = extendSVars args vs in
-            pure $ "(^con-alt :tag " ++ show tag ++ " :rhs "
-                        ++ bindArgs 1 args vs' !(coredrisExp i vs' sc) ++ ")"
+  coredrisConAlt : Int -> String -> NamedConAlt -> Core String
+  coredrisConAlt i target (MkNConAlt n tag args sc)
+      = pure $ "(^con-alt :tag " ++ show tag ++ " :rhs "
+                        ++ bindArgs 1 args !(coredrisExp i sc) ++ ")"
     where
-      bindArgs : Int -> (ns : List Name) -> SVars (ns ++ vars) -> String -> String
-      bindArgs i [] vs body = body
-      bindArgs i (n :: ns) (v :: vs) body
-          = "(^let-field :var " ++ v ++ " :val " ++ target ++ " :field-ix " ++ show i ++ " " 
-          ++ ":body " ++ bindArgs (i + 1) ns vs body ++ ")"
+      bindArgs : Int -> List Name -> String -> String
+      bindArgs i [] body = body
+      bindArgs i (n :: ns) body
+          = "(^let-field :var " ++ coredrisName n ++ " :val " ++ target ++ " :field-ix " ++ show i ++ " " 
+          ++ ":body " ++ bindArgs (i + 1) ns body ++ ")"
 
-  coredrisConstAlt : Int -> SVars vars -> String -> CConstAlt vars -> Core String
-  coredrisConstAlt i vs target (MkConstAlt c exp)
+  coredrisConstAlt : Int -> String -> NamedConstAlt -> Core String
+  coredrisConstAlt i target (MkNConstAlt c exp)
       = pure $ "(^const-alt :var " ++ target ++ " :const " ++ coredrisConstant coredrisStringQuoted c ++ " :body " 
-                ++ !(coredrisExp i vs exp) ++ ")"
+                ++ !(coredrisExp i exp) ++ ")"
 
   -- oops, no traverse for Vect in Core
-  coredrisArgs : Int -> SVars vars -> Vect n (CExp vars) -> Core (Vect n String)
-  coredrisArgs i vs [] = pure []
-  coredrisArgs i vs (arg :: args) = pure $ !(coredrisExp i vs arg) :: !(coredrisArgs i vs args)
+  coredrisArgs : Int -> Vect n NamedCExp -> Core (Vect n String)
+  coredrisArgs i [] = pure []
+  coredrisArgs i (arg :: args) = pure $ !(coredrisExp i arg) :: !(coredrisArgs i args)
 
   export
-  coredrisExp : Int -> SVars vars -> CExp vars -> Core String
-  coredrisExp i vs (CLocal fc el) = pure $ lookupSVar el vs
-  coredrisExp i vs (CRef fc n) = pure $ coredrisName n
-  coredrisExp i vs (CLam fc x sc)
-     = do let vs' = extendSVars [x] vs
-          sc' <- coredrisExp i vs' sc
-          pure $ "(^lam :var " ++ lookupSVar First vs' ++ " :body " ++ sc' 
-                          ++ ")"
-  coredrisExp i vs (CLet fc x val sc)
-     = do let vs' = extendSVars [x] vs
-          val' <- coredrisExp i vs val
-          sc' <- coredrisExp i vs' sc
-          pure $ "(^let :var " ++ lookupSVar First vs' ++ " " ++ val' ++ " :body " ++ 
-                                                          sc' ++ ")"
-  coredrisExp i vs (CApp fc x [])
-      = pure $ "(^call " ++ !(coredrisExp i vs x) ++ ")"
-  coredrisExp i vs (CApp fc x args)
-      = pure $ "(^app :fn " ++ !(coredrisExp i vs x) ++ " :args [" ++ showSep " " !(traverse (coredrisExp i
-                vs) args) ++ "])"
-  coredrisExp i vs (CCon fc x tag args)
-      = pure $ coredrisConstructor tag !(traverse (coredrisExp i vs) args)
-  coredrisExp i vs (COp fc op args)
-      = pure $ coredrisOp op !(coredrisArgs i vs args)
-  coredrisExp i vs (CExtPrim fc p args)
-      = coredrisExtCommon i vs (toPrim p) args
-  coredrisExp i vs (CForce fc t) = pure $ "(^force " ++ !(coredrisExp i vs t) ++ ")"
-  coredrisExp i vs (CDelay fc t) = pure $ "(^delay " ++ !(coredrisExp i vs t) ++ ")"
-  coredrisExp i vs (CConCase fc sc alts def)
-      = do tcode <- coredrisExp (i+1) vs sc
-           defc <- maybe (pure Nothing) (\v => pure (Just !(coredrisExp i vs v))) def
+  coredrisExp : Int -> NamedCExp -> Core String
+  coredrisExp i (NmLocal fc n) = pure $ coredrisName n
+  coredrisExp i (NmRef fc n) = pure $ coredrisName n
+  coredrisExp i (NmLam fc x sc)
+     = do sc' <- coredrisExp i sc
+          pure $ "(^lam :var " ++ coredrisName x ++ " :body " ++ sc' ++ ")"
+  coredrisExp i (NmLet fc x val sc)
+     = do val' <- coredrisExp i val
+          sc' <- coredrisExp i sc
+          pure $ "(^let :var " ++ coredrisName x ++ " " 
+                  ++ val' ++ " :body " ++ sc' ++ ")"
+  coredrisExp i (NmApp fc x [])
+      = pure $ "(^call " ++ !(coredrisExp i x) ++ ")"
+  coredrisExp i (NmApp fc x args)
+      = pure $ "(^app :fn " ++ !(coredrisExp i x) ++ " :args [" 
+                ++ showSep " " !(traverse (coredrisExp i) args) ++ "])"
+  coredrisExp i (NmCon fc x tag args)
+      = pure $ coredrisConstructor tag !(traverse (coredrisExp i) args)
+  coredrisExp i (NmOp fc op args)
+      = pure $ coredrisOp op !(coredrisArgs i args)
+  coredrisExp i (NmExtPrim fc p args)
+      = coredrisExtCommon i (toPrim p) args
+  coredrisExp i (NmForce fc t) = pure $ "(^force " ++ !(coredrisExp i t) ++ ")"
+  coredrisExp i (NmDelay fc t) = pure $ "(^delay " ++ !(coredrisExp i t) ++ ")"
+  coredrisExp i (NmConCase fc sc alts def)
+      = do tcode <- coredrisExp (i+1) sc
+           defc <- maybe (pure Nothing) (\v => pure (Just !(coredrisExp i v))) def
            let n = "sc" ++ show i
-           pure $ "(^con-case :bind-var " ++ n ++ " :bind-body " ++ tcode ++ " :tag-of " ++ n
-                   ++ " :cases [" ++ showSep " " !(traverse (coredrisConAlt (i+1) vs n) alts)
+           pure $ "(^con-case :bind-var " ++ n ++ " :bind-body " 
+                   ++ tcode ++ " :tag-of " ++ n ++ " :cases [" 
+                   ++ showSep " " !(traverse (coredrisConAlt (i+1) n) alts)
                    ++ coredrisCaseDef defc ++ "])"
-  coredrisExp i vs (CConstCase fc sc alts def)
-      = do defc <- maybe (pure Nothing) (\v => pure (Just !(coredrisExp i vs v))) def
-           tcode <- coredrisExp (i+1) vs sc
+  coredrisExp i (NmConstCase fc sc alts def)
+      = do tcode <- coredrisExp (i+1) sc
+           defc <- maybe (pure Nothing) (\v => pure (Just !(coredrisExp i v))) def
            let n = "sc" ++ show i
-           pure $ "(^const-case :bind-var " ++ n ++ " :bind-body " ++ tcode ++ " :conds ["
-                    ++ showSep " " !(traverse (coredrisConstAlt (i+1) vs n) alts) 
-                    ++ "]"
-                    ++ coredrisIfDef defc ++ ")"
-  coredrisExp i vs (CPrimVal fc c) = pure $ coredrisConstant coredrisStringQuoted c
-  coredrisExp i vs (CErased fc) = pure "'erased"
-  coredrisExp i vs (CCrash fc msg) = pure $ "(^crash " ++ show msg ++ ")"
+           pure $ "(^const-case :bind-var " ++ n ++ " :bind-body " ++ tcode 
+                   ++ " :conds ["
+                   ++ showSep " " !(traverse (coredrisConstAlt (i+1) n) alts) 
+                   ++ "]" ++ coredrisIfDef defc ++ ")"
+  coredrisExp i (NmPrimVal fc c) = pure $ coredrisConstant coredrisStringQuoted c
+  coredrisExp i (NmErased fc) = pure "'erased"
+  coredrisExp i (NmCrash fc msg) = pure $ "(^crash " ++ show msg ++ ")"
 
-  coredrisExtCommon : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String
-  coredrisExtCommon i vs PutStr [arg, world]
-      = pure $ "('print " ++ !(coredrisExp i vs arg) ++ ") " ++ mkWorld (coredrisConstructor 0 [])
-  coredrisExtCommon i vs GetStr [world]
+  coredrisExtCommon : Int -> ExtPrim -> List NamedCExp -> Core String
+  coredrisExtCommon i PutStr [arg, world]
+      = pure $ "('print " ++ !(coredrisExp i arg) ++ ") " 
+               ++ mkWorld (coredrisConstructor 0 [])
+  coredrisExtCommon i GetStr [world]
       = pure $ mkWorld "('get-line (current-input-port))"
-  coredrisExtCommon i vs PutChar [arg, world]
-      = pure $ "('display " ++ !(coredrisExp i vs arg) ++ ") " ++ mkWorld (coredrisConstructor 0 [])
-  coredrisExtCommon i vs GetChar [world]
+  coredrisExtCommon i PutChar [arg, world]
+      = pure $ "('display " ++ !(coredrisExp i arg) ++ ") " 
+               ++ mkWorld (coredrisConstructor 0 [])
+  coredrisExtCommon i GetChar [world]
       = pure $ mkWorld "('get-char (current-input-port))"
-  coredrisExtCommon i vs FileOpen [file, mode, bin, world]
+  coredrisExtCommon i FileOpen [file, mode, bin, world]
       = pure $ mkWorld $ fileOp $ "('file-open "
-                                      ++ !(coredrisExp i vs file) ++ " "
-                                      ++ !(coredrisExp i vs mode) ++ " "
-                                      ++ !(coredrisExp i vs bin) ++ ")"
-  coredrisExtCommon i vs FileClose [file, world]
-      = pure $ "(blodwen-close-port " ++ !(coredrisExp i vs file) ++ ") " ++ mkWorld (coredrisConstructor 0 [])
-  coredrisExtCommon i vs FileReadLine [file, world]
-      = pure $ mkWorld $ fileOp $ "(blodwen-get-line " ++ !(coredrisExp i vs file) ++ ")"
-  coredrisExtCommon i vs FileWriteLine [file, str, world]
+                                      ++ !(coredrisExp i file) ++ " "
+                                      ++ !(coredrisExp i mode) ++ " "
+                                      ++ !(coredrisExp i bin) ++ ")"
+  coredrisExtCommon i FileClose [file, world]
+      = pure $ "(blodwen-close-port " ++ !(coredrisExp i file) ++ ") " 
+               ++ mkWorld (coredrisConstructor 0 [])
+  coredrisExtCommon i FileReadLine [file, world]
+      = pure $ mkWorld $ fileOp $ "(blodwen-get-line " 
+                                   ++ !(coredrisExp i file) ++ ")"
+  coredrisExtCommon i FileWriteLine [file, str, world]
       = pure $ mkWorld $ fileOp $ "(blodwen-putstring "
-                                        ++ !(coredrisExp i vs file) ++ " "
-                                        ++ !(coredrisExp i vs str) ++ ")"
-  coredrisExtCommon i vs FileEOF [file, world]
-      = pure $ mkWorld $ "(blodwen-eof " ++ !(coredrisExp i vs file) ++ ")"
-  coredrisExtCommon i vs NewIORef [_, val, world]
-      = pure $ mkWorld $ "(box " ++ !(coredrisExp i vs val) ++ ")"
-  coredrisExtCommon i vs ReadIORef [_, ref, world]
-      = pure $ mkWorld $ "(unbox " ++ !(coredrisExp i vs ref) ++ ")"
-  coredrisExtCommon i vs WriteIORef [_, ref, val, world]
+                                        ++ !(coredrisExp i file) ++ " "
+                                        ++ !(coredrisExp i str) ++ ")"
+  coredrisExtCommon i FileEOF [file, world]
+      = pure $ mkWorld $ "(blodwen-eof " ++ !(coredrisExp i file) ++ ")"
+  coredrisExtCommon i NewIORef [_, val, world]
+      = pure $ mkWorld $ "(box " ++ !(coredrisExp i val) ++ ")"
+  coredrisExtCommon i ReadIORef [_, ref, world]
+      = pure $ mkWorld $ "(unbox " ++ !(coredrisExp i ref) ++ ")"
+  coredrisExtCommon i WriteIORef [_, ref, val, world]
       = pure $ mkWorld $ "(set-box! "
-                           ++ !(coredrisExp i vs ref) ++ " "
-                           ++ !(coredrisExp i vs val) ++ ")"
-  coredrisExtCommon i vs NewArray [_, size, val, world]
-      = pure $ mkWorld $ "(make-vector " ++ !(coredrisExp i vs size) ++ " "
-                                         ++ !(coredrisExp i vs val) ++ ")"
-  coredrisExtCommon i vs ArrayGet [_, arr, pos, world]
-      = pure $ mkWorld $ "(vector-ref " ++ !(coredrisExp i vs arr) ++ " "
-                                        ++ !(coredrisExp i vs pos) ++ ")"
-  coredrisExtCommon i vs ArraySet [_, arr, pos, val, world]
-      = pure $ mkWorld $ "(vector-set! " ++ !(coredrisExp i vs arr) ++ " "
-                                         ++ !(coredrisExp i vs pos) ++ " "
-                                         ++ !(coredrisExp i vs val) ++ ")"
-  coredrisExtCommon i vs VoidElim [_, _]
+                           ++ !(coredrisExp i ref) ++ " "
+                           ++ !(coredrisExp i val) ++ ")"
+  coredrisExtCommon i NewArray [_, size, val, world]
+      = pure $ mkWorld $ "(make-vector " ++ !(coredrisExp i size) ++ " "
+                                         ++ !(coredrisExp i val) ++ ")"
+  coredrisExtCommon i ArrayGet [_, arr, pos, world]
+      = pure $ mkWorld $ "(vector-ref " ++ !(coredrisExp i arr) ++ " "
+                                        ++ !(coredrisExp i pos) ++ ")"
+  coredrisExtCommon i ArraySet [_, arr, pos, val, world]
+      = pure $ mkWorld $ "(vector-set! " ++ !(coredrisExp i arr) ++ " "
+                                         ++ !(coredrisExp i pos) ++ " "
+                                         ++ !(coredrisExp i val) ++ ")"
+  coredrisExtCommon i VoidElim [_, _]
       = pure "(^err :type 'void-elim)"
-  coredrisExtCommon i vs SysOS []
+  coredrisExtCommon i SysOS []
       = pure $ show os
-  coredrisExtCommon i vs (Unknown n) args
+  coredrisExtCommon i (Unknown n) args
       = pure $ "(^^" ++ show n ++ " [" ++ "????" ++ "])"
-  coredrisExtCommon i vs Stdin [] = pure "(current-input-port)"
-  coredrisExtCommon i vs Stdout [] = pure "(current-output-port)"
-  coredrisExtCommon i vs Stderr [] = pure "(current-error-port)"
-  coredrisExtCommon i vs prim args
+  coredrisExtCommon i Stdin [] = pure "(current-input-port)"
+  coredrisExtCommon i Stdout [] = pure "(current-output-port)"
+  coredrisExtCommon i Stderr [] = pure "(current-error-port)"
+  coredrisExtCommon i prim args
       = throw (InternalError ("Badly formed external primitive " ++ show prim
                                 ++ " " ++ show args))
 
-  readArgs : Int -> SVars vars -> CExp vars -> Core String
-  readArgs i vs tm = pure $ "(blodwen-read-args " ++ !(coredrisExp i vs tm) ++ ")"
+  readArgs : Int -> NamedCExp -> Core String
+  readArgs i tm = pure $ "(blodwen-read-args " ++ !(coredrisExp i tm) ++ ")"
 
   fileOp : String -> String
   fileOp op = "(blodwen-file-op (lambda () " ++ op ++ "))"
@@ -378,20 +359,20 @@ mutual
 -- overridden)
 --
 coredrisDef : {auto c : Ref Ctxt Defs} ->
-         Name -> CDef -> ClosedTerm -> List String -> Core String
-coredrisDef n (MkFun args exp) ty univs = do
-  let vs = initSVars args
-  (arglist, retty, univList) <- coredrisArglist vs ty
+         Name -> NamedDef -> ClosedTerm -> List String -> Core String
+coredrisDef n (MkNmFun args exp) ty univs = do
+  (arglist, retty, univList) <- coredrisArglist args ty
   let univs = "" -- if univList == [] then "" else "<" ++ showSep ", " univList ++ ">"
-  let out = "(^fn" ++ -- univs ++
-            "\n  :name " ++ coredrisName !(getFullName n) ++ "\n  :args\n  [" ++ concat (intersperse " " arglist)
-                             ++ "]\n  :ret " ++ retty ++ "\n  :body " ++ !(coredrisExp 0 vs exp) ++ ")\n"
+  let out = "(^fn" ++ "\n  :name " ++ coredrisName !(getFullName n) 
+               ++ "\n  :args\n  [" ++ concat (intersperse " " arglist) ++ "]"
+               ++ "\n  :ret " ++ retty ++ "\n  :body " 
+               ++ !(coredrisExp 0 exp) ++ ")\n"
   pure out
-coredrisDef n (MkError exp) _ _
-   = pure $ "(define (" ++ coredrisName !(getFullName n) ++ " . any-args) " 
-            ++ !(coredrisExp 0 [] exp) ++ ")\n"
-coredrisDef n (MkForeign _ _ _) _ _ = pure "" -- compiled by specific back end
-coredrisDef n (MkCon t a _) _ _ = pure "" -- Nothing to compile here
+coredrisDef n (MkNmError exp) _ _
+   = pure $ "(^def (" ++ coredrisName !(getFullName n) ++ " . 'any-args) " 
+            ++ !(coredrisExp 0 exp) ++ ")\n"
+coredrisDef n (MkNmForeign _ _ _) _ _ = pure "" -- compiled by specific back end
+coredrisDef n (MkNmCon t a _) _ _ = pure "" -- Nothing to compile here
 
 debugName 
   : {auto c : Ref Ctxt Defs} -> Context -> String -> Name
@@ -419,7 +400,7 @@ debugName ctxt outfile n = do
         --   putStr "// decl name: "
         --   print full
         --   putStrLn "\n"
-        genDef <- coredrisDef n comp ty univs
+        genDef <- coredrisDef n (forgetDef comp) ty univs
         pure (genDef ++ "\n")
 
 compileToCoredris : Ref Ctxt Defs ->
