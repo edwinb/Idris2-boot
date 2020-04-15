@@ -215,6 +215,7 @@ record GlobalDef where
   linearChecked : Bool -- Flag whether we've already checked its linearity
   definition : Def
   compexpr : Maybe CDef
+  namedcompexpr : Maybe NamedDef
   sizeChange : List SCCall
 
 export
@@ -485,7 +486,7 @@ newDef : FC -> Name -> RigCount -> List Name ->
 newDef fc n rig vars ty vis def
     = MkGlobalDef fc n ty [] [] []
                   rig vars vis unchecked [] Nothing Nothing False False False def
-                  Nothing []
+                  Nothing Nothing []
 
 -- Rewrite rules, applied after type checking, for runtime code only
 -- LHS and RHS must have the same type, but we don't (currently) require that
@@ -919,7 +920,7 @@ addBuiltin n ty tot op
     = do addDef n (MkGlobalDef emptyFC n ty [] [] [] RigW [] Public tot
                                [Inline] Nothing Nothing
                                False False True (Builtin op)
-                               Nothing [])
+                               Nothing Nothing [])
          pure ()
 
 export
@@ -952,6 +953,16 @@ setCompiled n cexp
          Just gdef <- lookupCtxtExact n (gamma defs)
               | Nothing => pure ()
          addDef n (record { compexpr = Just cexp } gdef)
+         pure ()
+
+export
+setNamedCompiled : {auto c : Ref Ctxt Defs} ->
+                   Name -> NamedDef -> Core ()
+setNamedCompiled n cexp
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact n (gamma defs)
+              | Nothing => pure ()
+         addDef n (record { namedcompexpr = Just cexp } gdef)
          pure ()
 
 -- Record that the name has been linearity checked so we don't need to do

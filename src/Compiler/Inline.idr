@@ -58,11 +58,6 @@ takeFromStack env (e :: es) (a :: as)
 takeFromStack env stk [] = pure (env, stk)
 takeFromStack env [] args = Nothing
 
-thinAll : (ns : List Name) -> CExp (outer ++ inner) -> CExp (outer ++ ns ++ inner)
-thinAll [] exp = exp
-thinAll {outer} {inner} (n :: ns) exp
-    = thin {outer} {inner = ns ++ inner} n (thinAll ns exp)
-
 data LVar : Type where
 
 genName : {auto l : Ref LVar Int} ->
@@ -82,8 +77,8 @@ mutual
   mkLocal : {later, vars : _} ->
             Name -> (x : Name) ->
             CExp (later ++ vars) -> CExp (later ++ (x :: vars))
-  mkLocal old new (CLocal {idx} fc p)
-      = let MkVar p' = insertVar {n=new} idx p in CLocal fc p'
+  mkLocal old new (CLocal {idx} {x} fc p)
+      = let MkNVar p' = insertNVar {n=new} idx p in CLocal {x} fc p'
   mkLocal {later} {vars} old new (CRef fc var)
       = if var == old
            then let MkVar p' = mkPrf {x=new} {vars} later in
@@ -225,7 +220,7 @@ mutual
             FC -> List Name -> EEnv free vars -> Stack free -> CConAlt (vars ++ free) ->
             Core (CConAlt free)
   evalAlt {free} {vars} fc rec env stk (MkConAlt n t args sc)
-      = do let sc' = thinAll {outer=args ++ vars} {inner=free} args
+      = do let sc' = insertNames {outer=args ++ vars} {inner=free} args
                         (rewrite sym (appendAssociative args vars free) in sc)
            scEval <- eval rec (extendLoc fc env args) (map (weakenNs args) stk) sc'
            pure $ MkConAlt n t args scEval

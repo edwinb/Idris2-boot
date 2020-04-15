@@ -654,6 +654,21 @@ export
 notCovering : Totality
 notCovering = MkTotality Unchecked (MissingCases [])
 
+public export
+data NVar : Name -> List Name -> Type where
+     MkNVar : {i : Nat} -> .(IsVar n i vars) -> NVar n vars
+
+export
+insertNVar : {outer : List Name} ->
+            (idx : Nat) ->
+            .(IsVar name idx (outer ++ inner)) ->
+            NVar name (outer ++ n :: inner)
+insertNVar {outer = []} idx x = MkNVar (Later x)
+insertNVar {outer = (name :: xs)} Z First = MkNVar First
+insertNVar {n} {outer = (x :: xs)} (S i) (Later y)
+    = let MkNVar prf = insertNVar {n} i y in
+          MkNVar (Later prf)
+
 export
 insertVar : {outer : _} ->
             (idx : Nat) ->
@@ -674,6 +689,14 @@ weakenVar (y :: xs) x
          MkVar (Later x')
 
 export
+weakenNVar : (ns : List Name) -> {idx : Nat} -> .(IsVar name idx inner) ->
+             NVar name (ns ++ inner)
+weakenNVar [] x = MkNVar x
+weakenNVar (y :: xs) x
+   = let MkNVar x' = weakenNVar xs x in
+         MkNVar (Later x')
+
+export
 insertVarNames : {outer, ns : _} ->
                  (idx : Nat) ->
                  .(IsVar name idx (outer ++ inner)) ->
@@ -685,10 +708,21 @@ insertVarNames {ns} {outer = (y :: xs)} (S i) (Later x)
           MkVar (Later prf)
 
 export
+insertNVarNames : {outer, ns : _} ->
+                  (idx : Nat) ->
+                  .(IsVar name idx (outer ++ inner)) ->
+                  NVar name (outer ++ (ns ++ inner))
+insertNVarNames {ns} {outer = []} idx prf = weakenNVar ns prf
+insertNVarNames {outer = (y :: xs)} Z First = MkNVar First
+insertNVarNames {ns} {outer = (y :: xs)} (S i) (Later x)
+    = let MkNVar prf = insertNVarNames {ns} i x in
+          MkNVar (Later prf)
+
+export
 thin : {outer, inner : _} ->
        (n : Name) -> Term (outer ++ inner) -> Term (outer ++ n :: inner)
 thin n (Local fc r idx prf)
-    = let MkVar var' = insertVar {n} idx prf in
+    = let MkNVar var' = insertNVar {n} idx prf in
           Local fc r _ var'
 thin n (Ref fc nt name) = Ref fc nt name
 thin n (Meta fc name idx args) = Meta fc name idx (map (thin n) args)
@@ -725,7 +759,7 @@ insertNames : {outer, inner : _} ->
               (ns : List Name) -> Term (outer ++ inner) ->
               Term (outer ++ (ns ++ inner))
 insertNames ns (Local fc r idx prf)
-    = let MkVar prf' = insertVarNames {ns} idx prf in
+    = let MkNVar prf' = insertNVarNames {ns} idx prf in
           Local fc r _ prf'
 insertNames ns (Ref fc nt name) = Ref fc nt name
 insertNames ns (Meta fc name idx args)

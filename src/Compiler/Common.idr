@@ -154,6 +154,7 @@ findUsedNames tm
          logTime ("Compile defs " ++ show (length cns) ++ "/" ++ show asize) $
            traverse_ (compileDef tycontags) cns
          logTime "Inline" $ traverse_ inlineDef cns
+         logTime "Forget names" $ traverse_ mkForgetDef cns
          maybe (pure ())
                (\f => do coreLift $ putStrLn $ "Dumping case trees to " ++ f
                          dumpCases f cns)
