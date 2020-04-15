@@ -223,7 +223,7 @@ mutual
        PRecord : FC ->
                  Visibility ->
                  Name ->
-                 (params : List (Name, PTerm)) ->
+                 (params : List (Name, RigCount, PiInfo PTerm, PTerm)) ->
                  (conName : Maybe Name) ->
                  List PField ->
                  PDecl
@@ -828,7 +828,7 @@ mapPTermM f = goPTerm where
                              <*> pure ns
                              <*> goMPDecls mps
     goPDecl (PRecord fc v n nts mn fs) =
-      PRecord fc v n <$> goPairedPTerms nts
+      PRecord fc v n <$> go4TupledPTerms nts
                      <*> pure mn
                      <*> goPFields fs
     goPDecl (PMutual fc ps) = PMutual fc <$> goPDecls ps
@@ -883,6 +883,12 @@ mapPTermM f = goPTerm where
     go3TupledPTerms ((a, b, t) :: ts) =
       (::) . (\ c => (a, b, c)) <$> goPTerm t
                                 <*> go3TupledPTerms ts
+
+    go4TupledPTerms : List (a, b, c, PTerm) -> Core (List (a, b, c, PTerm))
+    go4TupledPTerms [] = pure []
+    go4TupledPTerms ((a, b, c, t) :: ts) =
+      (::) . (\ d => (a, b, c, d)) <$> goPTerm t
+                                   <*> go4TupledPTerms ts
 
     goPDos : List PDo -> Core (List PDo)
     goPDos []        = pure []

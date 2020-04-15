@@ -340,14 +340,23 @@ mutual
   toPRecord : {auto c : Ref Ctxt Defs} ->
               {auto s : Ref Syn SyntaxInfo} ->
               ImpRecord ->
-              Core (Name, List (Name, PTerm), Maybe Name, List PField)
+              Core (Name, List (Name, RigCount, PiInfo PTerm, PTerm), Maybe Name, List PField)
   toPRecord (MkImpRecord fc n ps con fs)
-      = do ps' <- traverse (\ (n, ty) =>
+      = do ps' <- traverse (\ (n, c, p, ty) =>
                                    do ty' <- toPTerm startPrec ty
-                                      pure (n, ty')) ps
+                                      p' <- mapPiInfo p 
+                                      pure (n, c, p', ty')) ps
            fs' <- traverse toPField fs
            pure (n, ps', Just con, fs')
-
+    where      
+      mapPiInfo : {auto c : Ref Ctxt Defs} -> 
+                  {auto s : Ref Syn SyntaxInfo} ->
+                  PiInfo RawImp -> Core (PiInfo PTerm)
+      mapPiInfo Explicit        = pure   Explicit
+      mapPiInfo Implicit        = pure   Implicit
+      mapPiInfo AutoImplicit    = pure   AutoImplicit
+      mapPiInfo (DefImplicit p) = pure $ DefImplicit !(toPTerm startPrec p)
+  
   toPFnOpt : {auto c : Ref Ctxt Defs} ->
              {auto s : Ref Syn SyntaxInfo} ->
              FnOpt -> Core PFnOpt

@@ -15,10 +15,10 @@ import TTImp.TTImp
 import TTImp.Unelab
 import TTImp.Utils
 
-mkDataTy : FC -> List (Name, RawImp) -> RawImp
+mkDataTy : FC -> List (Name, RigCount, PiInfo RawImp, RawImp) -> RawImp
 mkDataTy fc [] = IType fc
-mkDataTy fc ((n, ty) :: ps)
-    = IPi fc RigW Explicit (Just n) ty (mkDataTy fc ps)
+mkDataTy fc ((n, c, p, ty) :: ps)
+    = IPi fc c p (Just n) ty (mkDataTy fc ps)
 
 elabRecord : {vars : _} ->
              {auto c : Ref Ctxt Defs} ->
@@ -27,7 +27,7 @@ elabRecord : {vars : _} ->
              List ElabOpt -> FC -> Env Term vars ->
              NestedNames vars -> Maybe String ->
              Visibility -> Name ->
-             (params : List (Name, RawImp)) ->
+             (params : List (Name, RigCount, PiInfo RawImp, RawImp)) ->
              (conName : Name) ->
              List IField ->
              Core ()
@@ -55,8 +55,11 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
     paramTelescope : List (Maybe Name, RigCount, PiInfo RawImp, RawImp)
     paramTelescope = map jname params
       where
-        jname : (Name, RawImp) -> (Maybe Name, RigCount, PiInfo RawImp, RawImp)
-        jname (n, t) = (Just n, Rig0, Implicit, t)
+        jname : (Name, RigCount, PiInfo RawImp, RawImp) 
+             -> (Maybe Name, RigCount, PiInfo RawImp, RawImp)
+        -- Record type parameters are implicit in the constructor
+        -- and projections
+        jname (n, _, _, t) = (Just n, Rig0, Implicit, t)
 
     fname : IField -> Name
     fname (MkIField fc c p n ty) = n

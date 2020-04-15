@@ -550,18 +550,18 @@ dataDecl fname indents
          end <- location
          pure (MkImpData (MkFC fname start end) n ty opts cs)
 
-recordParam : FileName -> IndentInfo -> Rule (Name, RawImp)
+recordParam : FileName -> IndentInfo -> Rule (Name, RigCount, PiInfo RawImp, RawImp)
 recordParam fname indents
     = do symbol "("
          n <- name
          symbol ":"
          tm <- expr fname indents
          symbol ")"
-         pure (n, tm)
+         pure (n, RigW, Explicit, tm)
   <|> do start <- location
          n <- name
          end <- location
-         pure (n, Implicit (MkFC fname start end) False)
+         pure (n, RigW, Explicit, Implicit (MkFC fname start end) False)
 
 fieldDecl : FileName -> IndentInfo -> Rule (List IField)
 fieldDecl fname indents

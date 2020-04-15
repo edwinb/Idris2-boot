@@ -1263,18 +1263,18 @@ fieldDecl fname indents
              end <- location
              pure (map (\n => MkField (MkFC fname start end)
                                       rig p n ty) ns)
-recordParam : FileName -> IndentInfo -> Rule (Name, PTerm)
+recordParam : FileName -> IndentInfo -> Rule (Name, RigCount, PiInfo PTerm,  PTerm)
 recordParam fname indents
     = do symbol "("
          n <- name
          symbol ":"
          tm <- expr pdef fname indents
          symbol ")"
-         pure (n, tm)
+         pure (n, RigW, Explicit, tm)
   <|> do start <- location
          n <- name
          end <- location
-         pure (n, PInfer (MkFC fname start end))
+         pure (n, RigW, Explicit, PInfer (MkFC fname start end))
 
 recordDecl : FileName -> IndentInfo -> Rule PDecl
 recordDecl fname indents

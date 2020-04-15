@@ -547,9 +547,9 @@ mutual
   getDecl AsType d@(PRecord fc vis n ps _ _)
       = Just (PData fc vis (MkPLater fc n (mkRecType ps)))
     where
-      mkRecType : List (Name, PTerm) -> PTerm
+      mkRecType : List (Name, RigCount, PiInfo PTerm, PTerm) -> PTerm
       mkRecType [] = PType fc
-      mkRecType ((n, t) :: ts) = PPi fc RigW Explicit (Just n) t (mkRecType ts)
+      mkRecType ((n, c, p, t) :: ts) = PPi fc c p (Just n) t (mkRecType ts)
   getDecl AsType d@(PFixity _ _ _ _) = Just d
   getDecl AsType d@(PDirective _ _) = Just d
   getDecl AsType d = Nothing
@@ -691,20 +691,26 @@ mutual
           = map (\x => (Nothing, x)) (pairToCons p)
 
   desugarDecl ps (PImplementation fc vis pass is cons tn params impname nusing body)
-      = do is' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd (snd ntm))
-                                        pure (fst ntm, fst (snd ntm), tm')) is
-           cons' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
-                                          pure (fst ntm, tm')) cons
+      = do is' <- traverse (\ (n,c,tm) => do tm' <- desugar AnyExpr ps tm
+                                             pure (n, c, tm')) is
+           let _ = the (List (Name, RigCount, RawImp)) is'
+           cons' <- traverse (\ (n, tm) => do tm' <- desugar AnyExpr ps tm
+                                              pure (n, tm')) cons
+           let _ = the (List (Maybe Name, RawImp)) cons'
            params' <- traverse (desugar AnyExpr ps) params
+           let _ = the (List RawImp) params'
            -- Look for bindable names in all the constraints and parameters
            let bnames = if !isUnboundImplicits
                         then  
                         concatMap (findBindableNames True ps []) (map snd cons') ++
                         concatMap (findBindableNames True ps []) params'
                         else []
+
            let paramsb = map (doBind bnames) params'
            let isb = map (\ (n, r, tm) => (n, r, doBind bnames tm)) is'
-           let consb = map (\ (n, tm) => (n, doBind bnames tm)) cons'
+           let _ = the (List (Name, RigCount, RawImp)) isb
+           let consb = map (\(n, tm) => (n, doBind bnames tm)) cons'
+           let _ = the (List (Maybe Name, RawImp)) consb
 
            body' <- maybe (pure Nothing)
                           (\b => do b' <- traverse (desugarDecl ps) b
@@ -713,21 +719,32 @@ mutual
                              elabImplementation fc vis pass env nest isb consb
                                                 tn paramsb impname nusing
                                                 body')]
+
   desugarDecl ps (PRecord fc vis tn params conname_in fields)
-      = do params' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
-                                            pure (fst ntm, tm')) params
+      = do params' <- traverse (\ (n,c,p,tm) => 
+                          do tm' <- desugar AnyExpr ps tm
+                             p'  <- mapDesugarPiInfo ps p
+                             pure (n, c, p', tm'))
+                        params
+           let _ = the (List (Name, RigCount, PiInfo RawImp, RawImp)) params'
            let fnames = map fname fields
+           let _ = the (List Name) fnames
            -- Look for bindable names in the parameters
-           
+
            let bnames = if !isUnboundImplicits
                         then concatMap (findBindableNames True
                                          (ps ++ fnames ++ map fst params) [])
-                                       (map snd params')
+                                       (map (\(_,_,_,d) => d) params')
                         else []
-           let paramsb = map (\ (n, tm) => (n, doBind bnames tm)) params'
+           let _ = the (List (String, String)) bnames
+
+           let paramsb = map (\ (n, c, p, tm) => (n, c, p, doBind bnames tm)) params'
+           let _ = the (List (Name, RigCount, PiInfo RawImp, RawImp)) paramsb
            fields' <- traverse (desugarField (ps ++ map fname fields ++
                                               map fst params)) fields
+           let _ = the (List IField) fields'
            let conname = maybe (mkConName tn) id conname_in
+           let _ = the Name conname
            -- True flag set so that the parent namespace can look inside the
            -- record definition
            pure [IRecord fc (Just (nameRoot tn))
@@ -739,6 +756,16 @@ mutual
       mkConName : Name -> Name
       mkConName (NS ns (UN n)) = NS ns (DN n (MN ("__mk" ++ n) 0))
       mkConName n = DN (show n) (MN ("__mk" ++ show n) 0)
+      
+      mapDesugarPiInfo : {auto s : Ref Syn SyntaxInfo} -> {auto c : Ref Ctxt Defs} 
+                  -> {auto u : Ref UST UState} -> {auto m : Ref MD Metadata} 
+                  -> List Name -> PiInfo PTerm -> Core (PiInfo RawImp)
+      mapDesugarPiInfo ps Implicit         = pure   Implicit
+      mapDesugarPiInfo ps Explicit         = pure   Explicit
+      mapDesugarPiInfo ps AutoImplicit     = pure   AutoImplicit
+      mapDesugarPiInfo ps (DefImplicit tm) = pure $ DefImplicit 
+                                                  !(desugar AnyExpr ps tm)
+  
 
   desugarDecl ps (PFixity fc Prefix prec (UN n))
       = do syn <- get Syn
