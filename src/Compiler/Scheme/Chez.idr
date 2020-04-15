@@ -90,17 +90,17 @@ chezString : String -> String
 chezString cs = strCons '"' (showChezString (unpack cs) "\"")
 
 mutual
-  tySpec : CExp vars -> Core String
+  tySpec : NamedCExp -> Core String
   -- Primitive types have been converted to names for the purpose of matching
   -- on types
-  tySpec (CCon fc (UN "Int") _ []) = pure "int"
-  tySpec (CCon fc (UN "String") _ []) = pure "string"
-  tySpec (CCon fc (UN "Double") _ []) = pure "double"
-  tySpec (CCon fc (UN "Char") _ []) = pure "char"
-  tySpec (CCon fc (NS _ n) _ [_])
+  tySpec (NmCon fc (UN "Int") _ []) = pure "int"
+  tySpec (NmCon fc (UN "String") _ []) = pure "string"
+  tySpec (NmCon fc (UN "Double") _ []) = pure "double"
+  tySpec (NmCon fc (UN "Char") _ []) = pure "char"
+  tySpec (NmCon fc (NS _ n) _ [_])
      = cond [(n == UN "Ptr", pure "void*")]
           (throw (GenericMsg fc ("Can't pass argument of type " ++ show n ++ " to foreign function")))
-  tySpec (CCon fc (NS _ n) _ [])
+  tySpec (NmCon fc (NS _ n) _ [])
      = cond [(n == UN "Unit", pure "void"),
              (n == UN "AnyPtr", pure "void*")]
           (throw (GenericMsg fc ("Can't pass argument of type " ++ show n ++ " to foreign function")))
@@ -110,44 +110,44 @@ mutual
   handleRet "void" op = op ++ " " ++ mkWorld (schConstructor 0 [])
   handleRet _ op = mkWorld op
 
-  getFArgs : CExp vars -> Core (List (CExp vars, CExp vars))
-  getFArgs (CCon fc _ 0 _) = pure []
-  getFArgs (CCon fc _ 1 [ty, val, rest]) = pure $ (ty, val) :: !(getFArgs rest)
+  getFArgs : NamedCExp -> Core (List (NamedCExp, NamedCExp))
+  getFArgs (NmCon fc _ 0 _) = pure []
+  getFArgs (NmCon fc _ 1 [ty, val, rest]) = pure $ (ty, val) :: !(getFArgs rest)
   getFArgs arg = throw (GenericMsg (getFC arg) ("Badly formed c call argument list " ++ show arg))
 
-  chezExtPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String
-  chezExtPrim i vs CCall [ret, CPrimVal fc (Str fn), fargs, world]
+  chezExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String
+  chezExtPrim i CCall [ret, NmPrimVal fc (Str fn), fargs, world]
       = do args <- getFArgs fargs
            argTypes <- traverse tySpec (map fst args)
            retType <- tySpec ret
-           argsc <- traverse (schExp chezExtPrim chezString 0 vs) (map snd args)
+           argsc <- traverse (schExp chezExtPrim chezString 0) (map snd args)
            pure $ handleRet retType ("((foreign-procedure #f " ++ show fn ++ " ("
                     ++ showSep " " argTypes ++ ") " ++ retType ++ ") "
                     ++ showSep " " argsc ++ ")")
-  chezExtPrim i vs CCall [ret, fn, args, world]
+  chezExtPrim i CCall [ret, fn, args, world]
       = pure "(error \"bad ffi call\")"
       -- throw (InternalError ("C FFI calls must be to statically known functions (" ++ show fn ++ ")"))
-  chezExtPrim i vs GetStr [world]
+  chezExtPrim i GetStr [world]
       = pure $ mkWorld "(get-line (current-input-port))"
-  chezExtPrim i vs GetField [CPrimVal _ (Str s), _, _, struct,
-                             CPrimVal _ (Str fld), _]
-      = do structsc <- schExp chezExtPrim chezString 0 vs struct
+  chezExtPrim i GetField [NmPrimVal _ (Str s), _, _, struct,
+                             NmPrimVal _ (Str fld), _]
+      = do structsc <- schExp chezExtPrim chezString 0 struct
            pure $ "(ftype-ref " ++ s ++ " (" ++ fld ++ ") " ++ structsc ++ ")"
-  chezExtPrim i vs GetField [_,_,_,_,_,_]
+  chezExtPrim i GetField [_,_,_,_,_,_]
       = pure "(error \"bad setField\")"
-  chezExtPrim i vs SetField [CPrimVal _ (Str s), _, _, struct,
-                             CPrimVal _ (Str fld), _, val, world]
-      = do structsc <- schExp chezExtPrim chezString 0 vs struct
-           valsc <- schExp chezExtPrim chezString 0 vs val
+  chezExtPrim i SetField [NmPrimVal _ (Str s), _, _, struct,
+                             NmPrimVal _ (Str fld), _, val, world]
+      = do structsc <- schExp chezExtPrim chezString 0 struct
+           valsc <- schExp chezExtPrim chezString 0 val
            pure $ mkWorld $
               "(ftype-set! " ++ s ++ " (" ++ fld ++ ") " ++ structsc ++
               " " ++ valsc ++ ")"
-  chezExtPrim i vs SetField [_,_,_,_,_,_,_,_]
+  chezExtPrim i SetField [_,_,_,_,_,_,_,_]
       = pure "(error \"bad setField\")"
-  chezExtPrim i vs SysCodegen []
+  chezExtPrim i SysCodegen []
       = pure $ "\"chez\""
-  chezExtPrim i vs prim args
-      = schExtCommon chezExtPrim chezString i vs prim args
+  chezExtPrim i prim args
+      = schExtCommon chezExtPrim chezString i prim args
 
 -- Reference label for keeping track of loaded external libraries
 data Loaded : Type where
@@ -332,7 +332,7 @@ compileToSS c tm outfile
          fgndefs <- traverse getFgnCall ns
          compdefs <- traverse (getScheme chezExtPrim chezString defs) ns
          let code = fastAppend (map snd fgndefs ++ compdefs)
-         main <- schExp chezExtPrim chezString 0 [] !(compileExp tags tm)
+         main <- schExp chezExtPrim chezString 0 !(compileExp tags tm)
          chez <- coreLift findChez
          support <- readDataFile "chez/support.ss"
          let scm = schHeader chez (map snd libs) ++

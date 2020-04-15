@@ -944,10 +944,10 @@ TTC GlobalDef where
                       sc <- fromBuf b
                       pure (MkGlobalDef loc name ty eargs seargs specargs
                                         mul vars vis
-                                        tot fl refs refsR inv c True def cdef sc)
+                                        tot fl refs refsR inv c True def cdef Nothing sc)
               else pure (MkGlobalDef loc name (Erased loc False) [] [] []
                                      RigW [] Public unchecked [] refs refsR
-                                     False False True def cdef [])
+                                     False False True def cdef Nothing [])
 
 TTC Transform where
   toBuf b (MkTransform {vars} env lhs rhs)
