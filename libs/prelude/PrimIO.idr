@@ -27,6 +27,7 @@ prim_io_bind : (1 act : PrimIO a) -> (1 k : a -> PrimIO b) -> PrimIO b
 prim_io_bind fn k w
     = let MkIORes x' w' = fn w in k x' w'
 
+%inline
 export
 io_bind : (1 act : IO a) -> (1 k : a -> IO b) -> IO b
 io_bind (MkIO fn)
@@ -43,14 +44,14 @@ io_bind (MkIO fn)
 -- The parameter is a phantom type, to help differentiate between
 -- different pointer types
 public export
-data Ptr : Type -> Type where
+data Ptr : Type -> Type where [external]
 
 -- A pointer to any type (representing a void* in foreign calls)
 public export
-data AnyPtr : Type where
+data AnyPtr : Type where [external]
 
 public export
-data ThreadID : Type where
+data ThreadID : Type where [external]
 
 public export
 data FArgList : Type where

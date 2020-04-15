@@ -1,11 +1,10 @@
-package idris2
+package idris2api
 
-modules =
+modules = 
     Compiler.Common,
     Compiler.CompileExpr,
     Compiler.Inline,
     Compiler.Scheme.Chez,
---     Compiler.Scheme.Chicken,
     Compiler.Scheme.Racket,
     Compiler.Scheme.Common,
 
@@ -29,7 +28,6 @@ modules =
     Core.Name,
     Core.Normalise,
     Core.Options,
---     Core.Reflect,
     Core.Termination,
     Core.TT,
     Core.TTC,
@@ -97,7 +95,6 @@ modules =
     TTImp.Elab.Lazy,
     TTImp.Elab.Local,
     TTImp.Elab.Prim,
---     TTImp.Elab.Quote,
     TTImp.Elab.Record,
     TTImp.Elab.Rewrite,
     TTImp.Elab.Term,
@@ -115,7 +112,6 @@ modules =
     TTImp.ProcessParams,
     TTImp.ProcessRecord,
     TTImp.ProcessType,
---     TTImp.Reflect,
     TTImp.TTImp,
     TTImp.Unelab,
     TTImp.Utils,
@@ -129,7 +125,3 @@ modules =
     Yaffle.REPL
 
 sourcedir = src
-executable = idris2.c
-opts = "--partial-eval -S"
-
-main = Idris.Main

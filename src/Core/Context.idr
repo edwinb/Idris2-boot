@@ -37,6 +37,16 @@ defaultPI : PMDefInfo
 defaultPI = MkPMDefInfo NotHole False
 
 public export
+record TypeFlags where
+  constructor MkTypeFlags
+  uniqueAuto : Bool  -- should 'auto' implicits check for uniqueness
+  external : Bool -- defined externally (e.g. in a C or Scheme library)
+
+export
+defaultFlags : TypeFlags
+defaultFlags = MkTypeFlags False False
+
+public export
 data Def : Type where
     None : Def -- Not yet defined
     PMDef : (pminfo : PMDefInfo) ->
@@ -54,12 +64,14 @@ data Def : Type where
                                 -- e.g "C:printf,libc,stdlib.h", "scheme:display", ...
                  Def
     Builtin : {arity : Nat} -> PrimFn arity -> Def
-    DCon : (tag : Int) -> (arity : Nat) -> Def -- data constructor
+    DCon : (tag : Int) -> (arity : Nat) ->
+           (newtypeArg : Maybe Nat) -> -- if only constructor, and only one
+                                       -- argument is non-Rig0, flag it here,
+           Def -- data constructor
     TCon : (tag : Int) -> (arity : Nat) ->
            (parampos : List Nat) -> -- parameters
            (detpos : List Nat) -> -- determining arguments
-           (uniqueAuto : Bool) -> -- should 'auto' implicits check
-                                  -- for uniqueness
+           (flags : TypeFlags) -> -- should 'auto' implicits check
            (mutwith : List Name) ->
            (datacons : List Name) ->
            (detagabbleBy : Maybe (List Nat)) ->
@@ -87,8 +99,11 @@ export
 Show Def where
   show None = "undefined"
   show (PMDef _ args ct rt pats)
-      = show args ++ "; " ++ show ct
-  show (DCon t a) = "DataCon " ++ show t ++ " " ++ show a
+      = show args ++ ";\nCompile time tree: " ++ show ct ++
+        "\nRun time tree: " ++ show rt
+  show (DCon t a nt)
+      = "DataCon " ++ show t ++ " " ++ show a
+           ++ maybe "" (\n => " (newtype by " ++ show n ++ ")") nt
   show (TCon t a ps ds u ms cons det)
       = "TyCon " ++ show t ++ " " ++ show a ++ " params: " ++ show ps ++
         " constructors: " ++ show cons ++
@@ -183,12 +198,14 @@ record GlobalDef where
   safeErase : List Nat -- which argument positions are safe to assume
                        -- erasable without 'dotting', because their types
                        -- are collapsible relative to non-erased arguments
+  specArgs : List Nat -- arguments to specialise by
   multiplicity : RigCount
   vars : List Name -- environment name is defined in
   visibility : Visibility
   totality : Totality
   flags : List DefFlag
   refersToM : Maybe (NameMap Bool)
+  refersToRuntimeM : Maybe (NameMap Bool)
   invertible : Bool -- for an ordinary definition, is it invertible in unification
   noCycles : Bool -- for metavariables, whether they can be cyclic (this
                   -- would only be allowed when using a metavariable as a
@@ -203,6 +220,10 @@ record GlobalDef where
 export
 refersTo : GlobalDef -> NameMap Bool
 refersTo def = maybe empty id (refersToM def)
+
+export
+refersToRuntime : GlobalDef -> NameMap Bool
+refersToRuntime def = maybe empty id (refersToRuntimeM def)
 
 -- Label for array references
 export
@@ -263,7 +284,7 @@ initCtxtS : Int -> Core Context
 initCtxtS s
     = do arr <- coreLift $ newArray s
          aref <- newRef Arr arr
-         pure (MkContext 0 0 empty empty aref 0 empty [] False)
+         pure (MkContext 0 0 empty empty aref 0 empty [["_PE"]] False)
 
 export
 initCtxt : Core Context
@@ -462,7 +483,8 @@ export
 newDef : FC -> Name -> RigCount -> List Name ->
          ClosedTerm -> Visibility -> Def -> GlobalDef
 newDef fc n rig vars ty vis def
-    = MkGlobalDef fc n ty [] [] rig vars vis unchecked [] empty False False False def
+    = MkGlobalDef fc n ty [] [] []
+                  rig vars vis unchecked [] Nothing Nothing False False False def
                   Nothing []
 
 -- Rewrite rules, applied after type checking, for runtime code only
@@ -717,6 +739,7 @@ HasNames GlobalDef where
                            definition = !(full gam (definition def)),
                            totality = !(full gam (totality def)),
                            refersToM = !(full gam (refersToM def)),
+                           refersToRuntimeM = !(full gam (refersToRuntimeM def)),
                            sizeChange = !(traverse (full gam) (sizeChange def))
                          } def
   resolved gam def
@@ -724,6 +747,7 @@ HasNames GlobalDef where
                         definition = !(resolved gam (definition def)),
                         totality = !(resolved gam (totality def)),
                         refersToM = !(resolved gam (refersToM def)),
+                        refersToRuntimeM = !(resolved gam (refersToRuntimeM def)),
                         sizeChange = !(traverse (resolved gam) (sizeChange def))
                       } def
 
@@ -892,8 +916,9 @@ addBuiltin : {auto x : Ref Ctxt Defs} ->
              Name -> ClosedTerm -> Totality ->
              PrimFn arity -> Core ()
 addBuiltin n ty tot op
-    = do addDef n (MkGlobalDef emptyFC n ty [] [] RigW [] Public tot
-                               [Inline] empty False False True (Builtin op)
+    = do addDef n (MkGlobalDef emptyFC n ty [] [] [] RigW [] Public tot
+                               [Inline] Nothing Nothing
+                               False False True (Builtin op)
                                Nothing [])
          pure ()
 
@@ -1270,7 +1295,7 @@ getSearchData fc defaults target
                      pure (MkSearchData dets (filter (isCons . snd)
                                [(False, opens),
                                 (False, autos),
-                                (not u, tyhs),
+                                (not (uniqueAuto u), tyhs),
                                 (True, chasers)]))
   where
     isDefault : (Name, Bool) -> Bool
@@ -1346,9 +1371,22 @@ setUniqueSearch fc tyn u
     = do defs <- get Ctxt
          Just g <- lookupCtxtExact tyn (gamma defs)
               | _ => throw (UndefinedName fc tyn)
-         let TCon t a ps ds _ cons ms det = definition g
+         let TCon t a ps ds fl cons ms det = definition g
               | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setDetermining]"))
-         updateDef tyn (const (Just (TCon t a ps ds u cons ms det)))
+         let fl' = record { uniqueAuto = u } fl
+         updateDef tyn (const (Just (TCon t a ps ds fl' cons ms det)))
+
+export
+setExternal : {auto c : Ref Ctxt Defs} ->
+              FC -> Name -> Bool -> Core ()
+setExternal fc tyn u
+    = do defs <- get Ctxt
+         Just g <- lookupCtxtExact tyn (gamma defs)
+              | _ => throw (UndefinedName fc tyn)
+         let TCon t a ps ds fl cons ms det = definition g
+              | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setDetermining]"))
+         let fl' = record { external = u } fl
+         updateDef tyn (const (Just (TCon t a ps ds fl' cons ms det)))
 
 export
 addHintFor : {auto c : Ref Ctxt Defs} ->
@@ -1582,7 +1620,7 @@ addData vars vis tidx (MkData (MkCon dfc tyn arity tycon) datacons)
                             (TCon tag arity
                                   (paramPos (Resolved tidx) (map type datacons))
                                   (allDet arity)
-                                  False [] (map name datacons) Nothing)
+                                  defaultFlags [] (map name datacons) Nothing)
          (idx, gam') <- addCtxt tyn tydef (gamma defs)
          gam'' <- addDataConstructors 0 datacons gam'
          put Ctxt (record { gamma = gam'' } defs)
@@ -1600,7 +1638,7 @@ addData vars vis tidx (MkData (MkCon dfc tyn arity tycon) datacons)
                           Context -> Core Context
     addDataConstructors tag [] gam = pure gam
     addDataConstructors tag (MkCon fc n a ty :: cs) gam
-        = do let condef = newDef fc n RigW vars ty (conVisibility vis) (DCon tag a)
+        = do let condef = newDef fc n RigW vars ty (conVisibility vis) (DCon tag a Nothing)
              (idx, gam') <- addCtxt n condef gam
              addDataConstructors (tag + 1) cs gam'
 
@@ -1628,6 +1666,9 @@ inCurrentNS n@(CaseBlock _ _)
     = do defs <- get Ctxt
          pure (NS (currentNS defs) n)
 inCurrentNS n@(WithBlock _ _)
+    = do defs <- get Ctxt
+         pure (NS (currentNS defs) n)
+inCurrentNS n@(Nested _ _)
     = do defs <- get Ctxt
          pure (NS (currentNS defs) n)
 inCurrentNS n@(MN _ _)
@@ -2045,8 +2086,7 @@ logC lvl cmsg
             else pure ()
 
 export
-logTimeOver : {auto c : Ref Ctxt Defs} ->
-              Integer -> Core String -> Core a -> Core a
+logTimeOver : Integer -> Core String -> Core a -> Core a
 logTimeOver nsecs str act
     = do clock <- coreLift clockTime
          let nano = 1000000000

@@ -4,7 +4,7 @@ module Data.IORef
 
 -- Implemented externally
 -- e.g., in Scheme, passed around as a box
-data Mut : Type -> Type
+data Mut : Type -> Type where [external]
 
 %extern prim__newIORef : forall a . a -> (1 x : %World) -> IORes (Mut a)
 %extern prim__readIORef : forall a . Mut a -> (1 x : %World) -> IORes a

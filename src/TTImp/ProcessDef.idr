@@ -18,6 +18,7 @@ import TTImp.BindImplicits
 import TTImp.Elab
 import TTImp.Elab.Check
 import TTImp.Impossible
+import TTImp.PartialEval
 import TTImp.TTImp
 import TTImp.Unelab
 import TTImp.Utils
@@ -313,10 +314,10 @@ hasEmptyPat defs env _ = pure False
 -- For checking with blocks as nested names
 applyEnv : {auto c : Ref Ctxt Defs} ->
            Env Term vars -> Name ->
-           Core (Name, (Maybe Name, Nat, FC -> NameType -> Term vars))
+           Core (Name, (Maybe Name, List Name, FC -> NameType -> Term vars))
 applyEnv env withname
     = do n' <- resolveName withname
-         pure (withname, (Just withname, lengthNoLet env,
+         pure (withname, (Just withname, namesNoLet env,
                   \fc, nt => applyTo fc
                          (Ref fc nt (Resolved n')) env))
 
@@ -515,8 +516,36 @@ nameListEq (x :: xs) (y :: ys) with (nameEq x y)
   nameListEq (x :: xs) (y :: ys) | Nothing = Nothing
 nameListEq _ _ = Nothing
 
+-- Calculate references for the given name, and recursively if they haven't
+-- been calculated already
+calcRefs : {auto c : Ref Ctxt Defs} ->
+           (runtime : Bool) -> (aTotal : Name) -> (fn : Name) -> Core ()
+calcRefs rt at fn
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact fn (gamma defs)
+              | _ => pure ()
+         let PMDef r cargs tree_ct tree_rt pats = definition gdef
+              | _ => pure () -- not a function definition
+         let Nothing = if rt
+                          then refersToRuntimeM gdef
+                          else refersToM gdef
+              | Just _ => pure () -- already done
+         let tree = if rt then tree_rt else tree_ct
+         let metas = getMetas tree
+         traverse_ addToSave (keys metas)
+         let refs = addRefs at metas tree
+
+         logC 5 (do fulln <- getFullName fn
+                    refns <- traverse getFullName (keys refs)
+                    pure (show fulln ++ " refers to " ++ show refns))
+         if rt
+            then addDef fn (record { refersToRuntimeM = Just refs } gdef)
+            else addDef fn (record { refersToM = Just refs } gdef)
+         traverse_ (calcRefs rt at) (keys refs)
+
 -- Compile run time case trees for the given name
 mkRunTime : {auto c : Ref Ctxt Defs} ->
+            {auto m : Ref MD Metadata} ->
             {auto u : Ref UST UState} ->
             Name -> Core ()
 mkRunTime n
@@ -541,39 +570,21 @@ mkRunTime n
                Core Clause
     toClause fc (_ ** (env, lhs, rhs))
         = do lhs_erased <- linearCheck fc Rig1 True env lhs
-             rhs_erased <- linearCheck fc Rig1 True env rhs
+             rhs' <- applySpecialise env rhs
+             rhs_erased <- linearCheck fc Rig1 True env rhs'
              pure $ MkClause env lhs_erased rhs_erased
 
 compileRunTime : {auto c : Ref Ctxt Defs} ->
+                 {auto m : Ref MD Metadata} ->
                  {auto u : Ref UST UState} ->
-                 Core ()
-compileRunTime
+                 Name -> Core ()
+compileRunTime atotal
     = do defs <- get Ctxt
          traverse_ mkRunTime (toCompile defs)
+         traverse (calcRefs True atotal) (toCompile defs)
+
          defs <- get Ctxt
          put Ctxt (record { toCompile = [] } defs)
-
--- Calculate references for the given name, and recursively if they haven't
--- been calculated already
-calcRefs : {auto c : Ref Ctxt Defs} ->
-           (aTotal : Name) -> (fn : Name) -> Core ()
-calcRefs at fn
-    = do defs <- get Ctxt
-         Just gdef <- lookupCtxtExact fn (gamma defs)
-              | _ => pure ()
-         let PMDef r cargs tree_ct _ pats = definition gdef
-              | _ => pure () -- not a function definition
-         let Nothing = refersToM gdef
-              | Just _ => pure () -- already done
-         let metas = getMetas tree_ct
-         traverse_ addToSave (keys metas)
-         let refs = addRefs at metas tree_ct
-
-         logC 5 (do fulln <- getFullName fn
-                    refns <- traverse getFullName (keys refs)
-                    pure (show fulln ++ " refers to " ++ show refns))
-         addDef fn (record { refersToM = Just refs } gdef)
-         traverse_ (calcRefs at) (keys refs)
 
 toPats : Clause -> (vs ** (Env Term vs, Term vs, Term vs))
 toPats (MkClause {vars} env lhs rhs)
@@ -624,10 +635,9 @@ processDef opts nest env fc n_in cs_in
          defs <- get Ctxt
          put Ctxt (record { toCompile $= (n ::) } defs)
 
+         atotal <- toResolvedNames (NS ["Builtin"] (UN "assert_total"))
          when (not (InCase `elem` opts)) $
-             do atotal <- toResolvedNames (NS ["Builtin"] (UN "assert_total"))
-                calcRefs atotal (Resolved nidx)
-
+             do calcRefs False atotal (Resolved nidx)
                 sc <- calculateSizeChange fc n
                 setSizeChange fc n sc
 
@@ -640,7 +650,7 @@ processDef opts nest env fc n_in cs_in
          -- trees. TODO: Take into account coverage, and add error cases
          -- if we're not covering.
          when (not (elem InCase opts)) $
-           compileRunTime
+           compileRunTime atotal
 
   where
     simplePat : Term vars -> Bool

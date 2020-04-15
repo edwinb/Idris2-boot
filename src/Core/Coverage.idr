@@ -18,7 +18,7 @@ conflict defs nfty n
     = do Just gdef <- lookupCtxtExact n (gamma defs)
               | Nothing => pure False
          case (definition gdef, type gdef) of
-              (DCon t arity, dty)
+              (DCon t arity _, dty)
                   => conflictNF nfty !(nf defs [] dty)
               _ => pure False
   where
@@ -51,8 +51,10 @@ export
 isEmpty : Defs -> NF vars -> Core Bool
 isEmpty defs (NTCon fc n t a args)
      = case !(lookupDefExact n (gamma defs)) of
-            Just (TCon _ _ _ _ _ _ cons _)
-                 => allM (conflict defs (NTCon fc n t a args)) cons
+            Just (TCon _ _ _ _ flags _ cons _)
+                 => if not (external flags)
+                       then allM (conflict defs (NTCon fc n t a args)) cons
+                       else pure False
             _ => pure False
 isEmpty defs _ = pure False
 
@@ -76,7 +78,7 @@ getCons defs (NTCon _ tn _ _ _)
         = do Just gdef <- lookupCtxtExact cn (gamma defs)
                   | _ => pure Nothing
              case (definition gdef, type gdef) of
-                  (DCon t arity, ty) =>
+                  (DCon t arity _, ty) =>
                         pure (Just (!(nf defs [] ty), cn, t, arity))
                   _ => pure Nothing
 getCons defs _ = pure []

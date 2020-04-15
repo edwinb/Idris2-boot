@@ -180,16 +180,11 @@ cCall fc cfn libspec args ret
     applyLams n (Just (a, ty) :: as)
         = applyLams ("(" ++ n ++ " " ++ cToRkt ty a ++ ")") as
 
-    getVal : CFType -> String -> String
-    getVal ty str = rktToC ty ("(vector-ref " ++ str ++ "2)")
-
     mkFun : List CFType -> CFType -> String -> String
     mkFun args ret n
         = let argns = mkNs 0 args in
               "(lambda (" ++ showSep " " (map fst (mapMaybe id argns)) ++ ") " ++
-              (case ret of
-                    CFIORes rt => getVal rt (applyLams n argns) ++ ")"
-                    _ => applyLams n argns ++ ")")
+              (applyLams n argns ++ ")")
 
     notWorld : CFType -> Bool
     notWorld CFWorld = False

@@ -73,7 +73,7 @@ data CDef : Type where
      -- Normal function definition
      MkFun : (args : List Name) -> CExp args -> CDef
      -- Constructor
-     MkCon : (tag : Int) -> (arity : Nat) -> CDef
+     MkCon : (tag : Int) -> (arity : Nat) -> (nt : Maybe Nat) -> CDef
      -- Foreign definition
      MkForeign : (ccs : List String) ->
                  (fargs : List CFType) ->
@@ -136,7 +136,9 @@ Show CFType where
 export
 Show CDef where
   show (MkFun args exp) = show args ++ ": " ++ show exp
-  show (MkCon tag arity) = "Constructor tag " ++ show tag ++ " arity " ++ show arity
+  show (MkCon tag arity pos)
+      = "Constructor tag " ++ show tag ++ " arity " ++ show arity ++
+        maybe "" (\n => " (newtype by " ++ show n ++ ")") pos
   show (MkForeign ccs args ret)
       = "Foreign call " ++ show ccs ++ " " ++
         show args ++ " -> " ++ show ret
@@ -312,11 +314,85 @@ mutual
   shrinkConstAlt : SubVars newvars vars -> CConstAlt vars -> CConstAlt newvars
   shrinkConstAlt sub (MkConstAlt x sc) = MkConstAlt x (shrinkCExp sub sc)
 
+export
+Weaken CExp where
+  weaken = thin {outer = []} _
+  weakenNs ns tm = insertNames {outer = []} ns tm
+
+-- Substitute some explicit terms for names in a term, and remove those
+-- names from the scope
+public export
+data SubstCEnv : List Name -> List Name -> Type where
+     Nil : SubstCEnv [] vars
+     (::) : CExp vars ->
+            SubstCEnv ds vars -> SubstCEnv (d :: ds) vars
+
+findDrop : {drop : _} -> {idx : Nat} ->
+           FC -> .(IsVar name idx (drop ++ vars)) ->
+           SubstCEnv drop vars -> CExp vars
+findDrop {drop = []} fc var env = CLocal fc var
+findDrop {drop = x :: xs} fc First (tm :: env) = tm
+findDrop {drop = x :: xs} fc (Later p) (tm :: env) = findDrop fc p env
+
+find : {outer : _} -> {idx : Nat} ->
+       FC -> .(IsVar name idx (outer ++ (drop ++ vars))) ->
+       SubstCEnv drop vars ->
+       CExp (outer ++ vars)
+find {outer = []} fc var env = findDrop fc var env
+find {outer = x :: xs} fc First env = CLocal fc First
+find {outer = x :: xs} fc (Later p) env = weaken (find fc p env)
+
 mutual
-  export
-  Weaken CExp where
-    weaken = thin {outer = []} _
-    weakenNs ns tm = insertNames {outer = []} ns tm
+  substEnv : {outer : _} ->
+             SubstCEnv drop vars -> CExp (outer ++ (drop ++ vars)) ->
+             CExp (outer ++ vars)
+  substEnv env (CLocal fc prf)
+      = find fc prf env
+  substEnv _ (CRef fc x) = CRef fc x
+  substEnv {outer} env (CLam fc x sc)
+      = let sc' = substEnv {outer = x :: outer} env sc in
+            CLam fc x sc'
+  substEnv {outer} env (CLet fc x val sc)
+      = let sc' = substEnv {outer = x :: outer} env sc in
+            CLet fc x (substEnv env val) sc'
+  substEnv env (CApp fc x xs)
+      = CApp fc (substEnv env x) (assert_total (map (substEnv env) xs))
+  substEnv env (CCon fc x tag xs)
+      = CCon fc x tag (assert_total (map (substEnv env) xs))
+  substEnv env (COp fc x xs)
+      = COp fc x (assert_total (map (substEnv env) xs))
+  substEnv env (CExtPrim fc p xs)
+      = CExtPrim fc p (assert_total (map (substEnv env) xs))
+  substEnv env (CForce fc x) = CForce fc (substEnv env x)
+  substEnv env (CDelay fc x) = CDelay fc (substEnv env x)
+  substEnv env (CConCase fc sc xs def)
+      = CConCase fc (substEnv env sc)
+                 (assert_total (map (substConAlt env) xs))
+                 (assert_total (map (substEnv env) def))
+  substEnv env (CConstCase fc sc xs def)
+      = CConstCase fc (substEnv env sc)
+                   (assert_total (map (substConstAlt env) xs))
+                   (assert_total (map (substEnv env) def))
+  substEnv _ (CPrimVal fc x) = CPrimVal fc x
+  substEnv _ (CErased fc) = CErased fc
+  substEnv _ (CCrash fc x) = CCrash fc x
+
+  substConAlt : SubstCEnv drop vars -> CConAlt (outer ++ (drop ++ vars)) ->
+                CConAlt (outer ++ vars)
+  substConAlt {vars} {outer} {drop} env (MkConAlt x tag args sc)
+      = MkConAlt x tag args
+           (rewrite appendAssociative args outer vars in
+                    substEnv {outer = args ++ outer} env
+                      (rewrite sym (appendAssociative args outer (drop ++ vars)) in
+                               sc))
+
+  substConstAlt : SubstCEnv drop vars -> CConstAlt (outer ++ (drop ++ vars)) ->
+                  CConstAlt (outer ++ vars)
+  substConstAlt env (MkConstAlt x sc) = MkConstAlt x (substEnv env sc)
+
+export
+substs : SubstCEnv drop vars -> CExp (drop ++ vars) -> CExp vars
+substs env tm = substEnv {outer = []} env tm
 
 export
 getFC : CExp args -> FC

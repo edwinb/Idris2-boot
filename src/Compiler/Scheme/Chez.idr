@@ -202,16 +202,11 @@ cCall fc cfn clib args ret
     applyLams n (Nothing :: as) = applyLams ("(" ++ n ++ " #f)") as
     applyLams n (Just a :: as) = applyLams ("(" ++ n ++ " " ++ a ++ ")") as
 
-    getVal : String -> String
-    getVal str = "(vector-ref " ++ str ++ "2)"
-
     mkFun : List CFType -> CFType -> String -> String
     mkFun args ret n
         = let argns = mkNs 0 args in
               "(lambda (" ++ showSep " " (mapMaybe id argns) ++ ") " ++
-              (case ret of
-                    CFIORes _ => getVal (applyLams n argns) ++ ")"
-                    _ => applyLams n argns ++ ")")
+              (applyLams n argns ++ ")")
 
     notWorld : CFType -> Bool
     notWorld CFWorld = False

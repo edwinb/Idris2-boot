@@ -894,6 +894,8 @@ dataOpt
   <|> do exactIdent "search"
          ns <- some name
          pure (SearchBy ns)
+  <|> do exactIdent "external"
+         pure External
 
 dataBody : FileName -> Int -> FilePos -> Name -> IndentInfo -> PTerm ->
            EmptyRule PDataDecl
@@ -1116,6 +1118,9 @@ fnDirectOpt fname
          pure $ IFnOpt ExternFn
   <|> do exactIdent "macro"
          pure $ IFnOpt Macro
+  <|> do exactIdent "spec"
+         ns <- sepBy (symbol ",") name
+         pure $ IFnOpt (SpecArgs ns)
   <|> do exactIdent "foreign"
          cs <- block (expr pdef fname)
          pure $ PForeign cs

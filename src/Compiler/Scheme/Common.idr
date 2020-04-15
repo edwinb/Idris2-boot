@@ -234,7 +234,7 @@ toPrim pn = Unknown pn
 
 export
 mkWorld : String -> String
-mkWorld res = schConstructor 0 ["#f", res, "#f"] -- MkIORes
+mkWorld res = res -- MkIORes is a newtype now! schConstructor 0 ["#f", res, "#f"] -- MkIORes
 
 schConstant : (String -> String) -> Constant -> String
 schConstant _ (I x) = show x
@@ -327,7 +327,7 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
                       ++ showSep " " !(traverse (schConstAlt (i+1) vs n) alts)
                       ++ schCaseDef defc ++ "))"
     schExp i vs (CPrimVal fc c) = pure $ schConstant schString c
-    schExp i vs (CErased fc) = pure "4294"
+    schExp i vs (CErased fc) = pure "'erased"
     schExp i vs (CCrash fc msg) = pure $ "(blodwen-error-quit " ++ show msg ++ ")"
 
   -- Need to convert the argument (a list of scheme arguments that may
@@ -414,7 +414,7 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
   schDef n (MkError exp)
      = pure $ "(define (" ++ schName !(getFullName n) ++ " . any-args) " ++ !(schExp 0 [] exp) ++ ")\n"
   schDef n (MkForeign _ _ _) = pure "" -- compiled by specific back end
-  schDef n (MkCon t a) = pure "" -- Nothing to compile here
+  schDef n (MkCon t a _) = pure "" -- Nothing to compile here
 
 -- Convert the name to scheme code
 -- (There may be no code generated, for example if it's a constructor)
