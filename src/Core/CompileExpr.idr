@@ -195,7 +195,6 @@ tryNext (UN n) = MN n 0
 tryNext (MN n i) = MN n (1 + i)
 tryNext n = MN (nameRoot n) 0
 
-export
 uniqueName : Name -> Names vs -> Name
 uniqueName s ns =
     if s `elem` ns
@@ -270,7 +269,8 @@ forget {vars} exp
 export
 forgetDef : CDef -> NamedDef
 forgetDef (MkFun args def)
-    = let args' = conArgs args (addLocs args []) in
+    = let ns = addLocs args []
+          args' = conArgs args ns in
           MkNmFun args' (forget def)
 forgetDef (MkCon t a nt) = MkNmCon t a nt
 forgetDef (MkForeign ccs fargs ty) = MkNmForeign ccs fargs ty
@@ -304,6 +304,17 @@ Show CDef where
       = "Foreign call " ++ show ccs ++ " " ++
         show args ++ " -> " ++ show ret
   show (MkError exp) = "Error: " ++ show exp
+
+export
+Show NamedDef where
+  show (MkNmFun args exp) = show args ++ ": " ++ show exp
+  show (MkNmCon tag arity pos)
+      = "Constructor tag " ++ show tag ++ " arity " ++ show arity ++
+        maybe "" (\n => " (newtype by " ++ show n ++ ")") pos
+  show (MkNmForeign ccs args ret)
+      = "Foreign call " ++ show ccs ++ " " ++
+        show args ++ " -> " ++ show ret
+  show (MkNmError exp) = "Error: " ++ show exp
 
 mutual
   export

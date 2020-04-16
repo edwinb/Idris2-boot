@@ -494,7 +494,8 @@ compileDef tags n
          setCompiled n ce
 
 export
-mkForgetDef : {auto c : Ref Ctxt Defs} -> Name -> Core ()
+mkForgetDef : {auto c : Ref Ctxt Defs} ->
+              Name -> Core ()
 mkForgetDef n
     = do defs <- get Ctxt
          Just gdef <- lookupCtxtExact n (gamma defs)

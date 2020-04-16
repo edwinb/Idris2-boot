@@ -1022,15 +1022,16 @@ namespace Bounds
        None : Bounds []
        Add : (x : Name) -> Name -> Bounds xs -> Bounds (x :: xs)
 
+export
 addVars : {later, bound : _} ->
           {idx : Nat} ->
           Bounds bound -> .(IsVar name idx (later ++ vars)) ->
-          Var (later ++ (bound ++ vars))
-addVars {later = []} {bound} bs p = weakenVar bound p
-addVars {later = (x :: xs)} bs First = MkVar First
+          NVar name (later ++ (bound ++ vars))
+addVars {later = []} {bound} bs p = weakenNVar bound p
+addVars {later = (x :: xs)} bs First = MkNVar First
 addVars {later = (x :: xs)} bs (Later p)
-  = let MkVar p' = addVars {later = xs} bs p in
-        MkVar (Later p')
+  = let MkNVar p' = addVars {later = xs} bs p in
+        MkNVar (Later p')
 
 resolveRef : (done : List Name) -> Bounds bound -> FC -> Name ->
              Maybe (Term (later ++ (done ++ bound ++ vars)))
@@ -1038,9 +1039,9 @@ resolveRef done None fc n = Nothing
 resolveRef {later} {vars} done (Add {xs} new old bs) fc n
     = if n == old
          then rewrite appendAssociative later done (new :: xs ++ vars) in
-              let MkVar p = weakenVar {inner = new :: xs ++ vars}
-                                      (later ++ done) First in
-                    Just (Local fc Nothing _ p)
+              let MkNVar p = weakenNVar {inner = new :: xs ++ vars}
+                                        (later ++ done) First in
+                     Just (Local fc Nothing _ p)
          else rewrite appendAssociative done [new] (xs ++ vars)
                 in resolveRef (done ++ [new]) bs fc n
 
@@ -1048,7 +1049,7 @@ mkLocals : {later, bound : _} ->
            Bounds bound ->
            Term (later ++ vars) -> Term (later ++ (bound ++ vars))
 mkLocals bs (Local fc r idx p)
-    = let MkVar p' = addVars bs p in Local fc r _ p'
+    = let MkNVar p' = addVars bs p in Local fc r _ p'
 mkLocals bs (Ref fc Bound name)
     = maybe (Ref fc Bound name) id (resolveRef [] bs fc name)
 mkLocals bs (Ref fc nt name)
