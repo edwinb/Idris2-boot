@@ -18,6 +18,7 @@ data Token = Ident String
            | Comment String
            | DocComment String
            | CGDirective String
+           | RecordProjection (List String)
            | EndInput
 
 export
@@ -34,6 +35,7 @@ Show Token where
   show (Comment _) = "comment"
   show (DocComment _) = "doc comment"
   show (CGDirective x) = "CGDirective " ++ x
+  show (RecordProjection ns) = concat ["." ++ n | n <- ns]
   show EndInput = "end of input"
 
 export
@@ -80,6 +82,9 @@ doubleLit : Lexer
 doubleLit
     = digits <+> is '.' <+> digits <+> opt
            (is 'e' <+> opt (is '-' <|> is '+') <+> digits)
+
+recordProj : Lexer
+recordProj = some (is '.' <+> ident)
 
 -- Do this as an entire token, because the contents will be processed by
 -- a specific back end
@@ -161,6 +166,7 @@ rawTokens =
      (digits, \x => Literal (cast x)),
      (stringLit, \x => StrLit (stripQuotes x)),
      (charLit, \x => CharLit (stripQuotes x)),
+     (recordProj, \x => RecordProjection (breakFields x)),
      (ident, \x => if x `elem` keywords then Keyword x else Ident x),
      (space, Comment),
      (validSymbol, Symbol),
@@ -169,6 +175,10 @@ rawTokens =
     stripQuotes : String -> String
     -- ASSUMPTION! Only total because we know we're getting quoted strings.
     stripQuotes = assert_total (strTail . reverse . strTail . reverse)
+
+    -- the lexical syntax guarantees that the input is nonempty so strTail is safe
+    breakFields : String -> List String
+    breakFields s = split (== '.') $ assert_total (strTail s)
 
 export
 lexTo : (TokenData Token -> Bool) ->
