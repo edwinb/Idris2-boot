@@ -343,6 +343,12 @@ mutual
                 desugarB side ps (PApp fc (PApp fc (PRef fc (UN "rangeFromThen")) start) n)
   desugarB side ps (PUnifyLog fc lvl tm)
       = pure $ IUnifyLog fc lvl !(desugarB side ps tm)
+  desugarB side ps (PRecordFieldAccess fc rec fields)
+      = desugarB side ps $ foldl (\r, f => PApp fc (PRef fc f) r) rec fields
+  desugarB side ps (PRecordProjection fc fields)
+      = desugarB side ps $
+          PLam fc RigW Explicit (PRef fc (MN "rec" 0)) (PImplicit fc) $
+            foldl (\r, f => PApp fc (PRef fc f) r) (PRef fc (MN "rec" 0)) fields
 
   desugarUpdate : {auto s : Ref Syn SyntaxInfo} ->
                   {auto b : Ref Bang BangData} ->

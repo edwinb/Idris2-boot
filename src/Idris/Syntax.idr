@@ -90,6 +90,10 @@ mutual
        PRange : FC -> PTerm -> Maybe PTerm -> PTerm -> PTerm
        -- A stream range [x,y..]
        PRangeStream : FC -> PTerm -> Maybe PTerm -> PTerm
+       -- record field access (r.x.y)
+       PRecordFieldAccess : FC -> PTerm -> List Name -> PTerm
+       -- record projection (.x.y)
+       PRecordProjection : FC -> List Name -> PTerm
 
        -- Debugging
        PUnifyLog : FC -> Nat -> PTerm -> PTerm
@@ -487,6 +491,10 @@ mutual
     showPrec d (PRangeStream _ start (Just next))
         = "[" ++ showPrec d start ++ ", " ++ showPrec d next ++ " .. ]"
     showPrec d (PUnifyLog _ lvl tm) = showPrec d tm
+    showPrec d (PRecordFieldAccess fc rec fields)
+        = showPrec d rec ++ concatMap show fields
+    showPrec d (PRecordProjection fc fields)
+        = concatMap show fields
 
 public export
 record IFaceInfo where
@@ -765,6 +773,11 @@ mapPTermM f = goPTerm where
     goPTerm (PUnifyLog fc k x) =
       PUnifyLog fc k <$> goPTerm x
       >>= f
+    goPTerm (PRecordFieldAccess fc rec fields) =
+      PRecordFieldAccess fc <$> goPTerm rec <*> pure fields
+      >>= f
+    goPTerm (PRecordProjection fc fields) =
+      f (PRecordProjection fc fields)
 
     goPFieldUpdate : PFieldUpdate -> Core PFieldUpdate
     goPFieldUpdate (PSetField p t)    = PSetField p <$> goPTerm t
