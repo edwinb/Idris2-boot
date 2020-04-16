@@ -477,9 +477,10 @@ toCDef tags n ty def
 
 export
 compileExp : {auto c : Ref Ctxt Defs} ->
-             NameTags -> ClosedTerm -> Core (CExp [])
+             NameTags -> ClosedTerm -> Core NamedCExp
 compileExp tags tm
-    = toCExp tags (UN "main") tm
+    = do exp <- toCExp tags (UN "main") tm
+         pure (forget exp)
 
 ||| Given a name, look up an expression, and compile it to a CExp in the environment
 export
@@ -491,3 +492,15 @@ compileDef tags n
          ce <- toCDef tags n (type gdef)
                              !(toFullNames (definition gdef))
          setCompiled n ce
+
+export
+mkForgetDef : {auto c : Ref Ctxt Defs} ->
+              Name -> Core ()
+mkForgetDef n
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact n (gamma defs)
+              | Nothing => throw (InternalError ("Trying to compile unknown name " ++ show n))
+         case compexpr gdef of
+              Nothing => pure ()
+              Just cdef => do let ncdef = forgetDef cdef
+                              setNamedCompiled n ncdef

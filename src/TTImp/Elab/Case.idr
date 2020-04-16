@@ -249,23 +249,22 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
     -- Replace a variable in the argument list; if the reference is to
     -- a variable kept in the outer environment (therefore not an argument
     -- in the list) don't consume it
-    replace : {idx : Nat} -> .(IsVar name idx vs) ->
-              RawImp -> List RawImp -> List RawImp
-    replace First lhs (old :: xs)
+    replace : (idx : Nat) -> RawImp -> List RawImp -> List RawImp
+    replace Z lhs (old :: xs)
        = let lhs' = case old of
                          IAs loc' side n _ => IAs loc' side n lhs
                          _ => lhs in
              lhs' :: xs
-    replace (Later p) lhs (x :: xs)
-        = x :: replace p lhs xs
+    replace (S k) lhs (x :: xs)
+        = x :: replace k lhs xs
     replace _ _ xs = xs
 
     mkSplit : Maybe (Var vs) ->
               RawImp -> List RawImp ->
               List RawImp
     mkSplit Nothing lhs args = reverse (lhs :: args)
-    mkSplit (Just (MkVar prf)) lhs args
-        = reverse (replace prf lhs args)
+    mkSplit (Just (MkVar {i} prf)) lhs args
+        = reverse (replace i lhs args)
 
     -- Names used in the pattern we're matching on, so don't bind them
     -- in the generated case block
