@@ -346,11 +346,11 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
        = pure $ mkWorld ("(apply (eval (string->symbol " ++ !(schExp i fn) ++")) "
                     ++ !(readArgs i args) ++ ")")
   schExtCommon i PutStr [arg, world]
-      = pure $ "(display " ++ !(schExp i arg) ++ ") " ++ mkWorld (schConstructor 0 []) -- code for MkUnit
+      = pure $ "(begin (display " ++ !(schExp i arg) ++ ") " ++ mkWorld (schConstructor 0 []) ++ ")" -- code for MkUnit
   schExtCommon i GetStr [world]
       = pure $ mkWorld "(blodwen-get-line (current-input-port))"
   schExtCommon i PutChar [arg, world]
-      = pure $ "(display " ++ !(schExp i arg) ++ ") " ++ mkWorld (schConstructor 0 []) -- code for MkUnit
+      = pure $ "(begin (display " ++ !(schExp i arg) ++ ") " ++ mkWorld (schConstructor 0 []) ++ ")" -- code for MkUnit
   schExtCommon i GetChar [world]
       = pure $ mkWorld "(blodwen-get-char (current-input-port))"
   schExtCommon i FileOpen [file, mode, bin, world]

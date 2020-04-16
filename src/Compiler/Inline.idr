@@ -190,7 +190,7 @@ mutual
                 | Nothing => pure (unload stk (CRef fc n))
            let arity = getArity def
            if (Inline `elem` flags gdef) && (not (n `elem` rec))
-              then do ap <-  tryApply (n :: rec) stk env def
+              then do ap <- tryApply (n :: rec) stk env def
                       pure $ maybe (unloadApp arity stk (CRef fc n)) id ap
               else pure $ unloadApp arity stk (CRef fc n)
   eval {vars} {free} rec env [] (CLam fc x sc)
