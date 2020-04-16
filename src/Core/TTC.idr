@@ -973,4 +973,3 @@ Core.Context.decode gam idx update (Coded bin)
          when update $ coreLift $ writeArray arr idx (Decoded def')
          pure def'
 Core.Context.decode gam idx update (Decoded def) = pure def
-
