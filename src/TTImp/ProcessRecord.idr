@@ -107,8 +107,8 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
                                   then S done else done)
                               upds (b :: tyenv) sc
              else
-                do let fldName = toRF n
-                   gname <- inCurrentNS fldName
+                do let fldName = n
+                   gname <- inCurrentNS (toRF fldName)
                    ty <- unelab tyenv ty_chk
                    let ty' = substNames vars upds ty
                    log 5 $ "Field type: " ++ show ty'
