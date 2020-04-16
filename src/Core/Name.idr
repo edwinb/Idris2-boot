@@ -66,7 +66,7 @@ export Show Name where
   show (MN x y) = "{" ++ x ++ ":" ++ show y ++ "}"
   show (PV n d) = "{P:" ++ show n ++ ":" ++ show d ++ "}"
   show (DN str n) = str
-  show (RF n) = "." ++ n
+  show (RF n) = "->" ++ n
   show (Nested (outer, idx) inner)
       = show outer ++ ":" ++ show idx ++ ":" ++ show inner
   show (CaseBlock outer i) = "case block in " ++ show outer ++ "(" ++ show i ++ ")"

@@ -79,7 +79,7 @@ holeIdent : Lexer
 holeIdent = is '?' <+> ident
 
 recField : Lexer
-recField = is '.' <+> ident
+recField = is '-' <+> is '>' <+> ident
 
 doubleLit : Lexer
 doubleLit
@@ -166,7 +166,7 @@ rawTokens =
      (digits, \x => Literal (cast x)),
      (stringLit, \x => StrLit (stripQuotes x)),
      (charLit, \x => CharLit (stripQuotes x)),
-     (recField, \x => RecordField (stripDot x)),
+     (recField, \x => RecordField (stripArrow x)),
      (ident, \x => if x `elem` keywords then Keyword x else Ident x),
      (space, Comment),
      (validSymbol, Symbol),
@@ -176,10 +176,8 @@ rawTokens =
     -- ASSUMPTION! Only total because we know we're getting quoted strings.
     stripQuotes = assert_total (strTail . reverse . strTail . reverse)
 
-    stripDot : String -> String
-    stripDot s = case strM s of
-      StrNil => ""  -- can't happen
-      StrCons _ s' => s'  -- the head is '.' but we don't check that
+    stripArrow : String -> String
+    stripArrow s = assert_total (strTail $ strTail s)
 
 export
 lexTo : (TokenData Token -> Bool) ->
