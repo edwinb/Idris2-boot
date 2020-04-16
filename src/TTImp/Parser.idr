@@ -226,23 +226,30 @@ mutual
                    pure (rig, UN n, ty))
 
 
-  pibindList : FileName -> FilePos -> IndentInfo ->
-               Rule (List (RigCount, Maybe Name, RawImp))
-  pibindList fname start indents
+  pibindListName : FileName -> FilePos -> IndentInfo ->
+                   Rule (List (RigCount, Name, RawImp))
+  pibindListName fname start indents
        = do rigc <- multiplicity
             ns <- sepBy1 (symbol ",") unqualifiedName
             symbol ":"
             ty <- expr fname indents
             atEnd indents
             rig <- getMult rigc
-            pure (map (\n => (rig, Just (UN n), ty)) ns)
+            pure (map (\n => (rig, UN n, ty)) ns)
      <|> sepBy1 (symbol ",")
                 (do rigc <- multiplicity
                     n <- name
                     symbol ":"
                     ty <- expr fname indents
                     rig <- getMult rigc
-                    pure (rig, Just n, ty))
+                    pure (rig, n, ty))
+
+  pibindList : FileName -> FilePos -> IndentInfo ->
+               Rule (List (RigCount, Maybe Name, RawImp))
+  pibindList fname start indents
+    = do params <- pibindListName fname start indents
+         pure $ map (\(rig, n, ty) => (rig, Just n, ty)) params
+
 
   autoImplicitPi : FileName -> IndentInfo -> Rule RawImp
   autoImplicitPi fname indents
@@ -370,7 +377,6 @@ mutual
   record_ fname indents
       = do start <- location
            keyword "record"
-           commit
            symbol "{"
            fs <- sepBy1 (symbol ",") (field fname indents)
            symbol "}"
@@ -550,18 +556,22 @@ dataDecl fname indents
          end <- location
          pure (MkImpData (MkFC fname start end) n ty opts cs)
 
-recordParam : FileName -> IndentInfo -> Rule (Name, RigCount, PiInfo RawImp, RawImp)
+recordParam : FileName -> IndentInfo -> Rule (List (Name, RigCount, PiInfo RawImp, RawImp))
 recordParam fname indents
     = do symbol "("
-         n <- name
-         symbol ":"
-         tm <- expr fname indents
+         start <- location
+         params <- pibindListName fname start indents
          symbol ")"
-         pure (n, RigW, Explicit, tm)
+         pure $ map (\(c, n, tm) => (n, c, Explicit, tm)) params
+  <|> do symbol "{"
+         start <- location
+         params <- pibindListName fname start indents
+         symbol "}"
+         pure $ map (\(c, n, tm) => (n, c, Implicit, tm)) params
   <|> do start <- location
          n <- name
          end <- location
-         pure (n, RigW, Explicit, Implicit (MkFC fname start end) False)
+         pure [(n, RigW, Explicit, Implicit (MkFC fname start end) False)]
 
 fieldDecl : FileName -> IndentInfo -> Rule (List IField)
 fieldDecl fname indents
@@ -593,7 +603,8 @@ recordDecl fname indents
          keyword "record"
          commit
          n <- name
-         params <- many (recordParam fname indents)
+         paramss <- many (recordParam fname indents)
+         let params = concat paramss
          keyword "where"
          exactIdent "constructor"
          dc <- name
