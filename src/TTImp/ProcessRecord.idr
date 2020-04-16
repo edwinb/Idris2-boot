@@ -87,6 +87,10 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
     countExp (Bind _ n (Pi c _ _) sc) = countExp sc
     countExp _ = 0
 
+    toRF : Name -> Name
+    toRF (UN s) = RF s
+    toRF n = n  -- should not happen
+
     -- Generate getters from the elaborated record constructor type
     elabGetters : {vs : _} ->
                   Name -> RawImp ->
@@ -103,7 +107,7 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
                                   then S done else done)
                               upds (b :: tyenv) sc
              else
-                do let fldName = n
+                do let fldName = toRF n
                    gname <- inCurrentNS fldName
                    ty <- unelab tyenv ty_chk
                    let ty' = substNames vars upds ty
