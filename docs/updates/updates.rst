@@ -140,7 +140,7 @@ unrestricted multiplicity
 .. code-block:: idris
 
     sumLengths : {m, n : _} -> Vect m a -> Vect n a —> Nat
-    sumLengths xs ys = vLen xs + vLen xs
+    sumLengths xs ys = vlen xs + vlen xs
 
 Remember that giving no multiplicity on a binder, as with ``m`` and ``n`` here,
 means that the variable has unrestricted usage.
