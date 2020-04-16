@@ -82,8 +82,9 @@ getVarType rigc nest env fc x
     = case lookup x (names nest) of
            Nothing => do (tm, ty) <- getNameType rigc env fc x
                          pure (tm, 0, ty)
-           Just (nestn, arglen, tmf) =>
+           Just (nestn, argns, tmf) =>
               do defs <- get Ctxt
+                 let arglen = length argns
                  let n' = maybe x id nestn
                  case !(lookupCtxtExact n' (gamma defs)) of
                       Nothing => throw (UndefinedName fc n')

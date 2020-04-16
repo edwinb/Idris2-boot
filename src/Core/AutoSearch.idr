@@ -51,6 +51,16 @@ mkArgs fc rigc env (NBind nfc x (Pi c p ty) sc)
          pure (MkArgInfo idx argRig p arg argTy :: rest, restTy)
 mkArgs fc rigc env ty = pure ([], ty)
 
+export
+impLast : List (ArgInfo vars) -> List (ArgInfo vars)
+impLast xs = filter (not . impl) xs ++ filter impl xs
+  where
+      impl : ArgInfo vs -> Bool
+      impl inf
+          = case plicit inf of
+                 Explicit => False
+                 _ => True
+
 searchIfHole : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
                FC ->
@@ -258,7 +268,7 @@ searchLocalWith {vars} fc rigc defaults trying depth def top env (prf, ty) targe
                    -- Work right to left, because later arguments may solve
                    -- earlier ones by unification
                    traverse (searchIfHole fc defaults trying False depth def top env')
-                            (reverse args)
+                            (impLast args)
                    pure candidate
                 else do logNF 10 "Can't use " env ty
                         throw (CantSolveGoal fc [] top)
@@ -357,7 +367,7 @@ searchName fc rigc defaults trying depth def top env target (n, ndef)
          -- Work right to left, because later arguments may solve earlier
          -- dependencies by unification
          traverse (searchIfHole fc defaults trying ispair depth def top env)
-                  (reverse args)
+                  (impLast args)
          pure candidate
 
 searchNames : {auto c : Ref Ctxt Defs} ->

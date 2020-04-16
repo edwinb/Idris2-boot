@@ -116,15 +116,24 @@ findScrutinee {vs = n' :: _} (b :: bs) (IVar loc' n)
     notLet _ = True
 findScrutinee _ _ = Nothing
 
-getNestData : (Name, (Maybe Name, Nat, a)) -> (Name, Maybe Name, Nat)
-getNestData (n, (mn, len, _)) = (n, mn, len)
+getNestData : (Name, (Maybe Name, List Name, a)) ->
+              (Name, Maybe Name, List Name)
+getNestData (n, (mn, enames, _)) = (n, mn, enames)
 
-bindCaseLocals : FC -> List (Name, Maybe Name, Nat) -> List Name -> RawImp -> RawImp
+bindCaseLocals : FC -> List (Name, Maybe Name, List Name) ->
+                 List (Name, Name)-> RawImp -> RawImp
 bindCaseLocals fc [] args rhs = rhs
-bindCaseLocals fc ((n, mn, len) :: rest) argns rhs
-    = ICaseLocal fc n (fromMaybe n mn)
-                 (take len argns)
+bindCaseLocals fc ((n, mn, envns) :: rest) argns rhs
+    = --trace ("Case local " ++ show (renvns ++ " from " ++ show argns) $
+        ICaseLocal fc n (fromMaybe n mn)
+                 (map getNameFrom (reverse envns))
                  (bindCaseLocals fc rest argns rhs)
+  where
+    getNameFrom : Name -> Name
+    getNameFrom n
+        = case lookup n argns of
+               Nothing => n
+               Just n' => n'
 
 export
 caseBlock : {vars : _} ->
@@ -198,6 +207,7 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
                            splitOn
 
          let alts' = map (updateClause casen splitOn nest env) alts
+         log 2 $ "Nested: " ++ show (map getNestData (names nest))
          log 2 $ "Generated alts: " ++ show alts'
          logTermNF 2 "Case application" env appTm
 
@@ -216,45 +226,45 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
                       else b in
               b' :: mkLocalEnv bs
 
-    getBindName : Int -> Name -> List Name -> Name
+    -- Return the original name in the environment, and what it needs to be
+    -- called in the case block. We need to mapping to build the ICaseLocal
+    -- so that it applies to the right original variable
+    getBindName : Int -> Name -> List Name -> (Name, Name)
     getBindName idx n@(UN un) vs
-       = if n `elem` vs then MN un idx else n
+       = if n `elem` vs then (n, MN un idx) else (n, n)
     getBindName idx n vs
-       = if n `elem` vs then MN "_cn" idx else n
+       = if n `elem` vs then (n, MN "_cn" idx) else (n, n)
 
-    -- Returns a list of names that nestednames should be applied to (skipping
-    -- the let bound ones) and a list of terms for the LHS of the case to be
-    -- applied to
-    addEnv : Int -> Env Term vs -> List Name -> (List Name, List RawImp)
+    -- Returns a list of names that nestednames should be applied to, mapped
+    -- to what the name has become in the case block, and a list of terms for
+    -- the LHS of the case to be applied to.
+    addEnv : Int -> Env Term vs -> List Name -> (List (Name, Name), List RawImp)
     addEnv idx [] used = ([], [])
     addEnv idx {vs = v :: vs} (b :: bs) used
         = let n = getBindName idx v used
-              (ns, rest) = addEnv (idx + 1) bs (n :: used)
-              ns' = case b of
-                         Let _ _ _ => ns
-                         _ => (n :: ns) in
-                   (ns', IAs fc UseLeft n (Implicit fc True) :: rest)
+              (ns, rest) = addEnv (idx + 1) bs (snd n :: used)
+              ns' = n :: ns in
+              (ns', IAs fc UseLeft (snd n) (Implicit fc True) :: rest)
 
     -- Replace a variable in the argument list; if the reference is to
     -- a variable kept in the outer environment (therefore not an argument
     -- in the list) don't consume it
-    replace : {idx : Nat} -> .(IsVar name idx vs) ->
-              RawImp -> List RawImp -> List RawImp
-    replace First lhs (old :: xs)
+    replace : (idx : Nat) -> RawImp -> List RawImp -> List RawImp
+    replace Z lhs (old :: xs)
        = let lhs' = case old of
                          IAs loc' side n _ => IAs loc' side n lhs
                          _ => lhs in
              lhs' :: xs
-    replace (Later p) lhs (x :: xs)
-        = x :: replace p lhs xs
+    replace (S k) lhs (x :: xs)
+        = x :: replace k lhs xs
     replace _ _ xs = xs
 
     mkSplit : Maybe (Var vs) ->
               RawImp -> List RawImp ->
               List RawImp
     mkSplit Nothing lhs args = reverse (lhs :: args)
-    mkSplit (Just (MkVar prf)) lhs args
-        = reverse (replace prf lhs args)
+    mkSplit (Just (MkVar {i} prf)) lhs args
+        = reverse (replace i lhs args)
 
     -- Names used in the pattern we're matching on, so don't bind them
     -- in the generated case block
@@ -267,10 +277,10 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
 
     -- Get a name update for the LHS (so that if there's a nested data declaration
     -- the constructors are applied to the environment in the case block)
-    nestLHS : FC -> (Name, (Maybe Name, Nat, a)) -> (Name, RawImp)
-    nestLHS fc (n, (mn, len, t))
+    nestLHS : FC -> (Name, (Maybe Name, List Name, a)) -> (Name, RawImp)
+    nestLHS fc (n, (mn, ns, t))
         = (n, apply (IVar fc (fromMaybe n mn))
-                    (replicate len (Implicit fc False)))
+                    (map (const (Implicit fc False)) ns))
 
     applyNested : NestedNames vars -> RawImp -> RawImp
     applyNested nest lhs

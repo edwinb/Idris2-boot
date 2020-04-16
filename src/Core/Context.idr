@@ -37,6 +37,16 @@ defaultPI : PMDefInfo
 defaultPI = MkPMDefInfo NotHole False
 
 public export
+record TypeFlags where
+  constructor MkTypeFlags
+  uniqueAuto : Bool  -- should 'auto' implicits check for uniqueness
+  external : Bool -- defined externally (e.g. in a C or Scheme library)
+
+export
+defaultFlags : TypeFlags
+defaultFlags = MkTypeFlags False False
+
+public export
 data Def : Type where
     None : Def -- Not yet defined
     PMDef : (pminfo : PMDefInfo) ->
@@ -61,8 +71,7 @@ data Def : Type where
     TCon : (tag : Int) -> (arity : Nat) ->
            (parampos : List Nat) -> -- parameters
            (detpos : List Nat) -> -- determining arguments
-           (uniqueAuto : Bool) -> -- should 'auto' implicits check
-                                  -- for uniqueness
+           (flags : TypeFlags) -> -- should 'auto' implicits check
            (mutwith : List Name) ->
            (datacons : List Name) ->
            (detagabbleBy : Maybe (List Nat)) ->
@@ -206,6 +215,7 @@ record GlobalDef where
   linearChecked : Bool -- Flag whether we've already checked its linearity
   definition : Def
   compexpr : Maybe CDef
+  namedcompexpr : Maybe NamedDef
   sizeChange : List SCCall
 
 export
@@ -476,7 +486,7 @@ newDef : FC -> Name -> RigCount -> List Name ->
 newDef fc n rig vars ty vis def
     = MkGlobalDef fc n ty [] [] []
                   rig vars vis unchecked [] Nothing Nothing False False False def
-                  Nothing []
+                  Nothing Nothing []
 
 -- Rewrite rules, applied after type checking, for runtime code only
 -- LHS and RHS must have the same type, but we don't (currently) require that
@@ -910,7 +920,7 @@ addBuiltin n ty tot op
     = do addDef n (MkGlobalDef emptyFC n ty [] [] [] RigW [] Public tot
                                [Inline] Nothing Nothing
                                False False True (Builtin op)
-                               Nothing [])
+                               Nothing Nothing [])
          pure ()
 
 export
@@ -943,6 +953,16 @@ setCompiled n cexp
          Just gdef <- lookupCtxtExact n (gamma defs)
               | Nothing => pure ()
          addDef n (record { compexpr = Just cexp } gdef)
+         pure ()
+
+export
+setNamedCompiled : {auto c : Ref Ctxt Defs} ->
+                   Name -> NamedDef -> Core ()
+setNamedCompiled n cexp
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact n (gamma defs)
+              | Nothing => pure ()
+         addDef n (record { namedcompexpr = Just cexp } gdef)
          pure ()
 
 -- Record that the name has been linearity checked so we don't need to do
@@ -1286,7 +1306,7 @@ getSearchData fc defaults target
                      pure (MkSearchData dets (filter (isCons . snd)
                                [(False, opens),
                                 (False, autos),
-                                (not u, tyhs),
+                                (not (uniqueAuto u), tyhs),
                                 (True, chasers)]))
   where
     isDefault : (Name, Bool) -> Bool
@@ -1362,9 +1382,22 @@ setUniqueSearch fc tyn u
     = do defs <- get Ctxt
          Just g <- lookupCtxtExact tyn (gamma defs)
               | _ => throw (UndefinedName fc tyn)
-         let TCon t a ps ds _ cons ms det = definition g
+         let TCon t a ps ds fl cons ms det = definition g
               | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setDetermining]"))
-         updateDef tyn (const (Just (TCon t a ps ds u cons ms det)))
+         let fl' = record { uniqueAuto = u } fl
+         updateDef tyn (const (Just (TCon t a ps ds fl' cons ms det)))
+
+export
+setExternal : {auto c : Ref Ctxt Defs} ->
+              FC -> Name -> Bool -> Core ()
+setExternal fc tyn u
+    = do defs <- get Ctxt
+         Just g <- lookupCtxtExact tyn (gamma defs)
+              | _ => throw (UndefinedName fc tyn)
+         let TCon t a ps ds fl cons ms det = definition g
+              | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setDetermining]"))
+         let fl' = record { external = u } fl
+         updateDef tyn (const (Just (TCon t a ps ds fl' cons ms det)))
 
 export
 addHintFor : {auto c : Ref Ctxt Defs} ->
@@ -1598,7 +1631,7 @@ addData vars vis tidx (MkData (MkCon dfc tyn arity tycon) datacons)
                             (TCon tag arity
                                   (paramPos (Resolved tidx) (map type datacons))
                                   (allDet arity)
-                                  False [] (map name datacons) Nothing)
+                                  defaultFlags [] (map name datacons) Nothing)
          (idx, gam') <- addCtxt tyn tydef (gamma defs)
          gam'' <- addDataConstructors 0 datacons gam'
          put Ctxt (record { gamma = gam'' } defs)
@@ -1644,6 +1677,9 @@ inCurrentNS n@(CaseBlock _ _)
     = do defs <- get Ctxt
          pure (NS (currentNS defs) n)
 inCurrentNS n@(WithBlock _ _)
+    = do defs <- get Ctxt
+         pure (NS (currentNS defs) n)
+inCurrentNS n@(Nested _ _)
     = do defs <- get Ctxt
          pure (NS (currentNS defs) n)
 inCurrentNS n@(MN _ _)
@@ -2061,8 +2097,7 @@ logC lvl cmsg
             else pure ()
 
 export
-logTimeOver : {auto c : Ref Ctxt Defs} ->
-              Integer -> Core String -> Core a -> Core a
+logTimeOver : Integer -> Core String -> Core a -> Core a
 logTimeOver nsecs str act
     = do clock <- coreLift clockTime
          let nano = 1000000000

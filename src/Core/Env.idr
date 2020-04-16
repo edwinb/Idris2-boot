@@ -23,6 +23,12 @@ lengthNoLet [] = 0
 lengthNoLet (Let _ _ _ :: xs) = lengthNoLet xs
 lengthNoLet (_ :: xs) = S (lengthNoLet xs)
 
+export
+namesNoLet : {xs : _} -> Env tm xs -> List Name
+namesNoLet [] = []
+namesNoLet (Let _ _ _ :: xs) = namesNoLet xs
+namesNoLet {xs = x :: _} (_ :: env) = x :: namesNoLet env
+
 public export
 data IsDefined : Name -> List Name -> Type where
   MkIsDefined : {idx : Nat} -> RigCount -> .(IsVar n idx vars) ->

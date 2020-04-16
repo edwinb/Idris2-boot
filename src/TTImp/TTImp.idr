@@ -19,15 +19,15 @@ record NestedNames (vars : List Name) where
   -- Takes the location and name type, because we don't know them until we
   -- elaborate the name at the point of use
   names : List (Name, (Maybe Name,  -- new name if there is one
-                       Nat, -- length of the environment
+                       List Name, -- names used from the environment
                        FC -> NameType -> Term vars))
 
 export
 Weaken NestedNames where
   weaken (MkNested ns) = MkNested (map wknName ns)
     where
-      wknName : (Name, (Maybe Name, Nat, FC -> NameType -> Term vars)) ->
-                (Name, (Maybe Name, Nat, FC -> NameType -> Term (n :: vars)))
+      wknName : (Name, (Maybe Name, List Name, FC -> NameType -> Term vars)) ->
+                (Name, (Maybe Name, List Name, FC -> NameType -> Term (n :: vars)))
       wknName (n, (mn, len, rep)) = (n, (mn, len, \fc, nt => weaken (rep fc nt)))
 
 -- Unchecked terms, with implicit arguments
@@ -231,12 +231,14 @@ mutual
        SearchBy : List Name -> DataOpt -- determining arguments
        NoHints : DataOpt -- Don't generate search hints for constructors
        UniqueSearch : DataOpt -- auto implicit search must check result is unique
+       External : DataOpt -- implemented externally
 
   export
   Eq DataOpt where
     (==) (SearchBy xs) (SearchBy ys) = xs == ys
     (==) NoHints NoHints = True
     (==) UniqueSearch UniqueSearch = True
+    (==) External External = True
     (==) _ _ = False
 
   public export
@@ -812,6 +814,7 @@ mutual
         = do tag 0; toBuf b ns
     toBuf b NoHints = tag 1
     toBuf b UniqueSearch = tag 2
+    toBuf b External = tag 3
 
     fromBuf b
         = case !getTag of
@@ -819,6 +822,7 @@ mutual
                        pure (SearchBy ns)
                1 => pure NoHints
                2 => pure UniqueSearch
+               3 => pure External
                _ => corrupt "DataOpt"
 
   export

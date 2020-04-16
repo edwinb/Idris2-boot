@@ -188,9 +188,9 @@ mutual
       getName (x :: xs) (Later p) = getName xs p
 
       rigSafe : RigCount -> RigCount -> Core ()
-      rigSafe Rig1 RigW = throw (LinearMisuse fc (getName vars prf) Rig1 RigW)
-      rigSafe Rig0 RigW = throw (LinearMisuse fc (getName vars prf) Rig0 RigW)
-      rigSafe Rig0 Rig1 = throw (LinearMisuse fc (getName vars prf) Rig0 Rig1)
+      rigSafe Rig1 RigW = throw (LinearMisuse fc name Rig1 RigW)
+      rigSafe Rig0 RigW = throw (LinearMisuse fc name Rig0 RigW)
+      rigSafe Rig0 Rig1 = throw (LinearMisuse fc name Rig0 Rig1)
       rigSafe _ _ = pure ()
 
       -- count the usage if we're in a linear context. If not, the usage doesn't

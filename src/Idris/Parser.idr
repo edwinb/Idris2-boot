@@ -894,6 +894,8 @@ dataOpt
   <|> do exactIdent "search"
          ns <- some name
          pure (SearchBy ns)
+  <|> do exactIdent "external"
+         pure External
 
 dataBody : FileName -> Int -> FilePos -> Name -> IndentInfo -> PTerm ->
            EmptyRule PDataDecl

@@ -395,11 +395,11 @@ cleanPTerm ptm
 
     cleanName : Name -> Core Name
     cleanName nm = case nm of
-      MN n _     => pure (UN n)
-      PV n _     => pure n
-      DN n _     => pure (UN n)
-      Nested _ n => cleanName n
-      _          => UN <$> prettyName nm
+      MN n _            => pure (UN n)
+      PV n _            => pure n
+      DN n _            => pure (UN n)
+      NS _ (Nested _ n) => cleanName n
+      _                 => UN <$> prettyName nm
 
     cleanNode : PTerm -> Core PTerm
     cleanNode (PRef fc nm)    =
