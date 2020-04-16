@@ -75,7 +75,13 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
         = IPi fc c imp n argty (mkTy args ret)
 
     recTy : RawImp
-    recTy = apply (IVar fc tn) (map (IVar fc) (map fst params))
+    recTy = apply (IVar fc tn) (map (\(n, c, p, tm) => (n, IVar fc n, p)) params)
+      where
+        ||| Apply argument to list of explicit or implicit named arguments
+        apply : RawImp -> List (Name, RawImp, PiInfo RawImp) -> RawImp
+        apply f [] = f
+        apply f ((n, arg, Explicit) :: xs) = apply (IApp         (getFC f) f          arg) xs
+        apply f ((n, arg, _       ) :: xs) = apply (IImplicitApp (getFC f) f (Just n) arg) xs
 
     elabAsData : Name -> Core ()
     elabAsData cname
