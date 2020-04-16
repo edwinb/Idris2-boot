@@ -314,7 +314,7 @@ mutual
   simpleExpr fname indents =
         do
           start <- location
-          recFields <- many recField
+          recFields <- some recField
           end <- location
           pure $ PRecordProjection (MkFC fname start end) recFields
     <|> do
@@ -322,7 +322,7 @@ mutual
           root <- simplerExpr fname indents
           recFields <- many recField
           end <- location
-          case recFields of
+          pure $ case recFields of
             [] => root
             fs => PRecordFieldAccess (MkFC fname start end) root recFields
 
