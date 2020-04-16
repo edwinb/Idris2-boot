@@ -1688,6 +1688,9 @@ inCurrentNS n@(MN _ _)
 inCurrentNS n@(DN _ _)
     = do defs <- get Ctxt
          pure (NS (currentNS defs) n)
+inCurrentNS n@(RF _)
+    = do defs <- get Ctxt
+         pure (NS (currentNS defs) n)
 inCurrentNS n = pure n
 
 export

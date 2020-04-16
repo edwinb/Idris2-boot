@@ -269,6 +269,14 @@ strLit
                            _ => Nothing)
 
 export
+recField : Rule Name
+recField
+    = terminal "Expected record field"
+               (\x => case tok x of
+                           RecordField s => Just (RF s)
+                           _ => Nothing)
+
+export
 symbol : String -> Rule ()
 symbol req
     = terminal ("Expected '" ++ req ++ "'")

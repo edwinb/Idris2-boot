@@ -311,7 +311,29 @@ mutual
           = PPair (MkFC fname estart end) exp (mergePairs end rest)
 
   simpleExpr : FileName -> IndentInfo -> Rule PTerm
-  simpleExpr fname indents
+  simpleExpr fname indents = do
+    start <- location
+    root <- simplerExpr fname indents
+    recFields <- many $ do
+      locL <- location
+      rf   <- recField
+      locR <- location
+      pure (locL, rf, locR)
+      -- ((\rf, loc => (rf, loc)) <$> recField <*> location)
+    pure $ case recFields of
+      [] => root
+      fs =>
+        foldl
+          (\x, (mid, f, end) =>
+              PApp
+                (MkFC fname start end)
+                (PRef (MkFC fname mid end) f)
+                x)
+          root
+          fs
+
+  simplerExpr : FileName -> IndentInfo -> Rule PTerm
+  simplerExpr fname indents
       = do start <- location
            x <- unqualifiedName
            symbol "@"
