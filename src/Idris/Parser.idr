@@ -1279,7 +1279,11 @@ recordParam fname indents
   <|> do symbol "{"
          commit
          info <- the (EmptyRule (PiInfo PTerm))
-                 (pure AutoImplicit <* keyword "auto" <|> pure Implicit)
+                 (pure  AutoImplicit <* keyword "auto" 
+              <|>(do
+                  t <- simpleExpr fname indents
+                  pure $ DefImplicit t)
+              <|> pure      Implicit)
          start <- location
          params <- pibindListName fname start indents
          symbol "}"
