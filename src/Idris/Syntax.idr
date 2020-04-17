@@ -167,6 +167,7 @@ mutual
        Overloadable : Name -> Directive
        Extension : LangExt -> Directive
        DefaultTotality : TotalReq -> Directive
+       UndottedRecordProjections : Bool -> Directive
 
   public export
   data PField : Type where

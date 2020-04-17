@@ -998,6 +998,10 @@ directive fname indents
          b <- onoff
          atEnd indents
          pure (UnboundImplicits b)
+  <|> do pragma "undotted_record_projections"
+         b <- onoff
+         atEnd indents
+         pure (UndottedRecordProjections b)
   <|> do pragma "ambiguity_depth"
          lvl <- intLit
          atEnd indents
