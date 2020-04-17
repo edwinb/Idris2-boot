@@ -58,7 +58,11 @@ showCoredrisIdentChar c
 
 showCoredrisIdent : List Char -> String -> String
 showCoredrisIdent [] = id
-showCoredrisIdent ('"'::cs) = ("dblquote" ++) . showCoredrisIdent cs
+showCoredrisIdent ('"'::cs) = ("-zdq" ++) . showCoredrisIdent cs
+showCoredrisIdent ('('::cs) = ("-zop" ++) . showCoredrisIdent cs
+showCoredrisIdent (')'::cs) = ("-zcp" ++) . showCoredrisIdent cs
+showCoredrisIdent (' '::cs) = ("-zsp" ++) . showCoredrisIdent cs
+showCoredrisIdent ('\''::cs) = ("-zpr" ++) . showCoredrisIdent cs
 showCoredrisIdent (c ::cs) = (showCoredrisIdentChar c) . showCoredrisIdent cs
 
 coredrisIdent : String -> String
@@ -90,72 +94,15 @@ coredrisOp fn args = op (show fn) (toList args)
 
 ||| Extended primitives for the scheme backend, outside the standard set of primFn
 public export
-data ExtPrim = PutStr | GetStr | PutChar | GetChar
-             | FileOpen | FileClose | FileReadLine | FileWriteLine | FileEOF
-             | NewIORef | ReadIORef | WriteIORef
-             | NewArray | ArrayGet | ArraySet
-             | GetField | SetField
-             | Stdin | Stdout | Stderr
-             | VoidElim
-             | SysOS | SysCodegen
-             | Unknown Name
+data ExtPrim = SomeExtPrim Name
 
 export
 Show ExtPrim where
-  show PutStr = "PutStr"
-  show GetStr = "GetStr"
-  show PutChar = "PutChar"
-  show GetChar = "GetChar"
-  show FileOpen = "FileOpen"
-  show FileClose = "FileClose"
-  show FileReadLine = "FileReadLine"
-  show FileWriteLine = "FileWriteLine"
-  show FileEOF = "FileEOF"
-  show NewIORef = "NewIORef"
-  show ReadIORef = "ReadIORef"
-  show WriteIORef = "WriteIORef"
-  show NewArray = "NewArray"
-  show ArrayGet = "ArrayGet"
-  show ArraySet = "ArraySet"
-  show GetField = "GetField"
-  show SetField = "SetField"
-  show Stdin = "Stdin"
-  show Stdout = "Stdout"
-  show Stderr = "Stderr"
-  show VoidElim = "VoidElim"
-  show SysOS = "SysOS"
-  show SysCodegen = "SysCodegen"
-  show (Unknown n) = "Unknown " ++ show n
+  show (SomeExtPrim n) = "SomeExtPrim " ++ coredrisName n
 
 ||| Match on a user given name to get the scheme primitive
 toPrim : Name -> ExtPrim
-toPrim pn@(NS _ n)
-    = cond [(n == UN "prim__putStr", PutStr),
-            (n == UN "prim__getStr", GetStr),
-            (n == UN "prim__putChar", PutChar),
-            (n == UN "prim__getChar", GetChar),
-            (n == UN "prim__open", FileOpen),
-            (n == UN "prim__close", FileClose),
-            (n == UN "prim__readLine", FileReadLine),
-            (n == UN "prim__writeLine", FileWriteLine),
-            (n == UN "prim__eof", FileEOF),
-            (n == UN "prim__newIORef", NewIORef),
-            (n == UN "prim__readIORef", ReadIORef),
-            (n == UN "prim__writeIORef", WriteIORef),
-            (n == UN "prim__newArray", NewArray),
-            (n == UN "prim__arrayGet", ArrayGet),
-            (n == UN "prim__arraySet", ArraySet),
-            (n == UN "prim__getField", GetField),
-            (n == UN "prim__setField", SetField),
-            (n == UN "prim__stdin", Stdin),
-            (n == UN "prim__stdout", Stdout),
-            (n == UN "prim__stderr", Stderr),
-            (n == UN "void", VoidElim),
-            (n == UN "prim__os", SysOS),
-            (n == UN "prim__codegen", SysCodegen)
-            ]
-           (Unknown pn)
-toPrim pn = Unknown pn
+toPrim pn = SomeExtPrim pn
 
 export
 mkWorld : String -> String
@@ -166,22 +113,22 @@ coredrisConstant _ (I x) = "(^constant :type 'int :val " ++ show x ++ ")"
 coredrisConstant _ (BI x) = "(^constant :type 'big-int :val " ++ show x ++ ")"
 coredrisConstant _ (Db x) = "(^constant :type 'double :val " ++ show x ++ ")"
 coredrisConstant _ (Ch x) = "(^constant :type 'char :val '" ++ cast x ++ "')"
-coredrisConstant coredrisStringQuoted (Str x) = coredrisStringQuoted x
-coredrisConstant _ WorldVal = "@world"
-coredrisConstant _ IntType = "@i32"
-coredrisConstant _ IntegerType = "@i64"
-coredrisConstant _ StringType = "@string"
-coredrisConstant _ CharType = "@char"
-coredrisConstant _ DoubleType = "@f64"
-coredrisConstant _ WorldType = "@f32"
+coredrisConstant coredrisStringQuoted (Str x) = "(^constant :type 'string :val " ++ coredrisStringQuoted x ++ ")"
+coredrisConstant _ WorldVal = "'world"
+coredrisConstant _ IntType = "'i32"
+coredrisConstant _ IntegerType = "'i64"
+coredrisConstant _ StringType = "'string"
+coredrisConstant _ CharType = "'char"
+coredrisConstant _ DoubleType = "'f64"
+coredrisConstant _ WorldType = "'f32"
 
 coredrisCaseDef : Maybe String -> String
 coredrisCaseDef Nothing = ""
-coredrisCaseDef (Just tm) = "(^case-default " ++ tm ++ ")"
+coredrisCaseDef (Just tm) = " :default " ++ tm
 
 coredrisIfDef : Maybe String -> String
 coredrisIfDef Nothing = ""
-coredrisIfDef (Just tm) = "(^if-default " ++ tm ++ ")"
+coredrisIfDef (Just tm) = " :default " ++ tm
 
 coredrisType' : {auto c: Ref Ctxt Defs} -> List String -> Term args
           -> Core (String, List String)
@@ -255,7 +202,7 @@ mutual
   coredrisExp i (NmLet fc x val sc)
      = do val' <- coredrisExp i val
           sc' <- coredrisExp i sc
-          pure $ "(^let :var " ++ coredrisName x ++ " " 
+          pure $ "(^let :var " ++ coredrisName x ++ " :val " 
                   ++ val' ++ " :body " ++ sc' ++ ")"
   coredrisExp i (NmApp fc x [])
       = pure $ "(^call " ++ !(coredrisExp i x) ++ ")"
@@ -276,8 +223,8 @@ mutual
            let n = "sc" ++ show i
            pure $ "(^con-case :bind-var " ++ n ++ " :bind-body " 
                    ++ tcode ++ " :tag-of " ++ n ++ " :cases [" 
-                   ++ showSep " " !(traverse (coredrisConAlt (i+1) n) alts)
-                   ++ coredrisCaseDef defc ++ "])"
+                   ++ showSep " " !(traverse (coredrisConAlt (i+1) n) alts) ++ "]"
+                   ++ coredrisCaseDef defc ++ ")"
   coredrisExp i (NmConstCase fc sc alts def)
       = do tcode <- coredrisExp (i+1) sc
            defc <- maybe (pure Nothing) (\v => pure (Just !(coredrisExp i v))) def
@@ -291,63 +238,9 @@ mutual
   coredrisExp i (NmCrash fc msg) = pure $ "(^crash " ++ show msg ++ ")"
 
   coredrisExtCommon : Int -> ExtPrim -> List NamedCExp -> Core String
-  coredrisExtCommon i PutStr [arg, world]
-      = pure $ "('print " ++ !(coredrisExp i arg) ++ ") " 
-               ++ mkWorld (coredrisConstructor 0 [])
-  coredrisExtCommon i GetStr [world]
-      = pure $ mkWorld "('get-line (current-input-port))"
-  coredrisExtCommon i PutChar [arg, world]
-      = pure $ "('display " ++ !(coredrisExp i arg) ++ ") " 
-               ++ mkWorld (coredrisConstructor 0 [])
-  coredrisExtCommon i GetChar [world]
-      = pure $ mkWorld "('get-char (current-input-port))"
-  coredrisExtCommon i FileOpen [file, mode, bin, world]
-      = pure $ mkWorld $ fileOp $ "('file-open "
-                                      ++ !(coredrisExp i file) ++ " "
-                                      ++ !(coredrisExp i mode) ++ " "
-                                      ++ !(coredrisExp i bin) ++ ")"
-  coredrisExtCommon i FileClose [file, world]
-      = pure $ "(blodwen-close-port " ++ !(coredrisExp i file) ++ ") " 
-               ++ mkWorld (coredrisConstructor 0 [])
-  coredrisExtCommon i FileReadLine [file, world]
-      = pure $ mkWorld $ fileOp $ "(blodwen-get-line " 
-                                   ++ !(coredrisExp i file) ++ ")"
-  coredrisExtCommon i FileWriteLine [file, str, world]
-      = pure $ mkWorld $ fileOp $ "(blodwen-putstring "
-                                        ++ !(coredrisExp i file) ++ " "
-                                        ++ !(coredrisExp i str) ++ ")"
-  coredrisExtCommon i FileEOF [file, world]
-      = pure $ mkWorld $ "(blodwen-eof " ++ !(coredrisExp i file) ++ ")"
-  coredrisExtCommon i NewIORef [_, val, world]
-      = pure $ mkWorld $ "(box " ++ !(coredrisExp i val) ++ ")"
-  coredrisExtCommon i ReadIORef [_, ref, world]
-      = pure $ mkWorld $ "(unbox " ++ !(coredrisExp i ref) ++ ")"
-  coredrisExtCommon i WriteIORef [_, ref, val, world]
-      = pure $ mkWorld $ "(set-box! "
-                           ++ !(coredrisExp i ref) ++ " "
-                           ++ !(coredrisExp i val) ++ ")"
-  coredrisExtCommon i NewArray [_, size, val, world]
-      = pure $ mkWorld $ "(make-vector " ++ !(coredrisExp i size) ++ " "
-                                         ++ !(coredrisExp i val) ++ ")"
-  coredrisExtCommon i ArrayGet [_, arr, pos, world]
-      = pure $ mkWorld $ "(vector-ref " ++ !(coredrisExp i arr) ++ " "
-                                        ++ !(coredrisExp i pos) ++ ")"
-  coredrisExtCommon i ArraySet [_, arr, pos, val, world]
-      = pure $ mkWorld $ "(vector-set! " ++ !(coredrisExp i arr) ++ " "
-                                         ++ !(coredrisExp i pos) ++ " "
-                                         ++ !(coredrisExp i val) ++ ")"
-  coredrisExtCommon i VoidElim [_, _]
-      = pure "(^err :type 'void-elim)"
-  coredrisExtCommon i SysOS []
-      = pure $ show os
-  coredrisExtCommon i (Unknown n) args
-      = pure $ "(^^" ++ show n ++ " [" ++ "????" ++ "])"
-  coredrisExtCommon i Stdin [] = pure "(current-input-port)"
-  coredrisExtCommon i Stdout [] = pure "(current-output-port)"
-  coredrisExtCommon i Stderr [] = pure "(current-error-port)"
-  coredrisExtCommon i prim args
-      = throw (InternalError ("Badly formed external primitive " ++ show prim
-                                ++ " " ++ show args))
+  coredrisExtCommon i (SomeExtPrim n) args
+      = pure $ "(^ext-prim-app :name " ++ coredrisName n ++ " :args [" 
+                ++ showSep " " !(traverse (coredrisExp i) args) ++ "])"
 
   readArgs : Int -> NamedCExp -> Core String
   readArgs i tm = pure $ "(blodwen-read-args " ++ !(coredrisExp i tm) ++ ")"
@@ -364,9 +257,9 @@ coredrisDef n (MkNmFun args exp) ty univs = do
   (arglist, retty, univList) <- coredrisArglist args ty
   let univs = "" -- if univList == [] then "" else "<" ++ showSep ", " univList ++ ">"
   let out = "(^fn" ++ "\n  :name " ++ coredrisName !(getFullName n) 
-               ++ "\n  :args\n  [" ++ concat (intersperse " " arglist) ++ "]"
-               ++ "\n  :ret " ++ retty ++ "\n  :body " 
-               ++ !(coredrisExp 0 exp) ++ ")\n"
+               -- ++ "\n  :args\n  [" ++ concat (intersperse " " arglist) ++ "]"
+               -- ++ "\n  :ret " ++ retty ++ "\n" ++
+               ++ "\n  :body " ++ !(coredrisExp 0 exp) ++ ")\n"
   pure out
 coredrisDef n (MkNmError exp) _ _
    = pure $ "(^def (" ++ coredrisName !(getFullName n) ++ " . 'any-args) " 
@@ -382,9 +275,9 @@ debugName ctxt outfile n = do
   full <- getFullName n
   case def of
     Nothing => pure $ "(" ++ "undefined name " ++ show n ++ ")"
-    Just d => case compexpr d of
+    Just d => case namedcompexpr d of
       Nothing => pure $ "(" ++ "no compd expr " ++ show n ++ ")"
-      Just comp => do
+      Just ncomp => do
         let ty = type d
         (rty, univs) <- coredrisType ty
         -- coreLift $ do
@@ -400,7 +293,7 @@ debugName ctxt outfile n = do
         --   putStr "// decl name: "
         --   print full
         --   putStrLn "\n"
-        genDef <- coredrisDef n (forgetDef comp) ty univs
+        genDef <- coredrisDef n ncomp ty univs
         pure (genDef ++ "\n")
 
 compileToCoredris : Ref Ctxt Defs ->
