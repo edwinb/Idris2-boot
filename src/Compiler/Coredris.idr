@@ -257,7 +257,7 @@ coredrisDef n (MkNmFun args exp) ty univs = do
   (arglist, retty, univList) <- coredrisArglist args ty
   let univs = "" -- if univList == [] then "" else "<" ++ showSep ", " univList ++ ">"
   let out = "(^fn" ++ "\n  :name " ++ coredrisName !(getFullName n) 
-               -- ++ "\n  :args\n  [" ++ concat (intersperse " " arglist) ++ "]"
+               ++ "\n  :args  [" ++ showSep " " (map coredrisName args) ++ "]"
                -- ++ "\n  :ret " ++ retty ++ "\n" ++
                ++ "\n  :body " ++ !(coredrisExp 0 exp) ++ ")\n"
   pure out
@@ -296,6 +296,12 @@ debugName ctxt outfile n = do
         genDef <- coredrisDef n ncomp ty univs
         pure (genDef ++ "\n")
 
+coredrisTm : Term args -> String
+coredrisTm (Erased _ _) = "'erased"
+coredrisTm (Ref _ _ n) = coredrisName n
+coredrisTm (App _ fn args) = "(^app :fn " ++ coredrisTm fn ++ " :args [" ++ coredrisTm args ++ "])"
+coredrisTm x = "(^error " ++ show x ++ ")"
+
 compileToCoredris : Ref Ctxt Defs ->
                ClosedTerm -> (outfile : String) -> Core ()
 compileToCoredris c tm outfile = do
@@ -303,8 +309,7 @@ compileToCoredris c tm outfile = do
   defs <- get Ctxt
   let g = gamma defs
   out <- traverse (debugName g outfile) ns
-  coreLift (writeFile outfile (concat out))
-  -- !! coreLift (print tm)
+  coreLift (writeFile outfile (concat out ++ "\n" ++ coredrisTm tm))
   -- traverse (\n => do
   --   def <- lookupCtxtExact n (gamma defs) 
   --   coreLift $ case def of
