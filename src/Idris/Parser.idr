@@ -103,8 +103,7 @@ continueWith indents req
 
 iOperator : Rule Name
 iOperator
-    = do n <- operator
-         pure (UN n)
+    = operator
   <|> do symbol "`"
          n <- name
          symbol "`"

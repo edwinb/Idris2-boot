@@ -315,14 +315,14 @@ pragma n =
       _ => Nothing)
 
 export
-operator : Rule String
+operator : Rule Name
 operator
     = terminal "Expected operator"
                (\x => case tok x of
                            Symbol s =>
                                 if s `elem` reservedSymbols
                                    then Nothing
-                                   else Just s
+                                   else Just (UN s)
                            _ => Nothing)
 
 identPart : Rule String
@@ -378,18 +378,14 @@ name = opNonNS <|> do
       else pure $ NS xs (UN x)
 
   opNonNS : Rule Name
-  opNonNS = do
-    symbol "("
-    op <- operator
-    symbol ")"
-    pure (UN op)
+  opNonNS = symbol "(" *> operator <* symbol ")"
 
   opNS : List String -> Rule Name
   opNS ns = do
     symbol ".("
-    op <- operator
+    n <- (operator <|> recField)
     symbol ")"
-    pure $ NS ns (UN op)
+    pure (NS ns n)
 
 export
 IndentInfo : Type
