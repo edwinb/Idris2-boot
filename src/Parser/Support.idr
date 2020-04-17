@@ -359,9 +359,9 @@ reservedNames
 
 export
 name : Rule Name
-name = do
+name = opNonNS <|> do
   ns <- nsIdent
-  opNonNS ns <|> opNS ns <|> nameNS ns
+  opNS ns <|> nameNS ns
  where
   reserved : String -> Bool
   reserved n = n `elem` reservedNames
@@ -377,8 +377,8 @@ name = do
       then fail $ "can't use reserved name " ++ x
       else pure $ NS xs (UN x)
 
-  opNonNS : List String -> Rule Name
-  opNonNS ns = do
+  opNonNS : Rule Name
+  opNonNS = do
     symbol "("
     op <- operator
     symbol ")"
