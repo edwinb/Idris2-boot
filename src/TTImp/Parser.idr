@@ -606,7 +606,7 @@ namespaceDecl : Rule (List String)
 namespaceDecl
     = do keyword "namespace"
          commit
-         ns <- namespace_
+         ns <- nsIdent
          pure ns
 
 directive : FileName -> IndentInfo -> Rule ImpDecl

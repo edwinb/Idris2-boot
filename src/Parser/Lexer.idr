@@ -81,7 +81,7 @@ holeIdent : Lexer
 holeIdent = is '?' <+> ident False
 
 nsIdent : Lexer
-nsIdent = ident True <+> is '.' <+> many (ident False)
+nsIdent = ident True <+> many (is '.' <+> ident False)
 
 recField : Lexer
 recField = is '.' <+> ident False
@@ -173,6 +173,7 @@ rawTokens =
      (charLit, \x => CharLit (stripQuotes x)),
      (recField, \x => RecordField (assert_total $ strTail x)),
      (nsIdent, parseNSIdent),
+     (ident False, \x => NSIdent [x]),
      (space, Comment),
      (validSymbol, Symbol),
      (symbol, Unrecognised)]

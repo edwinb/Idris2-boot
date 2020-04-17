@@ -34,7 +34,7 @@ ideTokens =
     map (\x => (exact x, Symbol)) symbols ++
     [(digits, \x => Literal (cast x)),
      (stringLit, \x => StrLit (stripQuotes x)),
-     (ident, Ident),
+     (ident, \x => NSIdent [x]),
      (space, Comment)]
   where
     stripQuotes : String -> String

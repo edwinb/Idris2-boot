@@ -122,14 +122,14 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
                           = apply (IVar fc con)
                                     (replicate done (Implicit fc True) ++
                                        (if imp == Explicit
-                                           then [IBindVar fc (nameRoot fldName)]
+                                           then [IBindVar fc (nameRoot gname)]
                                            else []) ++
                                     (replicate (countExp sc) (Implicit fc True)))
                    let lhs = IApp fc (IVar fc gname)
                                 (if imp == Explicit
                                     then lhs_exp
                                     else IImplicitApp fc lhs_exp (Just n)
-                                             (IBindVar fc (nameRoot fldName)))
+                                             (IBindVar fc (nameRoot gname)))
                    log 5 $ "Projection LHS " ++ show lhs
                    processDecl [] nest env
                        (IClaim fc (if rc == Rig0

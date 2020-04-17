@@ -137,13 +137,13 @@ field fname
     <|> do exactIdent "modules"; symbol "="
            ms <- sepBy1 (symbol ",")
                       (do start <- location
-                          ns <- namespace_
+                          ns <- nsIdent
                           end <- location
                           pure (MkFC fname start end, ns))
            pure (PModules ms)
     <|> do exactIdent "main"; symbol "="
            start <- location
-           m <- namespace_
+           m <- nsIdent
            end <- location
            pure (PMainMod (MkFC fname start end) m)
     <|> do exactIdent "executable"; symbol "="
