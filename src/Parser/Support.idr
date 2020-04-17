@@ -304,6 +304,17 @@ exactIdent req
                            _ => Nothing)
 
 export
+pragma : String -> Rule ()
+pragma n =
+  terminal ("Expected pragma " ++ n)
+    (\x => case tok x of
+      Pragma s =>
+        if s == n
+          then Just ()
+          else Nothing
+      _ => Nothing)
+
+export
 operator : Rule String
 operator
     = terminal "Expected operator"

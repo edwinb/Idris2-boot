@@ -19,6 +19,7 @@ data Token = NSIdent (List String)
            | DocComment String
            | CGDirective String
            | RecordField String
+           | Pragma String
            | EndInput
 
 export
@@ -36,6 +37,7 @@ Show Token where
   show (DocComment _) = "doc comment"
   show (CGDirective x) = "CGDirective " ++ x
   show (RecordField x) = "record field " ++ x
+  show (Pragma x) = "pragma " ++ x
   show EndInput = "end of input"
 
 export
@@ -85,6 +87,9 @@ nsIdent = ident True <+> many (is '.' <+> ident False)
 
 recField : Lexer
 recField = is '.' <+> ident False
+
+pragma : Lexer
+pragma = is '%' <+> ident False
 
 doubleLit : Lexer
 doubleLit
@@ -174,6 +179,7 @@ rawTokens =
      (recField, \x => RecordField (assert_total $ strTail x)),
      (nsIdent, parseNSIdent),
      (ident False, \x => NSIdent [x]),
+     (pragma, \x => Pragma (assert_total $ strTail x)),
      (space, Comment),
      (validSymbol, Symbol),
      (symbol, Unrecognised)]
