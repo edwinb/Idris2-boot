@@ -20,7 +20,7 @@ userNameRoot : Name -> Maybe String
 userNameRoot (NS _ n) = userNameRoot n
 userNameRoot (UN n) = Just n
 userNameRoot (DN _ n) = userNameRoot n
-userNameRoot (RF n) = Just n
+userNameRoot (RF n) = Just ("." ++ n)  -- TMP HACK
 userNameRoot _ = Nothing
 
 export
