@@ -884,11 +884,12 @@ mapPTermM f = goPTerm where
       (::) . (\ c => (a, b, c)) <$> goPTerm t
                                 <*> go3TupledPTerms ts
 
-    go4TupledPTerms : List (a, b, c, PTerm) -> Core (List (a, b, c, PTerm))
+    go4TupledPTerms : List (a, b, PiInfo PTerm, PTerm) -> Core (List (a, b, PiInfo PTerm, PTerm))
     go4TupledPTerms [] = pure []
-    go4TupledPTerms ((a, b, c, t) :: ts) =
-      (::) . (\ d => (a, b, c, d)) <$> goPTerm t
-                                   <*> go4TupledPTerms ts
+    go4TupledPTerms ((a, b, p, t) :: ts) =
+      (\ p, d, ts => (a, b, p, d) :: ts) <$> goPiInfo p
+                                         <*> goPTerm t
+                                         <*> go4TupledPTerms ts
 
     goPDos : List PDo -> Core (List PDo)
     goPDos []        = pure []
