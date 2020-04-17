@@ -1281,6 +1281,7 @@ recordParam fname indents
          info <- the (EmptyRule (PiInfo PTerm))
                  (pure  AutoImplicit <* keyword "auto" 
               <|>(do
+                  keyword "default"
                   t <- simpleExpr fname indents
                   pure $ DefImplicit t)
               <|> pure      Implicit)
