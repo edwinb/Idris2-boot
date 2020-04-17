@@ -1009,7 +1009,7 @@ directive fname indents
          s <- name
          atEnd indents
          pure (PairNames ty f s)
-  <|> do keyword "rewrite"
+  <|> do pragma "rewrite"
          eq <- name
          rw <- name
          atEnd indents
@@ -1043,7 +1043,7 @@ directive fname indents
          e <- extension
          atEnd indents
          pure (Extension e)
-  <|> do keyword "default"
+  <|> do pragma "default"
          tot <- totalityOpt
          atEnd indents
          pure (DefaultTotality tot)

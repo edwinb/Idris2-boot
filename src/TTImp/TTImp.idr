@@ -509,6 +509,7 @@ definedInBlock ns = concatMap (defName ns)
     expandNS : List String -> Name -> Name
     expandNS [] n = n
     expandNS ns (UN n) = NS ns (UN n)
+    expandNS ns (RF n) = NS ns (RF n)
     expandNS ns n@(MN _ _) = NS ns n
     expandNS ns n@(DN _ _) = NS ns n
     expandNS ns n = n

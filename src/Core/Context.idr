@@ -1094,6 +1094,8 @@ visibleInAny nss n vis = any (\ns => visibleIn ns n vis) nss
 reducibleIn : (nspace : List String) -> Name -> Visibility -> Bool
 reducibleIn nspace (NS ns (UN n)) Export = isSuffixOf ns nspace
 reducibleIn nspace (NS ns (UN n)) Private = isSuffixOf ns nspace
+reducibleIn nspace (NS ns (RF n)) Export = isSuffixOf ns nspace
+reducibleIn nspace (NS ns (RF n)) Private = isSuffixOf ns nspace
 reducibleIn nspace n _ = True
 
 export
