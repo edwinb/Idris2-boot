@@ -178,7 +178,7 @@ rawTokens =
      (charLit, \x => CharLit (stripQuotes x)),
      (recField, \x => RecordField (assert_total $ strTail x)),
      (nsIdent, parseNSIdent),
-     (ident False, \x => NSIdent [x]),
+     (ident False, parseIdent),
      (pragma, \x => Pragma (assert_total $ strTail x)),
      (space, Comment),
      (validSymbol, Symbol),
@@ -190,6 +190,12 @@ rawTokens =
 
     parseNSIdent : String -> Token
     parseNSIdent = NSIdent . reverse . split (== '.')
+
+    parseIdent : String -> Token
+    parseIdent x =
+      if x `elem` keywords
+        then Keyword x
+        else NSIdent [x]
 
 export
 lexTo : (TokenData Token -> Bool) ->

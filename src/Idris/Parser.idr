@@ -1126,6 +1126,7 @@ fnDirectOpt fname
   <|> do pragma "defaulthint"
          pure $ IFnOpt (GlobalHint True)
   <|> do pragma "inline"
+         commit
          pure $ IFnOpt Inline
   <|> do pragma "extern"
          pure $ IFnOpt ExternFn
