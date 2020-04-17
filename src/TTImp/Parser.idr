@@ -378,6 +378,7 @@ mutual
       = do start <- location
            keyword "record"
            symbol "{"
+           commit
            fs <- sepBy1 (symbol ",") (field fname indents)
            symbol "}"
            sc <- expr fname indents
@@ -564,17 +565,13 @@ recordParam fname indents
          symbol ")"
          pure $ map (\(c, n, tm) => (n, c, Explicit, tm)) params
   <|> do symbol "{"
-         start <- location
-         params <- pibindListName fname start indents
-         symbol "}"
-         pure $ map (\(c, n, tm) => (n, c, Implicit, tm)) params
-  <|> do symbol "{"
-         keyword "auto"
          commit
          start <- location
+         info <- the (EmptyRule (PiInfo RawImp))
+                 (pure AutoImplicit <* keyword "auto" <|> pure Implicit)
          params <- pibindListName fname start indents
          symbol "}"
-         pure $ map (\(c, n, tm) => (n, c, AutoImplicit, tm)) params
+         pure $ map (\(c, n, tm) => (n, c, info, tm)) params
   <|> do start <- location
          n <- name
          end <- location
