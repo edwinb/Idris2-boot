@@ -1062,7 +1062,7 @@ namespaceHead : Rule (List String)
 namespaceHead
     = do keyword "namespace"
          commit
-         ns <- namespace_
+         ns <- nsIdent
          pure ns
 
 namespaceDecl : FileName -> IndentInfo -> Rule PDecl
@@ -1418,9 +1418,9 @@ import_ fname indents
          keyword "import"
          reexp <- option False (do keyword "public"
                                    pure True)
-         ns <- namespace_
+         ns <- nsIdent
          nsAs <- option ns (do exactIdent "as"
-                               namespace_)
+                               nsIdent)
          end <- location
          atEnd indents
          pure (MkImport (MkFC fname start end) reexp ns nsAs)
@@ -1431,7 +1431,7 @@ prog fname
     = do start <- location
          nspace <- option ["Main"]
                       (do keyword "module"
-                          namespace_)
+                          nsIdent)
          end <- location
          imports <- block (import_ fname)
          ds <- block (topDecl fname)
@@ -1444,7 +1444,7 @@ progHdr fname
     = do start <- location
          nspace <- option ["Main"]
                       (do keyword "module"
-                          namespace_)
+                          nsIdent)
          end <- location
          imports <- block (import_ fname)
          pure (MkModule (MkFC fname start end)

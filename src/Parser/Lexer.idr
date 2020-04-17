@@ -6,7 +6,7 @@ import Utils.Hex
 %default total
 
 public export
-data Token = Ident String
+data Token = NSIdent (List String)
            | HoleIdent String
            | Literal Integer
            | StrLit String
@@ -23,7 +23,7 @@ data Token = Ident String
 
 export
 Show Token where
-  show (Ident x) = "identifier " ++ x
+  show (NSIdent xs) = "namespaced ident " ++ show xs
   show (HoleIdent x) = "hole identifier " ++ x
   show (Literal x) = "literal " ++ show x
   show (StrLit x) = "string " ++ show x
@@ -63,12 +63,14 @@ blockComment = is '{' <+> is '-' <+> toEndComment 1
 docComment : Lexer
 docComment = is '|' <+> is '|' <+> is '|' <+> many (isNot '\n')
 
-ident : Lexer
-ident = pred startIdent <+> many (pred validIdent)
+ident : Bool -> Lexer
+ident mustBeUpperCase = pred startIdent <+> many (pred validIdent)
   where
     startIdent : Char -> Bool
-    startIdent '_' = True
-    startIdent x = isAlpha x || x > chr 127
+    startIdent c =
+      if mustBeUpperCase
+        then isUpper c
+        else c == '_' || isAlpha c || c > chr 127
 
     validIdent : Char -> Bool
     validIdent '_' = True
@@ -76,10 +78,13 @@ ident = pred startIdent <+> many (pred validIdent)
     validIdent x = isAlphaNum x || x > chr 127
 
 holeIdent : Lexer
-holeIdent = is '?' <+> ident
+holeIdent = is '?' <+> ident False
+
+nsIdent : Lexer
+nsIdent = ident True <+> is '.' <+> many (ident False)
 
 recField : Lexer
-recField = is '-' <+> is '>' <+> ident
+recField = is '.' <+> ident False
 
 doubleLit : Lexer
 doubleLit
@@ -166,8 +171,8 @@ rawTokens =
      (digits, \x => Literal (cast x)),
      (stringLit, \x => StrLit (stripQuotes x)),
      (charLit, \x => CharLit (stripQuotes x)),
-     (recField, \x => RecordField (stripArrow x)),
-     (ident, \x => if x `elem` keywords then Keyword x else Ident x),
+     (recField, \x => RecordField (assert_total $ strTail x)),
+     (nsIdent, parseNSIdent),
      (space, Comment),
      (validSymbol, Symbol),
      (symbol, Unrecognised)]
@@ -176,8 +181,8 @@ rawTokens =
     -- ASSUMPTION! Only total because we know we're getting quoted strings.
     stripQuotes = assert_total (strTail . reverse . strTail . reverse)
 
-    stripArrow : String -> String
-    stripArrow s = assert_total (strTail $ strTail s)
+    parseNSIdent : String -> Token
+    parseNSIdent = NSIdent . reverse . split (== '.')
 
 export
 lexTo : (TokenData Token -> Bool) ->
