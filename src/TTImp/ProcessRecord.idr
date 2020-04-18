@@ -44,7 +44,7 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
               Nothing =>
                    do elabGetters conName recTy 0 [] toRF [] conty -- make dotted projections
                       when addUndotted $
-                        elabGetters conName recTy 0 [] id   [] conty -- make undotted projections
+                        elabGetters conName recTy 0 [] id [] conty -- make undotted projections
               Just ns =>
                    do let cns = currentNS defs
                       let nns = nestedNS defs
@@ -52,7 +52,7 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
                       newns <- getNS
                       elabGetters conName recTy 0 [] toRF [] conty -- make dotted projections
                       when addUndotted $
-                        elabGetters conName recTy 0 [] id   [] conty -- make undotted projections
+                        elabGetters conName recTy 0 [] id [] conty -- make undotted projections
                       defs <- get Ctxt
                       -- Record that the current namespace is allowed to look
                       -- at private names in the nested namespace

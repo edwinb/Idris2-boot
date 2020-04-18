@@ -775,7 +775,7 @@ mutual
              UnboundImplicits a => do 
                setUnboundImplicits a
                pure [IPragma (\c, nest, env => setUnboundImplicits a)]
-             UndottedRecordProjections b =>
+             UndottedRecordProjections b => do
                pure [IPragma (\c, nest, env => setUndottedRecordProjections b)]
              AmbigDepth n => pure [IPragma (\c, nest, env => setAmbigLimit n)]
              PairNames ty f s => pure [IPragma (\c, nest, env => setPair fc ty f s)]

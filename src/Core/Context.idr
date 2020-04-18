@@ -1885,7 +1885,7 @@ export
 setUndottedRecordProjections : {auto c : Ref Ctxt Defs} -> Bool -> Core ()
 setUndottedRecordProjections b = do
   defs <- get Ctxt
-  put Ctxt $ record { options->elabDirectives->undottedRecordProjections = b } defs
+  put Ctxt (record { options->elabDirectives->undottedRecordProjections = b } defs)
 
 export
 setDefaultTotalityOption : {auto c : Ref Ctxt Defs} ->
@@ -1918,7 +1918,7 @@ isUnboundImplicits
 export
 isUndottedRecordProjections : {auto c : Ref Ctxt Defs} -> Core Bool
 isUndottedRecordProjections =
-  unboundImplicits . elabDirectives . options <$> get Ctxt
+  undottedRecordProjections . elabDirectives . options <$> get Ctxt
 
 export
 getDefaultTotalityOption : {auto c : Ref Ctxt Defs} ->

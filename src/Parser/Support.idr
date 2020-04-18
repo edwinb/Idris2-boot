@@ -378,7 +378,7 @@ name = opNonNS <|> do
       else pure $ NS xs (UN x)
 
   opNonNS : Rule Name
-  opNonNS = symbol "(" *> operator <* symbol ")"
+  opNonNS = symbol "(" *> (operator <|> recField) <* symbol ")"
 
   opNS : List String -> Rule Name
   opNS ns = do
