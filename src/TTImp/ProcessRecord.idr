@@ -42,17 +42,17 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
          -- Go into new namespace, if there is one, for getters
          case newns of
               Nothing =>
-                   do elabGetters conName recTy 0 [] toRF [] conty -- make dotted projections
+                   do elabGetters conName recTy 0 [] RF [] conty -- make dotted projections
                       when addUndotted $
-                        elabGetters conName recTy 0 [] id [] conty -- make undotted projections
+                        elabGetters conName recTy 0 [] UN [] conty -- make undotted projections
               Just ns =>
                    do let cns = currentNS defs
                       let nns = nestedNS defs
                       extendNS [ns]
                       newns <- getNS
-                      elabGetters conName recTy 0 [] toRF [] conty -- make dotted projections
+                      elabGetters conName recTy 0 [] RF [] conty -- make dotted projections
                       when addUndotted $
-                        elabGetters conName recTy 0 [] id [] conty -- make undotted projections
+                        elabGetters conName recTy 0 [] UN [] conty -- make undotted projections
                       defs <- get Ctxt
                       -- Record that the current namespace is allowed to look
                       -- at private names in the nested namespace
@@ -93,18 +93,18 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
     countExp (Bind _ n (Pi c _ _) sc) = countExp sc
     countExp _ = 0
 
-    toRF : Name -> Name
-    toRF (UN s) = RF s
-    toRF n = n  -- should not happen
-
     -- Generate getters from the elaborated record constructor type
+    --
+    -- WARNING: if you alter the names of the getters,
+    --          you probably will have to adjust TTImp.TTImp.definedInBlock.
+    --
     elabGetters : {vs : _} ->
                   Name -> RawImp ->
                   (done : Nat) -> -- number of explicit fields processed
                   List (Name, RawImp) -> -- names to update in types
                     -- (for dependent records, where a field's type may depend
                     -- on an earlier projection)
-                  (Name -> Name) ->
+                  (String -> Name) ->
                   Env Term vs -> Term vs ->
                   Core ()
     elabGetters con recTy done upds mkProjName tyenv (Bind bfc n b@(Pi rc imp ty_chk) sc)
@@ -114,44 +114,45 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
                                   then S done else done)
                               upds mkProjName (b :: tyenv) sc
              else
-                do let fldName = n
-                   projNameNS <- inCurrentNS (mkProjName fldName)
+                do let fldNameStr = nameRoot n
+                   projNameNS <- inCurrentNS (mkProjName fldNameStr)
+
                    ty <- unelab tyenv ty_chk
                    let ty' = substNames vars upds ty
                    log 5 $ "Field type: " ++ show ty'
                    let rname = MN "rec" 0
 
                    -- Claim the projection type
-                   gty <- bindTypeNames []
+                   projTy <- bindTypeNames []
                                  (map fst params ++ map fname fields ++ vars) $
                                     mkTy (map jname params) $
                                       IPi fc RigW Explicit (Just rname) recTy ty'
-                   log 5 $ "Projection " ++ show projNameNS ++ " : " ++ show gty
+                   log 5 $ "Projection " ++ show projNameNS ++ " : " ++ show projTy
                    processDecl [] nest env
                        (IClaim fc (if rc == Rig0
                                       then Rig0
-                                      else RigW) vis [] (MkImpTy fc projNameNS gty))
+                                      else RigW) vis [] (MkImpTy fc projNameNS projTy))
 
                    -- Define the LHS and RHS
                    let lhs_exp
                           = apply (IVar fc con)
                                     (replicate done (Implicit fc True) ++
                                        (if imp == Explicit
-                                           then [IBindVar fc (nameRoot fldName)]
+                                           then [IBindVar fc fldNameStr]
                                            else []) ++
                                     (replicate (countExp sc) (Implicit fc True)))
                    let lhs = IApp fc (IVar fc projNameNS)
                                 (if imp == Explicit
                                     then lhs_exp
-                                    else IImplicitApp fc lhs_exp (Just fldName)
-                                             (IBindVar fc (nameRoot fldName)))
-                   let rhs = IVar fc (UN $ nameRoot fldName)
+                                    else IImplicitApp fc lhs_exp (Just (UN fldNameStr))
+                                             (IBindVar fc fldNameStr))
+                   let rhs = IVar fc (UN fldNameStr)
                    log 5 $ "Projection " ++ show lhs ++ " = " ++ show rhs
                    processDecl [] nest env
                        (IDef fc projNameNS [PatClause fc lhs rhs])
 
                    -- Move on to the next getter
-                   let upds' = (mkProjName fldName, IApp fc (IVar fc projNameNS) (IVar fc rname)) :: upds
+                   let upds' = (n, IApp fc (IVar fc projNameNS) (IVar fc rname)) :: upds
                    elabGetters con recTy
                                (if imp == Explicit
                                    then S done else done)
