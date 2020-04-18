@@ -23,11 +23,11 @@ initState : GameState
 initState = MkGameState (MkScore 0 0) 12
 
 addWrong : GameState -> GameState
-addWrong = record { score->attempted $= (+1) }
+addWrong = record { score.attempted $= (+1) }
 
 addCorrect : GameState -> GameState
-addCorrect = record { score->correct $= (+1),
-                      score->attempted $= (+1) }
+addCorrect = record { score.correct $= (+1),
+                      score.attempted $= (+1) }
 
 setDifficulty : Int -> GameState -> GameState
 setDifficulty newDiff state = record { difficulty = newDiff } state

@@ -1,4 +1,4 @@
-module recordname
+module Recordname
 
 namespace Foo
   export
@@ -9,4 +9,4 @@ namespace Foo
   x : Name -> Int
   x = foo
 
-test : recordname.Foo.Name
+test : Recordname.Foo.Name
