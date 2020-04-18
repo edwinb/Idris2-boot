@@ -645,12 +645,17 @@ mutual
 
   field : FileName -> IndentInfo -> Rule PFieldUpdate
   field fname indents
-      = do path <- map nameRoot <$> [| name :: many recField |]
+      = do path <- map fieldName <$> [| name :: many recField |]
            upd <- (do symbol "="; pure PSetField)
                       <|>
                   (do symbol "$="; pure PSetFieldApp)
            val <- opExpr plhs fname indents
            pure (upd path val)
+    where
+      fieldName : Name -> String
+      fieldName (UN s) = s
+      fieldName (RF s) = s
+      fieldName _ = "_impossible"
 
   rewrite_ : FileName -> IndentInfo -> Rule PTerm
   rewrite_ fname indents
