@@ -77,7 +77,7 @@ idrisTests
        -- interesting interactions between features
        "real001", "real002",
        -- Records, access and dependent update
-       "record001", "record002",
+       "record001", "record002", "record003",
        -- Miscellaneous regressions
        "reg001", "reg002", "reg003", "reg004", "reg005", "reg006", "reg007",
        "reg008", "reg009", "reg010", "reg011", "reg012", "reg013", "reg014",
