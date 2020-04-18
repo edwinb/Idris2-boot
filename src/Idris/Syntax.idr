@@ -211,10 +211,11 @@ mutual
                     List PDecl ->
                     PDecl
        PImplementation : FC ->
-                         Visibility -> Pass ->
+                         Visibility ->
+                         Pass ->
                          (implicits : List (Name, RigCount, PTerm)) ->
                          (constraints : List (Maybe Name, PTerm)) ->
-                         Name ->
+                         (interfaceName : Name) ->
                          (params : List PTerm) ->
                          (implName : Maybe Name) ->
                          (nusing : List Name) ->

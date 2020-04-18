@@ -1,0 +1,4 @@
+$1 NamedInterface.idr --check
+
+rm -rf build
+

@@ -1219,23 +1219,22 @@ implDecl fname indents
          col <- column
          option () (keyword "implementation")
          iname <- option Nothing (do symbol "["
-                                     iname <- name
+                                     iname <- unqualifiedName'
                                      symbol "]"
                                      pure (Just iname))
          impls <- implBinds fname indents
          cons <- constraints fname indents
-         n <- name
+         n <- identName
          params <- many (simpleExpr fname indents)
          nusing <- option [] (do keyword "using"
-                                 names <- some name
+                                 names <- some identName
                                  pure names)
          body <- optional (do keyword "where"
                               blockAfter col (topDecl fname))
          atEnd indents
          end <- location
-         pure (PImplementation (MkFC fname start end)
-                         vis Single impls cons n params iname nusing
-                         (map (collectDefs . concat) body))
+         pure (PImplementation (MkFC fname start end) vis Single impls cons n
+                       params iname nusing (map (collectDefs . concat) body))
 
 fieldDecl : FileName -> IndentInfo -> Rule (List PField)
 fieldDecl fname indents

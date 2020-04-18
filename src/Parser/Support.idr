@@ -325,9 +325,36 @@ namespace_
                     identPart
          pure (reverse ns) -- innermost first, so reverse
 
+reservedNames : List String
+reservedNames =
+  ["Type", "Int", "Integer", "String", "Char"
+  , "Double", "Lazy", "Inf", "Force", "Delay"]
+
+isReservedName : String -> Bool
+isReservedName n = n `elem` reservedNames
+
+-- TODO: Change to unqualifiedName'
 export
 unqualifiedName : Rule String
 unqualifiedName = identPart
+
+export
+unqualifiedName' : Rule Name
+unqualifiedName' = do n <- identPart
+                      if isReservedName n
+                         then fail ("Can't use reserved name " ++ n)
+                         else pure (UN n)
+
+qualifiedName : Rule Name
+qualifiedName = do ns <- namespace_
+                   n <- identPart
+                   if isReservedName n
+                      then fail ("Can't use reserved name " ++ n)
+                      else pure (NS ns (UN n))
+
+export
+identName : Rule Name
+identName = unqualifiedName' <|> qualifiedName
 
 export
 holeName : Rule String
@@ -336,11 +363,6 @@ holeName
                (\x => case tok x of
                            HoleIdent str => Just str
                            _ => Nothing)
-
-reservedNames : List String
-reservedNames
-    = ["Type", "Int", "Integer", "String", "Char", "Double",
-       "Lazy", "Inf", "Force", "Delay"]
 
 export
 name : Rule Name
@@ -356,20 +378,17 @@ name
          op <- operator
          symbol ")"
          pure (UN op)
- where
-   reserved : String -> Bool
-   reserved n = n `elem` reservedNames
-
-   mkFullName : List String -> Either String Name
-   mkFullName [] = Right $ UN "NONE" -- Can't happen :)
-   mkFullName [n]
-       = if reserved n
-            then Left n
-            else Right (UN n)
-   mkFullName (n :: ns)
-       = if reserved n
-            then Left n
-            else Right (NS ns (UN n))
+  where
+    mkFullName : List String -> Either String Name
+    mkFullName [] = Right $ UN "NONE" -- Can't happen :)
+    mkFullName [n]
+        = if isReservedName n
+             then Left n
+             else Right (UN n)
+    mkFullName (n :: ns)
+        = if isReservedName n
+             then Left n
+             else Right (NS ns (UN n))
 
 export
 IndentInfo : Type

@@ -690,15 +690,17 @@ mutual
       expandConstraint (Nothing, p)
           = map (\x => (Nothing, x)) (pairToCons p)
 
-  desugarDecl ps (PImplementation fc vis pass is cons tn params impname nusing body)
-      = do is' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd (snd ntm))
+  desugarDecl ps (PImplementation fc vis pass is cons interfaceName params impname nusing body)
+      = do log 10 ("Desugaring implementation of " ++ show interfaceName ++ " named " ++ show impname)
+           log 10 ("Using named interfaces: " ++ show nusing)
+           is' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd (snd ntm))
                                         pure (fst ntm, fst (snd ntm), tm')) is
            cons' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
                                           pure (fst ntm, tm')) cons
            params' <- traverse (desugar AnyExpr ps) params
            -- Look for bindable names in all the constraints and parameters
            let bnames = if !isUnboundImplicits
-                        then  
+                        then
                         concatMap (findBindableNames True ps []) (map snd cons') ++
                         concatMap (findBindableNames True ps []) params'
                         else []
@@ -710,15 +712,16 @@ mutual
                           (\b => do b' <- traverse (desugarDecl ps) b
                                     pure (Just (concat b'))) body
            pure [IPragma (\c, nest, env =>
-                             elabImplementation fc vis pass env nest isb consb
-                                                tn paramsb impname nusing
-                                                body')]
+                           elabImplementation fc vis pass env nest isb consb
+                                              interfaceName paramsb impname nusing
+                                              body')]
+
   desugarDecl ps (PRecord fc vis tn params conname_in fields)
       = do params' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
                                             pure (fst ntm, tm')) params
            let fnames = map fname fields
            -- Look for bindable names in the parameters
-           
+
            let bnames = if !isUnboundImplicits
                         then concatMap (findBindableNames True
                                          (ps ++ fnames ++ map fst params) [])
