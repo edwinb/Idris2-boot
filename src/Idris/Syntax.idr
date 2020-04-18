@@ -368,8 +368,8 @@ mutual
       = "rewrite " ++ show rule
 
   showUpdate : PFieldUpdate -> String
-  showUpdate (PSetField p v) = showSep "->" p ++ " = " ++ show v
-  showUpdate (PSetFieldApp p v) = showSep "->" p ++ " $= " ++ show v
+  showUpdate (PSetField p v) = showSep "." p ++ " = " ++ show v
+  showUpdate (PSetFieldApp p v) = showSep "." p ++ " $= " ++ show v
 
   export
   Show PTerm where
