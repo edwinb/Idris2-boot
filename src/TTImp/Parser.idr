@@ -32,8 +32,7 @@ atom fname
          end <- location
          pure (Implicit (MkFC fname start end) False)
   <|> do start <- location
-         symbol "%"
-         exactIdent "search"
+         pragma "search"
          end <- location
          pure (ISearch (MkFC fname start end) 1000)
   <|> do start <- location
@@ -75,22 +74,22 @@ totalityOpt
          pure CoveringOnly
 
 fnOpt : Rule FnOpt
-fnOpt = do x <- totalityOpt          
+fnOpt = do x <- totalityOpt
            pure $ Totality x
 
 fnDirectOpt : Rule FnOpt
 fnDirectOpt
-    = do exactIdent "hint"
+    = do pragma "hint"
          pure (Hint True)
-  <|> do exactIdent "chaser"
+  <|> do pragma "chaser"
          pure (Hint False)
-  <|> do exactIdent "globalhint"
+  <|> do pragma "globalhint"
          pure (GlobalHint True)
-  <|> do exactIdent "defaulthint"
+  <|> do pragma "defaulthint"
          pure (GlobalHint False)
-  <|> do exactIdent "inline"
+  <|> do pragma "inline"
          pure Inline
-  <|> do exactIdent "extern"
+  <|> do pragma "extern"
          pure ExternFn
 
 visOpt : Rule (Either Visibility FnOpt)
@@ -99,8 +98,7 @@ visOpt
          pure (Left vis)
   <|> do tot <- fnOpt
          pure (Right tot)
-  <|> do symbol "%"
-         opt <- fnDirectOpt
+  <|> do opt <- fnDirectOpt
          pure (Right opt)
 
 getVisibility : Maybe Visibility -> List (Either Visibility FnOpt) ->
@@ -611,11 +609,13 @@ namespaceDecl
 
 directive : FileName -> IndentInfo -> Rule ImpDecl
 directive fname indents
-    = do exactIdent "logging"
+    = do pragma "logging"
+         commit
          lvl <- intLit
          atEnd indents
          pure (ILog (cast lvl))
-  <|> do exactIdent "pair"
+  <|> do pragma "pair"
+         commit
          start <- location
          p <- name
          f <- name
@@ -623,7 +623,8 @@ directive fname indents
          end <- location
          let fc = MkFC fname start end
          pure (IPragma (\c, nest, env => setPair {c} fc p f s))
-  <|> do keyword "rewrite"
+  <|> do pragma "rewrite"
+         commit
          start <- location
          eq <- name
          rw <- name
@@ -652,8 +653,7 @@ topDecl fname indents
          end <- location
          pure (IClaim (MkFC fname start end) RigW vis opts claim)
   <|> recordDecl fname indents
-  <|> do symbol "%"; commit
-         directive fname indents
+  <|> directive fname indents
   <|> definition fname indents
 
 -- Declared at the top
