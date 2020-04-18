@@ -24,7 +24,6 @@ data Token = NSIdent (List String)
 
 export
 Show Token where
-  show (NSIdent xs) = "namespaced ident " ++ show xs
   show (HoleIdent x) = "hole identifier " ++ x
   show (Literal x) = "literal " ++ show x
   show (StrLit x) = "string " ++ show x
@@ -39,6 +38,13 @@ Show Token where
   show (RecordField x) = "record field " ++ x
   show (Pragma x) = "pragma " ++ x
   show EndInput = "end of input"
+  show (NSIdent [x]) = "identifier " ++ x
+  show (NSIdent xs) = "namespaced identifier " ++ dotSep (reverse xs)
+    where
+      dotSep : List String -> String
+      dotSep [] = ""
+      dotSep [x] = x
+      dotSep (x :: xs) = x ++ concat ["." ++ y | y <- xs]
 
 export
 Show (TokenData Token) where
