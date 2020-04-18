@@ -115,40 +115,48 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
                               upds mkProjName (b :: tyenv) sc
              else
                 do let fldName = n
-                   gname <- inCurrentNS (mkProjName fldName)
+                   projNameNS <- inCurrentNS (mkProjName fldName)
                    ty <- unelab tyenv ty_chk
                    let ty' = substNames vars upds ty
                    log 5 $ "Field type: " ++ show ty'
                    let rname = MN "rec" 0
+
+                   -- Claim the projection type
                    gty <- bindTypeNames []
                                  (map fst params ++ map fname fields ++ vars) $
                                     mkTy (map jname params) $
                                       IPi fc RigW Explicit (Just rname) recTy ty'
-                   log 5 $ "Projection " ++ show gname ++ " : " ++ show gty
+                   log 5 $ "Projection " ++ show projNameNS ++ " : " ++ show gty
+                   processDecl [] nest env
+                       (IClaim fc (if rc == Rig0
+                                      then Rig0
+                                      else RigW) vis [] (MkImpTy fc projNameNS gty))
+
+                   -- Define the LHS and RHS
                    let lhs_exp
                           = apply (IVar fc con)
                                     (replicate done (Implicit fc True) ++
                                        (if imp == Explicit
-                                           then [IBindVar fc (nameRoot gname)]
+                                           then [IBindVar fc (nameRoot fldName)]
                                            else []) ++
                                     (replicate (countExp sc) (Implicit fc True)))
-                   let lhs = IApp fc (IVar fc gname)
+                   let lhs = IApp fc (IVar fc projNameNS)
                                 (if imp == Explicit
                                     then lhs_exp
-                                    else IImplicitApp fc lhs_exp (Just n)
-                                             (IBindVar fc (nameRoot gname)))
-                   log 5 $ "Projection LHS " ++ show lhs
+                                    else IImplicitApp fc lhs_exp (Just fldName)
+                                             (IBindVar fc (nameRoot fldName)))
+                   let rhs = IVar fc (UN $ nameRoot fldName)
+                   log 5 $ "Projection " ++ show lhs ++ " = " ++ show rhs
                    processDecl [] nest env
-                       (IClaim fc (if rc == Rig0
-                                      then Rig0
-                                      else RigW) vis [] (MkImpTy fc gname gty))
-                   processDecl [] nest env
-                       (IDef fc gname [PatClause fc lhs (IVar fc fldName)])
-                   let upds' = (n, IApp fc (IVar fc gname) (IVar fc rname)) :: upds
+                       (IDef fc projNameNS [PatClause fc lhs rhs])
+
+                   -- Move on to the next getter
+                   let upds' = (mkProjName fldName, IApp fc (IVar fc projNameNS) (IVar fc rname)) :: upds
                    elabGetters con recTy
                                (if imp == Explicit
                                    then S done else done)
                                upds' mkProjName (b :: tyenv) sc
+
     elabGetters con recTy done upds _ _ _ = pure ()
 
 export
