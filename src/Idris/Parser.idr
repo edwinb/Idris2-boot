@@ -645,7 +645,7 @@ mutual
 
   field : FileName -> IndentInfo -> Rule PFieldUpdate
   field fname indents
-      = do path <- sepBy1 (symbol "->") unqualifiedName
+      = do path <- map nameRoot <$> [| name :: many recField |]
            upd <- (do symbol "="; pure PSetField)
                       <|>
                   (do symbol "$="; pure PSetFieldApp)
