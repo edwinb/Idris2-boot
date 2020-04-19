@@ -101,12 +101,10 @@ fastAppend xs
     build b (x :: xs) = do addToStringBuffer b x
                            build b xs
 
-dumpCases : {auto c : Ref Ctxt Defs} ->
-            String -> List Name ->
+dumpCases : Defs -> String -> List Name ->
             Core ()
-dumpCases fn cns
-    = do defs <- get Ctxt
-         cstrs <- traverse (dumpCase defs) cns
+dumpCases defs fn cns
+    = do cstrs <- traverse dumpCase cns
          Right () <- coreLift $ writeFile fn (fastAppend cstrs)
                | Left err => throw (FileErr fn err)
          pure ()
@@ -115,8 +113,8 @@ dumpCases fn cns
     fullShow (DN _ n) = show n
     fullShow n = show n
 
-    dumpCase : Defs -> Name -> Core String
-    dumpCase defs n
+    dumpCase : Name -> Core String
+    dumpCase n
         = case !(lookupCtxtExact n (gamma defs)) of
                Nothing => pure ""
                Just d =>
@@ -125,10 +123,11 @@ dumpCases fn cns
                          Just def => pure (fullShow n ++ " = " ++ show def ++ "\n")
 
 -- Find all the names which need compiling, from a given expression, and compile
--- them to CExp form (and update that in the Defs)
+-- them to CExp form (and update that in the Defs).
+-- Return the names, the type tags, and a compiled version of the expression
 export
 findUsedNames : {auto c : Ref Ctxt Defs} ->
-                Term vars -> Core (List Name, NameTags)
+                ClosedTerm -> Core (List Name, NameTags, NamedCExp)
 findUsedNames tm
     = do defs <- get Ctxt
          sopts <- getSession
@@ -154,12 +153,17 @@ findUsedNames tm
          logTime ("Compile defs " ++ show (length cns) ++ "/" ++ show asize) $
            traverse_ (compileDef tycontags) cns
          logTime "Inline" $ traverse_ inlineDef cns
+         logTime "Merge lambda" $ traverse_ mergeLamDef cns
+         logTime "Fix arity" $ traverse_ fixArityDef cns
          logTime "Forget names" $ traverse_ mkForgetDef cns
+         let compiledtm = forget !(fixArityExp !(compileExp tycontags tm))
+
+         defs <- get Ctxt
          maybe (pure ())
                (\f => do coreLift $ putStrLn $ "Dumping case trees to " ++ f
-                         dumpCases f cns)
+                         dumpCases defs f cns)
                (dumpcases sopts)
-         pure (cns, tycontags)
+         pure (cns, tycontags, compiledtm)
   where
     primTags : Int -> NameTags -> List Constant -> NameTags
     primTags t tags [] = tags

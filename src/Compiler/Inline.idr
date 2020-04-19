@@ -1,5 +1,7 @@
 module Compiler.Inline
 
+import Compiler.CompileExpr
+
 import Core.CompileExpr
 import Core.Context
 import Core.FC
@@ -298,12 +300,124 @@ mutual
            else pickConstAlt rec env stk (CPrimVal fc c) alts def
   pickConstAlt rec env stk _ _ _ = pure Nothing
 
-inline : {auto c : Ref Ctxt Defs} ->
-         CDef -> Core CDef
-inline (MkFun args exp)
+-- Inlining may have messed with function arity (e.g. by adding lambdas to
+-- the LHS to avoid needlessly making a closure) so fix them up here. This
+-- needs to be right because typically back ends need to know whether a
+-- name is under- or over-applied
+fixArityTm : {auto c : Ref Ctxt Defs} ->
+             CExp vars -> List (CExp vars) -> Core (CExp vars)
+fixArityTm (CRef fc n) args
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact n (gamma defs)
+              | Nothing => pure (unload args (CRef fc n))
+         let Just def = compexpr gdef
+              | Nothing => pure (unload args (CRef fc n))
+         let arity = getArity def
+         pure $ expandToArity arity (CApp fc (CRef fc n) []) args
+fixArityTm (CLam fc x sc) args
+    = pure $ expandToArity Z (CLam fc x !(fixArityTm sc [])) args
+fixArityTm (CLet fc x val sc) args
+    = pure $ expandToArity Z
+                 (CLet fc x !(fixArityTm val []) !(fixArityTm sc [])) args
+fixArityTm (CApp fc f fargs) args
+    = fixArityTm f (!(traverse (\tm => fixArityTm tm []) fargs) ++ args)
+fixArityTm (CCon fc n t args) []
+    = pure $ CCon fc n t !(traverse (\tm => fixArityTm tm []) args)
+fixArityTm (COp fc op args) []
+    = pure $ COp fc op !(traverseArgs args)
+  where
+    traverseArgs : Vect n (CExp vs) -> Core (Vect n (CExp vs))
+    traverseArgs [] = pure []
+    traverseArgs (a :: as) = pure $ !(fixArityTm a []) :: !(traverseArgs as)
+fixArityTm (CExtPrim fc p args) []
+    = pure $ CExtPrim fc p !(traverse (\tm => fixArityTm tm []) args)
+fixArityTm (CForce fc tm) args
+    = pure $ expandToArity Z (CForce fc !(fixArityTm tm [])) args
+fixArityTm (CDelay fc tm) args
+    = pure $ expandToArity Z (CDelay fc !(fixArityTm tm [])) args
+fixArityTm (CConCase fc sc alts def) args
+    = pure $ expandToArity Z
+              (CConCase fc !(fixArityTm sc [])
+                           !(traverse fixArityAlt alts)
+                           !(traverseOpt (\tm => fixArityTm tm []) def)) args
+  where
+    fixArityAlt : CConAlt vars -> Core (CConAlt vars)
+    fixArityAlt (MkConAlt n t a sc)
+        = pure $ MkConAlt n t a !(fixArityTm sc [])
+fixArityTm (CConstCase fc sc alts def) args
+    = pure $ expandToArity Z
+              (CConstCase fc !(fixArityTm sc [])
+                             !(traverse fixArityConstAlt alts)
+                             !(traverseOpt (\tm => fixArityTm tm []) def)) args
+  where
+    fixArityConstAlt : CConstAlt vars -> Core (CConstAlt vars)
+    fixArityConstAlt (MkConstAlt c sc)
+        = pure $ MkConstAlt c !(fixArityTm sc [])
+fixArityTm t [] = pure t
+fixArityTm t args = pure $ expandToArity Z t args
+
+export
+fixArityExp : {auto c : Ref Ctxt Defs} ->
+              CExp vars -> Core (CExp vars)
+fixArityExp tm = fixArityTm tm []
+
+fixArity : {auto c : Ref Ctxt Defs} ->
+           CDef -> Core CDef
+fixArity (MkFun args exp) = pure $ MkFun args !(fixArityTm exp [])
+fixArity (MkError exp) = pure $ MkError !(fixArityTm exp [])
+fixArity d = pure d
+
+getLams : Int -> SubstCEnv done args -> CExp (done ++ args) ->
+          (args' ** (SubstCEnv args' args, CExp (args' ++ args)))
+getLams {done} i env (CLam fc x sc)
+    = getLams {done = x :: done} (i + 1) (CRef fc (MN "ext" i) :: env) sc
+getLams {done} i env sc = (done ** (env, sc))
+
+mkBounds : (xs : _) -> Bounds xs
+mkBounds [] = None
+mkBounds (x :: xs) = Add x x (mkBounds xs)
+
+getNewArgs : SubstCEnv done args -> List Name
+getNewArgs [] = []
+getNewArgs (CRef _ n :: xs) = n :: getNewArgs xs
+getNewArgs {done = x :: xs} (_ :: sub) = x :: getNewArgs sub
+
+-- Move any lambdas in the body of the definition into the lhs list of vars.
+-- Annoyingly, the indices will need fixing up because the order in the top
+-- level definition goes left to right (i.e. first argument has lowest index,
+-- not the highest, as you'd expect if they were all lambdas).
+mergeLambdas : (args : List Name) -> CExp args -> (args' ** CExp args')
+mergeLambdas args (CLam fc x sc)
+    = let (args' ** (env, exp')) = getLams 0 [] (CLam fc x sc)
+          expNs = substs env exp'
+          newArgs = reverse $ getNewArgs env
+          expLocs = mkLocals {later = args} {vars=[]} (mkBounds newArgs)
+                             (rewrite appendNilRightNeutral args in expNs) in
+          (_ ** expLocs)
+mergeLambdas args exp = (args ** exp)
+
+doEval : {auto c : Ref Ctxt Defs} ->
+         Name -> CExp args -> Core (CExp args)
+doEval n exp
     = do l <- newRef LVar (the Int 0)
-         MkFun args <$> eval [] [] [] exp
-inline d = pure d
+         log 10 (show n ++ ": " ++ show exp)
+         exp' <- eval [] [] [] exp
+         log 10 ("Inlined: " ++ show exp')
+         pure exp'
+
+inline : {auto c : Ref Ctxt Defs} ->
+         Name -> CDef -> Core CDef
+inline n (MkFun args def)
+    = pure $ MkFun args !(doEval n def)
+inline n d = pure d
+
+-- merge lambdas from expression into top level arguments
+mergeLam : {auto c : Ref Ctxt Defs} ->
+           CDef -> Core CDef
+mergeLam (MkFun args def)
+    = do let (args' ** exp') = mergeLambdas args def
+         pure $ MkFun args' exp'
+mergeLam d = pure d
 
 export
 inlineDef : {auto c : Ref Ctxt Defs} ->
@@ -312,5 +426,22 @@ inlineDef n
     = do defs <- get Ctxt
          Just def <- lookupCtxtExact n (gamma defs) | Nothing => pure ()
          let Just cexpr =  compexpr def             | Nothing => pure ()
-         setCompiled n !(inline cexpr)
+         setCompiled n !(inline n cexpr)
 
+export
+fixArityDef : {auto c : Ref Ctxt Defs} ->
+              Name -> Core ()
+fixArityDef n
+    = do defs <- get Ctxt
+         Just def <- lookupCtxtExact n (gamma defs) | Nothing => pure ()
+         let Just cexpr =  compexpr def             | Nothing => pure ()
+         setCompiled n !(fixArity cexpr)
+
+export
+mergeLamDef : {auto c : Ref Ctxt Defs} ->
+              Name -> Core ()
+mergeLamDef n
+    = do defs <- get Ctxt
+         Just def <- lookupCtxtExact n (gamma defs) | Nothing => pure ()
+         let Just cexpr =  compexpr def             | Nothing => pure ()
+         setCompiled n !(mergeLam cexpr)

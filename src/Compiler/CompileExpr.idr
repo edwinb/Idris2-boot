@@ -60,6 +60,7 @@ etaExpand i (S k) exp args
              (etaExpand (i + 1) k (weaken exp)
                   (MkVar First :: map weakenVar args))
 
+export
 expandToArity : Nat -> CExp vars -> List (CExp vars) -> CExp vars
 -- No point in applying to anything
 expandToArity _ (CErased fc) _ = CErased fc
@@ -472,10 +473,10 @@ toCDef tags n ty def
 
 export
 compileExp : {auto c : Ref Ctxt Defs} ->
-             NameTags -> ClosedTerm -> Core NamedCExp
+             NameTags -> ClosedTerm -> Core (CExp [])
 compileExp tags tm
     = do exp <- toCExp tags (UN "main") tm
-         pure (forget exp)
+         pure exp
 
 ||| Given a name, look up an expression, and compile it to a CExp in the environment
 export
