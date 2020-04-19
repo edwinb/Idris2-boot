@@ -330,7 +330,11 @@ compileToSS c tm outfile
     = do ds <- getDirectives Chez
          libs <- findLibs ds
          traverse_ copyLib libs
-         (ns, tags, ctm) <- findUsedNames tm
+         cdata <- getCompileData tm
+         let ns = allNames cdata
+         let tags = nameTags cdata
+         let ctm = forget (mainExpr cdata)
+
          defs <- get Ctxt
          l <- newRef {t = List String} Loaded ["libc", "libc 6"]
          s <- newRef {t = List String} Structs []

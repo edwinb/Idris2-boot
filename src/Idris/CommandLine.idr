@@ -71,6 +71,8 @@ data CLOpt
   Metadata String |
    ||| Dump cases before compiling
   DumpCases String |
+   ||| Dump lambda lifted defs before compiling
+  DumpLifted String |
    ||| Run a REPL command then exit immediately
   RunREPL String |
   FindIPKG |
@@ -146,6 +148,8 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
            MkOpt ["--ttm" ] ["ttimp file"] (\f => [Metadata f])
               Nothing, -- dump metadata information from the given ttm file
            MkOpt ["--dumpcases"] ["output file"] (\f => [DumpCases f])
+              Nothing, -- dump case trees to the given file
+           MkOpt ["--dumplifted"] ["output file"] (\f => [DumpLifted f])
               Nothing, -- dump case trees to the given file
            MkOpt ["--debug-elab-check"] [] [DebugElabCheck]
               Nothing -- do more elaborator checks (currently conversion in LinearCheck)

@@ -2,6 +2,7 @@ module Compiler.Common
 
 import Compiler.CompileExpr
 import Compiler.Inline
+import Compiler.LambdaLift
 
 import Core.Context
 import Core.Directory
@@ -122,13 +123,38 @@ dumpCases defs fn cns
                          Nothing => pure ""
                          Just def => pure (fullShow n ++ " = " ++ show def ++ "\n")
 
+dumpLifted : String -> List (Name, LiftedDef) -> Core ()
+dumpLifted fn lns
+    = do let cstrs = map dumpDef lns
+         Right () <- coreLift $ writeFile fn (fastAppend cstrs)
+               | Left err => throw (FileErr fn err)
+         pure ()
+  where
+    fullShow : Name -> String
+    fullShow (DN _ n) = show n
+    fullShow n = show n
+
+    dumpDef : (Name, LiftedDef) -> String
+    dumpDef (n, d) = fullShow n ++ " = " ++ show d ++ "\n"
+
+public export
+record CompileData where
+  constructor MkCompileData
+  allNames : List Name -- names which need to be compiled
+  nameTags : NameTags -- a mapping from type names to constructor tags
+  mainExpr : CExp [] -- main expression to execute
+  lambdaLifted : List (Name, LiftedDef)
+       -- ^ lambda lifted definitions, if required. Only the top level names
+       -- will be in the context, and (for the moment...) I don't expect to
+       -- need to look anything up, so it's just an alist.
+
 -- Find all the names which need compiling, from a given expression, and compile
 -- them to CExp form (and update that in the Defs).
 -- Return the names, the type tags, and a compiled version of the expression
 export
-findUsedNames : {auto c : Ref Ctxt Defs} ->
-                ClosedTerm -> Core (List Name, NameTags, NamedCExp)
-findUsedNames tm
+getCompileData : {auto c : Ref Ctxt Defs} ->
+                 ClosedTerm -> Core CompileData
+getCompileData tm
     = do defs <- get Ctxt
          sopts <- getSession
          let ns = getRefs (Resolved (-1)) tm
@@ -156,14 +182,21 @@ findUsedNames tm
          logTime "Merge lambda" $ traverse_ mergeLamDef cns
          logTime "Fix arity" $ traverse_ fixArityDef cns
          logTime "Forget names" $ traverse_ mkForgetDef cns
-         let compiledtm = forget !(fixArityExp !(compileExp tycontags tm))
+
+         lifted <- logTime "Lambda lift" $ traverse lambdaLift cns
+
+         compiledtm <- fixArityExp !(compileExp tycontags tm)
 
          defs <- get Ctxt
          maybe (pure ())
                (\f => do coreLift $ putStrLn $ "Dumping case trees to " ++ f
                          dumpCases defs f cns)
                (dumpcases sopts)
-         pure (cns, tycontags, compiledtm)
+         maybe (pure ())
+               (\f => do coreLift $ putStrLn $ "Dumping lambda lifted defs to " ++ f
+                         dumpLifted f (concat lifted))
+               (dumplifted sopts)
+         pure (MkCompileData cns tycontags compiledtm (concat lifted))
   where
     primTags : Int -> NameTags -> List Constant -> NameTags
     primTags t tags [] = tags
