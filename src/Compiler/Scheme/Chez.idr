@@ -203,7 +203,7 @@ cCall fc cfn clib args ret
     applyLams n (Just a :: as) = applyLams ("(" ++ n ++ " " ++ a ++ ")") as
 
     getVal : String -> String
-    getVal str = "(vector-ref " ++ str ++ "2)"
+    getVal str = "(vector-ref " ++ str ++ "1)"
 
     mkFun : List CFType -> CFType -> String -> String
     mkFun args ret n

@@ -23,6 +23,7 @@ NameTags = NameMap Int
 
 data Args
     = NewTypeBy Nat Nat
+    | EraseArgs Nat (List Nat)
     | Arity Nat
 
 ||| Extract the number of arguments from a term, or return that it's
@@ -30,13 +31,15 @@ data Args
 numArgs : Defs -> Term vars -> Core Args
 numArgs defs (Ref _ (TyCon tag arity) n) = pure (Arity arity)
 numArgs defs (Ref _ _ n)
-    = case !(lookupDefExact n (gamma defs)) of
-           Just (DCon _ arity Nothing) => pure (Arity arity)
-           Just (DCon _ arity (Just pos)) => pure (NewTypeBy arity pos)
-           Just (PMDef _ args _ _ _) => pure (Arity (length args))
-           Just (ExternDef arity) => pure (Arity arity)
-           Just (ForeignDef arity _) => pure (Arity arity)
-           Just (Builtin {arity} f) => pure (Arity arity)
+    = do Just gdef <- lookupCtxtExact n (gamma defs)
+              | Nothing => pure (Arity 0)
+         case definition gdef of
+           DCon _ arity Nothing => pure (EraseArgs arity (eraseArgs gdef))
+           DCon _ arity (Just pos) => pure (NewTypeBy arity pos)
+           PMDef _ args _ _ _ => pure (Arity (length args))
+           ExternDef arity => pure (Arity arity)
+           ForeignDef arity _ => pure (Arity arity)
+           Builtin {arity} f => pure (Arity arity)
            _ => pure (Arity 0)
 numArgs _ tm = pure (Arity 0)
 
@@ -96,6 +99,34 @@ applyNewType arity pos fn args
     keepArg (CLam fc x sc) = CLam fc x (keepArg sc)
     keepArg (CCon fc _ _ args) = keep 0 args
     keepArg tm = CErased (getFC fn)
+
+dropPos : List Nat -> CExp vs -> CExp vs
+dropPos epos (CLam fc x sc) = CLam fc x (dropPos epos sc)
+dropPos epos (CCon fc c a args) = CCon fc c a (drop 0 args)
+  where
+    drop : Nat -> List (CExp vs) -> List (CExp vs)
+    drop i [] = []
+    drop i (x :: xs)
+        = if i `elem` epos
+             then drop (1 + i) xs
+             else x :: drop (1 + i) xs
+dropPos epos tm = tm
+
+eraseConArgs : Nat -> List Nat -> CExp vars -> List (CExp vars) -> CExp vars
+eraseConArgs arity epos fn args
+    = let fn' = expandToArity arity fn args in
+          dropPos epos fn' -- fn' might be lambdas, after eta expansion
+
+mkDropSubst : Nat -> List Nat ->
+              (rest : List Name) ->
+              (vars : List Name) ->
+              (vars' ** SubVars (vars' ++ rest) (vars ++ rest))
+mkDropSubst i es rest [] = ([] ** SubRefl)
+mkDropSubst i es rest (x :: xs)
+    = let (vs ** sub) = mkDropSubst (1 + i) es rest xs in
+          if i `elem` es
+             then (vs ** DropCons sub)
+             else (x :: vs ** KeepCons sub)
 
 -- Rewrite applications of Nat constructors and functions to more optimal
 -- versions using Integer
@@ -220,6 +251,9 @@ mutual
                       | NewTypeBy arity pos =>
                             do let res = applyNewType arity pos !(toCExpTm tags n f) args'
                                pure $ natHack res
+                      | EraseArgs arity epos =>
+                            do let res = eraseConArgs arity epos !(toCExpTm tags n f) args'
+                               pure $ natHack res
                    let res = expandToArity a !(toCExpTm tags n f) args'
                    pure $ natHack res
 
@@ -228,15 +262,26 @@ mutual
              NameTags -> Name -> List (CaseAlt vars) ->
              Core (List (CConAlt vars))
   conCases tags n [] = pure []
-  conCases tags n (ConCase x tag args sc :: ns)
+  conCases {vars} tags n (ConCase x tag args sc :: ns)
       = do defs <- get Ctxt
-           case !(lookupDefExact x (gamma defs)) of
-                Just (DCon _ arity (Just pos)) => conCases tags n ns -- skip it
-                _ => do let tag' = case lookup x tags of
+           Just gdef <- lookupCtxtExact x (gamma defs)
+                | Nothing => -- primitive type match
+                     do xn <- getFullName x
+                        let tag' = case lookup x tags of
                                         Just t => t
                                         _ => tag
-                        xn <- getFullName x
                         pure $ MkConAlt xn tag' args !(toCExpTree tags n sc)
+                                  :: !(conCases tags n ns)
+           case (definition gdef) of
+                DCon _ arity (Just pos) => conCases tags n ns -- skip it
+                _ => do xn <- getFullName x
+                        let (args' ** sub)
+                            = mkDropSubst 0 (eraseArgs gdef) vars args
+                        let tag' = case lookup x tags of
+                                        Just t => t
+                                        _ => tag
+                        pure $ MkConAlt xn tag' args'
+                                    (shrinkCExp sub !(toCExpTree tags n sc))
                                   :: !(conCases tags n ns)
   conCases tags n (_ :: ns) = conCases tags n ns
 

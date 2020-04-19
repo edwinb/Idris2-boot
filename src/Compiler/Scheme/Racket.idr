@@ -181,7 +181,7 @@ cCall fc cfn libspec args ret
         = applyLams ("(" ++ n ++ " " ++ cToRkt ty a ++ ")") as
 
     getVal : CFType -> String -> String
-    getVal ty str = rktToC ty ("(vector-ref " ++ str ++ "2)")
+    getVal ty str = rktToC ty ("(vector-ref " ++ str ++ "1)")
 
     mkFun : List CFType -> CFType -> String -> String
     mkFun args ret n
