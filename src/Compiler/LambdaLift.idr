@@ -53,8 +53,8 @@ public export
 data LiftedDef : Type where
      -- We take the outer scope and the function arguments separately so that
      -- we don't have to reshuffle de Bruijn indices, which is expensive.
-     -- This should be compiled as a function which takes 'scope' first,
-     -- then 'args'.
+     -- This should be compiled as a function which takes 'args' first,
+     -- then 'scope'.
      MkLFun : (args : List Name) -> -- function arguments
               (scope : List Name) -> -- outer scope
               Lifted (scope ++ args) -> LiftedDef
