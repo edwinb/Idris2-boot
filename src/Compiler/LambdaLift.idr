@@ -51,7 +51,13 @@ mutual
 
 public export
 data LiftedDef : Type where
-     MkLFun : (args : List Name) -> Lifted args -> LiftedDef
+     -- We take the outer scope and the function arguments separately so that
+     -- we don't have to reshuffle de Bruijn indices, which is expensive.
+     -- This should be compiled as a function which takes 'scope' first,
+     -- then 'args'.
+     MkLFun : (args : List Name) -> -- function arguments
+              (scope : List Name) -> -- outer scope
+              Lifted (scope ++ args) -> LiftedDef
      MkLCon : (tag : Int) -> (arity : Nat) -> (nt : Maybe Nat) -> LiftedDef
      MkLForeign : (ccs : List String) ->
                   (fargs : List CFType) ->
@@ -101,7 +107,7 @@ mutual
 
 export
 Show LiftedDef where
-  show (MkLFun args exp) = show args ++ ": " ++ show exp
+  show (MkLFun args scope exp) = show args ++ show scope ++ ": " ++ show exp
   show (MkLCon tag arity pos)
       = "Constructor tag " ++ show tag ++ " arity " ++ show arity ++
         maybe "" (\n => " (newtype by " ++ show n ++ ")") pos
@@ -136,26 +142,6 @@ unload : FC -> Lifted vars -> List (Lifted vars) -> Core (Lifted vars)
 unload fc f [] = pure f
 unload fc f (a :: as) = unload fc (LApp fc f a) as
 
--- Well this is annoying, If CExp took its top level arguments in the other
--- order we wouldn't need this. But, it doesn't, so we do...
-swapBlocks : FC -> (bound : List Name) -> CExp (bound ++ vars) ->
-             CExp (vars ++ bound ++ [])
-swapBlocks {vars} fc bound exp
-    = let sub = mkSubst 0 bound
-          cexpns = substs sub exp 
-          bs = mkBounds sub in
-          mkLocals {later=vars} {vars=[]} bs 
-                   (rewrite appendNilRightNeutral vars in cexpns)
-  where
-    mkBounds : {bs : _} -> SubstCEnv bs vars -> Bounds bs
-    mkBounds Nil = None
-    mkBounds {bs = x :: _} (CRef fc n :: bs) = Add x n (mkBounds bs)
-    mkBounds {bs = x :: _} (_ :: bs) = Add x x (mkBounds bs)
-
-    mkSubst : Int -> (bs : List Name) -> SubstCEnv bs vars
-    mkSubst i [] = Nil
-    mkSubst i (b :: bs) = CRef fc (MN "lift" i) :: mkSubst (1 + i) bs
-
 mutual
   makeLam : {auto l : Ref Lifts LDefs} ->
             {vars : _} ->
@@ -163,10 +149,10 @@ mutual
             CExp (bound ++ vars) -> Core (Lifted vars)
   makeLam fc bound (CLam _ x sc') = makeLam fc (x :: bound) sc'
   makeLam {vars} fc bound sc
-      = do scl <- liftExp (swapBlocks {vars} fc bound sc)
+      = do scl <- liftExp sc
            n <- genName
            ldefs <- get Lifts
-           put Lifts (record { defs $= ((n, MkLFun _ scl) ::) } ldefs)
+           put Lifts (record { defs $= ((n, MkLFun vars bound scl) ::) } ldefs)
            -- TODO: an optimisation here would be to spot which variables
            -- aren't used in the new definition, and not abstract over them
            -- in the new definition. Given that we have to do some messing
@@ -229,7 +215,7 @@ liftBody n tm
 lambdaLiftDef : Name -> CDef -> Core (List (Name, LiftedDef))
 lambdaLiftDef n (MkFun args exp)
     = do (expl, defs) <- liftBody n exp
-         pure ((n, MkLFun args expl) :: defs)
+         pure ((n, MkLFun args [] expl) :: defs)
 lambdaLiftDef n (MkCon t a nt) = pure [(n, MkLCon t a nt)]
 lambdaLiftDef n (MkForeign ccs fargs ty) = pure [(n, MkLForeign ccs fargs ty)]
 lambdaLiftDef n (MkError exp)

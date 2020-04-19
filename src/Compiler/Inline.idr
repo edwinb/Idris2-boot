@@ -55,18 +55,6 @@ genName n
          put LVar (i + 1)
          pure (MN n i)
 
-resolveRef : (done : List Name) -> Bounds bound -> FC -> Name ->
-             Maybe (CExp (later ++ (done ++ bound ++ vars)))
-resolveRef done None fc n = Nothing
-resolveRef {later} {vars} done (Add {xs} new old bs) fc n
-    = if n == old
-         then rewrite appendAssociative later done (new :: xs ++ vars) in
-              let MkNVar p = weakenNVar {inner = new :: xs ++ vars}
-                                        (later ++ done) First in
-                    Just (CLocal fc p)
-         else rewrite appendAssociative done [new] (xs ++ vars)
-                in resolveRef (done ++ [new]) bs fc n
-
 refToLocal : Name -> (x : Name) -> CExp vars -> CExp (x :: vars)
 refToLocal x new tm = refsToLocals (Add new x None) tm
 
