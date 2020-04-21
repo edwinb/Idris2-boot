@@ -35,7 +35,7 @@ numArgs defs (Ref _ _ n)
               | Nothing => pure (Arity 0)
          case definition gdef of
            DCon _ arity Nothing => pure (EraseArgs arity (eraseArgs gdef))
-           DCon _ arity (Just pos) => pure (NewTypeBy arity pos)
+           DCon _ arity (Just (_, pos)) => pure (NewTypeBy arity pos)
            PMDef _ args _ _ _ => pure (Arity (length args))
            ExternDef arity => pure (Arity arity)
            ForeignDef arity _ => pure (Arity arity)
@@ -162,7 +162,7 @@ natBranch (MkConAlt n _ _ _) = isNatCon n
 trySBranch : CExp vars -> CConAlt vars -> Maybe (CExp vars)
 trySBranch n (MkConAlt (NS ["Prelude"] (UN "S")) _ [arg] sc)
     = let fc = getFC n in
-          Just (CLet fc arg (CApp fc (CRef fc (UN "prim__sub_Integer"))
+          Just (CLet fc arg True (CApp fc (CRef fc (UN "prim__sub_Integer"))
                     [n, CPrimVal fc (BI 1)]) sc)
 trySBranch _ _ = Nothing
 
@@ -216,7 +216,7 @@ mutual
   toCExpTm tags n (Bind fc x (Let Rig0 val _) sc)
       = pure $ shrinkCExp (DropCons SubRefl) !(toCExp tags n sc)
   toCExpTm tags n (Bind fc x (Let _ val _) sc)
-      = pure $ CLet fc x !(toCExp tags n val) !(toCExp tags n sc)
+      = pure $ CLet fc x True !(toCExp tags n val) !(toCExp tags n sc)
   toCExpTm tags n (Bind fc x (Pi c e ty) sc)
       = pure $ CCon fc (UN "->") 1 [!(toCExp tags n ty),
                                     CLam fc x !(toCExp tags n sc)]
@@ -289,6 +289,8 @@ mutual
                NameTags -> Name -> List (CaseAlt vars) ->
                Core (List (CConstAlt vars))
   constCases tags n [] = pure []
+  constCases tags n (ConstCase WorldVal sc :: ns)
+      = constCases tags n ns
   constCases tags n (ConstCase x sc :: ns)
       = pure $ MkConstAlt x !(toCExpTree tags n sc) ::
                     !(constCases tags n ns)
@@ -297,16 +299,25 @@ mutual
   getDef : {auto c : Ref Ctxt Defs} ->
            FC -> CExp vars ->
            NameTags -> Name -> List (CaseAlt vars) ->
-           Core (Maybe (CExp vars))
-  getDef fc scr tags n [] = pure Nothing
+           Core (Bool, Maybe (CExp vars))
+  getDef fc scr tags n [] = pure (False, Nothing)
   getDef fc scr tags n (DefaultCase sc :: ns)
-      = pure $ Just !(toCExpTree tags n sc)
+      = pure $ (False, Just !(toCExpTree tags n sc))
+  getDef fc scr tags n (ConstCase WorldVal sc :: ns)
+      = pure $ (False, Just !(toCExpTree tags n sc))
   getDef {vars} fc scr tags n (ConCase x tag args sc :: ns)
       = do defs <- get Ctxt
            case !(lookupDefExact x (gamma defs)) of
-                Just (DCon _ arity (Just pos)) =>
+                -- If the flag is False, we still take the
+                -- default, but need to evaluate the scrutinee of the
+                -- case anyway - if the data structure contains a %World,
+                -- that we've erased, it means it has interacted with the
+                -- outside world, so we need to evaluate to keep the
+                -- side effect.
+                Just (DCon _ arity (Just (noworld, pos))) =>
                      let env : SubstCEnv args vars = mkSubst 0 pos args in
-                         pure $ Just (substs env !(toCExpTree tags n sc))
+                         pure $ (not noworld,
+                                 Just (substs env !(toCExpTree tags n sc)))
                 _ => getDef fc scr tags n ns
     where
       mkSubst : Nat -> Nat -> (args : List Name) -> SubstCEnv args vars
@@ -323,8 +334,8 @@ mutual
   toCExpTree tags n alts@(Case _ x scTy (DelayCase ty arg sc :: rest))
       = let fc = getLoc scTy in
             pure $
-              CLet fc arg (CForce fc (CLocal (getLoc scTy) x)) $
-              CLet fc ty (CErased fc)
+              CLet fc arg True (CForce fc (CLocal (getLoc scTy) x)) $
+              CLet fc ty True (CErased fc)
                    !(toCExpTree tags n sc)
   toCExpTree tags n alts = toCExpTree' tags n alts
 
@@ -335,9 +346,13 @@ mutual
       = let fc = getLoc scTy in
             do defs <- get Ctxt
                cases <- conCases tags n alts
-               def <- getDef fc (CLocal fc x) tags n alts
+               (keepSc, def) <- getDef fc (CLocal fc x) tags n alts
                if isNil cases
-                  then pure (fromMaybe (CErased fc) def)
+                  then (if keepSc
+                           then pure $ CLet fc (MN "eff" 0) False
+                                            (CLocal fc x)
+                                            (weaken (fromMaybe (CErased fc) def))
+                           else pure (fromMaybe (CErased fc) def))
                   else pure $ natHackTree $
                             CConCase fc (CLocal fc x) cases def
   toCExpTree' tags n (Case _ x scTy alts@(DelayCase _ _ _ :: _))
@@ -345,9 +360,13 @@ mutual
   toCExpTree' tags n (Case fc x scTy alts@(ConstCase _ _ :: _))
       = let fc = getLoc scTy in
             do cases <- constCases tags n alts
-               def <- getDef fc (CLocal fc x) tags n alts
+               (keepSc, def) <- getDef fc (CLocal fc x) tags n alts
                if isNil cases
-                  then pure (fromMaybe (CErased fc) def)
+                  then (if keepSc
+                           then pure $ CLet fc (MN "eff" 0) False
+                                            (CLocal fc x)
+                                            (weaken (fromMaybe (CErased fc) def))
+                           else pure (fromMaybe (CErased fc) def))
                   else pure $ CConstCase fc (CLocal fc x) cases def
   toCExpTree' tags n (Case _ x scTy alts@(DefaultCase sc :: _))
       = toCExpTree tags n sc
@@ -498,7 +517,8 @@ toCDef tags n ty (Builtin {arity} op)
     getVars NoArgs = []
     getVars (ConsArg a rest) = MkVar First :: map weakenVar (getVars rest)
 toCDef tags n _ (DCon tag arity pos)
-    = pure $ MkCon (fromMaybe tag $ lookup n tags) arity pos
+    = let nt = maybe Nothing (Just . snd) pos in
+          pure $ MkCon (fromMaybe tag $ lookup n tags) arity nt
 toCDef tags n _ (TCon tag arity _ _ _ _ _ _)
     = pure $ MkCon (fromMaybe tag $ lookup n tags) arity Nothing
 -- We do want to be able to compile these, but also report an error at run time

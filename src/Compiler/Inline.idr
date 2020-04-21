@@ -62,7 +62,7 @@ mutual
   used : Name -> CExp free -> Bool
   used n (CRef _ n') = n == n'
   used n (CLam _ _ sc) = used n sc
-  used n (CLet _ _ val sc) = used n val || used n sc
+  used n (CLet _ _ _ val sc) = used n val || used n sc
   used n (CApp _ x args) = used n x || or (map Delay (map (used n) args))
   used n (CCon _ _ _ args) = or (map Delay (map (used n) args))
   used n (COp _ _ args) = or (map Delay (map (used n) args))
@@ -133,12 +133,12 @@ mutual
            sc' <- eval rec (CRef fc xn :: env) [] sc
            pure $ CLam fc x (refToLocal xn x sc')
   eval rec env (e :: stk) (CLam fc x sc) = eval rec (e :: env) stk sc
-  eval {vars} {free} rec env stk (CLet fc x val sc)
+  eval {vars} {free} rec env stk (CLet fc x inl val sc)
       = do xn <- genName "letv"
            sc' <- eval rec (CRef fc xn :: env) [] sc
-           if used xn sc'
+           if inl && used xn sc'
               then do val' <- eval rec env [] val
-                      pure (unload stk $ CLet fc x val' (refToLocal xn x sc'))
+                      pure (unload stk $ CLet fc x inl val' (refToLocal xn x sc'))
               else pure sc'
   eval rec env stk (CApp fc f args)
       = eval rec env (!(traverse (eval rec env []) args) ++ stk) f
@@ -249,9 +249,9 @@ fixArityTm (CRef fc n) args
          pure $ expandToArity arity (CApp fc (CRef fc n) []) args
 fixArityTm (CLam fc x sc) args
     = pure $ expandToArity Z (CLam fc x !(fixArityTm sc [])) args
-fixArityTm (CLet fc x val sc) args
+fixArityTm (CLet fc x inl val sc) args
     = pure $ expandToArity Z
-                 (CLet fc x !(fixArityTm val []) !(fixArityTm sc [])) args
+                 (CLet fc x inl !(fixArityTm val []) !(fixArityTm sc [])) args
 fixArityTm (CApp fc f fargs) args
     = fixArityTm f (!(traverse (\tm => fixArityTm tm []) fargs) ++ args)
 fixArityTm (CCon fc n t args) []

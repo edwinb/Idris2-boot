@@ -174,7 +174,7 @@ mutual
   liftExp (CLocal fc prf) = pure $ LLocal fc prf
   liftExp (CRef fc n) = pure $ LAppName fc n [] -- probably shouldn't happen!
   liftExp (CLam fc x sc) = makeLam fc [x] sc
-  liftExp (CLet fc x val sc) = pure $ LLet fc x !(liftExp val) !(liftExp sc)
+  liftExp (CLet fc x _ val sc) = pure $ LLet fc x !(liftExp val) !(liftExp sc)
   liftExp (CApp fc (CRef _ n) args) -- names are applied exactly in compileExp
       = pure $ LAppName fc n !(traverse liftExp args)
   liftExp (CApp fc f args)

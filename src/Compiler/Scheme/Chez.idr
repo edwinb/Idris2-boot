@@ -209,9 +209,7 @@ cCall fc cfn clib args ret
     mkFun args ret n
         = let argns = mkNs 0 args in
               "(lambda (" ++ showSep " " (mapMaybe id argns) ++ ") " ++
-              (case ret of
-                    CFIORes _ => getVal (applyLams n argns) ++ ")"
-                    _ => applyLams n argns ++ ")")
+              (applyLams n argns ++ ")")
 
     notWorld : CFType -> Bool
     notWorld CFWorld = False
