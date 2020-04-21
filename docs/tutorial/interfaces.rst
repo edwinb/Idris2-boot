@@ -282,11 +282,13 @@ which reads a number from the console, returning a value of the form
 
 .. code-block:: idris
 
+    import Data.Strings
+
     readNumber : IO (Maybe Nat)
     readNumber = do
       input <- getLine
       if all isDigit (unpack input)
-         then pure (Just (cast input))
+         then pure (Just (stringToNatOrZ input))
          else pure Nothing
 
 If we then use it to write a function to read two numbers, returning
@@ -325,9 +327,9 @@ case back as follows:
 
     readNumbers : IO (Maybe (Nat, Nat))
     readNumbers
-      = do Just x_ok <- readNumber 
+      = do Just x_ok <- readNumber
                 | Nothing => pure Nothing
-           Just y_ok <- readNumber 
+           Just y_ok <- readNumber
                 | Nothing => pure Nothing
            pure (Just (x_ok, y_ok))
 
