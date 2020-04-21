@@ -99,20 +99,40 @@ blockComment = is '{' <+> is '-' <+> toEndComment 1
 docComment : Lexer
 docComment = is '|' <+> is '|' <+> is '|' <+> many (isNot '\n')
 
-ident : Lexer
-ident = pred startIdent <+> many (pred validIdent)
-  where
-    startIdent : Char -> Bool
-    startIdent '_' = True
-    startIdent x = isAlpha x || x > chr 127
+-- Identifier Lexer
+--
+-- There are two variants, a strict ident and a relaxed ident.
+-- Prime definitions recieve a boolean determining if it is relaxed.
 
-    validIdent : Char -> Bool
-    validIdent '_' = True
-    validIdent '\'' = True
-    validIdent x = isAlphaNum x || x > chr 127
+startIdent : Char -> Bool
+startIdent '_' = True
+startIdent  x  = isAlpha x || x > chr 127
+
+%inline
+validIdent' : Bool -> Char -> Bool
+validIdent' _ '_'  = True
+validIdent' r '-'  = r
+validIdent' _ '\'' = True
+validIdent' _  x   = isAlphaNum x || x > chr 127
+
+%inline
+ident' : Bool -> Lexer
+ident' relaxed =
+  (pred $ startIdent) <+>
+    (many . pred $ validIdent' relaxed)
+
+-- This are the two identifier lexer specializations
+
+export
+identStrict : Lexer
+identStrict = ident' False
+
+export
+identRelaxed : Lexer
+identRelaxed = ident' True
 
 holeIdent : Lexer
-holeIdent = is '?' <+> ident
+holeIdent = is '?' <+> identStrict
 
 doubleLit : Lexer
 doubleLit
@@ -159,12 +179,13 @@ symbols
        "(", ")", "{", "}", "[", "]", ",", ";", "_",
        "`(", "`"]
 
+
 export
-opChars : String
-opChars = ":!#$%&*+./<=>?@\\^|-~"
+isOpChar : Char -> Bool
+isOpChar c = c `elem` (unpack ":!#$%&*+./<=>?@\\^|-~")
 
 validSymbol : Lexer
-validSymbol = some (oneOf opChars)
+validSymbol = some (pred isOpChar)
 
 -- Valid symbols which have a special meaning so can't be operators
 export
@@ -173,9 +194,6 @@ reservedSymbols
     = symbols ++
       ["%", "\\", ":", "=", "|", "|||", "<-", "->", "=>", "?", "!",
        "&", "**", ".."]
-
-symbolChar : Char -> Bool
-symbolChar c = c `elem` unpack opChars
 
 fromHexLit : String -> Integer
 fromHexLit str
@@ -199,7 +217,7 @@ rawTokens =
      (digits, \x => Literal (cast x)),
      (stringLit, \x => StrLit (stripQuotes x)),
      (charLit, \x => CharLit (stripQuotes x)),
-     (ident, \x => if x `elem` keywords then Keyword x else Ident x),
+     (identStrict, \x => if x `elem` keywords then Keyword x else Ident x),
      (space, Comment),
      (validSymbol, Symbol),
      (symbol, Unrecognised)]
