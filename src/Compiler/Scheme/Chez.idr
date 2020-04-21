@@ -317,8 +317,8 @@ startChez : String -> String
 startChez target = unlines
     [ "#!/bin/sh"
     , ""
-    , "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`dirname " ++ target ++ "`"
-    , target ++ " \"$@\""
+    , "export LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH:$(dirname \"" ++ target ++ "\")\""
+    , "\"" ++ target ++ "\" \"$@\""
     ]
 
 ||| Compile a TT expression to Chez Scheme

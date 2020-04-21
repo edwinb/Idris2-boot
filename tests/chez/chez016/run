@@ -1,0 +1,7 @@
+# Get the absolute path to idris2 because we run idris2 from another folder than the current
+IDRIS2_EXEC="$(realpath "$1")"
+
+cd "folder with spaces" || exit
+
+"$IDRIS2_EXEC" --no-banner Main.idr < ../input
+rm -rf build
