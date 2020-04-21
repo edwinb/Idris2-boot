@@ -1,4 +1,4 @@
-.. _proofs-index:
+.. _app-index:
 
 ################################
 Structuring Idris 2 Applications
