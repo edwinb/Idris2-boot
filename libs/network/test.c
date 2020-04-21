@@ -31,10 +31,25 @@ void test_sockaddr_port_returns_explicitly_assigned_port() {
   close(sock);
 }
 
+void test_peek_and_poke_buffer() {
+  void *buf = idrnet_malloc(100);
+  assert(buf > 0);
+
+  for (int i = 0; i < 100; i++) {
+    idrnet_poke(buf,i,7*i);
+  }
+
+  for(int i = 0; i < 100; i++) {
+    assert (idrnet_peek(buf,i) == (0xff & 7*i));
+  }
+  idrnet_free(buf);
+}
+
 
 int main(int argc, char**argv) {
   test_sockaddr_port_returns_explicitly_assigned_port();
   test_sockaddr_port_returns_random_port_when_bind_port_is_0();
+  test_peek_and_poke_buffer();
 
   printf("network library tests SUCCESS\n");
   return 0;
