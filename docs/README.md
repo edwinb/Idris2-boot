@@ -11,6 +11,7 @@ To build the manual the following dependencies must be met. We assume that you h
 
 Python should be installed by default on most systems.
 Sphinx can be installed either through your hosts package manager or using pip/easy_install.
+Recommended way is to use virtual environment for building documentation.
 
 *Note* [ReadTheDocs](https://readthedocs.org) works with Sphinx
  `v1.2.2`. If you install a more recent version of sphinx then
@@ -18,9 +19,12 @@ Sphinx can be installed either through your hosts package manager or using pip/e
  of readthedocs and be ignored. In the past we had several code-blocks
  disappear because of that.
 
-The ReadTheDocs theme can be installed using pip as follows:
+The ReadTheDocs theme can be installed in virtual environment using pip as follows:
 
 ```sh
+python3 -m venv idris2docs_venv
+source idris2docs_venv/bin/activate
+pip install --upgrade pip
 pip install sphinx_rtd_theme
 ```
 
@@ -32,6 +36,7 @@ LaTeX can be install either using your systems package manager or direct from Te
 ## Build Instructions
 
 ```sh
+cd docs
 make html
 make latexpdf
 ```

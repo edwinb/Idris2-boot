@@ -65,8 +65,14 @@ data Def : Type where
                  Def
     Builtin : {arity : Nat} -> PrimFn arity -> Def
     DCon : (tag : Int) -> (arity : Nat) ->
-           (newtypeArg : Maybe Nat) -> -- if only constructor, and only one
-                                       -- argument is non-Rig0, flag it here,
+           (newtypeArg : Maybe (Bool, Nat)) ->
+               -- if only constructor, and only one argument is non-Rig0,
+               -- flag it here. The Nat is the unerased argument position.
+               -- The Bool is 'True' if there is no %World token in the
+               -- structure, which means it is safe to completely erase
+               -- when pattern matching (otherwise we still have to ensure
+               -- that the value is inspected, to make sure external effects
+               -- happen)
            Def -- data constructor
     TCon : (tag : Int) -> (arity : Nat) ->
            (parampos : List Nat) -> -- parameters

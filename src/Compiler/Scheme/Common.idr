@@ -86,6 +86,7 @@ schOp (Div IntType) [x, y] = op "b/" [x, y, "63"]
 schOp (Add ty) [x, y] = op "+" [x, y]
 schOp (Sub ty) [x, y] = op "-" [x, y]
 schOp (Mul ty) [x, y] = op "*" [x, y]
+schOp (Div IntegerType) [x, y] = op "quotient" [x, y]
 schOp (Div ty) [x, y] = op "/" [x, y]
 schOp (Mod ty) [x, y] = op "remainder" [x, y]
 schOp (Neg ty) [x] = op "-" [x]
@@ -137,12 +138,12 @@ schOp (Cast DoubleType StringType) [x] = op "number->string" [x]
 schOp (Cast CharType StringType) [x] = op "string" [x]
 
 schOp (Cast IntType IntegerType) [x] = x
-schOp (Cast DoubleType IntegerType) [x] = op "floor" [x]
+schOp (Cast DoubleType IntegerType) [x] = op "exact-floor" [x]
 schOp (Cast CharType IntegerType) [x] = op "char->integer" [x]
 schOp (Cast StringType IntegerType) [x] = op "cast-string-int" [x]
 
 schOp (Cast IntegerType IntType) [x] = x
-schOp (Cast DoubleType IntType) [x] = op "floor" [x]
+schOp (Cast DoubleType IntType) [x] = op "exact-floor" [x]
 schOp (Cast StringType IntType) [x] = op "cast-string-int" [x]
 schOp (Cast CharType IntType) [x] = op "char->integer" [x]
 
@@ -235,7 +236,7 @@ toPrim pn = Unknown pn
 
 export
 mkWorld : String -> String
-mkWorld res = schConstructor 0 ["#f", res, "#f"] -- MkIORes
+mkWorld res = res -- MkIORes is a newtype now! schConstructor 0 [res, "#f"] -- MkIORes
 
 schConstant : (String -> String) -> Constant -> String
 schConstant _ (I x) = show x
@@ -347,11 +348,11 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
        = pure $ mkWorld ("(apply (eval (string->symbol " ++ !(schExp i fn) ++")) "
                     ++ !(readArgs i args) ++ ")")
   schExtCommon i PutStr [arg, world]
-      = pure $ "(display " ++ !(schExp i arg) ++ ") " ++ mkWorld (schConstructor 0 []) -- code for MkUnit
+      = pure $ "(begin (display " ++ !(schExp i arg) ++ ") " ++ mkWorld (schConstructor 0 []) ++ ")" -- code for MkUnit
   schExtCommon i GetStr [world]
       = pure $ mkWorld "(blodwen-get-line (current-input-port))"
   schExtCommon i PutChar [arg, world]
-      = pure $ "(display " ++ !(schExp i arg) ++ ") " ++ mkWorld (schConstructor 0 []) -- code for MkUnit
+      = pure $ "(begin (display " ++ !(schExp i arg) ++ ") " ++ mkWorld (schConstructor 0 []) ++ ")" -- code for MkUnit
   schExtCommon i GetChar [world]
       = pure $ mkWorld "(blodwen-get-char (current-input-port))"
   schExtCommon i FileOpen [file, mode, bin, world]

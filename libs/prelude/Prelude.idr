@@ -364,6 +364,7 @@ Integral Integer where
 -- all other possibilities fail. I don't plan to provide a nicer syntax for
 -- this...
 %defaulthint
+%inline
 public export
 defaultInteger : Num Integer
 defaultInteger = %search

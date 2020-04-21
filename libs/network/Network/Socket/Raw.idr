@@ -23,7 +23,18 @@ data SockaddrPtr = SAPtr AnyPtr
 
 -- ---------------------------------------------------------- [ Socket Utilies ]
 
+||| Put a value in a buffer
+export
+sock_poke : BufPtr -> Int -> Int -> IO ()
+sock_poke (BPtr ptr) offset val = cCall () "idrnet_poke" [ptr, offset, val]
+
+||| Take a value from a buffer
+export
+sock_peek : BufPtr -> Int -> IO Int
+sock_peek (BPtr ptr) offset = cCall Int "idrnet_peek" [ptr, offset]
+
 ||| Frees a given pointer
+export
 sock_free : BufPtr -> IO ()
 sock_free (BPtr ptr) = cCall () "idrnet_free" [ptr]
 
@@ -34,6 +45,7 @@ sockaddr_free (SAPtr ptr) = cCall () "idrnet_free" [ptr]
 ||| Allocates an amount of memory given by the ByteLength parameter.
 |||
 ||| Used to allocate a mutable pointer to be given to the Recv functions.
+export
 sock_alloc : ByteLength -> IO BufPtr
 sock_alloc bl = map BPtr $ cCall AnyPtr "idrnet_malloc" [bl]
 

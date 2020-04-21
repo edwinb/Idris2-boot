@@ -148,6 +148,7 @@ Additionally, a module can re-export a module it has imported, by using
 the ``public`` modifier on an ``import``. For example:
 
 .. code-block:: idris
+   :force:
 
     module A
 

@@ -114,7 +114,7 @@ initBinaryS s
 extendBinary : Int -> Binary -> Core Binary
 extendBinary need (MkBin buf l s u)
     = do let newsize = s * 2
-         let s' = if newsize < need
+         let s' = if (newsize - l) < need
                      then newsize + need
                      else newsize
          Just buf' <- coreLift $ resizeBuffer buf s'

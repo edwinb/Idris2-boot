@@ -31,7 +31,7 @@ The ``with`` rule — matching intermediate values
 
 Very often, we need to match on the result of an intermediate
 computation. Idris provides a construct for this, the ``with``
-rule, inspired by views in ``Epigram`` [1]_, which takes account of
+rule, inspired by views in ``Epigram`` [#McBridgeMcKinna]_, which takes account of
 the fact that matching on a value in a dependently typed language can
 affect what we know about the forms of other values. In its simplest
 form, the ``with`` rule adds another argument to the function being
@@ -151,6 +151,6 @@ it is:
 For full details on ``rewrite`` in particular, please refer to the theorem
 proving tutorial, in Section :ref:`proofs-index`.
 
-.. [1] Conor McBride and James McKinna. 2004. The view from the
+.. [#McBridgeMcKinna] Conor McBride and James McKinna. 2004. The view from the
        left. J. Funct. Program. 14, 1 (January 2004),
        69-111. https://doi.org/10.1017/S0956796803004829

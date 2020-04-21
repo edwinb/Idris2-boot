@@ -1,3 +1,6 @@
+||| Slightly different lexer than the source language because we are more free
+||| as to what can be identifiers, and fewer tokens are supported. But otherwise,
+||| we can reuse the standard stuff
 module Idris.IDEMode.Parser
 
 import Idris.IDEMode.Commands
@@ -7,34 +10,17 @@ import Parser.Lexer
 import Parser.Support
 import Text.Lexer
 
--- Slightly different lexer than the source language because we are more free
--- as to what can be identifiers, and fewer tokens are supported. But otherwise,
--- we can reuse the standard stuff
-
 %hide Lexer.symbols
 
 symbols : List String
 symbols = ["(", ":", ")"]
-
-ident : Lexer
-ident = pred startIdent <+> many (pred validIdent)
-  where
-    startIdent : Char -> Bool
-    startIdent '_' = True
-    startIdent x = isAlpha x
-
-    validIdent : Char -> Bool
-    validIdent '_' = True
-    validIdent '-' = True
-    validIdent '\'' = True
-    validIdent x = isAlphaNum x
 
 ideTokens : TokenMap Token
 ideTokens =
     map (\x => (exact x, Symbol)) symbols ++
     [(digits, \x => Literal (cast x)),
      (stringLit, \x => StrLit (stripQuotes x)),
-     (ident, \x => NSIdent [x]),
+     (identAllowDashes, \x => NSIdent [x]),
      (space, Comment)]
   where
     stripQuotes : String -> String

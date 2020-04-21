@@ -100,6 +100,7 @@ record Session where
   logTimings : Bool
   debugElabCheck : Bool -- do conversion check to verify results of elaborator
   dumpcases : Maybe String -- file to output compiled case trees
+  dumplifted : Maybe String -- file to output lambda lifted definitions
 
 public export
 record PPrinter where
@@ -144,7 +145,8 @@ defaultPPrint : PPrinter
 defaultPPrint = MkPPOpts False True False
 
 defaultSession : Session
-defaultSession = MkSessionOpts False False False Chez 0 False False Nothing
+defaultSession = MkSessionOpts False False False Chez 0 False False
+                               Nothing Nothing
 
 defaultElab : ElabDirectives
 defaultElab = MkElabDirectives True True PartialOK 3 True

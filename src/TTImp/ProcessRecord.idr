@@ -15,10 +15,10 @@ import TTImp.TTImp
 import TTImp.Unelab
 import TTImp.Utils
 
-mkDataTy : FC -> List (Name, RawImp) -> RawImp
+mkDataTy : FC -> List (Name, RigCount, PiInfo RawImp, RawImp) -> RawImp
 mkDataTy fc [] = IType fc
-mkDataTy fc ((n, ty) :: ps)
-    = IPi fc RigW Explicit (Just n) ty (mkDataTy fc ps)
+mkDataTy fc ((n, c, p, ty) :: ps)
+    = IPi fc c p (Just n) ty (mkDataTy fc ps)
 
 elabRecord : {vars : _} ->
              {auto c : Ref Ctxt Defs} ->
@@ -27,7 +27,7 @@ elabRecord : {vars : _} ->
              List ElabOpt -> FC -> Env Term vars ->
              NestedNames vars -> Maybe String ->
              Visibility -> Name ->
-             (params : List (Name, RawImp)) ->
+             (params : List (Name, RigCount, PiInfo RawImp, RawImp)) ->
              (conName : Name) ->
              List IField ->
              Core ()
@@ -37,30 +37,35 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
          defs <- get Ctxt
          Just conty <- lookupTyExact conName (gamma defs)
              | Nothing => throw (InternalError ("Adding " ++ show tn ++ "failed"))
-         let recTy = apply (IVar fc tn) (map (IVar fc) (map fst params))
          addUndotted <- isUndottedRecordProjections
          -- Go into new namespace, if there is one, for getters
          case newns of
               Nothing =>
-                   do elabGetters conName recTy 0 [] RF [] conty -- make dotted projections
+                   do elabGetters conName 0 [] RF [] conty -- make dotted projections
                       when addUndotted $
-                        elabGetters conName recTy 0 [] UN [] conty -- make undotted projections
+                        elabGetters conName 0 [] UN [] conty -- make undotted projections
               Just ns =>
                    do let cns = currentNS defs
                       let nns = nestedNS defs
                       extendNS [ns]
                       newns <- getNS
-                      elabGetters conName recTy 0 [] RF [] conty -- make dotted projections
+                      elabGetters conName 0 [] RF [] conty -- make dotted projections
                       when addUndotted $
-                        elabGetters conName recTy 0 [] UN [] conty -- make undotted projections
+                        elabGetters conName 0 [] UN [] conty -- make undotted projections
                       defs <- get Ctxt
                       -- Record that the current namespace is allowed to look
                       -- at private names in the nested namespace
                       put Ctxt (record { currentNS = cns,
                                          nestedNS = newns :: nns } defs)
-  where
-    jname : (Name, RawImp) -> (Maybe Name, RigCount, PiInfo RawImp, RawImp)
-    jname (n, t) = (Just n, Rig0, Implicit, t)
+  where    
+    paramTelescope : List (Maybe Name, RigCount, PiInfo RawImp, RawImp)
+    paramTelescope = map jname params
+      where
+        jname : (Name, RigCount, PiInfo RawImp, RawImp) 
+             -> (Maybe Name, RigCount, PiInfo RawImp, RawImp)
+        -- Record type parameters are implicit in the constructor
+        -- and projections
+        jname (n, _, _, t) = (Just n, Rig0, Implicit, t)
 
     fname : IField -> Name
     fname (MkIField fc c p n ty) = n
@@ -75,11 +80,19 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
     mkTy ((n, c, imp, argty) :: args) ret
         = IPi fc c imp n argty (mkTy args ret)
 
+    recTy : RawImp
+    recTy = apply (IVar fc tn) (map (\(n, c, p, tm) => (n, IVar fc n, p)) params)
+      where
+        ||| Apply argument to list of explicit or implicit named arguments
+        apply : RawImp -> List (Name, RawImp, PiInfo RawImp) -> RawImp
+        apply f [] = f
+        apply f ((n, arg, Explicit) :: xs) = apply (IApp         (getFC f) f          arg) xs
+        apply f ((n, arg, _       ) :: xs) = apply (IImplicitApp (getFC f) f (Just n) arg) xs
+
     elabAsData : Name -> Core ()
     elabAsData cname
-        = do let retty = apply (IVar fc tn) (map (IVar fc) (map fst params))
-             let conty = mkTy (map jname params) $
-                         mkTy (map farg fields) retty
+        = do let conty = mkTy paramTelescope $
+                         mkTy (map farg fields) recTy
              let con = MkImpTy fc cname !(bindTypeNames [] (map fst params ++
                                            map fname fields ++ vars) conty)
              let dt = MkImpData fc tn !(bindTypeNames [] (map fst params ++
@@ -99,7 +112,7 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
     --          you probably will have to adjust TTImp.TTImp.definedInBlock.
     --
     elabGetters : {vs : _} ->
-                  Name -> RawImp ->
+                  Name -> 
                   (done : Nat) -> -- number of explicit fields processed
                   List (Name, RawImp) -> -- names to update in types
                     -- (for dependent records, where a field's type may depend
@@ -107,9 +120,9 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
                   (String -> Name) ->
                   Env Term vs -> Term vs ->
                   Core ()
-    elabGetters con recTy done upds mkProjName tyenv (Bind bfc n b@(Pi rc imp ty_chk) sc)
+    elabGetters con done upds mkProjName tyenv (Bind bfc n b@(Pi rc imp ty_chk) sc)
         = if (n `elem` map fst params) || (n `elem` vars)
-             then elabGetters con recTy
+             then elabGetters con
                               (if imp == Explicit && not (n `elem` vars)
                                   then S done else done)
                               upds mkProjName (b :: tyenv) sc
@@ -125,7 +138,7 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
                    -- Claim the projection type
                    projTy <- bindTypeNames []
                                  (map fst params ++ map fname fields ++ vars) $
-                                    mkTy (map jname params) $
+                                    mkTy paramTelescope $
                                       IPi fc RigW Explicit (Just rname) recTy ty'
                    log 5 $ "Projection " ++ show projNameNS ++ " : " ++ show projTy
                    processDecl [] nest env
@@ -153,12 +166,12 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
 
                    -- Move on to the next getter
                    let upds' = (n, IApp fc (IVar fc projNameNS) (IVar fc rname)) :: upds
-                   elabGetters con recTy
+                   elabGetters con
                                (if imp == Explicit
                                    then S done else done)
                                upds' mkProjName (b :: tyenv) sc
 
-    elabGetters con recTy done upds _ _ _ = pure ()
+    elabGetters con done upds _ _ _ = pure ()
 
 export
 processRecord : {auto c : Ref Ctxt Defs} ->

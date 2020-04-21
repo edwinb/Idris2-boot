@@ -14,7 +14,7 @@ Implicit arguments
 ==================
 
 We have already seen implicit arguments, which allows arguments to be
-omitted when they can be inferred by the type checker, e.g.
+omitted when they can be inferred by the type checker [#IdrisType]_, e.g.
 
 .. code-block:: idris
 
@@ -101,6 +101,7 @@ literate programs, everything is assumed to be a comment unless the line
 begins with a greater than sign ``>``, for example:
 
 .. code-block:: literate-idris
+   :force:
 
     > module literate
 
@@ -161,5 +162,4 @@ The application of ``myid`` to itself leads to a cycle in the universe
 hierarchy — ``myid``\ ’s first argument is a ``Type``, which cannot be
 at a lower level than required if it is applied to itself.
 
-.. [1]
-   https://github.com/david-christiansen/idris-type-providers
+.. [#IdrisType] https://github.com/david-christiansen/idris-type-providers

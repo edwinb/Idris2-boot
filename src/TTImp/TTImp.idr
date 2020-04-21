@@ -264,7 +264,7 @@ mutual
   public export
   data ImpRecord : Type where
        MkImpRecord : FC -> (n : Name) ->
-                     (params : List (Name, RawImp)) ->
+                     (params : List (Name, RigCount, PiInfo RawImp, RawImp)) ->
                      (conName : Name) ->
                      (fields : List IField) ->
                      ImpRecord
