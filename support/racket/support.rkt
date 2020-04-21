@@ -6,7 +6,7 @@
 (define b+ (lambda (x y bits) (remainder (+ x y) (expt 2 bits))))
 (define b- (lambda (x y bits) (remainder (- x y) (expt 2 bits))))
 (define b* (lambda (x y bits) (remainder (* x y) (expt 2 bits))))
-(define b/ (lambda (x y bits) (remainder (/ x y) (expt 2 bits))))
+(define b/ (lambda (x y bits) (remainder (exact-floor (/ x y)) (expt 2 bits))))
 
 (define blodwen-shl (lambda (x y) (arithmetic-shift x y)))
 (define blodwen-shr (lambda (x y) (arithmetic-shift x (- y))))
@@ -42,11 +42,11 @@
 
 (define either-left
   (lambda (x)
-    (vector 0 #f #f x)))
+    (vector 0 x)))
 
 (define either-right
   (lambda (x)
-    (vector 1 #f #f x)))
+    (vector 1 x)))
 
 (define blodwen-error-quit
   (lambda (msg)
@@ -244,8 +244,8 @@
 (define (blodwen-args)
   (define (blodwen-build-args args)
     (if (null? args)
-        (vector 0 '())
-        (vector 1 '() (car args) (blodwen-build-args (cdr args)))))
+        (vector 0) ; Prelude.List
+        (vector 1 (car args) (blodwen-build-args (cdr args)))))
     (blodwen-build-args
       (cons (path->string (find-system-path 'run-file))
             (vector->list (current-command-line-arguments)))))

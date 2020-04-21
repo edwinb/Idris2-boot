@@ -56,6 +56,16 @@ void idrnet_free(void* ptr) {
     free(ptr);
 }
 
+unsigned int idrnet_peek(void *ptr, unsigned int offset) {
+  unsigned char *buf_c = (unsigned char*) ptr;
+  return (unsigned int) buf_c[offset];
+}
+
+void idrnet_poke(void *ptr, unsigned int offset, char val) {
+  char *buf_c = (char*)ptr;
+  buf_c[offset] = val;
+}
+
 
 int idrnet_socket(int domain, int type, int protocol) {
 #ifdef _WIN32

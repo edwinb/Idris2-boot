@@ -89,6 +89,9 @@ preOptions (FindIPKG :: opts)
 preOptions (DumpCases f :: opts)
     = do setSession (record { dumpcases = Just f } !getSession)
          preOptions opts
+preOptions (DumpLifted f :: opts)
+    = do setSession (record { dumplifted = Just f } !getSession)
+         preOptions opts
 preOptions (_ :: opts) = preOptions opts
 
 -- Options to be processed after type checking. Returns whether execution

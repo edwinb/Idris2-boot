@@ -583,7 +583,7 @@ mutual
     toBuf b (CLocal fc {x} {idx} h) = do tag 0; toBuf b fc; toBuf b x; toBuf b idx
     toBuf b (CRef fc n) = do tag 1; toBuf b fc; toBuf b n
     toBuf b (CLam fc x sc) = do tag 2; toBuf b fc; toBuf b x; toBuf b sc
-    toBuf b (CLet fc x val sc) = do tag 3; toBuf b fc; toBuf b x; toBuf b val; toBuf b sc
+    toBuf b (CLet fc x inl val sc) = do tag 3; toBuf b fc; toBuf b x; toBuf b inl; toBuf b val; toBuf b sc
     toBuf b (CApp fc f as) = assert_total $ do tag 4; toBuf b fc; toBuf b f; toBuf b as
     toBuf b (CCon fc t n as) = assert_total $ do tag 5; toBuf b fc; toBuf b t; toBuf b n; toBuf b as
     toBuf b (COp {arity} fc op as) = assert_total $ do tag 6; toBuf b fc; toBuf b arity; toBuf b op; toBuf b as
@@ -608,8 +608,8 @@ mutual
                        x <- fromBuf b; sc <- fromBuf b
                        pure (CLam fc x sc)
                3 => do fc <- fromBuf b
-                       x <- fromBuf b; val <- fromBuf b; sc <- fromBuf b
-                       pure (CLet fc x val sc)
+                       x <- fromBuf b; inl <- fromBuf b; val <- fromBuf b; sc <- fromBuf b
+                       pure (CLet fc x inl val sc)
                4 => do fc <- fromBuf b
                        f <- fromBuf b; as <- fromBuf b
                        pure (CApp fc f as)

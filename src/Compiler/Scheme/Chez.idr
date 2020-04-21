@@ -203,15 +203,13 @@ cCall fc cfn clib args ret
     applyLams n (Just a :: as) = applyLams ("(" ++ n ++ " " ++ a ++ ")") as
 
     getVal : String -> String
-    getVal str = "(vector-ref " ++ str ++ "2)"
+    getVal str = "(vector-ref " ++ str ++ "1)"
 
     mkFun : List CFType -> CFType -> String -> String
     mkFun args ret n
         = let argns = mkNs 0 args in
               "(lambda (" ++ showSep " " (mapMaybe id argns) ++ ") " ++
-              (case ret of
-                    CFIORes _ => getVal (applyLams n argns) ++ ")"
-                    _ => applyLams n argns ++ ")")
+              (applyLams n argns ++ ")")
 
     notWorld : CFType -> Bool
     notWorld CFWorld = False
@@ -330,14 +328,18 @@ compileToSS c tm outfile
     = do ds <- getDirectives Chez
          libs <- findLibs ds
          traverse_ copyLib libs
-         (ns, tags) <- findUsedNames tm
+         cdata <- getCompileData tm
+         let ns = allNames cdata
+         let tags = nameTags cdata
+         let ctm = forget (mainExpr cdata)
+
          defs <- get Ctxt
          l <- newRef {t = List String} Loaded ["libc", "libc 6"]
          s <- newRef {t = List String} Structs []
          fgndefs <- traverse getFgnCall ns
          compdefs <- traverse (getScheme chezExtPrim chezString defs) ns
          let code = fastAppend (map snd fgndefs ++ compdefs)
-         main <- schExp chezExtPrim chezString 0 !(compileExp tags tm)
+         main <- schExp chezExtPrim chezString 0 ctm
          chez <- coreLift findChez
          support <- readDataFile "chez/support.ss"
          let scm = schHeader chez (map snd libs) ++

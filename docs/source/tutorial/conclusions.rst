@@ -7,33 +7,35 @@ Further Reading
 Further information about Idris programming, and programming with
 dependent types in general, can be obtained from various sources:
 
--  `Type-Driven Development with Idris <https://www.manning.com/books/type-driven-development-with-idris>`_
+*  `Type-Driven Development with Idris <https://www.manning.com/books/type-driven-development-with-idris>`_
    by Edwin Brady, available from `Manning <https://www.manning.com>`_.
 
--  The Idris web site (http://www.idris-lang.org/) and by asking
+*  The Idris web site (http://www.idris-lang.org/) and by asking
    questions on the mailing list.
 
--  The IRC channel ``#idris``, on
+*  The IRC channel ``#idris``, on
    `webchat.freenode.net <https://webchat.freenode.net/>`__.
 
-- The wiki (https://github.com/idris-lang/Idris-dev/wiki/) has further
+*  The wiki (https://github.com/idris-lang/Idris-dev/wiki/) has further
    user provided information, in particular:
 
-   -  https://github.com/idris-lang/Idris-dev/wiki/Manual
+   * https://github.com/idris-lang/Idris-dev/wiki/Manual
 
-   -  https://github.com/idris-lang/Idris-dev/wiki/Language-Features
+   * https://github.com/idris-lang/Idris-dev/wiki/Language-Features
 
-- Examining the prelude and exploring the ``samples`` in the
+*  Examining the prelude and exploring the ``samples`` in the
    distribution. The Idris 2 source can be found online at:
-   https://github.com/edwinb/Idris2.
+   
+   * https://github.com/edwinb/Idris2.
 
--  Existing projects on the ``Idris Hackers`` web space:
-   http://idris-hackers.github.io.
+*  Existing projects on the ``Idris Hackers`` web space:
+   
+   * http://idris-hackers.github.io.
 
-- Various papers (e.g. [1]_, [2]_, and [3]_).  Although these mostly
+*  Various papers (e.g. [#BradyHammond2012]_, [#Brady]_, and [#BradyHammond2010]_).  Although these mostly
    describe older versions of Idris.
 
-.. [1] Edwin Brady and Kevin Hammond. 2012. Resource-Safe systems
+.. [#BradyHammond2012] Edwin Brady and Kevin Hammond. 2012. Resource-Safe systems
        programming with embedded domain specific languages. In
        Proceedings of the 14th international conference on Practical
        Aspects of Declarative Languages (PADL'12), Claudio Russo and
@@ -41,14 +43,14 @@ dependent types in general, can be obtained from various sources:
        242-257. DOI=10.1007/978-3-642-27694-1_18
        http://dx.doi.org/10.1007/978-3-642-27694-1_18
 
-.. [2] Edwin C. Brady. 2011. IDRIS ---: systems programming meets full
+.. [#Brady] Edwin C. Brady. 2011. IDRIS ---: systems programming meets full
        dependent types. In Proceedings of the 5th ACM workshop on
        Programming languages meets program verification (PLPV
        '11). ACM, New York, NY, USA,
        43-54. DOI=10.1145/1929529.1929536
        http://doi.acm.org/10.1145/1929529.1929536
 
-.. [3] Edwin C. Brady and Kevin Hammond. 2010. Scrapping your
+.. [#BradyHammond2010] Edwin C. Brady and Kevin Hammond. 2010. Scrapping your
        inefficient engine: using partial evaluation to improve
        domain-specific language implementation. In Proceedings of the
        15th ACM SIGPLAN international conference on Functional

@@ -164,7 +164,7 @@ see this at the REPL:
     Main> :t Ord
     Prelude.Ord : Type -> Type
 
-So, ``(Ord a, Show a)`` is an ordinary pair of ``Type``s, with two constraints
+So, ``(Ord a, Show a)`` is an ordinary pair of ``Types``, with two constraints
 as the first and second element of the pair.
 
 Note: Interfaces and ``mutual`` blocks
@@ -282,11 +282,13 @@ which reads a number from the console, returning a value of the form
 
 .. code-block:: idris
 
+    import Data.Strings
+
     readNumber : IO (Maybe Nat)
     readNumber = do
       input <- getLine
       if all isDigit (unpack input)
-         then pure (Just (cast input))
+         then pure (Just (stringToNatOrZ input))
          else pure Nothing
 
 If we then use it to write a function to read two numbers, returning
@@ -325,9 +327,9 @@ case back as follows:
 
     readNumbers : IO (Maybe (Nat, Nat))
     readNumbers
-      = do Just x_ok <- readNumber 
+      = do Just x_ok <- readNumber
                 | Nothing => pure Nothing
-           Just y_ok <- readNumber 
+           Just y_ok <- readNumber
                 | Nothing => pure Nothing
            pure (Just (x_ok, y_ok))
 
@@ -432,7 +434,7 @@ Idiom brackets
 While ``do`` notation gives an alternative meaning to sequencing,
 idioms give an alternative meaning to *application*. The notation and
 larger example in this section is inspired by Conor McBride and Ross
-Paterson’s paper “Applicative Programming with Effects” [1]_.
+Paterson’s paper “Applicative Programming with Effects” [#ConorRoss]_.
 
 First, let us revisit ``m_add`` above. All it is really doing is
 applying an operator to two values extracted from ``Maybe Int``. We
@@ -468,19 +470,19 @@ above (this is defined in the Idris library):
         _        <*> _        = Nothing
 
 Using ``<*>`` we can use this implementation as follows, where a function
-application ``[| f a1 …an |]`` is translated into ``pure f <*> a1 <*>
+application ``[ f a1 …an |]`` is translated into ``pure f <*> a1 <*>
 … <*> an``:
 
 .. code-block:: idris
 
     m_add' : Maybe Int -> Maybe Int -> Maybe Int
-    m_add' x y = [| x + y |]
+    m_add' x y = [ x + y |]
 
 An error-handling interpreter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Idiom notation is commonly useful when defining evaluators. McBride
-and Paterson describe such an evaluator [1]_, for a language similar
+and Paterson describe such an evaluator [#ConorRoss]_, for a language similar
 to the following:
 
 .. code-block:: idris
@@ -653,7 +655,7 @@ is declared with the ``| m`` after the interface declaration. We call ``m`` a
 parameter used to find an implementation.
 
 
-.. [1] Conor McBride and Ross Paterson. 2008. Applicative programming
+.. [#ConorRoss] Conor McBride and Ross Paterson. 2008. Applicative programming
        with effects. J. Funct. Program. 18, 1 (January 2008),
        1-13. DOI=10.1017/S0956796807006326
        http://dx.doi.org/10.1017/S0956796807006326

@@ -140,7 +140,7 @@ unrestricted multiplicity
 .. code-block:: idris
 
     sumLengths : {m, n : _} -> Vect m a -> Vect n a —> Nat
-    sumLengths xs ys = vLen xs + vLen xs
+    sumLengths xs ys = vlen xs + vlen xs
 
 Remember that giving no multiplicity on a binder, as with ``m`` and ``n`` here,
 means that the variable has unrestricted usage.
@@ -263,7 +263,7 @@ Idris 1, it won't attempt significant backtracking. If you have deeply nested
 ambiguous names (beyond a small threshold, default 3) Idris 2 will report an
 error.  You can change this threshold with a directive, for example:
 
-.. code_block:: idris
+.. code-block:: idris
 
     %ambiguity_depth 10
 

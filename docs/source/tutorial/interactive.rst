@@ -165,7 +165,7 @@ then ``:ps 96 vzipWith_rhs_1`` will give
 
 .. code-block:: idris
 
-    []
+   []
 
 This works because it is searching for a ``Vect`` of length 0, of
 which the empty vector is the only possibility. Similarly, and perhaps

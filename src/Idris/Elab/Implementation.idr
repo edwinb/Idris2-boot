@@ -169,6 +169,11 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln nusing mbo
                log 5 $ "Added defaults: body is " ++ show body
                log 5 $ "Missing methods: " ++ show missing
 
+               -- Add the 'using' hints
+               log 10 $ "Open hints: " ++ (show (impName :: nusing))
+               traverse_ (\n => do n' <- checkUnambig fc n
+                                   addOpenHint n') nusing
+
                -- 2. Elaborate top level function types for this interface
                defs <- get Ctxt
                fns <- topMethTypes [] impName methImps impsp (params cdata)
@@ -198,11 +203,6 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln nusing mbo
                defs <- get Ctxt
                let hs = openHints defs
                maybe (pure ()) (\x => addOpenHint impName) impln
-
-               -- Also add the 'using' hints
-               log 10 $ "Open hints: " ++ (show (impName :: nusing))
-               traverse_ (\n => do n' <- checkUnambig fc n
-                                   addOpenHint n') nusing
 
                -- Make sure we don't use this name to solve parent constraints
                -- when elaborating the record, or we'll end up in a cycle!

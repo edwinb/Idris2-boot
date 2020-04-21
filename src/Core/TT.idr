@@ -405,7 +405,7 @@ data UseSide = UseLeft | UseRight
 public export
 data Term : List Name -> Type where
      Local : {name : _} ->
-             FC -> Maybe Bool ->
+             FC -> (isLet : Maybe Bool) ->
              (idx : Nat) -> .(IsVar name idx vars) -> Term vars
      Ref : FC -> NameType -> (name : Name) -> Term vars
      -- Metavariables and the scope they are applied to
