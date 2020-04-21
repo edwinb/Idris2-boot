@@ -112,7 +112,7 @@ docComment = is '|' <+> is '|' <+> is '|' <+> many (isNot '\n')
 -- Identifier Lexer
 -- There are multiple variants.
 
-data IdentFlavour = Capitalised | AllowDashes | Normal
+data Flavour = Capitalised | AllowDashes | Normal
 
 startIdent : Flavour -> Char -> Bool
 startIdent Capitalised x = isUpper x
