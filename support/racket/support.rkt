@@ -6,7 +6,7 @@
 (define b+ (lambda (x y bits) (remainder (+ x y) (expt 2 bits))))
 (define b- (lambda (x y bits) (remainder (- x y) (expt 2 bits))))
 (define b* (lambda (x y bits) (remainder (* x y) (expt 2 bits))))
-(define b/ (lambda (x y bits) (remainder (/ x y) (expt 2 bits))))
+(define b/ (lambda (x y bits) (remainder (exact-floor (/ x y)) (expt 2 bits))))
 
 (define blodwen-shl (lambda (x y) (arithmetic-shift x y)))
 (define blodwen-shr (lambda (x y) (arithmetic-shift x (- y))))
