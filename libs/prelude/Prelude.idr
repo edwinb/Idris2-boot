@@ -713,6 +713,7 @@ integerToNat x
 ||| Add two natural numbers.
 ||| @ x the number to case-split on
 ||| @ y the other numberpublic export
+public export
 plus : (1 x : Nat) -> (1 y : Nat) -> Nat
 plus Z y = y
 plus (S k) y = S (plus k y)
