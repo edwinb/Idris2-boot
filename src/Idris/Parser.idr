@@ -661,7 +661,7 @@ mutual
       = do start <- location
            keyword "do"
            mbBind <- optional $
-             symbol "{" *> expr pdef fname indents <* symbol "}"
+             symbol "@{" *> expr pdef fname indents <* symbol "}"
            actions <- block (doAct fname)
            end <- location
            pure (PDoBlock (MkFC fname start end) mbBind (concat actions))
