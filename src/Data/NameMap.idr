@@ -17,6 +17,11 @@ data Tree : Nat -> Type -> Type where
   Branch2 : Tree n v -> Key -> Tree n v -> Tree (S n) v
   Branch3 : Tree n v -> Key -> Tree n v -> Key -> Tree n v -> Tree (S n) v
 
+Show v => Show (Tree n v) where
+  show (Leaf k v) = "Leaf: " ++ show k ++ " -> " ++ show v ++ "\n"
+  show (Branch2 t1 k t2) = "Branch2: " ++ show t1 ++ "\n < " ++ show k ++ "\n" ++ show t2 ++ "\n"
+  show (Branch3 t1 k1 t2 k2 t3) = "Branch3: " ++ show t1 ++ "\n < " ++ show k1 ++ "\n" ++ show t2 ++ "\n < " ++ show k2 ++ "\n" ++ show t3 ++ "\n"
+
 branch4 :
   Tree n v -> Key ->
   Tree n v -> Key ->
@@ -207,6 +212,11 @@ export
 data NameMap : Type -> Type where
   Empty : NameMap v
   M : (n : Nat) -> Tree n v -> NameMap v
+
+export
+Show v => Show (NameMap v) where
+  show Empty = "Empty NameMap"
+  show (M n t) = "NameMap M(" ++ show n ++ "):\n" ++ show t
 
 export
 empty : NameMap v
