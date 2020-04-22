@@ -170,6 +170,8 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln nusing mbo
                log 5 $ "Missing methods: " ++ show missing
 
                -- Add the 'using' hints
+               defs <- get Ctxt
+               let hs = openHints defs -- snapshot open hint state
                log 10 $ "Open hints: " ++ (show (impName :: nusing))
                traverse_ (\n => do n' <- checkUnambig fc n
                                    addOpenHint n') nusing
@@ -200,8 +202,6 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln nusing mbo
 
                -- If it's a named implementation, add it as a global hint while
                -- elaborating the record and bodies
-               defs <- get Ctxt
-               let hs = openHints defs
                maybe (pure ()) (\x => addOpenHint impName) impln
 
                -- Make sure we don't use this name to solve parent constraints
