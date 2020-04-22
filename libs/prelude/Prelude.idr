@@ -1269,7 +1269,8 @@ interface Show ty where
   showPrec _ x = show x
 
 ||| Surround a `String` with parentheses depending on a condition.
-||| @ b whether to add parenthesesshowParens : (1 b : Bool) -> String -> String
+||| @ b whether to add parentheses
+showParens : (1 b : Bool) -> String -> String
 showParens False s = s
 showParens True  s = "(" ++ s ++ ")"
 
