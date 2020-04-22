@@ -76,7 +76,7 @@ mutual
 
        -- Syntactic sugar
 
-       PDoBlock : FC -> List PDo -> PTerm
+       PDoBlock : FC -> (mbBind : Maybe PTerm) -> List PDo -> PTerm
        PBang : FC -> PTerm -> PTerm
        PIdiom : FC -> PTerm -> PTerm
        PList : FC -> List PTerm -> PTerm
@@ -450,8 +450,10 @@ mutual
     showPrec d (PSectionR _ x op) = "(" ++ showPrec d x ++ " " ++ showPrec d op ++ ")"
     showPrec d (PEq fc l r) = showPrec d l ++ " = " ++ showPrec d r
     showPrec d (PBracketed _ tm) = "(" ++ showPrec d tm ++ ")"
-    showPrec d (PDoBlock _ ds)
+    showPrec d (PDoBlock _ Nothing ds)
         = "do " ++ showSep " ; " (map showDo ds)
+    showPrec d (PDoBlock _ (Just bind) ds)
+        = "do {" ++ show bind ++ "} " ++ showSep " ; " (map showDo ds)
     showPrec d (PBang _ tm) = "!" ++ showPrec d tm
     showPrec d (PIdiom _ tm) = "[|" ++ showPrec d tm ++ "|]"
     showPrec d (PList _ xs)
@@ -718,8 +720,12 @@ mapPTermM f = goPTerm where
     goPTerm (PBracketed fc x) =
       PBracketed fc <$> goPTerm x
       >>= f
-    goPTerm (PDoBlock fc xs) =
-      PDoBlock fc <$> goPDos xs
+    goPTerm (PDoBlock fc Nothing xs) =
+      PDoBlock fc Nothing <$> goPDos xs
+      >>= f
+    goPTerm (PDoBlock fc (Just bind) xs) =
+      PDoBlock fc <$> (Just <$> goPTerm bind)
+                  <*> goPDos xs
       >>= f
     goPTerm (PBang fc x) =
       PBang fc <$> goPTerm x

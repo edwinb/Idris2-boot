@@ -263,8 +263,11 @@ mutual
       = pure $ IMustUnify fc UserDotted !(desugarB side ps x)
   desugarB side ps (PImplicit fc) = pure $ Implicit fc True
   desugarB side ps (PInfer fc) = pure $ Implicit fc False
-  desugarB side ps (PDoBlock fc block)
-      = expandDo side ps fc block
+  desugarB side ps (PDoBlock fc (Just bind) block)
+      = do bindI <- desugarB side ps bind
+           expandDo side ps fc (\fc => bindI) block
+  desugarB side ps (PDoBlock fc Nothing block)
+      = expandDo side ps fc (\fc => IVar fc (UN ">>=")) block
   desugarB side ps (PBang fc term)
       = do itm <- desugarB side ps term
            bs <- get Bang
@@ -313,7 +316,7 @@ mutual
                    [PatClause fc (IVar fc (UN "True")) !(desugar side ps t),
                     PatClause fc (IVar fc (UN "False")) !(desugar side ps e)]
   desugarB side ps (PComprehension fc ret conds)
-      = desugarB side ps (PDoBlock fc (map guard conds ++ [toPure ret]))
+      = desugarB side ps (PDoBlock fc Nothing (map guard conds ++ [toPure ret]))
     where
       guard : PDo -> PDo
       guard (DoExp fc tm) = DoExp fc (PApp fc (PRef fc (UN "guard")) tm)
@@ -369,48 +372,48 @@ mutual
              {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              {auto m : Ref MD Metadata} ->
-             Side -> List Name -> FC -> List PDo -> Core RawImp
-  expandDo side ps fc [] = throw (GenericMsg fc "Do block cannot be empty")
-  expandDo side ps _ [DoExp fc tm] = desugar side ps tm
-  expandDo side ps fc [e]
+             Side -> List Name -> FC -> (FC -> RawImp) -> List PDo -> Core RawImp
+  expandDo side ps fc mkBind [] = throw (GenericMsg fc "Do block cannot be empty")
+  expandDo side ps _  mkBind [DoExp fc tm] = desugar side ps tm
+  expandDo side ps fc mkBind [e]
       = throw (GenericMsg (getLoc e)
                   "Last statement in do block must be an expression")
-  expandDo side ps topfc (DoExp fc tm :: rest)
+  expandDo side ps topfc mkBind (DoExp fc tm :: rest)
       = do tm' <- desugar side ps tm
-           rest' <- expandDo side ps topfc rest
+           rest' <- expandDo side ps topfc mkBind rest
            gam <- get Ctxt
-           pure $ IApp fc (IApp fc (IVar fc (UN ">>=")) tm')
+           pure $ IApp fc (IApp fc (mkBind fc) tm')
                           (ILam fc RigW Explicit Nothing
                                 (Implicit fc False) rest')
-  expandDo side ps topfc (DoBind fc n tm :: rest)
+  expandDo side ps topfc mkBind (DoBind fc n tm :: rest)
       = do tm' <- desugar side ps tm
-           rest' <- expandDo side ps topfc rest
-           pure $ IApp fc (IApp fc (IVar fc (UN ">>=")) tm')
+           rest' <- expandDo side ps topfc mkBind rest
+           pure $ IApp fc (IApp fc (mkBind fc) tm')
                      (ILam fc RigW Explicit (Just n)
                            (Implicit fc False) rest')
-  expandDo side ps topfc (DoBindPat fc pat exp alts :: rest)
+  expandDo side ps topfc mkBind (DoBindPat fc pat exp alts :: rest)
       = do pat' <- desugar LHS ps pat
            (newps, bpat) <- bindNames False pat'
            exp' <- desugar side ps exp
            alts' <- traverse (desugarClause ps True) alts
            let ps' = newps ++ ps
-           rest' <- expandDo side ps' topfc rest
-           pure $ IApp fc (IApp fc (IVar fc (UN ">>=")) exp')
+           rest' <- expandDo side ps' topfc mkBind rest
+           pure $ IApp fc (IApp fc (mkBind fc) exp')
                     (ILam fc RigW Explicit (Just (MN "_" 0))
                           (Implicit fc False)
                           (ICase fc (IVar fc (MN "_" 0))
                                (Implicit fc False)
                                (PatClause fc bpat rest'
                                   :: alts')))
-  expandDo side ps topfc (DoLet fc n rig ty tm :: rest)
+  expandDo side ps topfc mkBind (DoLet fc n rig ty tm :: rest)
       = do b <- newRef Bang initBangs
            tm' <- desugarB side ps tm
            ty' <- desugar side ps ty
-           rest' <- expandDo side ps topfc rest
+           rest' <- expandDo side ps topfc mkBind rest
            let bind = ILet fc rig n ty' tm' rest'
            bd <- get Bang
            pure $ bindBangs (bangNames bd) bind
-  expandDo side ps topfc (DoLetPat fc pat ty tm alts :: rest)
+  expandDo side ps topfc mkBind (DoLetPat fc pat ty tm alts :: rest)
       = do b <- newRef Bang initBangs
            pat' <- desugar LHS ps pat
            ty' <- desugar side ps ty
@@ -418,18 +421,18 @@ mutual
            tm' <- desugarB side ps tm
            alts' <- traverse (desugarClause ps True) alts
            let ps' = newps ++ ps
-           rest' <- expandDo side ps' topfc rest
+           rest' <- expandDo side ps' topfc mkBind rest
            bd <- get Bang
            pure $ bindBangs (bangNames bd) $
                     ICase fc tm' ty'
                        (PatClause fc bpat rest'
                                   :: alts')
-  expandDo side ps topfc (DoLetLocal fc decls :: rest)
-      = do rest' <- expandDo side ps topfc rest
+  expandDo side ps topfc mkBind (DoLetLocal fc decls :: rest)
+      = do rest' <- expandDo side ps topfc mkBind rest
            decls' <- traverse (desugarDecl ps) decls
            pure $ ILocal fc (concat decls') rest'
-  expandDo side ps topfc (DoRewrite fc rule :: rest)
-      = do rest' <- expandDo side ps topfc rest
+  expandDo side ps topfc mkBind (DoRewrite fc rule :: rest)
+      = do rest' <- expandDo side ps topfc mkBind rest
            rule' <- desugar side ps rule
            pure $ IRewrite fc rule' rest'
 

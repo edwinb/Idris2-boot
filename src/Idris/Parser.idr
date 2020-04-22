@@ -660,9 +660,11 @@ mutual
   doBlock fname indents
       = do start <- location
            keyword "do"
+           mbBind <- optional $
+             symbol "{" *> expr pdef fname indents <* symbol "}"
            actions <- block (doAct fname)
            end <- location
-           pure (PDoBlock (MkFC fname start end) (concat actions))
+           pure (PDoBlock (MkFC fname start end) mbBind (concat actions))
 
   lowerFirst : String -> Bool
   lowerFirst "" = False
