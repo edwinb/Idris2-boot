@@ -1386,6 +1386,7 @@ takeUntil p (x :: xs)
          then [x]
          else x :: takeUntil p xs
 
+public export
 partial
 takeBefore : (n -> Bool) -> Stream n -> List n
 takeBefore p (x :: xs)
@@ -1448,4 +1449,3 @@ export
       = if y > x
            then countFrom x (+ (y - x))
            else countFrom x (\n => n - (x - y))
-
