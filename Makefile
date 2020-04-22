@@ -8,7 +8,7 @@ export CC=clang # clang compiles the output much faster than gcc!
 
 ##################################################################
 
-MACHINE := $(shell $(CC) -dumpmachine)
+export MACHINE := $(shell $(CC) -dumpmachine)
 
 ifneq (, $(findstring darwin, $(MACHINE)))
 	OS := darwin
@@ -18,9 +18,19 @@ else ifneq (, $(findstring mingw, $(MACHINE)))
 	OS := windows
 else ifneq (, $(findstring windows, $(MACHINE)))
 	OS := windows
+else ifneq (, $(findstring bsd, $(MACHINE)))
+	OS := bsd
 else
-	OS := unix
+	OS := linux
 endif
+export OS
+
+ifeq ($(OS),bsd)
+	MAKE := gmake
+else
+	MAKE := make
+endif
+export MAKE
 
 # current Idris2 version components
 MAJOR=0
@@ -73,7 +83,7 @@ ifeq ($(OS), darwin)
 else
 	@sed -i '1 s|^.*$$|char* idris2_prefix = "${PREFIX}";|' dist/idris2.c
 endif
-	make -C dist
+	${MAKE} -C dist
 	@cp dist/idris2 ./idris2
 
 # bit of a hack here, to get the prefix into the generated C!
@@ -86,42 +96,42 @@ dist/idris2.c: src/YafflePaths.idr check_version
 	@rm -f idris2.c idris2_prefix.c
 
 idris2c: dist/idris2.c
-	make -C dist
+	${MAKE} -C dist
 
 src/YafflePaths.idr:
 	echo 'module YafflePaths; export yversion : ((Nat,Nat,Nat), String); yversion = ((${MAJOR},${MINOR},${PATCH}), "${GIT_SHA1}")' > src/YafflePaths.idr
 
 prelude:
-	make -C libs/prelude IDRIS2=../../idris2
+	${MAKE} -C libs/prelude IDRIS2=../../idris2
 
 base: prelude
-	make -C libs/base IDRIS2=../../idris2
+	${MAKE} -C libs/base IDRIS2=../../idris2
 
 network: prelude
-	make -C libs/network IDRIS2=../../idris2
-	make -C libs/network test IDRIS2=../../idris2
+	${MAKE} -C libs/network IDRIS2=../../idris2
+	${MAKE} -C libs/network test IDRIS2=../../idris2
 
 contrib: prelude
-	make -C libs/contrib IDRIS2=../../idris2
+	${MAKE} -C libs/contrib IDRIS2=../../idris2
 
 libs : prelude base network contrib
 
 clean: clean-libs
-	make -C src clean
-	make -C tests clean
-	make -C dist clean
+	${MAKE} -C src clean
+	${MAKE} -C tests clean
+	${MAKE} -C dist clean
 	rm -f runtests
 	rm -f idris2 dist/idris2.c
 
 clean-libs:
-	make -C libs/prelude clean
-	make -C libs/base clean
-	make -C libs/network clean
-	make -C libs/contrib clean
+	${MAKE} -C libs/prelude clean
+	${MAKE} -C libs/base clean
+	${MAKE} -C libs/network clean
+	${MAKE} -C libs/contrib clean
 
 test:
 	idris --build tests.ipkg
-	@make -C tests only=$(only)
+	@${MAKE} -C tests only=$(only)
 
 install-all: install-exec install-support install-libs
 
@@ -143,7 +153,7 @@ install-exec:
 	install idris2 ${PREFIX}/bin
 
 install-libs: libs
-	make -C libs/prelude install IDRIS2=../../idris2
-	make -C libs/base install IDRIS2=../../idris2
-	make -C libs/network install IDRIS2=../../idris2 IDRIS2_VERSION=${IDRIS2_VERSION}
-	make -C libs/contrib install IDRIS2=../../idris2
+	${MAKE} -C libs/prelude install IDRIS2=../../idris2
+	${MAKE} -C libs/base install IDRIS2=../../idris2
+	${MAKE} -C libs/network install IDRIS2=../../idris2 IDRIS2_VERSION=${IDRIS2_VERSION}
+	${MAKE} -C libs/contrib install IDRIS2=../../idris2
