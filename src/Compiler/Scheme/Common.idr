@@ -310,6 +310,12 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
         = schExtPrim i (toPrim p) args
     schExp i (NmForce fc t) = pure $ "(" ++ !(schExp i t) ++ ")"
     schExp i (NmDelay fc t) = pure $ "(lambda () " ++ !(schExp i t) ++ ")"
+    schExp i (NmConCase fc sc [] def)
+        = do tcode <- schExp (i+1) sc
+             defc <- maybe (pure "'erased") (schExp i) def
+             let n = "sc" ++ show i
+             pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) "
+                     ++ defc ++ ")"
     schExp i (NmConCase fc sc alts def)
         = do tcode <- schExp (i+1) sc
              defc <- maybe (pure Nothing) (\v => pure (Just !(schExp i v))) def

@@ -1221,7 +1221,9 @@ ifaceDecl fname indents
 implDecl : FileName -> IndentInfo -> Rule PDecl
 implDecl fname indents
     = do start <- location
-         vis <- visibility
+         visOpts <- many (visOpt fname)
+         vis <- getVisibility Nothing visOpts
+         let opts = mapMaybe getRight visOpts
          col <- column
          option () (keyword "implementation")
          iname <- option Nothing (do symbol "["
@@ -1240,7 +1242,7 @@ implDecl fname indents
          atEnd indents
          end <- location
          pure (PImplementation (MkFC fname start end)
-                         vis Single impls cons n params iname nusing
+                         vis opts Single impls cons n params iname nusing
                          (map (collectDefs . concat) body))
 
 fieldDecl : FileName -> IndentInfo -> Rule (List PField)
