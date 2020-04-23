@@ -104,13 +104,15 @@
   ;; All the file operations are implemented as primitives which return
   ;; Either Int x, where the Int is an error code:
   (define (blodwen-error-code x)
+    (define magic ;; For errno extraction
+      (fx- 0 (fxnot (- (fxarithmetic-shift 1 29) 1)) (fxarithmetic-shift 320 16)))
     (either-left
       ;; TODO Equivalent of i/o-read-error? and i/o-write-error?
       ;; TODO Uncomment on the next release (> 4.9.3) of Gambit
       (cond ((no-such-file-or-directory-exception? x) 3)
             ; ((permission-denied-exception? x) 4)
             ; ((file-exists-exception? x) 5)
-            (else 255))))
+            (else (fx+ (os-exception-code x) magic 256)))))
   (with-exception-catcher
     blodwen-error-code
     (lambda () (either-right (op)))))
