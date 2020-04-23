@@ -1036,7 +1036,9 @@ Nested record fields can be accessed using the dot notation:
     x.a.b.c
     map (.a.b.c) xs
 
-There must be no spaces after the dots.
+For the dot notation, there must be no spaces after the dots but there may be
+spaces before the dots. The composite projection must be parenthesised,
+otherwise ``map .a.b.c xs`` would be understood as ``map.a.b.c xs``.
 
 Nested record fields can be accessed using the prefix notation, too:
 
@@ -1045,7 +1047,7 @@ Nested record fields can be accessed using the prefix notation, too:
     (c . b . a) x
     map (c . b . a) xs
 
-Here, the spaces turn the dots into function composition operators.
+Dots with spaces around them stand for function composition operators.
 
 Nested record update
 ~~~~~~~~~~~~~~~~~~~~
