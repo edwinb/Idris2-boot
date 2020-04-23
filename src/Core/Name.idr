@@ -63,6 +63,7 @@ identChar x = isAlphaNum x || x == '_' || x == '\'' ||  x > chr 127
 
 export Show Name where
   show (NS ns n) = showSep "." (reverse ns) ++ "." ++ show n
+  show (NS ns n@(RF _)) = showSep "." (reverse ns) ++ ".(" ++ show n ++ ")"
   show (UN x) = x
   show (MN x y) = "{" ++ x ++ ":" ++ show y ++ "}"
   show (PV n d) = "{P:" ++ show n ++ ":" ++ show d ++ "}"
