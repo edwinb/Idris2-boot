@@ -130,13 +130,13 @@ mutual
   chezExtPrim i GetStr [world]
       = pure $ mkWorld "(get-line (current-input-port))"
   chezExtPrim i GetField [NmPrimVal _ (Str s), _, _, struct,
-                             NmPrimVal _ (Str fld), _]
+                          NmPrimVal _ (Str fld), _]
       = do structsc <- schExp chezExtPrim chezString 0 struct
            pure $ "(ftype-ref " ++ s ++ " (" ++ fld ++ ") " ++ structsc ++ ")"
   chezExtPrim i GetField [_,_,_,_,_,_]
-      = pure "(error \"bad setField\")"
+      = pure "(error \"bad getField\")"
   chezExtPrim i SetField [NmPrimVal _ (Str s), _, _, struct,
-                             NmPrimVal _ (Str fld), _, val, world]
+                          NmPrimVal _ (Str fld), _, val, world]
       = do structsc <- schExp chezExtPrim chezString 0 struct
            valsc <- schExp chezExtPrim chezString 0 val
            pure $ mkWorld $
