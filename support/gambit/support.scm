@@ -53,33 +53,33 @@
 
 ;; Buffers
 
-(define blodwen-new-buffer make-bytevector)
-(define blodwen-buffer-size bytevector-length)
+(define blodwen-new-buffer make-u8vector)
+(define blodwen-buffer-size u8vector-length)
 
-(define blodwen-buffer-setbyte u8vector-set!)
-(define blodwen-buffer-getbyte u8vector-ref)
+(define blodwen-buffer-setbyte ##u8vector-set!)
+(define blodwen-buffer-getbyte ##u8vector-ref)
 
-(define blodwen-buffer-setint s32vector-set!)
-(define blodwen-buffer-getint s32vector-ref)
+(define blodwen-buffer-setint ##s32vector-set!)
+(define blodwen-buffer-getint ##s32vector-ref)
 
-(define blodwen-buffer-setdouble f64vector-set!)
-(define blodwen-buffer-getdouble f64vector-ref)
+(define blodwen-buffer-setdouble ##f64vector-set!)
+(define blodwen-buffer-getdouble ##f64vector-ref)
 
 (define (blodwen-stringbytelen str)
-  (bytevector-length (string->utf8 str)))
+  (u8vector-length (string->utf8 str)))
 
 (define (blodwen-buffer-setstring buf loc val)
   (let* ((strvec (string->utf8 val))
-         (len (bytevector-length strvec)))
-    (bytevector-copy! strvec 0 buf loc len)))
+         (len (u8vector-length strvec)))
+    (u8vector-copy! buf loc strvec 0 len)))
 
 (define (blodwen-buffer-getstring buf loc len)
-  (let ((newvec (make-bytevector len)))
-    (bytevector-copy! buf loc newvec 0 len)
+  (let ((newvec (make-u8vector len)))
+    (u8vector-copy! newvec 0 buf loc (+ loc len))
     (utf8->string newvec)))
 
 (define (blodwen-buffer-copydata buf start len dest loc)
-  (bytevector-copy! buf start dest loc len))
+  (u8vector-copy! dest loc buf start (+ start len)))
 
 (define (blodwen-readbuffer-bytes h buf loc max)
   (with-exception-catcher
@@ -108,7 +108,7 @@
       (fx- 0 (fxnot (- (fxarithmetic-shift 1 29) 1)) (fxarithmetic-shift 320 16)))
     (either-left
       ;; TODO Equivalent of i/o-read-error? and i/o-write-error?
-      ;; TODO Uncomment on the next release (> 4.9.3) of Gambit
+      ;; TODO Uncomment the lines below on the next release (> 4.9.3) of Gambit
       (cond ((no-such-file-or-directory-exception? x) 3)
             ; ((permission-denied-exception? x) 4)
             ; ((file-exists-exception? x) 5)
