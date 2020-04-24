@@ -39,12 +39,10 @@ schHeader = "(declare (block)
 schFooter : String
 schFooter = "\n"
 
+-- XXX
 showGambitChar : Char -> String -> String
 showGambitChar '\\' = ("\\\\" ++)
-showGambitChar c
-   = if c < chr 32 || c > chr 126
-        then (("\\x" ++ asHex (cast c) ++ ";") ++)
-        else strCons c
+showGambitChar c = strCons c
 
 showGambitString : List Char -> String -> String
 showGambitString [] = id
