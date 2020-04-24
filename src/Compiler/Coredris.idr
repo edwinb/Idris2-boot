@@ -45,6 +45,7 @@ showCoredrisIdentChar '<' = ("-zlt" ++)
 showCoredrisIdentChar '>' = ("-zgt" ++)
 showCoredrisIdentChar '=' = ("-zeq" ++)
 showCoredrisIdentChar '\\' = ("-zbs" ++)
+showCoredrisIdentChar '&' = ("-znd" ++)
 showCoredrisIdentChar c
    = if c < chr 32 || c > chr 126
         then (("u" ++ pad (asHex (cast c))) ++)
@@ -88,39 +89,134 @@ coredrisConstructor t args = "(con #:tag " ++ show t ++ " #:args [" ++ showSep "
 op : String -> List String -> String
 op o args = "(prim-app #:op " ++ o ++ " #:args [" ++ showSep " " args ++ "])"
 
-||| Generate scheme for a primitive function.
-coredrisOp : PrimFn arity -> Vect arity String -> String
-coredrisOp fn args = op (show fn) (toList args)
-
 ||| Extended primitives for the scheme backend, outside the standard set of primFn
 public export
-data ExtPrim = SomeExtPrim Name
+data ExtPrim = PutStr | GetStr | PutChar | GetChar
+             -- | CCall
+             -- | FileOpen | FileClose | FileReadLine | FileWriteLine
+             -- | FileEOF | FileModifiedTime
+             -- | NewIORef | ReadIORef | WriteIORef
+             -- | NewArray | ArrayGet | ArraySet
+             -- | GetField | SetField
+             -- | Stdin | Stdout | Stderr
+             -- | VoidElim
+             -- | SysOS | SysCodegen
+             | Unknown Name
 
 export
 Show ExtPrim where
-  show (SomeExtPrim n) = "SomeExtPrim " ++ coredrisName n
+  -- show CCall = "CCall"
+  show PutStr = "put-str"
+  show GetStr = "get-str"
+  show PutChar = "put-char"
+  show GetChar = "get-char"
+  -- show FileOpen = "FileOpen"
+  -- show FileClose = "FileClose"
+  -- show FileReadLine = "FileReadLine"
+  -- show FileWriteLine = "FileWriteLine"
+  -- show FileEOF = "FileEOF"
+  -- show FileModifiedTime = "FileModifiedTime"
+  -- show NewIORef = "NewIORef"
+  -- show ReadIORef = "ReadIORef"
+  -- show WriteIORef = "WriteIORef"
+  -- show NewArray = "NewArray"
+  -- show ArrayGet = "ArrayGet"
+  -- show ArraySet = "ArraySet"
+  -- show GetField = "GetField"
+  -- show SetField = "SetField"
+  -- show Stdin = "Stdin"
+  -- show Stdout = "Stdout"
+  -- show Stderr = "Stderr"
+  -- show VoidElim = "VoidElim"
+  -- show SysOS = "SysOS"
+  -- show SysCodegen = "SysCodegen"
+  show (Unknown n) = "unknown-" ++ show n
 
 ||| Match on a user given name to get the scheme primitive
 toPrim : Name -> ExtPrim
-toPrim pn = SomeExtPrim pn
+toPrim pn@(NS _ n)
+    = cond [-- (n == UN "prim__cCall", CCall),
+            (n == UN "prim__putStr", PutStr),
+            (n == UN "prim__getStr", GetStr),
+            (n == UN "prim__putChar", PutChar),
+            (n == UN "prim__getChar", GetChar)
+            -- (n == UN "prim__open", FileOpen),
+            -- (n == UN "prim__close", FileClose),
+            -- (n == UN "prim__readLine", FileReadLine),
+            -- (n == UN "prim__writeLine", FileWriteLine),
+            -- (n == UN "prim__eof", FileEOF),
+            -- (n == UN "prim__fileModifiedTime", FileModifiedTime),
+            -- (n == UN "prim__newIORef", NewIORef),
+            -- (n == UN "prim__readIORef", ReadIORef),
+            -- (n == UN "prim__writeIORef", WriteIORef),
+            -- (n == UN "prim__newArray", NewArray),
+            -- (n == UN "prim__arrayGet", ArrayGet),
+            -- (n == UN "prim__arraySet", ArraySet),
+            -- (n == UN "prim__getField", GetField),
+            -- (n == UN "prim__setField", SetField),
+            -- (n == UN "prim__stdin", Stdin),
+            -- (n == UN "prim__stdout", Stdout),
+            -- (n == UN "prim__stderr", Stderr),
+            -- (n == UN "void", VoidElim),
+            -- (n == UN "prim__os", SysOS),
+            -- (n == UN "prim__codegen", SysCodegen)
+            ]
+           (Unknown pn)
+toPrim pn = Unknown pn
+
 
 export
 mkWorld : String -> String
 mkWorld res = "'mk-world"
 
-coredrisConstant : (String -> String) -> Constant -> String
-coredrisConstant _ (I x) = "(constant #:type 'int #:val " ++ show x ++ ")"
-coredrisConstant _ (BI x) = "(constant #:type 'big-int #:val " ++ show x ++ ")"
-coredrisConstant _ (Db x) = "(constant #:type 'double #:val " ++ show x ++ ")"
-coredrisConstant _ (Ch x) = "(constant #:type 'char #:val '" ++ cast x ++ "')"
-coredrisConstant coredrisStringQuoted (Str x) = "(constant #:type 'string #:val " ++ coredrisStringQuoted x ++ ")"
-coredrisConstant _ WorldVal = "'world"
-coredrisConstant _ IntType = "'i32"
-coredrisConstant _ IntegerType = "'i64"
-coredrisConstant _ StringType = "'string"
-coredrisConstant _ CharType = "'char"
-coredrisConstant _ DoubleType = "'f64"
-coredrisConstant _ WorldType = "'f32"
+coredrisConstant : Constant -> String
+coredrisConstant (I x) = "(constant #:type 'i32 #:val " ++ show x ++ ")"
+coredrisConstant (BI x) = "(constant #:type 'i64 #:val " ++ show x ++ ")"
+coredrisConstant (Db x) = "(constant #:type 'double #:val " ++ show x ++ ")"
+coredrisConstant (Ch x) = "(constant #:type 'char #:val '" ++ cast x ++ "')"
+coredrisConstant (Str x) 
+  = "(constant #:type 'string #:val " ++ coredrisStringQuoted x ++ ")"
+coredrisConstant WorldVal = "'world"
+coredrisConstant IntType = "'i32"
+coredrisConstant IntegerType = "'i64"
+coredrisConstant StringType = "'string"
+coredrisConstant CharType = "'char"
+coredrisConstant DoubleType = "'f64"
+coredrisConstant WorldType = "'f32"
+
+unop : String -> Constant -> String -> String
+unop name ty x = 
+  op ("(primop #:arity 1 #:op '" ++ name 
+     ++ " #:type " ++ coredrisConstant ty ++ ")") [x]
+
+binop : String -> Constant -> String -> String -> String
+binop name ty x y = 
+  op ("(primop #:arity 2 #:op '" ++ name 
+     ++ " #:type " ++ coredrisConstant ty ++ ")") [x, y]
+
+||| Generate scheme for a primitive function.
+coredrisOp : PrimFn arity -> Vect arity String -> String
+coredrisOp (Add ty) [x, y] = binop "add" ty x y
+coredrisOp (Sub ty) [x, y] = binop "sub" ty x y
+coredrisOp (Mul ty) [x, y] = binop "mul" ty x y
+coredrisOp (Div ty) [x, y] = binop "div" ty x y
+coredrisOp (Mod ty) [x, y] = binop "mod" ty x y
+coredrisOp (Neg ty) [x] = unop "neg" ty x
+coredrisOp (LT ty) [x, y] = binop "lt" ty x y
+coredrisOp (GT ty) [x, y] = binop "gt" ty x y
+coredrisOp (EQ ty) [x, y] = binop "eq" ty x y
+coredrisOp (LTE ty) [x, y] = binop "lte" ty x y
+coredrisOp (GTE ty) [x, y] = binop "gte" ty x y
+coredrisOp StrLength [x] = unop "length" StringType x
+coredrisOp StrHead [x] = unop "head" StringType x
+coredrisOp StrTail [x] = unop "tail" StringType x
+coredrisOp StrIndex [x, i] = unop "index" StringType x
+coredrisOp StrCons [x, y] = unop "cons" StringType x
+coredrisOp StrAppend [x, y] = binop "append" StringType x y
+coredrisOp StrReverse [x] = unop "reverse" StringType x
+coredrisOp (Cast i o) [x] = unop ("to-" ++ coredrisConstant o) i x
+-- coredrisOp StrSubstr [x, y, z] = op "string-substring" [x, y, z]
+coredrisOp fn args = op (show fn) (toList args)
 
 coredrisCaseDef : Maybe String -> String
 coredrisCaseDef Nothing = ""
@@ -184,7 +280,8 @@ mutual
 
   coredrisConstAlt : Int -> String -> NamedConstAlt -> Core String
   coredrisConstAlt i target (MkNConstAlt c exp)
-      = pure $ "(const-alt #:var " ++ target ++ " #:const " ++ coredrisConstant coredrisStringQuoted c ++ " #:body " 
+      = pure $ "(const-alt #:var " ++ target 
+                ++ " #:const " ++ coredrisConstant c ++ " #:body " 
                 ++ !(coredrisExp i exp) ++ ")"
 
   -- oops, no traverse for Vect in Core
@@ -233,13 +330,13 @@ mutual
                    ++ " #:conds ["
                    ++ showSep " " !(traverse (coredrisConstAlt (i+1) n) alts) 
                    ++ "]" ++ coredrisIfDef defc ++ ")"
-  coredrisExp i (NmPrimVal fc c) = pure $ coredrisConstant coredrisStringQuoted c
+  coredrisExp i (NmPrimVal fc c) = pure $ coredrisConstant c
   coredrisExp i (NmErased fc) = pure "'erased"
   coredrisExp i (NmCrash fc msg) = pure $ "(crash " ++ show msg ++ ")"
 
   coredrisExtCommon : Int -> ExtPrim -> List NamedCExp -> Core String
-  coredrisExtCommon i (SomeExtPrim n) args
-      = pure $ "(ext-prim-app #:name " ++ coredrisName n ++ " #:args [" 
+  coredrisExtCommon i prim args
+      = pure $ "(ext-prim-app #:name '" ++ show prim ++ " #:args [" 
                 ++ showSep " " !(traverse (coredrisExp i) args) ++ "])"
 
   readArgs : Int -> NamedCExp -> Core String
