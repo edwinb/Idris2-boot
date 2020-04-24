@@ -117,8 +117,7 @@ void alloc_heap(Heap * h, size_t heap_size, size_t growth,
         if (h->old_end - h->old >= heap_size) {
             mem = h->old;
         } else {
-            free(h->old);
-            mem = malloc(heap_size);
+            mem = realloc(h->old, heap_size);
         }
     }
     else mem = malloc(heap_size);
