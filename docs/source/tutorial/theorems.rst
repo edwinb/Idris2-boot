@@ -97,7 +97,7 @@ real distinction between proofs and programs. A proof, as far as we are
 concerned here, is merely a program with a precise enough type to
 guarantee a particular property of interest.
 
-We won’t go into details here, but the Curry-Howard correspondence [1]_
+We won’t go into details here, but the Curry-Howard correspondence [#Timothy]_
 explains this relationship. The proof itself is immediate, because
 ``plus Z n`` normalises to ``n`` by the definition of ``plus``:
 
@@ -450,7 +450,7 @@ example from a C library) where totality can be shown by an external
 argument.
 
 
-.. [1] Timothy G. Griffin. 1989. A formulae-as-type notion of
+.. [#Timothy] Timothy G. Griffin. 1989. A formulae-as-type notion of
        control. In Proceedings of the 17th ACM SIGPLAN-SIGACT
        symposium on Principles of programming languages (POPL
        '90). ACM, New York, NY, USA, 47-58. DOI=10.1145/96709.96714

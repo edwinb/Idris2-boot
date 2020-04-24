@@ -612,7 +612,10 @@ checkApp rig elabinfo nest env fc (IImplicitApp fc' fn nm arg) expargs impargs e
 checkApp rig elabinfo nest env fc (IVar fc' n) expargs impargs exp
    = do (ntm, arglen, nty_in) <- getVarType rig nest env fc n
         nty <- getNF nty_in
-        elabinfo <- updateElabInfo (elabMode elabinfo) n expargs elabinfo
+        let prims = mapMaybe id
+                     [!fromIntegerName, !fromStringName, !fromCharName]
+        elabinfo <- updateElabInfo prims (elabMode elabinfo) n expargs elabinfo
+
         logC 10 (do defs <- get Ctxt
                     fnty <- quote defs env nty
                     exptyt <- maybe (pure Nothing)
@@ -628,24 +631,47 @@ checkApp rig elabinfo nest env fc (IVar fc' n) expargs impargs exp
         let fn = case lookup n (names nest) of
                       Just (Just n', _) => n'
                       _ => n
-        checkAppWith rig elabinfo nest env fc ntm nty (Just fn, arglen) expargs impargs False exp
+        normalisePrims prims env
+           !(checkAppWith rig elabinfo nest env fc ntm nty (Just fn, arglen) expargs impargs False exp)
   where
     isPrimName : List Name -> Name -> Bool
     isPrimName [] fn = False
     isPrimName (p :: ps) fn
         = dropNS fn == p || isPrimName ps fn
 
-    updateElabInfo : ElabMode -> Name -> List RawImp -> ElabInfo -> Core ElabInfo
+    boundSafe : Constant -> Bool
+    boundSafe (BI x) = abs x < 100 -- only do this for relatively small bounds.
+                           -- Once it gets too big, we might be making the term
+                           -- bigger than it would have been without evaluating!
+    boundSafe _ = True
+
+    -- If the term is an application of a primitive conversion (fromInteger etc)
+    -- and it's applied to a constant, fully normalise the term.
+    normalisePrims : List Name -> Env Term vs ->
+                     (Term vs, Glued vs) ->
+                     Core (Term vs, Glued vs)
+    normalisePrims prims env res
+        = if isPrimName prims !(getFullName n)
+             then case reverse expargs of
+                       (IPrimVal _ c :: _) =>
+                          if boundSafe c
+                             then do defs <- get Ctxt
+                                     tm <- normalise defs env (fst res)
+                                     pure (tm, snd res)
+                             else pure res
+                       _ => pure res
+             else pure res
+
+    updateElabInfo : List Name -> ElabMode -> Name ->
+                     List RawImp -> ElabInfo -> Core ElabInfo
     -- If it's a primitive function applied to a constant on the LHS, treat it
     -- as an expression because we'll normalise the function away and match on
     -- the result
-    updateElabInfo (InLHS _) n [IPrimVal fc c] elabinfo =
-        do let prims = mapMaybe id
-                          [!fromIntegerName, !fromStringName, !fromCharName]
-           if isPrimName prims !(getFullName n)
+    updateElabInfo prims (InLHS _) n [IPrimVal fc c] elabinfo =
+        do if isPrimName prims !(getFullName n)
               then pure (record { elabMode = InExpr } elabinfo)
               else pure elabinfo
-    updateElabInfo _ _ _ info = pure info
+    updateElabInfo _ _ _ _ info = pure info
 
 checkApp rig elabinfo nest env fc fn expargs impargs exp
    = do (fntm, fnty_in) <- checkImp rig elabinfo nest env fn Nothing

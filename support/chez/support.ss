@@ -6,7 +6,7 @@
 (define b+ (lambda (x y bits) (remainder (+ x y) (expt 2 bits))))
 (define b- (lambda (x y bits) (remainder (- x y) (expt 2 bits))))
 (define b* (lambda (x y bits) (remainder (* x y) (expt 2 bits))))
-(define b/ (lambda (x y bits) (remainder (floor (/ x y)) (expt 2 bits))))
+(define b/ (lambda (x y bits) (remainder (exact-floor (/ x y)) (expt 2 bits))))
 
 (define blodwen-shl (lambda (x y) (ash x y)))
 (define blodwen-shr (lambda (x y) (ash x (- y))))
@@ -26,6 +26,9 @@
 (define cast-string-int
   (lambda (x)
     (floor (cast-num (string->number (destroy-prefix x))))))
+(define exact-floor
+  (lambda (x)
+    (inexact->exact (floor x))))
 (define cast-string-double
   (lambda (x)
     (cast-num (string->number (destroy-prefix x)))))
@@ -42,11 +45,11 @@
 
 (define either-left
   (lambda (x)
-    (vector 0 #f #f x)))
+    (vector 0 x)))
 
 (define either-right
   (lambda (x)
-    (vector 1 #f #f x)))
+    (vector 1 x)))
 
 (define blodwen-error-quit
   (lambda (msg)
@@ -237,8 +240,8 @@
 (define (blodwen-args)
   (define (blodwen-build-args args)
     (if (null? args)
-        (vector 0 '())
-        (vector 1 '() (car args) (blodwen-build-args (cdr args)))))
+        (vector 0) ; Prelude.List
+        (vector 1 (car args) (blodwen-build-args (cdr args)))))
     (blodwen-build-args (command-line)))
 
 (define (blodwen-hasenv var)

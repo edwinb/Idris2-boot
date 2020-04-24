@@ -21,7 +21,7 @@ In a language with *dependent types*, however, the distinction is less
 clear. Dependent types allow types to “depend” on values — in other
 words, types are a *first class* language construct and can be
 manipulated like any other value. The standard example is the type of
-lists of a given length [1]_, ``Vect n a``, where ``a`` is the element
+lists of a given length [#fn1]_, ``Vect n a``, where ``a`` is the element
 type and ``n`` is the length of the list and can be an arbitrary term.
 
 When types can contain values, and where those values describe
@@ -69,6 +69,7 @@ so that you can try them out easily. They can be found under
 ``samples``. It is, however, strongly recommended that you type
 them in yourself, rather than simply loading and reading them.
 
-.. [1]
-   Typically, and perhaps confusingly, referred to in the dependently
-   typed programming literature as “vectors”
+.. rubric:: Footnotes
+
+.. [#fn1] Typically, and perhaps confusingly, referred to in the dependently
+   typed programming literature as "vectors".

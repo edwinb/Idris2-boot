@@ -107,9 +107,20 @@ void c_heap_destroy(CHeap * heap)
 }
 
 /* Used for initializing the FP heap. */
-void alloc_heap(Heap * h, size_t heap_size, size_t growth, char * old)
+void alloc_heap(Heap * h, size_t heap_size, size_t growth,
+                char* old, char* old_end)
 {
-    char * mem = malloc(heap_size);
+    char * mem;
+    // If the old heap is big enough, use that
+    // Otherwise, free it and allocate a new chunk
+    if (h->old != NULL) {
+        if (h->old_end - h->old >= heap_size) {
+            mem = h->old;
+        } else {
+            mem = realloc(h->old, heap_size);
+        }
+    }
+    else mem = malloc(heap_size);
 
     if (mem == NULL) {
         fprintf(stderr,
@@ -127,6 +138,7 @@ void alloc_heap(Heap * h, size_t heap_size, size_t growth, char * old)
     h->growth = growth;
 
     h->old = old;
+    h->old_end = old_end;
 }
 
 void free_heap(Heap * h) {

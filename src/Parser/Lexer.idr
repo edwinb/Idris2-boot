@@ -40,20 +40,58 @@ export
 Show (TokenData Token) where
   show t = show (line t, col t, tok t)
 
+||| In `comment` we are careful not to parse closing delimiters as
+||| valid comments. i.e. you may not write many dashes followed by
+||| a closing brace and call it a valid comment.
 comment : Lexer
-comment = is '-' <+> is '-' <+> many (isNot '\n')
+comment
+   =  is '-' <+> is '-'                  -- comment opener
+  <+> many (is '-') <+> reject (is '}')  -- not a closing delimiter
+  <+> many (isNot '\n')                  -- till the end of line
 
-toEndComment : (k : Nat) -> Recognise (k /= 0)
-toEndComment Z = empty
-toEndComment (S k)
-             = some (pred (\c => c /= '-' && c /= '{' && c /= '"'))
-                      <+> toEndComment (S k)
-           <|> is '{' <+> is '-' <+> toEndComment (S (S k))
-           <|> is '-' <+> is '}' <+> toEndComment k
-           <|> comment <+> toEndComment (S k)
-           <|> stringLit <+> toEndComment (S k)
-           <|> is '{' <+> toEndComment (S k)
-           <|> is '-' <+> toEndComment (S k)
+mutual
+
+  ||| The mutually defined functions represent different states in a
+  ||| small automaton.
+  ||| `toEndComment` is the default state and it will munch through
+  ||| the input until we detect a special character (a dash, an
+  ||| opening brace, or a double quote) and then switch to the
+  ||| appropriate state.
+  toEndComment : (k : Nat) -> Recognise (k /= 0)
+  toEndComment Z = empty
+  toEndComment (S k)
+               = some (pred (\c => c /= '-' && c /= '{' && c /= '"'))
+                        <+> toEndComment (S k)
+             <|> is '{' <+> singleBrace k
+             <|> is '-' <+> singleDash k
+             <|> stringLit <+> toEndComment (S k)
+
+  ||| After reading a single brace, we may either finish reading an
+  ||| opening delimiter or ignore it (e.g. it could be an implicit
+  ||| binder).
+  singleBrace : (k : Nat) -> Lexer
+  singleBrace k
+     =  is '-' <+> many (is '-')    -- opening delimiter
+               <+> singleDash (S k) -- handles the {----} special case
+    <|> toEndComment (S k)          -- not a valid comment
+
+  ||| After reading a single dash, we may either find another one,
+  ||| meaning we may have started reading a line comment, or find
+  ||| a closing brace meaning we have found a closing delimiter.
+  singleDash : (k : Nat) -> Lexer
+  singleDash k
+     =  is '-' <+> doubleDash k    -- comment or closing delimiter
+    <|> is '}' <+> toEndComment k  -- closing delimiter
+    <|> toEndComment (S k)         -- not a valid comment
+
+  ||| After reading a double dash, we are potentially reading a line
+  ||| comment unless the series of uninterrupted dashes is ended with
+  ||| a closing brace in which case it is a closing delimiter.
+  doubleDash : (k : Nat) -> Lexer
+  doubleDash k = many (is '-') <+> choice      -- absorb all dashes
+    [ is '}' <+> toEndComment k                -- closing delimiter
+    , many (isNot '\n') <+> toEndComment (S k) -- line comment
+    ]
 
 blockComment : Lexer
 blockComment = is '{' <+> is '-' <+> toEndComment 1
@@ -61,20 +99,40 @@ blockComment = is '{' <+> is '-' <+> toEndComment 1
 docComment : Lexer
 docComment = is '|' <+> is '|' <+> is '|' <+> many (isNot '\n')
 
-ident : Lexer
-ident = pred startIdent <+> many (pred validIdent)
-  where
-    startIdent : Char -> Bool
-    startIdent '_' = True
-    startIdent x = isAlpha x || x > chr 127
+-- Identifier Lexer
+--
+-- There are two variants, a strict ident and a relaxed ident.
+-- Prime definitions recieve a boolean determining if it is relaxed.
 
-    validIdent : Char -> Bool
-    validIdent '_' = True
-    validIdent '\'' = True
-    validIdent x = isAlphaNum x || x > chr 127
+startIdent : Char -> Bool
+startIdent '_' = True
+startIdent  x  = isAlpha x || x > chr 127
+
+%inline
+validIdent' : Bool -> Char -> Bool
+validIdent' _ '_'  = True
+validIdent' r '-'  = r
+validIdent' _ '\'' = True
+validIdent' _  x   = isAlphaNum x || x > chr 127
+
+%inline
+ident' : Bool -> Lexer
+ident' relaxed =
+  (pred $ startIdent) <+>
+    (many . pred $ validIdent' relaxed)
+
+-- This are the two identifier lexer specializations
+
+export
+identStrict : Lexer
+identStrict = ident' False
+
+export
+identRelaxed : Lexer
+identRelaxed = ident' True
 
 holeIdent : Lexer
-holeIdent = is '?' <+> ident
+holeIdent = is '?' <+> identStrict
 
 doubleLit : Lexer
 doubleLit
@@ -121,12 +179,13 @@ symbols
        "(", ")", "{", "}", "[", "]", ",", ";", "_",
        "`(", "`"]
 
+
 export
-opChars : String
-opChars = ":!#$%&*+./<=>?@\\^|-~"
+isOpChar : Char -> Bool
+isOpChar c = c `elem` (unpack ":!#$%&*+./<=>?@\\^|-~")
 
 validSymbol : Lexer
-validSymbol = some (oneOf opChars)
+validSymbol = some (pred isOpChar)
 
 -- Valid symbols which have a special meaning so can't be operators
 export
@@ -135,9 +194,6 @@ reservedSymbols
     = symbols ++
       ["%", "\\", ":", "=", "|", "|||", "<-", "->", "=>", "?", "!",
        "&", "**", ".."]
-
-symbolChar : Char -> Bool
-symbolChar c = c `elem` unpack opChars
 
 fromHexLit : String -> Integer
 fromHexLit str
@@ -161,7 +217,7 @@ rawTokens =
      (digits, \x => Literal (cast x)),
      (stringLit, \x => StrLit (stripQuotes x)),
      (charLit, \x => CharLit (stripQuotes x)),
-     (ident, \x => if x `elem` keywords then Keyword x else Ident x),
+     (identStrict, \x => if x `elem` keywords then Keyword x else Ident x),
      (space, Comment),
      (validSymbol, Symbol),
      (symbol, Unrecognised)]

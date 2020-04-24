@@ -200,6 +200,13 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
                                       [] casefnty Private None)
          let caseRef : Term vars = Ref fc Func (Resolved cidx)
 
+         -- If there's no duplication of the scrutinee in the block,
+         -- inline it.
+         -- This will be the case either if the scrutinee is a variable, in
+         -- which case the duplication won't hurt, or if (TODO) none of the
+         -- case patterns in alts are just a variable
+         maybe (pure ()) (const (setFlag fc casen Inline)) splitOn
+
          let applyEnv = applyToFull fc caseRef env
          let appTm : Term vars
                    = maybe (App fc applyEnv scrtm)

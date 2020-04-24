@@ -17,7 +17,7 @@ ttimpTests
        "lazy001",
        "nest001", "nest002",
        "perf001", "perf002", "perf003",
-       "record001", "record002",
+       "record001", "record002", "record003",
        "rewrite001",
        "qtt001", "qtt002", "qtt003",
        "search001", "search002", "search003", "search004", "search005",
@@ -77,11 +77,11 @@ idrisTests
        -- interesting interactions between features
        "real001", "real002",
        -- Records, access and dependent update
-       "record001", "record002",
+       "record001", "record002", "record003", 
        -- Miscellaneous regressions
        "reg001", "reg002", "reg003", "reg004", "reg005", "reg006", "reg007",
        "reg008", "reg009", "reg010", "reg011", "reg012", "reg013", "reg014",
-       "reg015",
+       "reg015", "reg016",
        -- Totality checking
        "total001", "total002", "total003", "total004", "total005",
        "total006",
@@ -98,7 +98,8 @@ chezTests : List String
 chezTests
    = ["chez001", "chez002", "chez003", "chez004", "chez005", "chez006",
       "chez007", "chez008", "chez009", "chez010", "chez011", "chez012",
-      "chez013", "chez014"]
+      "chez013", "chez014", "chez015", "chez016",
+      "reg001"]
 
 ideModeTests : List String
 ideModeTests

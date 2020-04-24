@@ -202,6 +202,9 @@ cCall fc cfn clib args ret
     applyLams n (Nothing :: as) = applyLams ("(" ++ n ++ " #f)") as
     applyLams n (Just a :: as) = applyLams ("(" ++ n ++ " " ++ a ++ ")") as
 
+    getVal : String -> String
+    getVal str = "(vector-ref " ++ str ++ "1)"
+
     mkFun : List CFType -> CFType -> String -> String
     mkFun args ret n
         = let argns = mkNs 0 args in
@@ -314,8 +317,8 @@ startChez : String -> String
 startChez target = unlines
     [ "#!/bin/sh"
     , ""
-    , "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`dirname " ++ target ++ "`"
-    , target ++ " \"$@\""
+    , "export LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH:$(dirname \"" ++ target ++ "\")\""
+    , "\"" ++ target ++ "\" \"$@\""
     ]
 
 ||| Compile a TT expression to Chez Scheme
@@ -325,14 +328,18 @@ compileToSS c tm outfile
     = do ds <- getDirectives Chez
          libs <- findLibs ds
          traverse_ copyLib libs
-         (ns, tags) <- findUsedNames tm
+         cdata <- getCompileData tm
+         let ns = allNames cdata
+         let tags = nameTags cdata
+         let ctm = forget (mainExpr cdata)
+
          defs <- get Ctxt
          l <- newRef {t = List String} Loaded ["libc", "libc 6"]
          s <- newRef {t = List String} Structs []
          fgndefs <- traverse getFgnCall ns
          compdefs <- traverse (getScheme chezExtPrim chezString defs) ns
          let code = fastAppend (map snd fgndefs ++ compdefs)
-         main <- schExp chezExtPrim chezString 0 !(compileExp tags tm)
+         main <- schExp chezExtPrim chezString 0 ctm
          chez <- coreLift findChez
          support <- readDataFile "chez/support.ss"
          let scm = schHeader chez (map snd libs) ++

@@ -364,6 +364,7 @@ Integral Integer where
 -- all other possibilities fail. I don't plan to provide a nicer syntax for
 -- this...
 %defaulthint
+%inline
 public export
 defaultInteger : Num Integer
 defaultInteger = %search
@@ -1189,6 +1190,7 @@ Applicative IO where
           io_bind a (\a' =>
             io_pure (f' a')))
 
+%inline
 public export
 Monad IO where
   b >>= k = io_bind b k

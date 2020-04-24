@@ -195,20 +195,24 @@ getDetags fc tys
                 else pure rest
 
 -- If exactly one argument is unerased, return its position
-getRelevantArg : Defs -> Nat -> Maybe Nat -> NF [] -> Core (Maybe Nat)
-getRelevantArg defs i rel (NBind fc _ (Pi Rig0 _ _) sc)
-    = getRelevantArg defs (1 + i) rel
+getRelevantArg : Defs -> Nat -> Maybe Nat -> Bool -> NF [] ->
+                 Core (Maybe (Bool, Nat))
+getRelevantArg defs i rel world (NBind fc _ (Pi Rig0 _ _) sc)
+    = getRelevantArg defs (1 + i) rel world
            !(sc defs (toClosure defaultOpts [] (Erased fc False)))
--- %World is never inspected, so might as well be deleted from data types
-getRelevantArg defs i rel (NBind fc _ (Pi _ _ (NPrimVal _ WorldType)) sc)
-    = getRelevantArg defs (1 + i) rel
+-- %World is never inspected, so might as well be deleted from data types,
+-- although it needs care when compiling to ensure that the function that
+-- returns the IO/%World type isn't erased
+getRelevantArg defs i rel world (NBind fc _ (Pi _ _ (NPrimVal _ WorldType)) sc)
+    = getRelevantArg defs (1 + i) rel False
            !(sc defs (toClosure defaultOpts [] (Erased fc False)))
-getRelevantArg defs i Nothing (NBind fc _ (Pi _ _ _) sc) -- found a relevant arg
-    = getRelevantArg defs (1 + i) (Just i)
+getRelevantArg defs i Nothing world (NBind fc _ (Pi _ _ _) sc) -- found a relevant arg
+    = getRelevantArg defs (1 + i) (Just i) world
            !(sc defs (toClosure defaultOpts [] (Erased fc False)))
-getRelevantArg defs i (Just _) (NBind _ _ (Pi _ _ _) sc) -- more than one relevant
+getRelevantArg defs i (Just _) world (NBind _ _ (Pi _ _ _) sc) -- more than one relevant
     = pure Nothing
-getRelevantArg defs i rel tm = pure rel
+getRelevantArg defs i rel world tm
+    = pure (maybe Nothing (\r => Just (world, r)) rel)
 
 -- If there's one constructor with only one non-Rig0 argument, flag it as
 -- a newtype for optimisation
@@ -217,7 +221,7 @@ findNewtype : {auto c : Ref Ctxt Defs} ->
               List Constructor -> Core ()
 findNewtype [con]
     = do defs <- get Ctxt
-         Just arg <- getRelevantArg defs 0 Nothing !(nf defs [] (type con))
+         Just arg <- getRelevantArg defs 0 Nothing True !(nf defs [] (type con))
               | Nothing => pure ()
          updateDef (name con)
                (\d => case d of

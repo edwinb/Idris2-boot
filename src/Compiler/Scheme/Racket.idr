@@ -287,14 +287,18 @@ getFgnCall n
 compileToRKT : Ref Ctxt Defs ->
                ClosedTerm -> (outfile : String) -> Core ()
 compileToRKT c tm outfile
-    = do (ns, tags) <- findUsedNames tm
+    = do cdata <- getCompileData tm
+         let ns = allNames cdata
+         let tags = nameTags cdata
+         let ctm = forget (mainExpr cdata)
+
          defs <- get Ctxt
          l <- newRef {t = List String} Loaded []
          s <- newRef {t = List String} Structs []
          fgndefs <- traverse getFgnCall ns
          compdefs <- traverse (getScheme racketPrim racketString defs) ns
          let code = fastAppend (map snd fgndefs ++ compdefs)
-         main <- schExp racketPrim racketString 0 !(compileExp tags tm)
+         main <- schExp racketPrim racketString 0 ctm
          support <- readDataFile "racket/support.rkt"
          let scm = schHeader (concat (map fst fgndefs)) ++
                    support ++ code ++

@@ -221,12 +221,12 @@ of how this works in practice:
       odd : Nat -> Bool
       odd Z = False
       odd (S k) = even k
-    
+
     test : List Nat
     test = [c (S 1), c Z, d (S Z)]
       where c : Nat -> Nat
             c x = 42 + x
-    
+
             d : Nat -> Nat
             d y = c (y + 1 + z y)
                   where z : Nat -> Nat
@@ -753,11 +753,7 @@ For more details of the functions available on ``List`` and
 
 -  ``libs/base/Data/List.idr``
 
--  ``libs/base/Data/List.idr``
-
 -  ``libs/base/Data/Vect.idr``
-
--  ``libs/base/Data/VectType.idr``
 
 Functions include filtering, appending, reversing, and so on.
 
@@ -1052,7 +1048,7 @@ name. For example, a pair type could be defined as follows:
         fst : a
         snd : b
 
-Using the ``class`` record from earlier, the size of the class can be
+Using the ``Class`` record from earlier, the size of the class can be
 restricted using a ``Vect`` and the size included in the type by parameterising
 the record with the size.  For example:
 
