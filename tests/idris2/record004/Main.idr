@@ -101,8 +101,8 @@ main = do
   -- prints 17.64
   printLn $ pt.x.squared
 
-  -- prints [1.0, 3.0]
-  printLn $ map (.x) [MkPoint 1 2, MkPoint 3 4]
+  -- prints [1.1, 4.2]
+  printLn $ map (.x) [MkPoint 1.1 2.5, MkPoint 4.2 6.3]
 
   -- parses but does not typecheck
   -- parses as: map.x [MkPoint 1 2, MkPoint 3 4]
