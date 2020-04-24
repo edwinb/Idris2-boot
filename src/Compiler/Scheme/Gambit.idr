@@ -30,11 +30,12 @@ findGSC =
   do env <- getEnv "GAMBIT_GSC"
      pure $ fromMaybe "/usr/bin/env -S gsc-script" env
 
--- XXX
 schHeader : String
-schHeader = ""
+schHeader = "(declare (block)
+         (standard-bindings)
+         (extended-bindings)
+         (not safe))\n\n"
 
--- XXX
 schFooter : String
 schFooter = "\n"
 
@@ -128,8 +129,6 @@ compileExpr c execDir tm outfile
             then pure (Just outfile)
             else pure Nothing
 
--- TODO Would it be better to compile to dynamic obj file and use gsi or gsc -i
--- Look at what is done in Chez Scheme
 executeExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> Core ()
 executeExpr c execDir tm
     = do tmp <- coreLift $ tmpName
