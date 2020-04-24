@@ -600,6 +600,8 @@ normaliseHoles defs env tm
 
 export
 normaliseLHS : Defs -> Env Term free -> Term free -> Core (Term free)
+normaliseLHS defs env (Bind fc n b sc)
+    = pure $ Bind fc n b !(normaliseLHS defs (b :: env) sc)
 normaliseLHS defs env tm
     = quote defs env !(nfOpts onLHS defs env tm)
 
