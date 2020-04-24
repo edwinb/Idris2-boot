@@ -42,8 +42,9 @@ VM* init_vm(int stack_size, size_t heap_size,
     vm->valstack_top = valstack;
     vm->valstack_base = valstack;
     vm->stack_max = valstack + stack_size;
+    vm->heap.old = NULL;
 
-    alloc_heap(&(vm->heap), heap_size, heap_size, NULL);
+    alloc_heap(&(vm->heap), heap_size, heap_size, NULL, NULL);
 
     c_heap_init(&vm->c_heap);
 
