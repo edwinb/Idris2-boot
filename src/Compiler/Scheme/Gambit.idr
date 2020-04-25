@@ -63,7 +63,7 @@ mutual
   gambitPrim i GetField [NmPrimVal _ (Str s), _, _, struct,
                          NmPrimVal _ (Str fld), _]
       = do structsc <- schExp gambitPrim gambitString 0 struct
-           pure $ "(" ++ s ++ "-" ++ fld ++ " " ++ structsc ++ ")" -- FIXME
+           pure $ "(" ++ s ++ "-" ++ fld ++ " " ++ structsc ++ ")" -- XXX
   gambitPrim i GetField [_,_,_,_,_,_]
       = pure "(error \"bad getField\")"
   gambitPrim i SetField [NmPrimVal _ (Str s), _, _, struct,
@@ -71,7 +71,7 @@ mutual
       = do structsc <- schExp gambitPrim gambitString 0 struct
            valsc <- schExp gambitPrim gambitString 0 val
            pure $ mkWorld $
-                "(set-" ++ s ++ "-" ++ fld ++ "! " ++ structsc ++ " " ++ valsc ++ ")" -- FIXME
+                "(" ++ s ++ "-" ++ fld ++ "-set! " ++ structsc ++ " " ++ valsc ++ ")" -- XXX
   gambitPrim i SetField [_,_,_,_,_,_,_,_]
       = pure "(error \"bad setField\")"
   gambitPrim i SysCodegen []
