@@ -296,16 +296,19 @@ mutual
                     !(constCases tags n ns)
   constCases tags n (_ :: ns) = constCases tags n ns
 
-  getDef : {auto c : Ref Ctxt Defs} ->
-           FC -> CExp vars ->
-           NameTags -> Name -> List (CaseAlt vars) ->
-           Core (Bool, Maybe (CExp vars))
-  getDef fc scr tags n [] = pure (False, Nothing)
-  getDef fc scr tags n (DefaultCase sc :: ns)
-      = pure $ (False, Just !(toCExpTree tags n sc))
-  getDef fc scr tags n (ConstCase WorldVal sc :: ns)
-      = pure $ (False, Just !(toCExpTree tags n sc))
-  getDef {vars} fc scr tags n (ConCase x tag args sc :: ns)
+  -- If there's a case which matches on a 'newtype', return the RHS
+  -- without matching.
+  -- Take some care if the newtype involves a WorldVal - in that case we
+  -- still need to let bind the scrutinee to ensure it's evaluated exactly
+  -- once.
+  getNewType : {auto c : Ref Ctxt Defs} ->
+               FC -> CExp vars ->
+               NameTags -> Name -> List (CaseAlt vars) ->
+               Core (Maybe (CExp vars))
+  getNewType fc scr tags n [] = pure Nothing
+  getNewType fc scr tags n (DefaultCase sc :: ns)
+      = pure $ Nothing
+  getNewType {vars} fc scr tags n (ConCase x tag args sc :: ns)
       = do defs <- get Ctxt
            case !(lookupDefExact x (gamma defs)) of
                 -- If the flag is False, we still take the
@@ -315,18 +318,41 @@ mutual
                 -- outside world, so we need to evaluate to keep the
                 -- side effect.
                 Just (DCon _ arity (Just (noworld, pos))) =>
-                     let env : SubstCEnv args vars = mkSubst 0 pos args in
-                         pure $ (not noworld,
-                                 Just (substs env !(toCExpTree tags n sc)))
-                _ => getDef fc scr tags n ns
+                     if noworld -- just substitute the scrutinee into
+                                -- the RHS
+                        then let env : SubstCEnv args vars
+                                     = mkSubst 0 scr pos args in
+                                 pure $ Just (substs env !(toCExpTree tags n sc))
+                        else -- let bind the scrutinee, and substitute the
+                             -- name into the RHS
+                             let env : SubstCEnv args (MN "eff" 0 :: vars)
+                                     = mkSubst 0 (CLocal fc First) pos args in
+                             do sc' <- toCExpTree tags n sc
+                                let scope = thin {outer=args}
+                                                 {inner=vars}
+                                                 (MN "eff" 0) sc'
+                                pure $ Just (CLet fc (MN "eff" 0) False scr
+                                                  (substs env scope))
+                _ => pure Nothing -- there's a normal match to do
     where
-      mkSubst : Nat -> Nat -> (args : List Name) -> SubstCEnv args vars
-      mkSubst _ _ [] = Nil
-      mkSubst i pos (a :: as)
+      mkSubst : Nat -> CExp vs ->
+                Nat -> (args : List Name) -> SubstCEnv args vs
+      mkSubst _ _ _ [] = Nil
+      mkSubst i scr pos (a :: as)
           = if i == pos
-               then scr :: mkSubst (1 + i) pos as
-               else CErased fc :: mkSubst (1 + i) pos as
-  getDef fc scr tags n (_ :: ns) = getDef fc scr tags n ns
+               then scr :: mkSubst (1 + i) scr pos as
+               else CErased fc :: mkSubst (1 + i) scr pos as
+  getNewType fc scr tags n (_ :: ns) = getNewType fc scr tags n ns
+
+  getDef : {auto c : Ref Ctxt Defs} ->
+           NameTags -> Name -> List (CaseAlt vars) ->
+           Core (Maybe (CExp vars))
+  getDef tags n [] = pure Nothing
+  getDef tags n (DefaultCase sc :: ns)
+      = pure $ Just !(toCExpTree tags n sc)
+  getDef tags n (ConstCase WorldVal sc :: ns)
+      = pure $ Just !(toCExpTree tags n sc)
+  getDef tags n (_ :: ns) = getDef tags n ns
 
   toCExpTree : {auto c : Ref Ctxt Defs} ->
                NameTags -> Name -> CaseTree vars ->
@@ -337,22 +363,21 @@ mutual
               CLet fc arg True (CForce fc (CLocal (getLoc scTy) x)) $
               CLet fc ty True (CErased fc)
                    !(toCExpTree tags n sc)
-  toCExpTree tags n alts = toCExpTree' tags n alts
+  toCExpTree tags n alts
+      = toCExpTree' tags n alts
 
   toCExpTree' : {auto c : Ref Ctxt Defs} ->
                 NameTags -> Name -> CaseTree vars ->
                 Core (CExp vars)
-  toCExpTree' tags n (Case fc x scTy alts@(ConCase _ _ _ _ :: _))
+  toCExpTree' tags n (Case _ x scTy alts@(ConCase _ _ _ _ :: _))
       = let fc = getLoc scTy in
-            do defs <- get Ctxt
+            do Nothing <- getNewType fc (CLocal fc x) tags n alts
+                   | Just def => pure def
+               defs <- get Ctxt
                cases <- conCases tags n alts
-               (keepSc, def) <- getDef fc (CLocal fc x) tags n alts
+               def <- getDef tags n alts
                if isNil cases
-                  then (if keepSc
-                           then pure $ CLet fc (MN "eff" 0) False
-                                            (CLocal fc x)
-                                            (weaken (fromMaybe (CErased fc) def))
-                           else pure (fromMaybe (CErased fc) def))
+                  then pure (fromMaybe (CErased fc) def)
                   else pure $ natHackTree $
                             CConCase fc (CLocal fc x) cases def
   toCExpTree' tags n (Case _ x scTy alts@(DelayCase _ _ _ :: _))
@@ -360,13 +385,9 @@ mutual
   toCExpTree' tags n (Case fc x scTy alts@(ConstCase _ _ :: _))
       = let fc = getLoc scTy in
             do cases <- constCases tags n alts
-               (keepSc, def) <- getDef fc (CLocal fc x) tags n alts
+               def <- getDef tags n alts
                if isNil cases
-                  then (if keepSc
-                           then pure $ CLet fc (MN "eff" 0) False
-                                            (CLocal fc x)
-                                            (weaken (fromMaybe (CErased fc) def))
-                           else pure (fromMaybe (CErased fc) def))
+                  then pure (fromMaybe (CErased fc) def)
                   else pure $ CConstCase fc (CLocal fc x) cases def
   toCExpTree' tags n (Case _ x scTy alts@(DefaultCase sc :: _))
       = toCExpTree tags n sc
