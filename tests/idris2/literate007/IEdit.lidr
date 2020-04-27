@@ -8,4 +8,3 @@
 > dupAll xs = zipHere xs xs
 >   where
 >     zipHere : forall n . Vect n a -> Vect n b -> Vect n (a, b)
-

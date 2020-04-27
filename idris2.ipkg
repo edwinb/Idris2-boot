@@ -79,6 +79,7 @@ modules =
 
     Text.Lexer,
     Text.Lexer.Core,
+    Text.Literate,
     Text.Parser,
     Text.Parser.Core,
     Text.Quantity,

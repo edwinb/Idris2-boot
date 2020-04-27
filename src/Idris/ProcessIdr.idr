@@ -194,7 +194,7 @@ export
 getParseErrorLoc : String -> ParseError -> FC
 getParseErrorLoc fname (ParseFail _ (Just pos) _) = MkFC fname pos pos
 getParseErrorLoc fname (LexFail (l, c, _)) = MkFC fname (l, c) (l, c)
-getParseErrorLoc fname (LitFail (l :: _)) = MkFC fname (l, 0) (l, 0)
+getParseErrorLoc fname (LitFail (MkLitErr l c _)) = MkFC fname (l, 0) (l, 0)
 getParseErrorLoc fname _ = replFC
 
 export
@@ -203,7 +203,7 @@ readHeader : {auto c : Ref Ctxt Defs} ->
 readHeader path
     = do Right res <- coreLift (readFile path)
             | Left err => throw (FileErr path err)
-         case runParserTo (isLitFile path) False isColon res (progHdr path) of
+         case runParserTo (isLitFile path) isColon res (progHdr path) of
               Left err => throw (ParseFail (getParseErrorLoc path err) err)
               Right mod => pure mod
   where
@@ -227,10 +227,10 @@ processMod : {auto c : Ref Ctxt Defs} ->
              (sourcecode : String) ->
              Core (Maybe (List Error))
 processMod srcf ttcf msg sourcecode
-    = catch (do 
+    = catch (do
         -- Just read the header to start with (this is to get the imports and
         -- see if we can avoid rebuilding if none have changed)
-        modh <- readHeader srcf 
+        modh <- readHeader srcf
         -- Add an implicit prelude import
         let imps =
              if (noprelude !getSession || moduleNS modh == ["Prelude"])
@@ -261,7 +261,7 @@ processMod srcf ttcf msg sourcecode
            else -- needs rebuilding
              do iputStrLn msg
                 Right mod <- logTime ("Parsing " ++ srcf) $
-                            pure (runParser (isLitFile srcf) True sourcecode (do p <- prog srcf; eoi; pure p))
+                            pure (runParser (isLitFile srcf) sourcecode (do p <- prog srcf; eoi; pure p))
                       | Left err => pure (Just [ParseFail (getParseErrorLoc srcf err) err])
                 initHash
                 resetNextVar

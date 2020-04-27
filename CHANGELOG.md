@@ -18,6 +18,9 @@ Other improvements:
   + In the run-time, reuse the old heap after garbage collection if it
     hasn't been resized, to avoid unnecessary system calls.
 
+* Extend Idris2's literate mode to support reading Markdown and OrgMode files.
+  For more details see: https://idris2.readthedocs.io/en/latest/reference/literate.html
+
 Changes since Idris 1
 ---------------------
 
