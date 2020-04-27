@@ -26,7 +26,7 @@ mutual
        -- if it is now fully applied.
        LApp : FC -> (closure : Lifted vars) -> (arg : Lifted vars) -> Lifted vars
        LLet : FC -> (x : Name) -> Lifted vars ->
-              Lifted (x :: var) -> Lifted vars
+              Lifted (x :: vars) -> Lifted vars
        LCon : FC -> Name -> (tag : Int) -> List (Lifted vars) -> Lifted vars
        LOp : FC -> PrimFn arity -> Vect arity (Lifted vars) -> Lifted vars
        LExtPrim : FC -> (p : Name) -> List (Lifted vars) -> Lifted vars
