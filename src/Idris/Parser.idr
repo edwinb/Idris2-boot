@@ -651,7 +651,7 @@ mutual
 
   field : FileName -> IndentInfo -> Rule PFieldUpdate
   field fname indents
-      = do path <- map fieldName <$> [| name :: many recField |]
+      = do path <- map fieldName <$> [| name :: many recFieldCompat |]
            upd <- (do symbol "="; pure PSetField)
                       <|>
                   (do symbol "$="; pure PSetFieldApp)
@@ -662,6 +662,11 @@ mutual
       fieldName (UN s) = s
       fieldName (RF s) = s
       fieldName _ = "_impossible"
+
+      -- this allows the dotted syntax .field
+      -- but also the arrowed syntax ->field for compatibility with Idris 1
+      recFieldCompat : Rule Name
+      recFieldCompat = recField <|> (symbol "->" *> name)
 
   rewrite_ : FileName -> IndentInfo -> Rule PTerm
   rewrite_ fname indents

@@ -18,4 +18,6 @@ Point.x pt
 x pt
 (record { topLeft.x = 3 } rect).topLeft.x
 (record { topLeft.x $= (+1) } rect).topLeft.x
+(record { topLeft->x = 3 } rect).topLeft.x
+(record { topLeft->x $= (+1) } rect).topLeft.x
 :q
