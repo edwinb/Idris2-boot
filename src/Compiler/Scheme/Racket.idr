@@ -70,11 +70,11 @@ mutual
   racketPrim i CCall [ret, fn, args, world]
       = throw (InternalError ("Can't compile C FFI calls to Racket yet"))
   racketPrim i GetField [NmPrimVal _ (Str s), _, _, struct,
-                             NmPrimVal _ (Str fld), _]
+                         NmPrimVal _ (Str fld), _]
       = do structsc <- schExp racketPrim racketString 0 struct
            pure $ "(" ++ s ++ "-" ++ fld ++ " " ++ structsc ++ ")"
   racketPrim i GetField [_,_,_,_,_,_]
-      = pure "(error \"bad setField\")"
+      = pure "(error \"bad getField\")"
   racketPrim i SetField [NmPrimVal _ (Str s), _, _, struct,
                          NmPrimVal _ (Str fld), _, val, world]
       = do structsc <- schExp racketPrim racketString 0 struct

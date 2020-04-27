@@ -68,7 +68,7 @@ Chicken scheme offers binary distributions (and source tar balls) from
 
 + https://code.call-cc.org/
 
-You can find chicken in many a package manager.
+You can find chicken in many package managers.
 
 After installing chicken scheme you may need to install the 'numbers' package.
 
