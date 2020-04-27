@@ -140,6 +140,10 @@ mutual
                    do let ty = type gdef
                       ty' <- updateHoleType useInHole var zs ty args
                       updateTy i ty'
+                      logTerm 5 ("New type of " ++
+                                 show (fullname gdef)) ty'
+                      logTerm 5 ("Updated from " ++
+                                 show (fullname gdef)) (type gdef)
                       pure True
                 _ => updateHoleUsageArgs useInHole var zs args
   updateHoleUsage useInHole var zs (As _ _ a p)
@@ -155,14 +159,9 @@ mutual
   updateHoleUsage useInHole var zs tm
       = case getFnArgs tm of
              (Ref _ _ fn, args) =>
-                do aup <- updateHoleUsageArgs useInHole var zs args
-                   defs <- get Ctxt
-                   Just (NS _ (CaseBlock _ _), PMDef _ _ _ _ pats) <-
-                         lookupExactBy (\d => (fullname d, definition d))
-                                       fn (gamma defs)
-                       | _ => pure aup
-                   hs <- traverse (updateHoleUsagePats useInHole var args) pats
-                   pure (or (aup :: map Delay hs))
+                  -- no need to look inside 'fn' for holes since we did that
+                  -- when working through lcheckDef recursively
+                  updateHoleUsageArgs useInHole var zs args
              (f, []) => pure False
              (f, args) => updateHoleUsageArgs useInHole var zs (f :: args)
 
