@@ -10,6 +10,8 @@ import Core.TT
 import Core.Unify
 import Core.Value
 
+import Parser.Lexer
+
 import TTImp.Elab
 import TTImp.Elab.Check
 import TTImp.Interactive.CaseSplit
@@ -24,10 +26,9 @@ import TTImp.Utils
 
 fnName : Bool -> Name -> String
 fnName lhs (UN n)
-    = if any (not . identChar) (unpack n)
-         then if lhs then "(" ++ n ++ ")"
-                     else "op"
-         else n
+    = if isIdentNormal n then n
+      else if lhs then "(" ++ n ++ ")"
+      else "op"
 fnName lhs (NS _ n) = fnName lhs n
 fnName lhs (DN s _) = s
 fnName lhs n = show n

@@ -114,24 +114,33 @@ docComment = is '|' <+> is '|' <+> is '|' <+> many (isNot '\n')
 
 data Flavour = Capitalised | AllowDashes | Normal
 
-startIdent : Flavour -> Char -> Bool
-startIdent Capitalised x = isUpper x
-startIdent _ '_' = True
-startIdent _  x  = isAlpha x || x > chr 127
+isIdentStart : Flavour -> Char -> Bool
+isIdentStart _           '_' = True
+isIdentStart Capitalised  x  = isUpper x || x > chr 160
+isIdentStart _            x  = isAlpha x || x > chr 160
+
+isIdentTrailing : Flavour -> Char -> Bool
+isIdentTrailing AllowDashes '-'  = True
+isIdentTrailing _           '\'' = True
+isIdentTrailing _           '_'  = True
+isIdentTrailing _            x   = isAlphaNum x || x > chr 160
 
 %inline
-validIdent' : Flavour -> Char -> Bool
-validIdent' _ '_'  = True
-validIdent' AllowDashes '-'  = True
-validIdent' _ '-'  = False
-validIdent' _ '\'' = True
-validIdent' _  x   = isAlphaNum x || x > chr 127
+isIdent : Flavour -> String -> Bool
+isIdent flavour string =
+  case unpack string of
+    []      => False
+    (x::xs) => isIdentStart flavour x && all (isIdentTrailing flavour) xs
 
 %inline
 ident : Flavour -> Lexer
 ident flavour =
-  (pred $ startIdent flavour) <+>
-    (many . pred $ validIdent' flavour)
+  (pred $ isIdentStart flavour) <+>
+    (many . pred $ isIdentTrailing flavour)
+
+export
+isIdentNormal : String -> Bool
+isIdentNormal = isIdent Normal
 
 export
 identNormal : Lexer
