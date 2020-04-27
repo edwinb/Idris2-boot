@@ -6,6 +6,7 @@ public export
 data IORes : Type -> Type where
      MkIORes : (result : a) -> (1 x : %World) -> IORes a
 
+||| Idris's primitive IO, for building abstractions on top of.
 public export
 PrimIO : Type -> Type
 PrimIO a = (1 x : %World) -> IORes a
@@ -79,32 +80,32 @@ export %inline
 cCall : (ret : Type) -> String -> FArgList -> IO ret
 cCall ret fn args = primIO (prim__cCall ret fn args)
 
-||| Output a string to stdout without a trailing newline
+||| Output a string to stdout without a trailing newline.
 export
 putStr : String -> IO ()
 putStr str = primIO (prim__putStr str)
 
-||| Output a string to stdout with a trailing newline
+||| Output a string to stdout with a trailing newline.
 export
 putStrLn : String -> IO ()
 putStrLn str = putStr (prim__strAppend str "\n")
 
-||| Read one line of input from stdin, without the trailing newline
+||| Read one line of input from stdin, without the trailing newline.
 export
 getLine : IO String
 getLine = primIO prim__getStr
 
-||| Write a single character to stdout
+||| Write a single character to stdout.
 export
 putChar : Char -> IO ()
 putChar c = primIO (prim__putChar c)
 
-||| Write a single character to stdout, with a trailing newline
+||| Write a single character to stdout, with a trailing newline.
 export
 putCharLn : Char -> IO ()
 putCharLn c = putStrLn (prim__cast_CharString c)
 
-||| Read a single character from stdin
+||| Read a single character from stdin.
 export
 getChar : IO Char
 getChar = primIO prim__getChar

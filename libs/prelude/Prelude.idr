@@ -62,27 +62,36 @@ infixl 9 `div`, `mod`
 -- UTILITY FUNCTIONS --
 -----------------------
 
+||| Manually assign a type to an expression.
+||| @ a the type to assign
+||| @ x the element to get the type
 public export %inline
 the : (0 a : Type) -> (1 x : a) -> a
 the _ x = x
 
+||| Identity function.
 public export %inline
 id : (1 x : a) -> a           -- Hopefully linearity annotation won't
                               -- break equality proofs involving id
 id x = x
 
+||| Constant function.  Ignores its second argument.
 public export %inline
 const : a -> b -> a
 const x = \value => x
 
+||| Function composition.
 public export %inline
 (.) : (b -> c) -> (a -> b) -> a -> c
 (.) f g = \x => f (g x)
 
+||| Takes in the first two arguments in reverse order.
+||| @ f the function to flip
 public export
 flip : (f : a -> b -> c) -> b -> a -> c
 flip f x y = f y x
 
+||| Function application.
 public export
 apply : (a -> b) -> a -> b
 apply f a = f a
@@ -106,14 +115,19 @@ public export
 -- PROOF HELPERS --
 -------------------
 
+||| Equality is a congruence.
 public export
 cong : (f : t -> u) -> (1 p : a = b) -> f a = f b
 cong f Refl = Refl
 
+||| A canonical proof that some type is empty.
 public export
 interface Uninhabited t where
+  ||| If I have a t, I've had a contradiction.
+  ||| @ t the uninhabited type
   uninhabited : t -> Void
 
+||| The eliminator for the `Void` type.
 %extern
 public export
 void : (0 x : Void) -> a
@@ -122,6 +136,10 @@ export
 Uninhabited Void where
   uninhabited = id
 
+||| Use an absurd assumption to discharge a proof obligation.
+||| @ t some empty type
+||| @ a the goal type
+||| @ h the contradictory hypothesis
 public export
 absurd : Uninhabited t => (h : t) -> a
 absurd h = void (uninhabited h)
@@ -134,19 +152,23 @@ Not x = x -> Void
 -- BOOLEANS --
 --------------
 
+||| Boolean Data Type.
 public export
 data Bool = True | False
 
+||| Boolean NOT.
 public export
 not : (1 b : Bool) -> Bool
 not True = False
 not False = True
 
+||| Boolean AND only evaluates the second argument if the first is `True`.
 public export
 (&&) : (1 b : Bool) -> Lazy Bool -> Bool
 (&&) True x = x
 (&&) False x = False
 
+||| Boolean OR only evaluates the second argument if the first is `False`.
 public export
 (||) : (1 b : Bool) -> Lazy Bool -> Bool
 (||) True x = True
@@ -162,6 +184,7 @@ intToBool x = True
 -- EQUALITY, ORDERING --
 ------------------------
 
+||| The Eq interface defines inequality and equality.
 public export
 interface Eq ty where
   (==) : ty -> ty -> Bool
@@ -214,6 +237,7 @@ Eq Ordering where
   GT == GT = True
   _  == _  = False
 
+||| The Ord interface defines comparison operations on ordered data types.
 public export
 interface Eq ty => Ord ty where
   compare : ty -> ty -> Ordering
@@ -304,21 +328,27 @@ Ord a => Ord b => Ord (a, b) where
 
 %integerLit fromInteger
 
+||| The Num interface defines basic numerical arithmetic.
 public export
 interface Num ty where
   (+) : ty -> ty -> ty
   (*) : ty -> ty -> ty
+  ||| Conversion from Integer.
   fromInteger : Integer -> ty
 
 %allow_overloads fromInteger
 
+||| The `Neg` interface defines operations on numbers which can be negative.
 public export
 interface Num ty => Neg ty where
+  ||| The underlying of unary minus. `-5` desugars to `negate (fromInteger 5)`.
   negate : ty -> ty
   (-) : ty -> ty -> ty
 
+||| Numbers for which the absolute value is defined should implement `Abs`.
 public export
 interface Num ty => Abs ty where
+  ||| Absolute value.
   abs : ty -> ty
 
 public export
@@ -333,7 +363,8 @@ interface Num ty => Integral ty where
   div : ty -> ty -> ty
   mod : ty -> ty -> ty
 
------ instances for primitives
+----- Instances for primitives
+
 -- Integer
 
 public export
@@ -420,10 +451,24 @@ Fractional Double where
 -- ALGEBRA --
 -------------
 
+||| Sets equipped with a single binary operation that is associative.  Must
+||| satisfy the following laws:
+|||
+||| + Associativity of `<+>`:
+|||     forall a b c, a <+> (b <+> c) == (a <+> b) <+> c
 public export
 interface Semigroup ty where
   (<+>) : ty -> ty -> ty
 
+||| Sets equipped with a single binary operation that is associative, along with
+||| a neutral element for that binary operation.  Must satisfy the following
+||| laws:
+|||
+||| + Associativity of `<+>`:
+|||     forall a b c, a <+> (b <+> c) == (a <+> b) <+> c
+||| + Neutral for `<+>`:
+|||     forall a, a <+> neutral == a
+|||     forall a, neutral <+> a == a
 public export
 interface Semigroup ty => Monoid ty where
   neutral : ty
@@ -440,14 +485,24 @@ shiftR = prim__shr_Int
 -- FUNCTOR, APPLICATIVE, ALTERNATIVE, MONAD --
 ---------------------------------
 
+||| Functors allow a uniform action over a parameterised type.
+||| @ f a parameterised type
 public export
 interface Functor f where
-  map : (a -> b) -> f a -> f b
+  ||| Apply a function across everything of type 'a' in a parameterised type
+  ||| @ f the parameterised type
+  ||| @ func the function to apply
+  map : (func : a -> b) -> f a -> f b
 
+||| An infix alias for `map`, applying a function across everything of type 'a'
+||| in a parameterised type.
+||| @ f the parameterised type
+||| @ func the function to apply
 public export
 (<$>) : Functor f => (func : a -> b) -> f a -> f b
 (<$>) func x = map func x
 
+||| Run something for effects, throwing away the return value.
 public export
 ignore : Functor f => f a -> f ()
 ignore = map (const ())
@@ -476,7 +531,10 @@ interface Applicative f => Alternative f where
 
 public export
 interface Applicative m => Monad m where
+  ||| Also called `bind`.
   (>>=) : m a -> (a -> m b) -> m b
+
+  ||| Also called `flatten` or mu.
   join : m (m a) -> m a
 
   -- default implementations
@@ -485,10 +543,12 @@ interface Applicative m => Monad m where
 
 %allow_overloads (>>=)
 
+||| `guard a` is `pure ()` if `a` is `True` and `empty` if `a` is `False`.
 public export
 guard : Alternative f => Bool -> f ()
 guard x = if x then pure () else empty
 
+||| Conditionally execute an applicative expression.
 public export
 when : Applicative f => Bool -> Lazy (f ()) -> f ()
 when True f = f
@@ -498,66 +558,99 @@ when False f = pure ()
 -- FOLDABLE, TRAVERSABLE --
 ---------------------------
 
+||| The `Foldable` interface describes how you can iterate over the elements in
+||| a parameterised type and combine the elements together, using a provided
+||| function, into a single result.
+||| @ t The type of the 'Foldable' parameterised type.
 public export
 interface Foldable (t : Type -> Type) where
+  ||| Successively combine the elements in a parameterised type using the
+  ||| provided function, starting with the element that is in the final position
+  ||| i.e. the right-most position.
+  ||| @ func  The function used to 'fold' an element into the accumulated result
+  ||| @ init  The starting value the results are being combined into
+  ||| @ input The parameterised type
   foldr : (func : elem -> acc -> acc) -> (init : acc) -> (input : t elem) -> acc
+
+  ||| The same as `foldr` but begins the folding from the element at the initial
+  ||| position in the data structure i.e. the left-most position.
+  ||| @ func  The function used to 'fold' an element into the accumulated result
+  ||| @ init  The starting value the results are being combined into
+  ||| @ input The parameterised type
   foldl : (func : acc -> elem -> acc) -> (init : acc) -> (input : t elem) -> acc
   foldl f z t = foldr (flip (.) . flip f) id t z
 
+||| Combine each element of a structure into a monoid.
 public export
 concat : (Foldable t, Monoid a) => t a -> a
 concat = foldr (<+>) neutral
 
+||| Combine into a monoid the collective results of applying a function to each
+||| element of a structure.
 public export
 concatMap : (Foldable t, Monoid m) => (a -> m) -> t a -> m
 concatMap f = foldr ((<+>) . f) neutral
 
+||| The conjunction of all elements of a structure containing lazy boolean
+||| values.  `and` short-circuits from left to right, evaluating until either an
+||| element is `False` or no elements remain.
 public export
 and : Foldable t => t (Lazy Bool) -> Bool
 and = foldl (&&) True
 
+||| The disjunction of all elements of a structure containing lazy boolean
+||| values.  `or` short-circuits from left to right, evaluating either until an
+||| element is `True` or no elements remain.
 public export
 or : Foldable t => t (Lazy Bool) -> Bool
 or = foldl (||) False
 
+||| The disjunction of the collective results of applying a predicate to all
+||| elements of a structure.  `any` short-circuits from left to right.
 public export
 any : Foldable t => (a -> Bool) -> t a -> Bool
 any p = foldl (\x,y => x || p y) False
 
+||| The disjunction of the collective results of applying a predicate to all
+||| elements of a structure.  `all` short-circuits from left to right.
 public export
 all : Foldable t => (a -> Bool) -> t a -> Bool
 all p = foldl (\x,y => x && p y)  True
 
+||| Add together all the elements of a structure.
 public export
 sum : (Foldable t, Num a) => t a -> a
 sum = foldr (+) 0
 
+||| Multiply together all elements of a structure.
 public export
 product : (Foldable t, Num a) => t a -> a
 product = foldr (*) 1
 
+||| Map each element of a structure to a computation, evaluate those
+||| computations and discard the results.
 public export
 traverse_ : (Foldable t, Applicative f) => (a -> f b) -> t a -> f ()
 traverse_ f = foldr ((*>) . f) (pure ())
 
-||| Evaluate each computation in a structure and discard the results
+||| Evaluate each computation in a structure and discard the results.
 public export
 sequence_ : (Foldable t, Applicative f) => t (f a) -> f ()
 sequence_ = foldr (*>) (pure ())
 
-||| Like `traverse_` but with the arguments flipped
+||| Like `traverse_` but with the arguments flipped.
 public export
 for_ : (Foldable t, Applicative f) => t a -> (a -> f b) -> f ()
 for_ = flip traverse_
 
-||| Fold using Alternative
+||| Fold using Alternative.
 |||
-||| If you have a left-biased alternative operator `<|>`, then `choice`
-||| performs left-biased choice from a list of alternatives, which means that
-||| it evaluates to the left-most non-`empty` alternative.
+||| If you have a left-biased alternative operator `<|>`, then `choice` performs
+||| left-biased choice from a list of alternatives, which means that it
+||| evaluates to the left-most non-`empty` alternative.
 |||
-||| If the list is empty, or all values in it are `empty`, then it
-||| evaluates to `empty`.
+||| If the list is empty, or all values in it are `empty`, then it evaluates to
+||| `empty`.
 |||
 ||| Example:
 |||
@@ -585,12 +678,12 @@ interface (Functor t, Foldable t) => Traversable (t : Type -> Type) where
   ||| computations and combine the results.
   traverse : Applicative f => (a -> f b) -> t a -> f (t b)
 
-||| Evaluate each computation in a structure and collect the results
+||| Evaluate each computation in a structure and collect the results.
 public export
 sequence : (Traversable t, Applicative f) => t (f a) -> f (t a)
 sequence = traverse id
 
-||| Like `traverse` but with the arguments flipped
+||| Like `traverse` but with the arguments flipped.
 public export
 for : (Traversable t, Applicative f) => t a -> (a -> f b) -> f (t b)
 for = flip traverse
@@ -599,8 +692,13 @@ for = flip traverse
 -- NATS ---
 -----------
 
+||| Natural numbers: unbounded, unsigned integers which can be pattern matched.
 public export
-data Nat = Z | S Nat
+data Nat =
+  ||| Zero.
+    Z
+  ||| Successor.
+  | S Nat
 
 %name Nat k, j, i
 
@@ -612,17 +710,23 @@ integerToNat x
        else S (assert_total (integerToNat (prim__sub_Integer x 1)))
 
 -- Define separately so we can spot the name when optimising Nats
+||| Add two natural numbers.
+||| @ x the number to case-split on
+||| @ y the other numberpublic export
 public export
 plus : (1 x : Nat) -> (1 y : Nat) -> Nat
 plus Z y = y
 plus (S k) y = S (plus k y)
 
+||| Subtract natural numbers.  If the second number is larger than the first,
+||| return 0.
 public export
 minus : (1 left : Nat) -> Nat -> Nat
 minus Z        right     = Z
 minus left     Z         = left
 minus (S left) (S right) = minus left right
 
+||| Multiply natural numbers.
 public export
 mult : (1 x : Nat) -> Nat -> Nat
 mult Z y = Z
@@ -655,7 +759,6 @@ natToInteger (S k) = 1 + natToInteger k
                          -- integer (+) may be non-linear in second
                          -- argument
 
-
 -----------
 -- PAIRS --
 -----------
@@ -672,9 +775,14 @@ mapFst f (x, y) = (f x, y)
 -- MAYBE --
 -----------
 
+||| An optional value.  This can be used to represent the possibility of
+||| failure, where a function may return a value, or not.
 public export
 data Maybe : (ty : Type) -> Type where
+  ||| No value stored
   Nothing : Maybe ty
+
+  ||| A value of type `ty` is stored
   Just : (1 x : ty) -> Maybe ty
 
 public export
@@ -743,22 +851,36 @@ Traversable Maybe where
 -- DEC --
 ---------
 
+||| Decidability.  A decidable property either holds or is a contradiction.
 public export
 data Dec : Type -> Type where
+  ||| The case where the property holds.
+  ||| @ prf the proof
   Yes : (prf : prop) -> Dec prop
+
+  ||| The case where the property holding would be a contradiction.
+  ||| @ contra a demonstration that prop would be a contradiction
   No  : (contra : prop -> Void) -> Dec prop
 
 ------------
 -- EITHER --
 ------------
 
+||| A sum type.
 public export
 data Either : (a : Type) -> (b : Type) -> Type where
-     Left : forall a, b. (1 x : a) -> Either a b
-     Right : forall a, b. (1 x : b) -> Either a b
+  ||| One possibility of the sum, conventionally used to represent errors.
+  Left : forall a, b. (1 x : a) -> Either a b
 
+  ||| The other possibility, conventionally used to represent success.
+  Right : forall a, b. (1 x : b) -> Either a b
+
+||| Simply-typed eliminator for Either.
+||| @ f the action to take on Left
+||| @ g the action to take on Right
+||| @ e the sum to analyze
 public export
-either : Lazy (a -> c) -> Lazy (b -> c) -> Either a b -> c
+either : (f : Lazy (a -> c)) -> (g : Lazy (b -> c)) -> (e : Either a b) -> c
 either l r (Left x) = l x
 either l r (Right x) = r x
 
@@ -790,8 +912,14 @@ Monad (Either e) where
 -- LISTS --
 -----------
 
+||| Generic lists.
 public export
-data List a = Nil | (::) a (List a)
+data List a =
+  ||| Empty list
+  Nil
+
+  ||| A non-empty list, consisting of a head element and the rest of the list.
+  | (::) a (List a)
 
 %name List xs, ys, zs
 
@@ -857,6 +985,7 @@ Traversable List where
   traverse f [] = pure []
   traverse f (x::xs) = pure (::) <*> (f x) <*> (traverse f xs)
 
+||| Check if something is a member of a list using the default Boolean equality.
 public export
 elem : Eq a => a -> List a -> Bool
 x `elem` [] = False
@@ -867,6 +996,7 @@ x `elem` (y :: ys) = if x == y then True else x `elem` ys
 -------------
 
 namespace Stream
+  ||| An infinite stream.
   public export
   data Stream : Type -> Type where
        (::) : a -> Inf (Stream a) -> Stream a
@@ -875,16 +1005,21 @@ public export
 Functor Stream where
   map f (x :: xs) = f x :: map f xs
 
+||| The first element of an infinite stream.
 public export
 head : Stream a -> a
 head (x :: xs) = x
 
+||| All but the first element.
 public export
 tail : Stream a -> Stream a
 tail (x :: xs) = xs
 
+||| Take precisely n elements from the stream.
+||| @ n how many elements to take
+||| @ xs the stream
 public export
-take : (1 n : Nat) -> Stream a -> List a
+take : (1 n : Nat) -> (xs : Stream a) -> List a
 take Z xs = []
 take (S k) (x :: xs) = x :: take k xs
 
@@ -897,19 +1032,50 @@ namespace Strings
   (++) : (1 x : String) -> (1 y : String) -> String
   x ++ y = prim__strAppend x y
 
+||| Returns the length of the string.
+|||
+||| ```idris example
+||| length ""
+||| ```
+||| ```idris example
+||| length "ABC"
+||| ```
 public export
 length : String -> Nat
 length str = fromInteger (prim__cast_IntInteger (prim__strLength str))
 
+||| Reverses the elements within a string.
+|||
+||| ```idris example
+||| reverse "ABC"
+||| ```
+||| ```idris example
+||| reverse ""
+||| ```
 public export
 reverse : String -> String
 reverse = prim__strReverse
 
+||| Returns a substring of a given string
+|||
+||| @ index The (zero based) index of the string to extract.  If this is beyond
+|||         the end of the string, the function returns the empty string.
+||| @ len The desired length of the substring.  Truncated if this exceeds the
+|||       length of the input
+||| @ subject The string to return a portion of
 public export
-substr : Nat -> Nat -> String -> String
+substr : (index : Nat) -> (len : Nat) -> (subject : String) -> String
 substr s e = prim__strSubstr (prim__cast_IntegerInt (natToInteger s))
                              (prim__cast_IntegerInt (natToInteger e))
 
+||| Adds a character to the front of the specified string.
+|||
+||| ```idris example
+||| strCons 'A' "B"
+||| ```
+||| ```idris example
+||| strCons 'A' ""
+||| ```
 public export
 strCons : Char -> String -> String
 strCons = prim__strCons
@@ -919,6 +1085,7 @@ strUncons : String -> Maybe (Char, String)
 strUncons "" = Nothing
 strUncons str = Just (prim__strHead str, prim__strTail str)
 
+||| Turns a list of characters into a string.
 public export
 pack : List Char -> String
 pack [] = ""
@@ -933,6 +1100,11 @@ fastPack xs
     toFArgs [] = []
     toFArgs (x :: xs) = x :: toFArgs xs
 
+||| Turns a string into a list of characters.
+|||
+||| ```idris example
+||| unpack "ABC"
+||| ```
 public export
 unpack : String -> List Char
 unpack str = unpack' 0 (prim__cast_IntegerInt (natToInteger (length str))) str
@@ -942,7 +1114,6 @@ unpack str = unpack' 0 (prim__cast_IntegerInt (natToInteger (length str))) str
         = if pos >= len
              then []
              else (prim__strIndex str pos) :: unpack' (pos + 1) len str
-
 
 public export
 Semigroup String where
@@ -955,26 +1126,33 @@ Monoid String where
 ----------------
 -- CHARACTERS --
 ----------------
+
+||| Returns true if the character is in the range [A-Z].
 public export
 isUpper : Char -> Bool
 isUpper x = x >= 'A' && x <= 'Z'
 
+||| Returns true if the character is in the range [a-z].
 public export
 isLower : Char -> Bool
 isLower x = x >= 'a' && x <= 'z'
 
+||| Returns true if the character is in the ranges [A-Z][a-z].
 public export
 isAlpha : Char -> Bool
 isAlpha x = isUpper x || isLower x
 
+||| Returns true if the character is in the range [0-9].
 public export
 isDigit : Char -> Bool
 isDigit x = (x >= '0' && x <= '9')
 
+||| Returns true if the character is in the ranges [A-Z][a-z][0-9].
 public export
 isAlphaNum : Char -> Bool
 isAlphaNum x = isDigit x || isAlpha x
 
+||| Returns true if the character is a whitespace character.
 public export
 isSpace : Char -> Bool
 isSpace x
@@ -982,10 +1160,13 @@ isSpace x
       x == '\n' || x == '\f' || x == '\v' ||
       x == '\xa0'
 
+||| Returns true if the character represents a new line.
 public export
 isNL : Char -> Bool
 isNL x = x == '\r' || x == '\n'
 
+||| Convert a letter to the corresponding upper-case letter, if any.
+||| Non-letters are ignored.
 public export
 toUpper : Char -> Char
 toUpper x
@@ -993,6 +1174,8 @@ toUpper x
          then prim__cast_IntChar (prim__cast_CharInt x - 32)
          else x
 
+||| Convert a letter to the corresponding lower-case letter, if any.
+||| Non-letters are ignored.
 public export
 toLower : Char -> Char
 toLower x
@@ -1000,6 +1183,8 @@ toLower x
          then prim__cast_IntChar (prim__cast_CharInt x + 32)
          else x
 
+||| Returns true if the character is a hexadecimal digit i.e. in the range
+||| [0-9][a-f][A-F].
 public export
 isHexDigit : Char -> Bool
 isHexDigit x = elem (toUpper x) hexChars where
@@ -1008,20 +1193,25 @@ isHexDigit x = elem (toUpper x) hexChars where
       = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
          'A', 'B', 'C', 'D', 'E', 'F']
 
+||| Returns true if the character is an octal digit.
 public export
 isOctDigit : Char -> Bool
 isOctDigit x = (x >= '0' && x <= '7')
 
+||| Returns true if the character is a control character.
 public export
 isControl : Char -> Bool
 isControl x
     = (x >= '\x0000' && x <= '\x001f')
        || (x >= '\x007f' && x <= '\x009f')
 
+||| Convert the number to its backend dependent (usually Unicode) Char
+||| equivalent.
 public export
 chr : Int -> Char
 chr = prim__cast_IntChar
 
+||| Return the backend dependent (usually Unicode) numerical equivalent of the Char.
 public export
 ord : Char -> Int
 ord = prim__cast_CharInt
@@ -1030,9 +1220,12 @@ ord = prim__cast_CharInt
 -- SHOW --
 ----------
 
+||| The precedence of an Idris operator or syntactic context.
 public export
 data Prec = Open | Equal | Dollar | Backtick | User Nat | PrefixMinus | App
 
+||| Gives the constructor index of the Prec as a helper for writing
+||| implementations.
 public export
 precCon : Prec -> Integer
 precCon Open        = 0
@@ -1053,22 +1246,55 @@ Ord Prec where
   compare (User m) (User n) = compare m n
   compare x        y        = compare (precCon x) (precCon y)
 
+||| Things that have a canonical `String` representation.
 public export
 interface Show ty where
+  ||| Convert a value to its `String` representation.
+  ||| @ x the value to convert
   show : (x : ty) -> String
   show x = showPrec Open x
 
+  ||| Convert a value to its `String` representation in a certain precedence
+  ||| context.
+  |||
+  ||| A value should produce parentheses around itself if and only if the given
+  ||| precedence context is greater than or equal to the precedence of the
+  ||| outermost operation represented in the produced `String`.  *This is
+  ||| different from Haskell*, which requires it to be strictly greater.  `Open`
+  ||| should thus always produce *no* outermost parens, `App` should always
+  ||| produce outermost parens except on atomic values and those that provide
+  ||| their own bracketing, like `Pair` and `List`.
+  ||| @ d the precedence context.
+  ||| @ x the value to convert
   showPrec : (d : Prec) -> (x : ty) -> String
   showPrec _ x = show x
 
+||| Surround a `String` with parentheses depending on a condition.
+||| @ b whether to add parentheses
 showParens : (1 b : Bool) -> String -> String
 showParens False s = s
 showParens True  s = "(" ++ s ++ ")"
 
+||| A helper for the common case of showing a non-infix constructor with at
+||| least one argument, for use with `showArg`.
+|||
+||| Apply `showCon` to the precedence context, the constructor name, and the
+||| args shown with `showArg` and concatenated.  Example:
+||| ```
+||| data Ann a = MkAnn String a
+|||
+||| Show a => Show (Ann a) where
+|||   showPrec d (MkAnn s x) = showCon d "MkAnn" $ showArg s ++ showArg x
+||| ```
 export
 showCon : (d : Prec) -> (conName : String) -> (shownArgs : String) -> String
 showCon d conName shownArgs = showParens (d >= App) (conName ++ shownArgs)
 
+||| A helper for the common case of showing a non-infix constructor with at
+||| least one argument, for use with `showCon`.
+|||
+||| This adds a space to the front so the results can be directly concatenated.
+||| See `showCon` for details and an example.
 export
 showArg : Show a => (x : a) -> String
 showArg x = " " ++ showPrec App x
@@ -1195,10 +1421,12 @@ public export
 Monad IO where
   b >>= k = io_bind b k
 
+||| Output something showable to stdout, without a trailing newline.
 export
 print : Show a => a -> IO ()
 print x = putStr $ show x
 
+||| Output something showable to stdout, with a trailing newline.
 export
 printLn : Show a => a -> IO ()
 printLn x = putStrLn $ show x
@@ -1279,13 +1507,16 @@ ceiling x = prim__doubleCeiling x
 -- CASTS --
 -----------
 
--- Casts between primitives only here. They might be lossy.
+-- Casts between primitives only here.  They might be lossy.
 
--- To String
-
+||| Interface for transforming an instance of a data type to another type.
 public export
 interface Cast from to where
-  cast : from -> to
+  ||| Perform a (potentially lossy!) cast operation.
+  ||| @ orig The original type
+  cast : (orig : from) -> to
+
+-- To String
 
 export
 Cast Int String where
@@ -1449,4 +1680,3 @@ export
       = if y > x
            then countFrom x (+ (y - x))
            else countFrom x (\n => n - (x - y))
-
