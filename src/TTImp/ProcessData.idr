@@ -207,16 +207,15 @@ getRelevantArg defs i rel world (NBind fc _ (Pi rig _ val) sc)
                        (NPrimVal _ WorldType) =>
                            getRelevantArg defs (1 + i) rel False
                                !(sc defs (toClosure defaultOpts [] (Erased fc False)))
-                       _ => pure Nothing)
+                       _ =>
+                       -- if we haven't found a relevant argument yet, make
+                       -- a note of this one and keep going. Otherwise, we
+                       -- have more than one, so give up.
+                           maybe (do sc' <- sc defs (toClosure defaultOpts [] (Erased fc False))
+                                     getRelevantArg defs (1 + i) (Just i) False sc')
+                                 (const (pure Nothing))
+                                 rel)
                  rig
-getRelevantArg defs i rel world (NBind fc _ (Pi _ _ (NPrimVal _ WorldType)) sc)
-    = getRelevantArg defs (1 + i) rel False
-           !(sc defs (toClosure defaultOpts [] (Erased fc False)))
-getRelevantArg defs i Nothing world (NBind fc _ (Pi _ _ _) sc) -- found a relevant arg
-    = getRelevantArg defs (1 + i) (Just i) world
-           !(sc defs (toClosure defaultOpts [] (Erased fc False)))
-getRelevantArg defs i (Just _) world (NBind _ _ (Pi _ _ _) sc) -- more than one relevant
-    = pure Nothing
 getRelevantArg defs i rel world tm
     = pure (maybe Nothing (\r => Just (world, r)) rel)
 
