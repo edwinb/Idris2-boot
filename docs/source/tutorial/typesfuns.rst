@@ -953,12 +953,29 @@ type. The field names can be used to access the field values:
 
 ::
 
+    *Record> fred.firstName
+    "Fred" : String
+    *Record> fred.age
+    30 : Int
+    *Record> :t (.firstName)
+    Main.Person.(.firstName) : Person -> String
+
+We can use prefix field projections, like in Haskell:
+
+::
+
     *Record> firstName fred
     "Fred" : String
     *Record> age fred
     30 : Int
     *Record> :t firstName
     firstName : Person -> String
+
+Prefix field projections can be disabled per record definition
+using pragma ``%undotted_record_projections off``, which makes
+all subsequently defined records generate only dotted projections.
+This pragma has effect until the end of the module
+or until the closest occurrence of ``%undotted_record_projections on``.
 
 We can also use the field names to update a record (or, more
 precisely, produce a copy of the record with the given fields
@@ -1009,27 +1026,44 @@ We could also use ``$=`` to define ``addStudent`` more concisely:
     addStudent' : Person -> Class -> Class
     addStudent' p c = record { students $= (p ::) } c
 
+Nested record projection
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Nested record fields can be accessed using the dot notation:
+
+.. code-block:: idris
+
+    x.a.b.c
+    map (.a.b.c) xs
+
+For the dot notation, there must be no spaces after the dots but there may be
+spaces before the dots. The composite projection must be parenthesised,
+otherwise ``map .a.b.c xs`` would be understood as ``map.a.b.c xs``.
+
+Nested record fields can be accessed using the prefix notation, too:
+
+.. code-block:: idris
+
+    (c . b . a) x
+    map (c . b . a) xs
+
+Dots with spaces around them stand for function composition operators.
 
 Nested record update
 ~~~~~~~~~~~~~~~~~~~~
 
 Idris also provides a convenient syntax for accessing and updating
 nested records. For example, if a field is accessible with the
-expression ``c (b (a x))``, it can be updated using the following
+expression ``x.a.b.c``, it can be updated using the following
 syntax:
 
 .. code-block:: idris
 
-    record { a->b->c = val } x
+    record { a.b.c = val } x
 
 This returns a new record, with the field accessed by the path
-``a->b->c`` set to ``val``. The syntax is first class, i.e. ``record {
-a->b->c = val }`` itself has a function type. Symmetrically, the field
-can also be accessed with the following syntax:
-
-.. code-block:: idris
-
-    record { a->b->c } x
+``a.b.c`` set to ``val``. The syntax is first class, i.e. ``record {
+a.b.c = val }`` itself has a function type.
 
 The ``$=`` notation is also valid for nested record updates.
 

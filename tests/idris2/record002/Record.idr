@@ -35,4 +35,4 @@ testPerson : Person
 testPerson = MkPerson "Fred" 1337 10 (MkStats 10 10)
 
 grow : Person -> Person
-grow = record { more->height $= (+1) }
+grow = record { more.height $= (+1) }

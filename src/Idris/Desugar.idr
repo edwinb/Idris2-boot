@@ -342,6 +342,12 @@ mutual
                 desugarB side ps (PApp fc (PApp fc (PRef fc (UN "rangeFromThen")) start) n)
   desugarB side ps (PUnifyLog fc lvl tm)
       = pure $ IUnifyLog fc lvl !(desugarB side ps tm)
+  desugarB side ps (PRecordFieldAccess fc rec fields)
+      = desugarB side ps $ foldl (\r, f => PApp fc (PRef fc f) r) rec fields
+  desugarB side ps (PRecordProjection fc fields)
+      = desugarB side ps $
+          PLam fc RigW Explicit (PRef fc (MN "rec" 0)) (PImplicit fc) $
+            foldl (\r, f => PApp fc (PRef fc f) r) (PRef fc (MN "rec" 0)) fields
 
   desugarUpdate : {auto s : Ref Syn SyntaxInfo} ->
                   {auto b : Ref Bang BangData} ->
@@ -796,6 +802,8 @@ mutual
              UnboundImplicits a => do 
                setUnboundImplicits a
                pure [IPragma (\c, nest, env => setUnboundImplicits a)]
+             UndottedRecordProjections b => do
+               pure [IPragma (\c, nest, env => setUndottedRecordProjections b)]
              AmbigDepth n => pure [IPragma (\c, nest, env => setAmbigLimit n)]
              PairNames ty f s => pure [IPragma (\c, nest, env => setPair fc ty f s)]
              RewriteName eq rw => pure [IPragma (\c, nest, env => setRewrite fc eq rw)]

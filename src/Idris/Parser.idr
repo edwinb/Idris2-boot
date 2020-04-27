@@ -62,18 +62,15 @@ atom fname
          end <- location
          pure (PHole (MkFC fname start end) False x)
   <|> do start <- location
-         symbol "%"
-         exactIdent "MkWorld"
+         pragma "MkWorld"
          end <- location
          pure (PPrimVal (MkFC fname start end) WorldVal)
   <|> do start <- location
-         symbol "%"
-         exactIdent "World"
+         pragma "World"
          end <- location
          pure (PPrimVal (MkFC fname start end) WorldType)
   <|> do start <- location
-         symbol "%"
-         exactIdent "search"
+         pragma "search"
          end <- location
          pure (PSearch (MkFC fname start end) 50)
   <|> do start <- location
@@ -106,8 +103,7 @@ continueWith indents req
 
 iOperator : Rule Name
 iOperator
-    = do n <- operator
-         pure (UN n)
+    = operator
   <|> do symbol "`"
          n <- name
          symbol "`"
@@ -311,7 +307,23 @@ mutual
           = PPair (MkFC fname estart end) exp (mergePairs end rest)
 
   simpleExpr : FileName -> IndentInfo -> Rule PTerm
-  simpleExpr fname indents
+  simpleExpr fname indents =
+        do
+          start <- location
+          recFields <- some recField
+          end <- location
+          pure $ PRecordProjection (MkFC fname start end) recFields
+    <|> do
+          start <- location
+          root <- simplerExpr fname indents
+          recFields <- many recField
+          end <- location
+          pure $ case recFields of
+            [] => root
+            fs => PRecordFieldAccess (MkFC fname start end) root recFields
+
+  simplerExpr : FileName -> IndentInfo -> Rule PTerm
+  simplerExpr fname indents
       = do start <- location
            x <- unqualifiedName
            symbol "@"
@@ -359,7 +371,7 @@ mutual
            end <- location
            pure (PIdiom (MkFC fname start end) e)
     <|> do start <- location
-           symbol "%"; exactIdent "logging"
+           pragma "logging"
            lvl <- intLit
            e <- expr pdef fname indents
            end <- location
@@ -639,12 +651,17 @@ mutual
 
   field : FileName -> IndentInfo -> Rule PFieldUpdate
   field fname indents
-      = do path <- sepBy1 (symbol "->") unqualifiedName
+      = do path <- map fieldName <$> [| name :: many recField |]
            upd <- (do symbol "="; pure PSetField)
                       <|>
                   (do symbol "$="; pure PSetFieldApp)
            val <- opExpr plhs fname indents
            pure (upd path val)
+    where
+      fieldName : Name -> String
+      fieldName (UN s) = s
+      fieldName (RF s) = s
+      fieldName _ = "_impossible"
 
   rewrite_ : FileName -> IndentInfo -> Rule PTerm
   rewrite_ fname indents
@@ -972,71 +989,75 @@ totalityOpt
 
 directive : FileName -> IndentInfo -> Rule Directive
 directive fname indents
-    = do exactIdent "hide"
+    = do pragma "hide"
          n <- name
          atEnd indents
          pure (Hide n)
---   <|> do exactIdent "hide_export"
+--   <|> do pragma "hide_export"
 --          n <- name
 --          atEnd indents
 --          pure (Hide True n)
-  <|> do exactIdent "logging"
+  <|> do pragma "logging"
          lvl <- intLit
          atEnd indents
          pure (Logging (cast lvl))
-  <|> do exactIdent "auto_lazy"
+  <|> do pragma "auto_lazy"
          b <- onoff
          atEnd indents
          pure (LazyOn b)
-  <|> do exactIdent "unbound_implicits"
+  <|> do pragma "unbound_implicits"
          b <- onoff
          atEnd indents
          pure (UnboundImplicits b)
-  <|> do exactIdent "ambiguity_depth"
+  <|> do pragma "undotted_record_projections"
+         b <- onoff
+         atEnd indents
+         pure (UndottedRecordProjections b)
+  <|> do pragma "ambiguity_depth"
          lvl <- intLit
          atEnd indents
          pure (AmbigDepth (cast lvl))
-  <|> do exactIdent "pair"
+  <|> do pragma "pair"
          ty <- name
          f <- name
          s <- name
          atEnd indents
          pure (PairNames ty f s)
-  <|> do keyword "rewrite"
+  <|> do pragma "rewrite"
          eq <- name
          rw <- name
          atEnd indents
          pure (RewriteName eq rw)
-  <|> do exactIdent "integerLit"
+  <|> do pragma "integerLit"
          n <- name
          atEnd indents
          pure (PrimInteger n)
-  <|> do exactIdent "stringLit"
+  <|> do pragma "stringLit"
          n <- name
          atEnd indents
          pure (PrimString n)
-  <|> do exactIdent "charLit"
+  <|> do pragma "charLit"
          n <- name
          atEnd indents
          pure (PrimChar n)
-  <|> do exactIdent "name"
+  <|> do pragma "name"
          n <- name
          ns <- sepBy1 (symbol ",") unqualifiedName
          atEnd indents
          pure (Names n ns)
-  <|> do exactIdent "start"
+  <|> do pragma "start"
          e <- expr pdef fname indents
          atEnd indents
          pure (StartExpr e)
-  <|> do exactIdent "allow_overloads"
+  <|> do pragma "allow_overloads"
          n <- name
          atEnd indents
          pure (Overloadable n)
-  <|> do exactIdent "language"
+  <|> do pragma "language"
          e <- extension
          atEnd indents
          pure (Extension e)
-  <|> do keyword "default"
+  <|> do pragma "default"
          tot <- totalityOpt
          atEnd indents
          pure (DefaultTotality tot)
@@ -1052,7 +1073,7 @@ namespaceHead : Rule (List String)
 namespaceHead
     = do keyword "namespace"
          commit
-         ns <- namespace_
+         ns <- nsIdent
          pure ns
 
 namespaceDecl : FileName -> IndentInfo -> Rule PDecl
@@ -1112,22 +1133,23 @@ fnOpt = do x <- totalityOpt
 
 fnDirectOpt : FileName -> Rule PFnOpt
 fnDirectOpt fname
-    = do exactIdent "hint"
+    = do pragma "hint"
          pure $ IFnOpt (Hint True)
-  <|> do exactIdent "globalhint"
+  <|> do pragma "globalhint"
          pure $ IFnOpt (GlobalHint False)
-  <|> do exactIdent "defaulthint"
+  <|> do pragma "defaulthint"
          pure $ IFnOpt (GlobalHint True)
-  <|> do exactIdent "inline"
+  <|> do pragma "inline"
+         commit
          pure $ IFnOpt Inline
-  <|> do exactIdent "extern"
+  <|> do pragma "extern"
          pure $ IFnOpt ExternFn
-  <|> do exactIdent "macro"
+  <|> do pragma "macro"
          pure $ IFnOpt Macro
-  <|> do exactIdent "spec"
+  <|> do pragma "spec"
          ns <- sepBy (symbol ",") name
          pure $ IFnOpt (SpecArgs ns)
-  <|> do exactIdent "foreign"
+  <|> do pragma "foreign"
          cs <- block (expr pdef fname)
          pure $ PForeign cs
 
@@ -1137,8 +1159,7 @@ visOpt fname
          pure (Left vis)
   <|> do tot <- fnOpt
          pure (Right tot)
-  <|> do symbol "%"
-         opt <- fnDirectOpt fname
+  <|> do opt <- fnDirectOpt fname
          pure (Right opt)
 
 getVisibility : Maybe Visibility -> List (Either Visibility PFnOpt) ->
@@ -1349,12 +1370,11 @@ fixDecl fname indents
 directiveDecl : FileName -> IndentInfo -> Rule PDecl
 directiveDecl fname indents
     = do start <- location
-         symbol "%"
          (do d <- directive fname indents
              end <- location
              pure (PDirective (MkFC fname start end) d))
            <|>
-          (do exactIdent "runElab"
+          (do pragma "runElab"
               tm <- expr pdef fname indents
               end <- location
               atEnd indents
@@ -1434,9 +1454,9 @@ import_ fname indents
          keyword "import"
          reexp <- option False (do keyword "public"
                                    pure True)
-         ns <- namespace_
+         ns <- nsIdent
          nsAs <- option ns (do exactIdent "as"
-                               namespace_)
+                               nsIdent)
          end <- location
          atEnd indents
          pure (MkImport (MkFC fname start end) reexp ns nsAs)
@@ -1447,7 +1467,7 @@ prog fname
     = do start <- location
          nspace <- option ["Main"]
                       (do keyword "module"
-                          namespace_)
+                          nsIdent)
          end <- location
          imports <- block (import_ fname)
          ds <- block (topDecl fname)
@@ -1460,7 +1480,7 @@ progHdr fname
     = do start <- location
          nspace <- option ["Main"]
                       (do keyword "module"
-                          namespace_)
+                          nsIdent)
          end <- location
          imports <- block (import_ fname)
          pure (MkModule (MkFC fname start end)
