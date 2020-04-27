@@ -163,7 +163,7 @@ checkLambda rig_in elabinfo nest env fc rigl info n argTy scope (Just expty_in)
                              (gnf env
                                   (Bind fc n (Pi rigb info' tyv) !(getTerm scopet)))
                              (Just (gnf env
-                                       (Bind fc bn (Pi rigb info' pty) psc)))
+                                       (Bind fc bn (Pi c info' pty) psc)))
               _ => inferLambda rig elabinfo nest env fc rigl info n argTy scope (Just expty_in)
 
 weakenExp : Env Term (x :: vars) ->

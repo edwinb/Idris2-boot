@@ -103,7 +103,7 @@ last : {n : _} -> Fin (S n)
 last {n=Z} = FZ
 last {n=S _} = FS last
 
-export total
+public export total
 FSinjective : {f : Fin n} -> {f' : Fin n} -> (FS f = FS f') -> f = f'
 FSinjective Refl = Refl
 

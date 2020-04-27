@@ -24,6 +24,7 @@ data Constraint : Type where
      MkConstraint : {vars : _} ->
                     FC ->
                     (withLazy : Bool) ->
+                    (blockedOn : List Name) ->
                     (env : Env Term vars) ->
                     (x : Term vars) -> (y : Term vars) ->
                     Constraint
@@ -41,8 +42,9 @@ data Constraint : Type where
 
 export
 TTC Constraint where
-  toBuf b (MkConstraint {vars} fc l env x y)
-     = do tag 0; toBuf b vars; toBuf b l;
+  toBuf b (MkConstraint {vars} fc l block env x y)
+     = do tag 0; toBuf b vars; toBuf b l
+          toBuf b block
           toBuf b fc; toBuf b env; toBuf b x; toBuf b y
   toBuf b (MkSeqConstraint {vars} fc env xs ys)
      = do tag 1; toBuf b vars; toBuf b fc; toBuf b env; toBuf b xs; toBuf b ys
@@ -51,9 +53,11 @@ TTC Constraint where
   fromBuf b
       = case !getTag of
              0 => do vars <- fromBuf b
-                     fc <- fromBuf b; l <- fromBuf b; env <- fromBuf b
+                     fc <- fromBuf b; l <- fromBuf b
+                     block <- fromBuf b
+                     env <- fromBuf b
                      x <- fromBuf b; y <- fromBuf b
-                     pure (MkConstraint {vars} fc l env x y)
+                     pure (MkConstraint {vars} fc l block env x y)
              1 => do vars <- fromBuf b
                      fc <- fromBuf b; env <- fromBuf b
                      xs <- fromBuf b; ys <- fromBuf b
@@ -279,7 +283,7 @@ addDot : {auto u : Ref UST UState} ->
 addDot fc env dotarg x reason y
     = do ust <- get UST
          put UST (record { dotConstraints $=
-                             ((dotarg, reason, MkConstraint fc False env x y) ::)
+                             ((dotarg, reason, MkConstraint fc False [] env x y) ::)
                          } ust)
 
 mkConstantAppArgs : Bool -> FC -> Env Term vars ->
@@ -540,7 +544,7 @@ checkValidHole (idx, (fc, n))
                      let Just c = lookup con (constraints ust)
                           | Nothing => pure ()
                      case c of
-                          MkConstraint fc l env x y =>
+                          MkConstraint fc l blocked env x y =>
                              do put UST (record { guesses = empty } ust)
                                 xnf <- normaliseHoles defs env x
                                 ynf <- normaliseHoles defs env y
@@ -641,7 +645,7 @@ dumpHole lvl hole
              case lookup n (constraints ust) of
                   Nothing => pure ()
                   Just Resolved => log lvl "\tResolved"
-                  Just (MkConstraint _ lazy env x y) =>
+                  Just (MkConstraint _ lazy _ env x y) =>
                     do log lvl $ "\t  " ++ show !(toFullNames !(normalise defs env x))
                                       ++ " =?= " ++ show !(toFullNames !(normalise defs env y))
                        log 5 $ "\t    from " ++ show !(toFullNames x)
