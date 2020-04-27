@@ -79,7 +79,7 @@ impossibleErrOK defs (CantSolveEq fc env l r)
          impossibleOK defs !(nf defs env l)
                            !(nf defs env r)
 impossibleErrOK defs (BadDotPattern _ _ ErasedArg _ _) = pure True
-impossibleErrOK defs (CyclicMeta _ _) = pure True
+impossibleErrOK defs (CyclicMeta _ _ _ _) = pure True
 impossibleErrOK defs (AllFailed errs)
     = anyM (impossibleErrOK defs) (map snd errs)
 impossibleErrOK defs (WhenUnifying _ _ _ _ err)

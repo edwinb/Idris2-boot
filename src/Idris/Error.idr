@@ -46,8 +46,10 @@ perror (PatternVariableUnifies _ env n tm)
     showPVar : Name -> String
     showPVar (PV n _) = showPVar n
     showPVar n = show n
-perror (CyclicMeta _ n)
-    = pure $ "Cycle detected in solution of metavariable " ++ show n
+perror (CyclicMeta _ env n tm)
+    = pure $ "Cycle detected in solution of metavariable "
+               ++ show !(prettyName n) ++ " = "
+               ++ !(pshow env tm)
 perror (WhenUnifying _ env x y err)
     = pure $ "When unifying " ++ !(pshow env x) ++ " and " ++ !(pshow env y) ++ "\n"
        ++ !(perror err)

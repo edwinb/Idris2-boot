@@ -54,15 +54,16 @@ export
 toClosure : EvalOpts -> Env Term outer -> Term outer -> Closure outer
 toClosure opts env tm = MkClosure opts [] env tm
 
-useMeta : FC -> Name -> Defs -> EvalOpts -> Core EvalOpts
-useMeta fc (Resolved i) defs opts
+useMeta : Bool -> FC -> Name -> Defs -> EvalOpts -> Core (Maybe EvalOpts)
+useMeta False _ _ _ opts = pure $ Just opts
+useMeta True fc (Resolved i) defs opts
     = case lookup i (usedMetas opts) of
-           Nothing => pure (record { usedMetas $= insert i () } opts)
-           Just _ => throw (CyclicMeta fc (Resolved i))
-useMeta fc n defs opts
+           Nothing => pure (Just (record { usedMetas $= insert i () } opts))
+           Just _ => pure Nothing
+useMeta True fc n defs opts
     = do let Just i = getNameID n (gamma defs)
               | Nothing => throw (UndefinedName fc n)
-         useMeta fc (Resolved i) defs opts
+         useMeta True fc (Resolved i) defs opts
 
 parameters (defs : Defs, topopts : EvalOpts)
   mutual
@@ -195,9 +196,8 @@ parameters (defs : Defs, topopts : EvalOpts)
                                         (visibility res)
              if redok
                 then do
-                   opts' <- if noCycles res
-                               then useMeta fc n defs topopts
-                               else pure topopts
+                   Just opts' <- useMeta (noCycles res) fc n defs topopts
+                        | Nothing => pure def
                    evalDef env opts' meta fc
                            (multiplicity res) (definition res) (flags res) stk def
                 else pure def

@@ -184,6 +184,29 @@ convertErrorS s loc env x y
     = if s then convertError loc env y x
            else convertError loc env x y
 
+-- Find all the metavariables required by each of the given names.
+-- We'll assume all meta solutions are of the form STerm exp.
+chaseMetas : {auto c : Ref Ctxt Defs} ->
+             List Name -> NameMap () -> Core (List Name)
+chaseMetas [] all = pure (keys all)
+chaseMetas (n :: ns) all
+    = case lookup n all of
+           Just _ => chaseMetas ns all
+           _ => do defs <- get Ctxt
+                   Just (PMDef _ _ (STerm soln) _ _) <-
+                                  lookupDefExact n (gamma defs)
+                        | _ => chaseMetas ns (insert n () all)
+                   let sns = keys (getMetas soln)
+                   chaseMetas (sns ++ ns) (insert n () all)
+
+-- Get all the metavariable names used by the term (recursively, so we
+-- can do the occurs check)
+getMetaNames : {auto c : Ref Ctxt Defs} ->
+               Term vars -> Core (List Name)
+getMetaNames tm
+    = let metas = getMetas tm in
+          chaseMetas (keys metas) empty
+
 postpone : {auto c : Ref Ctxt Defs} ->
            {auto u : Ref UST UState} ->
            (blockedMeta : Bool) ->
@@ -199,6 +222,8 @@ postpone blockedMetas loc mode logstr env x y
                                     " =?= " ++ show !(toFullNames yq))
          xtm <- quote empty env x
          ytm <- quote empty env y
+         -- Need to find all the metas in the constraint since solving any one
+         -- of them might stop the constraint being blocked.
          metas <-
              if blockedMetas
                 then let xmetas = getMetas xtm in
@@ -214,21 +239,6 @@ postpone blockedMetas loc mode logstr env x y
          logTerm 10 "Y" ytm
          pure (constrain c)
   where
-    -- Need to find all the metas in the constraint since solving any one
-    -- of them might stop the constraint being blocked. We'll assume all
-    -- meta solutions are of the form STerm exp.
-    chaseMetas : List Name -> NameMap () -> Core (List Name)
-    chaseMetas [] all = pure (keys all)
-    chaseMetas (n :: ns) all
-        = case lookup n all of
-               Just _ => chaseMetas ns all
-               _ => do defs <- get Ctxt
-                       Just (PMDef _ _ (STerm soln) _ _) <-
-                                      lookupDefExact n (gamma defs)
-                            | _ => chaseMetas ns (insert n () all)
-                       let sns = keys (getMetas soln)
-                       chaseMetas (sns ++ ns) (insert n () all)
-
     undefinedN : Name -> Core Bool
     undefinedN n
         = do defs <- get Ctxt
@@ -377,6 +387,44 @@ patternEnvTm {vars} env args
         = case subElem p svs of
                Nothing => updateVars ps svs
                Just p' => p' :: updateVars ps svs
+
+-- Check that the metavariable name doesn't occur in the solution.
+-- If it does, normalising might help. If it still does, that's an error.
+
+-- Also block if there's an unsolved meta under a function application,
+-- because that might cause future problems to get stuck even if they're
+-- solvable.
+occursCheck : {auto c : Ref Ctxt Defs} ->
+              FC -> Env Term vars -> UnifyInfo ->
+              Name -> Term vars -> Core (Maybe (Term vars))
+occursCheck fc env mode mname tm
+    = do solmetas <- getMetaNames tm
+         let False = mname `elem` solmetas
+             | _ => do defs <- get Ctxt
+                       tmnf <- normalise defs env tm
+                       solmetas <- getMetaNames tmnf
+                       if mname `elem` solmetas
+                          then do failOnStrongRigid False
+                                     (throw (CyclicMeta fc env mname tmnf))
+                                     tmnf
+                                  pure Nothing
+                          else pure $ Just tmnf
+         pure $ Just tm
+  where
+    -- Throw an occurs check failure if the name appears 'strong rigid',
+    -- that is, under a constructor form rather than a function, in the
+    -- term
+    failOnStrongRigid : Bool -> Core () -> Term vars -> Core ()
+    failOnStrongRigid bad err (Meta _ n _ _)
+        = if bad && n == mname
+             then err
+             else pure ()
+    failOnStrongRigid bad err tm
+        = case getFnArgs tm of
+               (f, []) => pure ()
+               (Ref _ Func _, _) => pure () -- might reduce away, just block
+               (Ref _ _ _, args) => traverse_ (failOnStrongRigid True err) args
+               (f, args) => traverse_ (failOnStrongRigid bad err) args
 
 -- Instantiate a metavariable by binding the variables in 'newvars'
 -- and returning the term
@@ -748,6 +796,11 @@ mutual
                                           (NApp loc (NMeta mname mref margs) margs')
                                           tmnf
                      tm <- quote empty env tmnf
+                     Just tm <- occursCheck loc env mode mname tm
+                         | _ => postponeS True swap loc mode "Occurs check failed" env
+                                          (NApp loc (NMeta mname mref margs) margs')
+                                          tmnf
+
                      case shrinkTerm tm submv of
                           Just stm => solveHole fc mode env mname mref
                                                 margs margs' locs submv
