@@ -157,15 +157,20 @@
     (when (port? p) (close-port p)))
 
 (define (blodwen-get-line p)
-    (if (and (port? p) (not (port-eof? p)))
+    (if (port? p)
         (let ((str (get-line p)))
-            (string-append str "\n"))
-        ""))
+            (if (eof-object? str)
+                ""
+                str))
+        void))
 
 (define (blodwen-get-char p)
-    (if (and (port? p) (not (port-eof? p)))
-        (get-char p)
-        #\nul))
+    (if (port? p)
+        (let ((chr (get-char p)))
+            (if (eof-object? chr)
+                #\nul
+                chr))
+        void))
 
 (define (blodwen-file-modified-time p)
     (time-second (file-modification-time p)))

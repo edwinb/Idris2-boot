@@ -127,8 +127,6 @@ mutual
   chezExtPrim i CCall [ret, fn, args, world]
       = pure "(error \"bad ffi call\")"
       -- throw (InternalError ("C FFI calls must be to statically known functions (" ++ show fn ++ ")"))
-  chezExtPrim i GetStr [world]
-      = pure $ mkWorld "(get-line (current-input-port))"
   chezExtPrim i GetField [NmPrimVal _ (Str s), _, _, struct,
                           NmPrimVal _ (Str fld), _]
       = do structsc <- schExp chezExtPrim chezString 0 struct
