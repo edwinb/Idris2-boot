@@ -79,7 +79,7 @@ impossibleErrOK defs (CantSolveEq fc env l r)
          impossibleOK defs !(nf defs env l)
                            !(nf defs env r)
 impossibleErrOK defs (BadDotPattern _ _ ErasedArg _ _) = pure True
-impossibleErrOK defs (CyclicMeta _ _) = pure True
+impossibleErrOK defs (CyclicMeta _ _ _ _) = pure True
 impossibleErrOK defs (AllFailed errs)
     = anyM (impossibleErrOK defs) (map snd errs)
 impossibleErrOK defs (WhenUnifying _ _ _ _ err)
@@ -239,10 +239,13 @@ checkLHS {vars} mult hashit n opts nest env fc lhs_in
          logTerm 5 "Checked LHS term" lhstm
          lhsty <- getTerm lhstyg
 
-         -- Normalise the LHS to get any functions or let bindings evaluated
-         -- (this might be allowed, e.g. for 'fromInteger')
          defs <- get Ctxt
-         lhstm <- normaliseLHS defs (letToLam env) lhstm
+         let lhsenv = letToLam env
+         -- we used to fully normalise the LHS, to make sure fromInteger
+         -- patterns were allowed, but now they're fully normalised anyway
+         -- so we only need to do the holes. If there's a lot of type level
+         -- computation, this is a huge saving!
+         lhstm <- normaliseHoles defs lhsenv lhstm
          lhsty <- normaliseHoles defs env lhsty
          linvars_in <- findLinear True 0 Rig1 lhstm
          logTerm 10 "Checked LHS term after normalise" lhstm
@@ -557,22 +560,28 @@ mkRunTime n
            let PMDef r cargs tree_ct _ pats = definition gdef
                 | _ => pure () -- not a function definition
            let ty = type gdef
+           pats' <- traverse (toErased (location gdef)) pats
+
            (rargs ** tree_rt) <- getPMDef (location gdef) RunTime n ty
-                                          !(traverse (toClause (location gdef)) pats)
+                                          (map (toClause (location gdef)) pats')
            log 5 $ "Runtime tree for " ++ show (fullname gdef) ++ ": " ++ show tree_rt
            let Just Refl = nameListEq cargs rargs
                    | Nothing => throw (InternalError "WAT")
-           addDef n (record { definition = PMDef r cargs tree_ct tree_rt pats
+           addDef n (record { definition = PMDef r cargs tree_ct tree_rt pats'
                             } gdef)
            pure ()
   where
-    toClause : FC -> (vars ** (Env Term vars, Term vars, Term vars)) ->
-               Core Clause
-    toClause fc (_ ** (env, lhs, rhs))
+    toErased : FC -> (vars ** (Env Term vars, Term vars, Term vars)) ->
+               Core (vars ** (Env Term vars, Term vars, Term vars))
+    toErased fc (_ ** (env, lhs, rhs))
         = do lhs_erased <- linearCheck fc Rig1 True env lhs
              rhs' <- applySpecialise env rhs
              rhs_erased <- linearCheck fc Rig1 True env rhs'
-             pure $ MkClause env lhs_erased rhs_erased
+             pure (_ ** (env, lhs_erased, rhs_erased))
+
+    toClause : FC -> (vars ** (Env Term vars, Term vars, Term vars)) -> Clause
+    toClause fc (_ ** (env, lhs, rhs))
+        = MkClause env lhs rhs
 
 compileRunTime : {auto c : Ref Ctxt Defs} ->
                  {auto m : Ref MD Metadata} ->
@@ -624,12 +633,14 @@ processDef opts nest env fc n_in cs_in
                   (record { definition = PMDef defaultPI cargs tree_ct tree_ct pats
                           } gdef)
 
-         let rmetas = getMetas tree_ct
-         traverse_ addToSave (keys rmetas)
-         let tymetas = getMetas (type gdef)
-         traverse_ addToSave (keys tymetas)
+         when (visibility gdef == Public) $
+             do let rmetas = getMetas tree_ct
+                log 10 $ "Saving from " ++ show n ++ ": " ++ show (keys rmetas)
+                traverse_ addToSave (keys rmetas)
+         when (isUserName n && visibility gdef /= Private) $
+             do let tymetas = getMetas (type gdef)
+                traverse_ addToSave (keys tymetas)
          addToSave n
-         log 10 $ "Saving from " ++ show n ++ ": " ++ show (keys rmetas)
 
          -- Flag this name as one which needs compiling
          defs <- get Ctxt

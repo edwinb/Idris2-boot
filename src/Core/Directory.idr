@@ -83,7 +83,7 @@ nsToSource loc ns
          let fnameOrig = showSep dirSep (reverse ns)
          let fnameBase = maybe fnameOrig (\srcdir => srcdir ++ dirSep ++ fnameOrig) (source_dir d)
          let fs = map (\ext => fnameBase ++ ext)
-                      [".idr", ".lidr", ".yaff"]
+                      [".idr", ".lidr", ".yaff", ".org", ".md"]
          Just f <- firstAvailable fs
             | Nothing => throw (ModuleNotFound loc ns)
          pure f
@@ -192,7 +192,7 @@ getEntries d
              | Left err => pure []
          ds <- assert_total $ getEntries d
          pure (f :: ds)
-  
+
 dirEntries : String -> IO (Either FileError (List String))
 dirEntries dir
     = do Right d <- dirOpen dir
@@ -200,7 +200,7 @@ dirEntries dir
          ds <- getEntries d
          dirClose d
          pure (Right ds)
-  
+
 findIpkg : List String -> Maybe String
 findIpkg [] = Nothing
 findIpkg (f :: fs)

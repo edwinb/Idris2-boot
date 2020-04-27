@@ -58,29 +58,44 @@ genName n
 refToLocal : Name -> (x : Name) -> CExp vars -> CExp (x :: vars)
 refToLocal x new tm = refsToLocals (Add new x None) tm
 
+largest : Ord a => a -> List a -> a
+largest x [] = x
+largest x (y :: ys)
+    = if y > x
+         then largest y ys
+         else largest x ys
+
 mutual
-  used : Name -> CExp free -> Bool
-  used n (CRef _ n') = n == n'
-  used n (CLam _ _ sc) = used n sc
-  used n (CLet _ _ _ val sc) = used n val || used n sc
-  used n (CApp _ x args) = used n x || or (map Delay (map (used n) args))
-  used n (CCon _ _ _ args) = or (map Delay (map (used n) args))
-  used n (COp _ _ args) = or (map Delay (map (used n) args))
-  used n (CExtPrim _ _ args) = or (map Delay (map (used n) args))
+  used : {idx : Nat} -> .(IsVar n idx free) -> CExp free -> Int
+  used {idx} n (CLocal _ {idx=pidx} prf) = if idx == pidx then 1 else 0
+  used n (CLam _ _ sc) = used (Later n) sc
+  used n (CLet _ _ False val sc)
+      = let usedl = used n val + used (Later n) sc in
+            if usedl > 0
+               then 1000 -- Don't do any inlining of the name, because if it's
+                         -- used under a non-inlinable let things might go wrong
+               else usedl
+  used n (CLet _ _ True val sc) = used n val + used (Later n) sc
+  used n (CApp _ x args) = foldr (+) (used n x) (map (used n) args)
+  used n (CCon _ _ _ args) = foldr (+) 0 (map (used n) args)
+  used n (COp _ _ args) = foldr (+) 0 (map (used n) args)
+  used n (CExtPrim _ _ args) = foldr (+) 0 (map (used n) args)
   used n (CForce _ x) = used n x
   used n (CDelay _ x) = used n x
   used n (CConCase fc sc alts def)
-     = used n sc || or (map Delay (map (usedCon n) alts))
-                 || maybe False (used n) def
+     = used n sc +
+          largest (maybe 0 (used n) def) (map (usedCon n) alts)
   used n (CConstCase fc sc alts def)
-     = used n sc || or (map Delay (map (usedConst n) alts))
-                 || maybe False (used n) def
-  used _ tm = False
+     = used n sc +
+          largest (maybe 0 (used n) def) (map (usedConst n) alts)
+  used _ tm = 0
 
-  usedCon : Name -> CConAlt free -> Bool
-  usedCon n (MkConAlt _ _ _ sc) = used n sc
+  usedCon : {idx : Nat} -> .(IsVar n idx free) -> CConAlt free -> Int
+  usedCon n (MkConAlt _ _ args sc)
+      = let MkVar n' = weakenNs args (MkVar n) in
+            used n' sc
 
-  usedConst : Name -> CConstAlt free -> Bool
+  usedConst : {idx : Nat} -> .(IsVar n idx free) -> CConstAlt free -> Int
   usedConst n (MkConstAlt _ sc) = used n sc
 
 mutual
@@ -133,13 +148,22 @@ mutual
            sc' <- eval rec (CRef fc xn :: env) [] sc
            pure $ CLam fc x (refToLocal xn x sc')
   eval rec env (e :: stk) (CLam fc x sc) = eval rec (e :: env) stk sc
-  eval {vars} {free} rec env stk (CLet fc x inl val sc)
+  eval {vars} {free} rec env stk (CLet fc x False val sc)
       = do xn <- genName "letv"
            sc' <- eval rec (CRef fc xn :: env) [] sc
-           if inl && used xn sc'
+           val' <- eval rec env [] val
+           pure (unload stk $ CLet fc x False val' (refToLocal xn x sc'))
+  eval {vars} {free} rec env stk (CLet fc x True val sc)
+      = do let u = used First sc
+           if u < 1 -- TODO: Can make this <= as long as we know *all* inlinings
+                    -- are guaranteed not to duplicate work. (We don't know
+                    -- that yet).
               then do val' <- eval rec env [] val
-                      pure (unload stk $ CLet fc x inl val' (refToLocal xn x sc'))
-              else pure sc'
+                      eval rec (val' :: env) stk sc
+              else do xn <- genName "letv"
+                      sc' <- eval rec (CRef fc xn :: env) stk sc
+                      val' <- eval rec env [] val
+                      pure (CLet fc x True val' (refToLocal xn x sc'))
   eval rec env stk (CApp fc f args)
       = eval rec env (!(traverse (eval rec env []) args) ++ stk) f
   eval rec env stk (CCon fc n t args)

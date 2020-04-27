@@ -22,7 +22,7 @@ public export
 data ParseError = ParseFail String (Maybe (Int, Int)) (List Token)
                 | LexFail (Int, Int, String)
                 | FileFail FileError
-                | LitFail (List Int)
+                | LitFail LiterateError
 
 export
 Show ParseError where
@@ -33,8 +33,8 @@ Show ParseError where
       = "Lex error at " ++ show (c, l) ++ " input: " ++ str
   show (FileFail err)
       = "File error: " ++ show err
-  show (LitFail l)
-      = "Lit error(s) at " ++ show l
+  show (LitFail (MkLitErr l c str))
+      = "Lit error(s) at " ++ show (c, l) ++ " input: " ++ str
 
 export
 eoi : EmptyRule ()
@@ -47,10 +47,10 @@ eoi
     isEOI _ = False
 
 export
-runParserTo : Bool -> Bool -> (TokenData Token -> Bool) ->
+runParserTo : Maybe LiterateStyle -> (TokenData Token -> Bool) ->
               String -> Grammar (TokenData Token) e ty -> Either ParseError ty
-runParserTo lit enforce pred str p
-    = case unlit lit enforce str of
+runParserTo lit pred str p
+    = case unlit lit str of
            Left l => Left $ LitFail l
            Right str =>
              case lexTo pred str of
@@ -65,15 +65,15 @@ runParserTo lit enforce pred str p
                        Right (val, _) => Right val
 
 export
-runParser : Bool -> Bool -> String -> Grammar (TokenData Token) e ty -> Either ParseError ty
-runParser lit enforce = runParserTo lit enforce (const False)
+runParser : Maybe LiterateStyle -> String -> Grammar (TokenData Token) e ty -> Either ParseError ty
+runParser lit = runParserTo lit (const False)
 
 export
 parseFile : (fn : String) -> Rule ty -> IO (Either ParseError ty)
 parseFile fn p
     = do Right str <- readFile fn
              | Left err => pure (Left (FileFail err))
-         pure (runParser (isLitFile fn) True str p)
+         pure (runParser (isLitFile fn) str p)
 
 
 -- Some basic parsers used by all the intermediate forms
@@ -606,5 +606,3 @@ nonEmptyBlock item
          res <- blockEntry (AtPos col) item
          ps <- blockEntries (snd res) item
          pure (fst res :: ps)
-
-

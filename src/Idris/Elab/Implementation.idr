@@ -93,7 +93,7 @@ elabImplementation : {auto c : Ref Ctxt Defs} ->
                      {auto u : Ref UST UState} ->
                      {auto s : Ref Syn SyntaxInfo} ->
                      {auto m : Ref MD Metadata} ->
-                     FC -> Visibility -> Pass ->
+                     FC -> Visibility -> List FnOpt -> Pass ->
                      Env Term vars -> NestedNames vars ->
                      (implicits : List (Name, RigCount, RawImp)) ->
                      (constraints : List (Maybe Name, RawImp)) ->
@@ -104,7 +104,7 @@ elabImplementation : {auto c : Ref Ctxt Defs} ->
                      Maybe (List ImpDecl) ->
                      Core ()
 -- TODO: Refactor all these steps into separate functions
-elabImplementation {vars} fc vis pass env nest is cons iname ps impln nusing mbody
+elabImplementation {vars} fc vis opts_in pass env nest is cons iname ps impln nusing mbody
     = do let impName_in = maybe (mkImpl fc iname ps) id impln
          impName <- inCurrentNS impName_in
          syn <- get Syn
@@ -137,7 +137,8 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln nusing mbo
          -- given when using named implementations
          --    (cs : Constraints) -> Impl params
          -- Don't make it a hint if it's a named implementation
-         let opts = maybe [Inline, Hint True] (const [Inline]) impln
+         let opts = maybe (opts_in ++ [Inline, Hint True])
+                          (const (opts_in ++ [Inline])) impln
 
          let initTy = bindImpls fc is $ bindConstraints fc AutoImplicit cons
                          (apply (IVar fc iname) ps)
@@ -354,7 +355,7 @@ elabImplementation {vars} fc vis pass env nest is cons iname ps impln nusing mbo
 
     mkTopMethDecl : (Name, Name, List (String, String), RigCount, RawImp) -> ImpDecl
     mkTopMethDecl (mn, n, upds, c, mty)
-        = IClaim fc c vis [] (MkImpTy fc n mty)
+        = IClaim fc c vis opts_in (MkImpTy fc n mty)
 
     -- Given the method type (result of topMethType) return the mapping from
     -- top level method name to current implementation's method name

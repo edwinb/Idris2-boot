@@ -19,3 +19,4 @@ This is a placeholder, to get set up with readthedocs.
    packages
    envvars
    records
+   literate

@@ -93,10 +93,12 @@ typedef struct {
     size_t growth; // Quantity of heap growth in bytes.
 
     char* old;
+    char* old_end;
 } Heap;
 
 
-void alloc_heap(Heap * heap, size_t heap_size, size_t growth, char * old);
+void alloc_heap(Heap * heap, size_t heap_size, size_t growth,
+                char * old, char * old_end);
 void free_heap(Heap * heap);
 char* aligned_heap_pointer(char * heap);
 

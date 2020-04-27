@@ -151,12 +151,10 @@ repl : {auto c : Ref Ctxt Defs} ->
 repl
     = do coreLift (putStr "Yaffle> ")
          inp <- coreLift getLine
-         case runParser False False inp command of
+         case runParser Nothing inp command of
               Left err => do coreLift (printLn err)
                              repl
               Right cmd =>
                   do if !(processCatch cmd)
                         then repl
                         else pure ()
-
-

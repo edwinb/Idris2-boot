@@ -1,44 +1,67 @@
 module Parser.Unlit
 
+import public Text.Literate
+
 %default total
+%access export
+
+public export
+data LiterateModes = Bird | Org | CMark
 
 export
-isLitFile : String -> Bool
-isLitFile file = isSuffixOf ".lidr" file
-
-data LineType = Blank | Code | Text
-
-lineType : String -> (LineType, String)
-lineType str = if length str > 0
-  then
-    if assert_total (strHead str) == '>'
-       then (Code, assert_total (strTail str))
-       else
-         if all isSpace (unpack str)
-            then (Blank, str)
-            else (Text, str)
-  else (Blank, str)
+styleBird : LiterateStyle
+styleBird = MkLitStyle Nil [">", "<"] [".lidr"]
 
 export
-isLit : String -> (Bool, String)
-isLit str = case lineType str of
-               (Code, tail) => (True, tail)
-               _ => (False, str)
+styleOrg : LiterateStyle
+styleOrg = MkLitStyle
+              [ ("#+BEGIN_SRC idris","#+END_SRC")
+              , ("#+begin_src idris","#+end_src")
+              , ("#+COMMENT idris","#+END_COMMENT")
+              , ("#+comment idris","#+end_comment")]
+              ["#+IDRIS:"]
+              [".org"]
 
 export
-unlit : Bool -> Bool -> String -> Either (List Int) String
-unlit lit enforce str = if lit
-  then let (_, lns, errors) = foldr unlit' (Blank, [], []) (lines str) in
-           if enforce
-              then case errors of
-                        [] => Right (unlines lns)
-                        _ => let l : Int = cast (length lns) in Left (map (l -) errors)
-              else Right (unlines lns)
-  else Right str where
-    unlit' : String -> (LineType, List String, List Int) -> (LineType, List String, List Int)
-    unlit' str (type, ls, errs) with (lineType str)
-      unlit' str (Code, ls, errs) | (Text, _) = (Text, "" :: ls, cast (length ls) :: errs)
-      unlit' str (Text, ls, errs) | (Code, s) = (Code, (strCons ' ' s) :: ls, cast (length ls) :: errs)
-      unlit' str (type, ls, errs) | (Code, s) = (Code, (strCons ' ' s) :: ls, errs)
-      unlit' str (type, ls, errs) | (new, s) = (new, "" :: ls, errs)
+styleCMark : LiterateStyle
+styleCMark = MkLitStyle [("```idris", "```")] Nil [".md"]
 
+export
+isLitFile : String -> Maybe LiterateStyle
+isLitFile fname =
+    case isStyle styleBird of
+      Just s => Just s
+      Nothing => case isStyle styleOrg of
+                     Just s => Just s
+                     Nothing => isStyle styleCMark
+
+  where
+   hasSuffix : String -> Bool
+   hasSuffix ext = isSuffixOf ext fname
+
+   isStyle : LiterateStyle -> Maybe LiterateStyle
+   isStyle style =
+     if any hasSuffix (file_extensions style)
+      then Just style
+      else Nothing
+
+export
+isLitLine : String -> (Maybe String, String)
+isLitLine str =
+  case isLiterateLine styleBird str of
+     (Just l, s) => (Just l, s)
+     otherwise => case isLiterateLine styleOrg str of
+                    (Just l, s) => (Just l, s)
+                    otherwise => case isLiterateLine styleCMark str of
+                                   (Just l, s) => (Just l, s)
+                                   otherwise => (Nothing, str)
+
+export
+unlit : Maybe LiterateStyle -> String -> Either LiterateError String
+unlit Nothing  str = Right str
+unlit (Just s) str = unlit s str
+
+export
+relit : Maybe String -> String -> String
+relit Nothing     str = str
+relit (Just mark) str = unwords [mark, str]

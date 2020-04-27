@@ -246,21 +246,21 @@ anyAt p loc y = p loc
 
 printClause : {auto c : Ref Ctxt Defs} ->
               {auto s : Ref Syn SyntaxInfo} ->
-              Bool -> Nat -> ImpClause ->
+              Maybe String -> Nat -> ImpClause ->
               Core String
 printClause l i (PatClause _ lhsraw rhsraw)
     = do lhs <- pterm lhsraw
          rhs <- pterm rhsraw
-         pure ((if l then ">" else "") ++ (pack (replicate i ' ') ++ show lhs ++ " = " ++ show rhs))
+         pure (relit l (pack (replicate i ' ') ++ show lhs ++ " = " ++ show rhs))
 printClause l i (WithClause _ lhsraw wvraw csraw)
     = do lhs <- pterm lhsraw
          wval <- pterm wvraw
          cs <- traverse (printClause l (i + 2)) csraw
-         pure ((if l then ">" else "") ++ (pack (replicate i ' ') ++ show lhs ++ " with (" ++ show wval ++ ")\n" ++
+         pure ((relit l ((pack (replicate i ' ') ++ show lhs ++ " with (" ++ show wval ++ ")\n")) ++
                  showSep "\n" cs))
 printClause l i (ImpossibleClause _ lhsraw)
     = do lhs <- pterm lhsraw
-         pure ((if l then ">" else "") ++ (pack (replicate i ' ') ++ show lhs ++ " impossible"))
+         pure (relit l (pack (replicate i ' ') ++ show lhs ++ " impossible"))
 
 
 lookupDefTyName : Name -> Context ->
@@ -271,7 +271,7 @@ public export
 data EditResult : Type where
   DisplayEdit : List String -> EditResult
   EditError : String -> EditResult
-  MadeLemma : Bool -> Name -> PTerm -> String -> EditResult
+  MadeLemma : Maybe String -> Name -> PTerm -> String -> EditResult
 
 updateFile : {auto r : Ref ROpts REPLOpts} ->
              (List String -> List String) -> Core EditResult
@@ -311,19 +311,19 @@ proofSearch n res Z (x :: xs) = replaceStr ("?" ++ show n) res x :: xs
 proofSearch n res (S k) (x :: xs) = x :: proofSearch n res k xs
 proofSearch n res _ [] = []
 
-addMadeLemma : Bool -> Name -> String -> String -> Nat -> List String -> List String
+addMadeLemma : Maybe String -> Name -> String -> String -> Nat -> List String -> List String
 addMadeLemma lit n ty app line content
     = addApp lit line [] (proofSearch n app line content)
   where
     -- Put n : ty in the first blank line
-    insertInBlank : Bool -> List String -> List String
-    insertInBlank lit [] = [(if lit then "> " else "") ++ show n ++ " : " ++ ty ++ "\n"]
+    insertInBlank : Maybe String -> List String -> List String
+    insertInBlank lit [] = [relit lit $ show n ++ " : " ++ ty ++ "\n"]
     insertInBlank lit (x :: xs)
         = if trim x == ""
-             then ("\n" ++ (if lit then "> " else "") ++ show n ++ " : " ++ ty ++ "\n") :: xs
+             then ("\n" ++ (relit lit $ show n ++ " : " ++ ty ++ "\n")) :: xs
              else x :: insertInBlank lit xs
 
-    addApp : Bool -> Nat -> List String -> List String -> List String
+    addApp : Maybe String -> Nat -> List String -> List String -> List String
     addApp lit Z acc rest = reverse (insertInBlank lit acc) ++ rest
     addApp lit (S k) acc (x :: xs) = addApp lit k (x :: acc) xs
     addApp _ (S k) acc [] = reverse acc
@@ -420,9 +420,9 @@ processEdit (GenerateDef upd line name)
                            | Nothing => processEdit (AddClause upd line name)
                         Just srcLine <- getSourceLine line
                            | Nothing => pure (EditError "Source line not found")
-                        let (lit, _) = isLit srcLine
-                        let l : Nat = if lit then cast (max 0 (snd (startPos fc) - 1)) else cast (snd (startPos fc))
-                        ls <- traverse (printClause lit l) cs
+                        let (markM, srcLineUnlit) = isLitLine srcLine
+                        let l : Nat =  cast (snd (startPos fc))
+                        ls <- traverse (printClause markM l) cs
                         if upd
                            then updateFile (addClause (unlines ls) (cast line))
                            else pure $ DisplayEdit ls)
@@ -444,11 +444,12 @@ processEdit (MakeLemma upd line name)
                                             else papp)
                      Just srcLine <- getSourceLine line
                        | Nothing => pure (EditError "Source line not found")
-                     let (lit, _) = isLit srcLine
+                     let (markM,_) = isLitLine srcLine
+                     let markML : Nat = length (fromMaybe "" markM)
                      if upd
-                        then updateFile (addMadeLemma lit name (show pty) pappstr
-                                                      (cast (line - 1)))
-                        else pure $ MadeLemma lit name pty pappstr
+                        then updateFile (addMadeLemma markM name (show pty) pappstr
+                                                      (max 0 (cast (line - 1))))
+                        else pure $ MadeLemma markM name pty pappstr
               _ => pure $ EditError "Can't make lifted definition"
 processEdit (MakeCase upd line name)
     = pure $ EditError "Not implemented yet"
@@ -739,7 +740,7 @@ export
 parseRepl : String -> Either ParseError (Maybe REPLCmd)
 parseRepl inp
     = case fnameCmd [(":load ", Load), (":l ", Load), (":cd ", CD)] inp of
-           Nothing => runParser False False inp (parseEmptyCmd <|> parseCmd)
+           Nothing => runParser Nothing inp (parseEmptyCmd <|> parseCmd)
            Just cmd => Right $ Just cmd
   where
     -- a right load of hackery - we can't tokenise the filename using the
@@ -855,7 +856,7 @@ mutual
   displayResult  (Edited (DisplayEdit [])) = pure ()
   displayResult  (Edited (DisplayEdit xs)) = printResult $ showSep "\n" xs
   displayResult  (Edited (EditError x)) = printError x
-  displayResult  (Edited (MadeLemma lit name pty pappstr)) = printResult ((if lit then "> " else "") ++ show name ++ " : " ++ show pty ++ "\n" ++ pappstr)
+  displayResult  (Edited (MadeLemma lit name pty pappstr)) = printResult (relit lit (show name ++ " : " ++ show pty ++ "\n") ++ pappstr)
   displayResult  (OptionsSet opts) = printResult $ showSep "\n" $ map show opts
   displayResult  _ = pure ()
 

@@ -103,11 +103,10 @@ void idris_gc(VM* vm) {
     HEAP_CHECK(vm)
     STATS_ENTER_GC(vm->stats, vm->heap.size)
 
-    if (vm->heap.old != NULL)
-        free(vm->heap.old);
-
-    /* Allocate swap heap. */
-    alloc_heap(&vm->heap, vm->heap.size, vm->heap.growth, vm->heap.heap);
+    /* Allocate swap heap, possibly reusing the old heap if it's
+       big enough */
+    alloc_heap(&vm->heap, vm->heap.size, vm->heap.growth,
+               vm->heap.heap, vm->heap.end);
 
     VAL* root;
 

@@ -539,8 +539,8 @@ mutual
   --         implementation headers (i.e. note their existence, but not the bodies)
   -- Everything else on the second pass
   getDecl : Pass -> PDecl -> Maybe PDecl
-  getDecl p (PImplementation fc vis _ is cons n ps iname nusing ds)
-      = Just (PImplementation fc vis p is cons n ps iname nusing ds)
+  getDecl p (PImplementation fc vis opts _ is cons n ps iname nusing ds)
+      = Just (PImplementation fc vis opts p is cons n ps iname nusing ds)
 
   getDecl p (PNamespace fc ns ds)
       = Just (PNamespace fc ns (mapMaybe (getDecl p) ds))
@@ -695,8 +695,9 @@ mutual
       expandConstraint (Nothing, p)
           = map (\x => (Nothing, x)) (pairToCons p)
 
-  desugarDecl ps (PImplementation fc vis pass is cons tn params impname nusing body)
-      = do is' <- traverse (\ (n,c,tm) => do tm' <- desugar AnyExpr ps tm
+  desugarDecl ps (PImplementation fc vis fnopts pass is cons tn params impname nusing body)
+      = do opts <- traverse (desugarFnOpt ps) fnopts
+           is' <- traverse (\ (n,c,tm) => do tm' <- desugar AnyExpr ps tm
                                              pure (n, c, tm')) is
            let _ = the (List (Name, RigCount, RawImp)) is'
            cons' <- traverse (\ (n, tm) => do tm' <- desugar AnyExpr ps tm
@@ -721,7 +722,7 @@ mutual
                           (\b => do b' <- traverse (desugarDecl ps) b
                                     pure (Just (concat b'))) body
            pure [IPragma (\c, nest, env =>
-                             elabImplementation fc vis pass env nest isb consb
+                             elabImplementation fc vis opts pass env nest isb consb
                                                 tn paramsb impname nusing
                                                 body')]
 

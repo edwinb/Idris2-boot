@@ -48,7 +48,7 @@ data Error
     | CantConvert FC (Env Term vars) (Term vars) (Term vars)
     | CantSolveEq FC (Env Term vars) (Term vars) (Term vars)
     | PatternVariableUnifies FC (Env Term vars) Name (Term vars)
-    | CyclicMeta FC Name
+    | CyclicMeta FC (Env Term vars) Name (Term vars)
     | WhenUnifying FC (Env Term vars) (Term vars) (Term vars) Error
     | ValidCase FC (Env Term vars) (Either (Term vars) Error)
     | UndefinedName FC Name
@@ -124,8 +124,9 @@ Show Error where
       = show fc ++ ":" ++ show x ++ " and " ++ show y ++ " are not equal"
   show (PatternVariableUnifies fc env n x)
       = show fc ++ ":Pattern variable " ++ show n ++ " unifies with " ++ show x
-  show (CyclicMeta fc n)
+  show (CyclicMeta fc env n tm)
       = show fc ++ ":Cycle detected in metavariable solution " ++ show n
+             ++ " = " ++ show tm
   show (WhenUnifying fc _ x y err)
       = show fc ++ ":When unifying: " ++ show x ++ " and " ++ show y ++ "\n\t" ++ show err
   show (ValidCase fc _ prob)
@@ -275,7 +276,7 @@ getErrorLoc (Fatal err) = getErrorLoc err
 getErrorLoc (CantConvert loc _ _ _) = Just loc
 getErrorLoc (CantSolveEq loc _ _ _) = Just loc
 getErrorLoc (PatternVariableUnifies loc _ _ _) = Just loc
-getErrorLoc (CyclicMeta loc _) = Just loc
+getErrorLoc (CyclicMeta loc _ _ _) = Just loc
 getErrorLoc (WhenUnifying loc _ _ _ _) = Just loc
 getErrorLoc (ValidCase loc _ _) = Just loc
 getErrorLoc (UndefinedName loc _) = Just loc

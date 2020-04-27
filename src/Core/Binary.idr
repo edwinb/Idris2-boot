@@ -27,7 +27,7 @@ import Data.Buffer
 -- TTC files can only be compatible if the version number is the same
 export
 ttcVersion : Int
-ttcVersion = 22
+ttcVersion = 23
 
 export
 checkTTCVersion : String -> Int -> Int -> Core ()
@@ -39,9 +39,6 @@ record TTCFile extra where
   version : Int
   ifaceHash : Int
   importHashes : List (List String, Int)
-  holes : List (Int, (FC, Name))
-  guesses : List (Int, (FC, Name))
-  constraints : List (Int, Constraint)
   context : List (Name, Binary)
   userHoles : List Name
   autoHints : List (Name, Bool)
@@ -86,7 +83,6 @@ HasNames (Name, Name, Bool) where
 
 HasNames e => HasNames (TTCFile e) where
   full gam (MkTTCFile version ifaceHash iHashes
-                      holes guesses constraints
                       context userHoles
                       autoHints typeHints
                       imported nextVar currentNS nestedNS
@@ -94,9 +90,6 @@ HasNames e => HasNames (TTCFile e) where
                       namedirectives cgdirectives
                       extra)
       = pure $ MkTTCFile version ifaceHash iHashes
-                         !(traverse (full gam) holes)
-                         !(traverse (full gam) guesses)
-                         constraints
                          context userHoles
                          !(traverse (full gam) autoHints)
                          !(traverse (full gam) typeHints)
@@ -127,7 +120,6 @@ HasNames e => HasNames (TTCFile e) where
   -- from the file we're going to add them to learn what the resolved names
   -- are supposed to be! But for completeness, let's do it right.
   resolved gam (MkTTCFile version ifaceHash iHashes
-                      holes guesses constraints
                       context userHoles
                       autoHints typeHints
                       imported nextVar currentNS nestedNS
@@ -135,9 +127,6 @@ HasNames e => HasNames (TTCFile e) where
                       namedirectives cgdirectives
                       extra)
       = pure $ MkTTCFile version ifaceHash iHashes
-                         !(traverse (resolved gam) holes)
-                         !(traverse (resolved gam) guesses)
-                         constraints
                          context userHoles
                          !(traverse (resolved gam) autoHints)
                          !(traverse (resolved gam) typeHints)
@@ -182,9 +171,6 @@ writeTTCFile b file_in
            toBuf b (version file)
            toBuf b (ifaceHash file)
            toBuf b (importHashes file)
---            toBuf b (holes file)
---            toBuf b (guesses file)
---            toBuf b (constraints file)
            toBuf b (context file)
            toBuf b (userHoles file)
            toBuf b (autoHints file)
@@ -211,12 +197,6 @@ readTTCFile modns as b
            checkTTCVersion (show modns) ver ttcVersion
            ifaceHash <- fromBuf b
            importHashes <- fromBuf b
---            holes <- fromBuf b
---            coreLift $ putStrLn $ "Read " ++ show (length holes) ++ " holes"
---            guesses <- fromBuf b
---            coreLift $ putStrLn $ "Read " ++ show (length guesses) ++ " guesses"
---            constraints <- the (Core (List (Int, Constraint))) $ fromBuf b
---            coreLift $ putStrLn $ "Read " ++ show (length constraints) ++ " constraints"
            defs <- logTime ("Definitions " ++ show modns) $ fromBuf b
            uholes <- fromBuf b
            autohs <- fromBuf b
@@ -234,7 +214,7 @@ readTTCFile modns as b
            cgds <- fromBuf b
            ex <- fromBuf b
            pure (MkTTCFile ver ifaceHash importHashes
-                           [] [] [] defs uholes -- holes guesses constraints defs
+                           defs uholes
                            autohs typehs imp nextv cns nns
                            pns rws prims nds cgds ex)
 
@@ -250,7 +230,8 @@ getSaveDefs (n :: ns) acc defs
               Builtin _ => getSaveDefs ns acc defs
               _ => do bin <- initBinaryS 16384
                       toBuf bin !(full (gamma defs) gdef)
-                      getSaveDefs ns ((fullname gdef, !(get Bin)) :: acc) defs
+                      b <- get Bin
+                      getSaveDefs ns ((fullname gdef, b) :: acc) defs
 
 -- Write out the things in the context which have been defined in the
 -- current source file
@@ -267,9 +248,6 @@ writeToTTC extradata fname
          log 5 $ "Writing " ++ fname ++ " with hash " ++ show (ifaceHash defs)
          writeTTCFile buf
                    (MkTTCFile ttcVersion (ifaceHash defs) (importHashes defs)
-                              (toList (holes ust))
-                              (toList (guesses ust))
-                              (toList (constraints ust))
                               gdefs
                               (keys (userHoles defs))
                               (saveAutoHints defs)
@@ -436,9 +414,7 @@ readFromTTC loc reexp fname modNS importAs
                -- Finally, update the unification state with the holes from the
                -- ttc
                ust <- get UST
-               put UST (record { holes = fromList (holes ttc),
-                                 constraints = fromList (constraints ttc),
-                                 nextName = nextVar ttc } ust)
+               put UST (record { nextName = nextVar ttc } ust)
                pure (Just (ex, ifaceHash ttc, imported ttc))
 
 getImportHashes : String -> Ref Bin Binary ->

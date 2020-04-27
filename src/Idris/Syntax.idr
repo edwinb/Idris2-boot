@@ -216,7 +216,7 @@ mutual
                     List PDecl ->
                     PDecl
        PImplementation : FC ->
-                         Visibility -> Pass ->
+                         Visibility -> List PFnOpt -> Pass ->
                          (implicits : List (Name, RigCount, PTerm)) ->
                          (constraints : List (Maybe Name, PTerm)) ->
                          Name ->
@@ -833,14 +833,14 @@ mapPTermM f = goPTerm where
                       <*> pure ns
                       <*> pure mn
                       <*> goPDecls ps
-    goPDecl (PImplementation fc v p is cs n ts mn ns mps) =
-      PImplementation fc v p <$> go3TupledPTerms is
-                             <*> goPairedPTerms cs
-                             <*> pure n
-                             <*> goPTerms ts
-                             <*> pure mn
-                             <*> pure ns
-                             <*> goMPDecls mps
+    goPDecl (PImplementation fc v opts p is cs n ts mn ns mps) =
+      PImplementation fc v opts p <$> go3TupledPTerms is
+                                  <*> goPairedPTerms cs
+                                  <*> pure n
+                                  <*> goPTerms ts
+                                  <*> pure mn
+                                  <*> pure ns
+                                  <*> goMPDecls mps
     goPDecl (PRecord fc v n nts mn fs) =
       PRecord fc v n <$> go4TupledPTerms nts
                      <*> pure mn
