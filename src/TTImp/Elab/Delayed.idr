@@ -60,7 +60,7 @@ delayOnFailure fc rig env expected pred pri elab
                  if pred err && allowDelay est
                     then
                       do nm <- genName "delayed"
-                         (ci, dtm) <- newDelayed fc Rig1 env nm !(getTerm expected)
+                         (ci, dtm) <- newDelayed fc linear env nm !(getTerm expected)
                          logGlueNF 5 ("Postponing elaborator " ++ show nm ++
                                       " at " ++ show fc ++
                                       " for") env expected
@@ -89,7 +89,7 @@ delayElab {vars} fc rig env exp pri elab
             else do
              nm <- genName "delayed"
              expected <- mkExpected exp
-             (ci, dtm) <- newDelayed fc Rig1 env nm !(getTerm expected)
+             (ci, dtm) <- newDelayed fc linear env nm !(getTerm expected)
              logGlueNF 5 ("Postponing elaborator " ++ show nm ++
                           " for") env expected
              ust <- get UST
@@ -102,7 +102,7 @@ delayElab {vars} fc rig env exp pri elab
     mkExpected (Just ty) = pure ty
     mkExpected Nothing
         = do nm <- genName "delayTy"
-             ty <- metaVar fc Rig0 env nm (TType fc)
+             ty <- metaVar fc erased env nm (TType fc)
              pure (gnf env ty)
 
 export

@@ -34,13 +34,13 @@ findErasedFrom defs pos (NBind fc x (Pi c _ aty) scf)
     = do -- In the scope, use 'Erased fc True' to mean 'argument is erased'.
          -- It's handy here, because we can use it to tell if a detaggable
          -- argument position is available
-         sc <- scf defs (toClosure defaultOpts [] (Erased fc (c == Rig0)))
+         sc <- scf defs (toClosure defaultOpts [] (Erased fc (isErased c)))
          (erest, dtrest) <- findErasedFrom defs (1 + pos) sc
          let dt' = if !(detagSafe defs aty)
                       then (pos :: dtrest) else dtrest
-         case c of
-              Rig0 => pure (pos :: erest, dt')
-              _ => pure (erest, dt')
+         pure $ if isErased c
+                   then (pos :: erest, dt')
+                   else (erest, dt')
 findErasedFrom defs pos tm = pure ([], [])
 
 -- Find the argument positions in the given type which are guaranteed to be

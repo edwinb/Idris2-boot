@@ -57,15 +57,15 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
                       -- at private names in the nested namespace
                       put Ctxt (record { currentNS = cns,
                                          nestedNS = newns :: nns } defs)
-  where    
+  where
     paramTelescope : List (Maybe Name, RigCount, PiInfo RawImp, RawImp)
     paramTelescope = map jname params
       where
-        jname : (Name, RigCount, PiInfo RawImp, RawImp) 
+        jname : (Name, RigCount, PiInfo RawImp, RawImp)
              -> (Maybe Name, RigCount, PiInfo RawImp, RawImp)
         -- Record type parameters are implicit in the constructor
         -- and projections
-        jname (n, _, _, t) = (Just n, Rig0, Implicit, t)
+        jname (n, _, _, t) = (Just n, erased, Implicit, t)
 
     fname : IField -> Name
     fname (MkIField fc c p n ty) = n
@@ -112,7 +112,7 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
     --          you probably will have to adjust TTImp.TTImp.definedInBlock.
     --
     elabGetters : {vs : _} ->
-                  Name -> 
+                  Name ->
                   (done : Nat) -> -- number of explicit fields processed
                   List (Name, RawImp) -> -- names to update in types
                     -- (for dependent records, where a field's type may depend
@@ -139,12 +139,12 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
                    projTy <- bindTypeNames []
                                  (map fst params ++ map fname fields ++ vars) $
                                     mkTy paramTelescope $
-                                      IPi fc RigW Explicit (Just rname) recTy ty'
+                                      IPi fc top Explicit (Just rname) recTy ty'
                    log 5 $ "Projection " ++ show projNameNS ++ " : " ++ show projTy
                    processDecl [] nest env
-                       (IClaim fc (if rc == Rig0
-                                      then Rig0
-                                      else RigW) vis [] (MkImpTy fc projNameNS projTy))
+                       (IClaim fc (if isErased rc
+                                      then erased
+                                      else top) vis [] (MkImpTy fc projNameNS projTy))
 
                    -- Define the LHS and RHS
                    let lhs_exp

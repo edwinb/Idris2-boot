@@ -78,7 +78,7 @@ elabRewrite loc env expected rulety
          logTerm 5 "Rewritten to" rwexp_sc
 
          empty <- clearDefs defs
-         let pred = Bind loc parg (Lam RigW Explicit
+         let pred = Bind loc parg (Lam top Explicit
                           !(quote empty env lty))
                           (refsToLocals (Add parg parg None) rwexp_sc)
          gpredty <- getType env pred
@@ -105,7 +105,7 @@ checkRewrite rigc elabinfo nest env fc rule tm Nothing
     = throw (GenericMsg fc "Can't infer a type for rewrite")
 checkRewrite {vars} rigc elabinfo nest env fc rule tm (Just expected)
     = delayOnFailure fc rigc env expected rewriteErr 10 (\delayed =>
-        do (rulev, grulet) <- check Rig0 elabinfo nest env rule Nothing
+        do (rulev, grulet) <- check erased elabinfo nest env rule Nothing
            rulet <- getTerm grulet
            expTy <- getTerm expected
            when delayed $ log 5 "Retrying rewrite"
@@ -114,8 +114,8 @@ checkRewrite {vars} rigc elabinfo nest env fc rule tm (Just expected)
            rname <- genVarName "_"
            pname <- genVarName "_"
 
-           let pbind = Let Rig0 pred predty
-           let rbind = Let Rig0 (weaken rulev) (weaken rulet)
+           let pbind = Let erased pred predty
+           let rbind = Let erased (weaken rulev) (weaken rulet)
 
            let env' = rbind :: pbind :: env
 

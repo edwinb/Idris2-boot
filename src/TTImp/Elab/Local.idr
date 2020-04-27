@@ -46,7 +46,7 @@ checkLocal {vars} rig elabinfo nest env fc nestdecls scope expty
     dropLinear [] = []
     dropLinear (b :: bs)
         = if isLinear (multiplicity b)
-             then setMultiplicity b Rig0 :: dropLinear bs
+             then setMultiplicity b erased :: dropLinear bs
              else b :: dropLinear bs
 
     applyEnv : {auto c : Ref Ctxt Defs} -> Int -> Name ->

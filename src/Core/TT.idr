@@ -5,6 +5,7 @@ import public Core.Name
 
 import Data.NameMap
 import Data.Vect
+import public Algebra
 
 %default covering
 
@@ -216,59 +217,6 @@ Eq t => Eq (PiInfo t) where
   (==) _ _ = False
 
 public export
-data RigCount = Rig0 | Rig1 | RigW
-
-export
-isLinear : RigCount -> Bool
-isLinear Rig1 = True
-isLinear _ = False
-
-export
-Eq RigCount where
-  (==) Rig0 Rig0 = True
-  (==) Rig1 Rig1 = True
-  (==) RigW RigW = True
-  (==) _ _ = False
-
-export
-Ord RigCount where
-  compare Rig0 Rig0 = EQ
-  compare Rig0 Rig1 = LT
-  compare Rig0 RigW = LT
-
-  compare Rig1 Rig0 = GT
-  compare Rig1 Rig1 = EQ
-  compare Rig1 RigW = LT
-
-  compare RigW Rig0 = GT
-  compare RigW Rig1 = GT
-  compare RigW RigW = EQ
-
-export
-Show RigCount where
-  show Rig0 = "Rig0"
-  show Rig1 = "Rig1"
-  show RigW = "RigW"
-
-fromInt : Int -> RigCount
-fromInt 0 = Rig0
-fromInt 1 = Rig1
-fromInt _ = RigW
-
-toInt : RigCount -> Int
-toInt Rig0 = 0
-toInt Rig1 = 1
-toInt RigW = 2
-
-export
-rigPlus : RigCount -> RigCount -> RigCount
-rigPlus a b = fromInt (toInt a + toInt b)
-
-export
-rigMult : RigCount -> RigCount -> RigCount
-rigMult a b = fromInt (toInt a * toInt b)
-
-public export
 data Binder : Type -> Type where
 	   -- Lambda bound variables with their implicitness
      Lam : RigCount -> PiInfo type -> (ty : type) -> Binder type
@@ -315,9 +263,7 @@ setMultiplicity (PLet c val ty) c' = PLet c' val ty
 setMultiplicity (PVTy c ty) c' = PVTy c' ty
 
 showCount : RigCount -> String
-showCount Rig0 = "0 "
-showCount Rig1 = "1 "
-showCount RigW = ""
+showCount = elimSemi "0 " "1 " (const "")
 
 Show ty => Show (Binder ty) where
 	show (Lam c _ t) = "\\" ++ showCount c ++ show t
@@ -812,11 +758,11 @@ apply loc fn (a :: args) = apply loc (App loc fn a) args
 -- Build a simple function type
 export
 fnType : Term vars -> Term vars -> Term vars
-fnType arg scope = Bind emptyFC (MN "_" 0) (Pi RigW Explicit arg) (weaken scope)
+fnType arg scope = Bind emptyFC (MN "_" 0) (Pi top Explicit arg) (weaken scope)
 
 export
 linFnType : Term vars -> Term vars -> Term vars
-linFnType arg scope = Bind emptyFC (MN "_" 0) (Pi Rig1 Explicit arg) (weaken scope)
+linFnType arg scope = Bind emptyFC (MN "_" 0) (Pi linear Explicit arg) (weaken scope)
 
 export
 getFnArgs : Term vars -> (Term vars, List (Term vars))

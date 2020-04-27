@@ -472,7 +472,7 @@ dropLinearErrors : {auto c : Ref Ctxt Defs} ->
 dropLinearErrors fc [] = pure []
 dropLinearErrors fc (t :: ts)
     = tryUnify
-          (do linearCheck fc Rig1 False [] t
+          (do linearCheck fc linear False [] t
               ts' <- dropLinearErrors fc ts
               pure (t :: ts'))
           (dropLinearErrors fc ts)

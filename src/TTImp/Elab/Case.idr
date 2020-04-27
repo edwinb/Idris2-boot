@@ -50,13 +50,13 @@ findLater {older} x (_ :: xs)
 
 toRig1 : {idx : Nat} -> .(IsVar name idx vs) -> Env Term vs -> Env Term vs
 toRig1 First (b :: bs)
-    = if multiplicity b == Rig0
-         then setMultiplicity b Rig1 :: bs
+    = if isErased (multiplicity b)
+         then setMultiplicity b linear :: bs
          else b :: bs
 toRig1 (Later p) (b :: bs) = b :: toRig1 p bs
 
 toRig0 : {idx : Nat} -> .(IsVar name idx vs) -> Env Term vs -> Env Term vs
-toRig0 First (b :: bs) = setMultiplicity b Rig0 :: bs
+toRig0 First (b :: bs) = setMultiplicity b erased :: bs
 toRig0 (Later p) (b :: bs) = b :: toRig0 p bs
 
 allow : Maybe (Var vs) -> Env Term vs -> Env Term vs
@@ -177,7 +177,7 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
                            Just ty => getTerm ty
                            _ =>
                               do nmty <- genName "caseTy"
-                                 metaVar fc Rig0 env nmty (TType fc)
+                                 metaVar fc erased env nmty (TType fc)
 
          (caseretty, _) <- bindImplicits fc (implicitMode elabinfo) defs env
                                          fullImps caseretty_in (TType fc)
@@ -196,7 +196,7 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
          -- actually bound! This is rather hacky, but a lot less fiddly than
          -- the alternative of fixing up the environment
          when (not (isNil fullImps)) $ findImpsIn fc [] [] casefnty
-         cidx <- addDef casen (newDef fc casen (if rigc == Rig0 then Rig0 else RigW)
+         cidx <- addDef casen (newDef fc casen (if isErased rigc then erased else top)
                                       [] casefnty Private None)
          let caseRef : Term vars = Ref fc Func (Resolved cidx)
 
@@ -229,7 +229,7 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
     mkLocalEnv [] = []
     mkLocalEnv (b :: bs)
         = let b' = if isLinear (multiplicity b)
-                      then setMultiplicity b Rig0
+                      then setMultiplicity b erased
                       else b in
               b' :: mkLocalEnv bs
 
@@ -333,25 +333,26 @@ checkCase rig elabinfo nest env fc scr scrty_in alts exp
         do scrty_exp <- case scrty_in of
                              Implicit _ _ => guessScrType alts
                              _ => pure scrty_in
-           (scrtyv, scrtyt) <- check Rig0 elabinfo nest env scrty_exp
+           (scrtyv, scrtyt) <- check erased elabinfo nest env scrty_exp
                                      (Just (gType fc))
            logTerm 10 "Expected scrutinee type" scrtyv
            -- Try checking at the given multiplicity; if that doesn't work,
            -- try checking at Rig1 (meaning that we're using a linear variable
            -- so the scrutinee should be linear)
-           let chrig = case rig of
-                            Rig0 => Rig0
-                            _ => RigW
+           let chrig = if isErased rig then erased else top
            log 5 $ "Checking " ++ show scr ++ " at " ++ show chrig
 
            (scrtm_in, gscrty, caseRig) <- handle
               (do c <- runDelays 10 $ check chrig elabinfo nest env scr (Just (gnf env scrtyv))
                   pure (fst c, snd c, chrig))
               (\err => case err of
-                            LinearMisuse _ _ Rig1 _
-                              => do c <- runDelays 10 $ check Rig1 elabinfo nest env scr
+                            e@(LinearMisuse _ _ r _)
+                              => branchOne
+                                    (do c <- runDelays 10 $ check linear elabinfo nest env scr
                                                (Just (gnf env scrtyv))
-                                    pure (fst c, snd c, Rig1)
+                                        pure (fst c, snd c, linear))
+                                    (throw e)
+                                    r
                             e => throw e)
 
            scrty <- getTerm gscrty

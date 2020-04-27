@@ -35,7 +35,7 @@ bindConstraints : FC -> PiInfo RawImp ->
                   List (Maybe Name, RawImp) -> RawImp -> RawImp
 bindConstraints fc p [] ty = ty
 bindConstraints fc p ((n, ty) :: rest) sc
-    = IPi fc RigW p n ty (bindConstraints fc p rest sc)
+    = IPi fc top p n ty (bindConstraints fc p rest sc)
 
 bindImpls : FC -> List (Name, RigCount, RawImp) -> RawImp -> RawImp
 bindImpls fc [] ty = ty
@@ -147,7 +147,7 @@ elabImplementation {vars} fc vis opts_in pass env nest is cons iname ps impln nu
                           else []
          let impTy = doBind paramBinds initTy
 
-         let impTyDecl = IClaim fc RigW vis opts (MkImpTy fc impName impTy)
+         let impTyDecl = IClaim fc top vis opts (MkImpTy fc impName impTy)
          log 5 $ "Implementation type: " ++ show impTy
 
          when (typePass pass) $ processDecl [] nest env impTyDecl
