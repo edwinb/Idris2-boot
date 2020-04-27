@@ -499,12 +499,12 @@ instantiate {newvars} loc mode env mname mref num mdef locs otm tm
         updateLocsB (Let c v t) = Just (Let c !(updateLocs locs v) !(updateLocs locs t))
         -- Make 'pi' binders have multiplicity W when we infer a Rig1 metavariable,
         -- since this is the most general thing to do if it's unknown.
-        updateLocsB (Pi Rig1 p t)
-            = do t' <- updateLocs locs t
-                 if inLam mode
-                    then Just (Pi Rig1 p t')
-                    else Just (Pi RigW p t')
-        updateLocsB (Pi c p t) = Just (Pi c p !(updateLocs locs t))
+        updateLocsB (Pi rig p t) = if isLinear rig
+            then  do t' <- updateLocs locs t
+                     pure $ if inLam mode
+                        then (Pi linear p t')
+                        else (Pi top p t')
+            else Just (Pi rig p !(updateLocs locs t))
         updateLocsB (PVar c p t) = Just (PVar c p !(updateLocs locs t))
         updateLocsB (PLet c v t) = Just (PLet c !(updateLocs locs v) !(updateLocs locs t))
         updateLocsB (PVTy c t) = Just (PVTy c !(updateLocs locs t))
@@ -951,8 +951,8 @@ mutual
 
   -- Comparing multiplicities when converting pi binders
   subRig : RigCount -> RigCount -> Bool
-  subRig Rig1 RigW = True -- we can pass a linear function if a general one is expected
-  subRig x y = x == y -- otherwise, the multiplicities need to match up
+  subRig x y = (isLinear x && isRigOther y) || -- we can pass a linear function if a general one is expected
+               x == y -- otherwise, the multiplicities need to match up
 
   unifyBothBinders: {auto c : Ref Ctxt Defs} ->
                     {auto u : Ref UST UState} ->
@@ -989,7 +989,7 @@ mutual
                       cs => -- Constraints, make new guarded constant
                          do txtm <- quote empty env tx
                             tytm <- quote empty env ty
-                            c <- newConstant loc Rig0 env
+                            c <- newConstant loc erased env
                                    (Bind xfc x (Lam cy Explicit txtm) (Local xfc Nothing _ First))
                                    (Bind xfc x (Pi cy Explicit txtm)
                                        (weaken tytm)) cs

@@ -27,7 +27,7 @@ import Data.ANameMap
 mkDataTy : FC -> List (Name, RawImp) -> RawImp
 mkDataTy fc [] = IType fc
 mkDataTy fc ((n, ty) :: ps)
-    = IPi fc RigW Explicit (Just n) ty (mkDataTy fc ps)
+    = IPi fc top Explicit (Just n) ty (mkDataTy fc ps)
 
 mkIfaceData : {auto c : Ref Ctxt Defs} ->
               FC -> Visibility -> Env Term vars ->
@@ -48,13 +48,13 @@ mkIfaceData {vars} fc vis env constraints n conName ps dets meths
                                   opts [con])
   where
     jname : (Name, RawImp) -> (Maybe Name, RigCount, RawImp)
-    jname (n, t) = (Just n, Rig0, t)
+    jname (n, t) = (Just n, erased, t)
 
     bname : (Name, RigCount, RawImp) -> (Maybe Name, RigCount, RawImp)
-    bname (n, c, t) = (Just n, c, IBindHere (getFC t) (PI Rig0) t)
+    bname (n, c, t) = (Just n, c, IBindHere (getFC t) (PI erased) t)
 
     bhere : (Maybe Name, RigCount, RawImp) -> (Maybe Name, RigCount, RawImp)
-    bhere (n, c, t) = (n, c, IBindHere (getFC t) (PI Rig0) t)
+    bhere (n, c, t) = (n, c, IBindHere (getFC t) (PI erased) t)
 
     mkTy : PiInfo RawImp ->
            List (Maybe Name, RigCount, RawImp) -> RawImp -> RawImp
@@ -62,7 +62,7 @@ mkIfaceData {vars} fc vis env constraints n conName ps dets meths
     mkTy imp ((n, c, argty) :: args) ret
         = IPi fc c imp n argty (mkTy imp args ret)
 
--- Give implicit Pi bindings explicit names, if they don't have one already, 
+-- Give implicit Pi bindings explicit names, if they don't have one already,
 -- because we need them to be consistent everywhere we refer to them
 namePis : Int -> RawImp -> RawImp
 namePis i (IPi fc r AutoImplicit Nothing ty sc)
@@ -103,7 +103,7 @@ bindIFace _ ity (IPi fc rig Implicit n ty sc)
        = IPi fc rig Implicit n ty (bindIFace fc ity sc)
 bindIFace _ ity (IPi fc rig AutoImplicit n ty sc)
        = IPi fc rig AutoImplicit n ty (bindIFace fc ity sc)
-bindIFace fc ity sc = IPi fc RigW AutoImplicit (Just (UN "__con")) ity sc
+bindIFace fc ity sc = IPi fc top AutoImplicit (Just (UN "__con")) ity sc
 
 -- Get the top level function for implementing a method
 getMethToplevel : {auto c : Ref Ctxt Defs} ->
@@ -145,7 +145,7 @@ getMethToplevel {vars} env vis iname cname constraints allmeths params
     bindPs : List (Name, RawImp) -> RawImp -> RawImp
     bindPs [] ty = ty
     bindPs ((n, pty) :: ps) ty
-        = IPi (getFC pty) Rig0 Implicit (Just n) pty (bindPs ps ty)
+        = IPi (getFC pty) erased Implicit (Just n) pty (bindPs ps ty)
 
     applyCon : Name -> (Name, RawImp)
     applyCon n = (n, IImplicitApp fc (IVar fc n)
@@ -160,7 +160,7 @@ getMethToplevel {vars} env vis iname cname constraints allmeths params
     mkLam : List Name -> RawImp -> RawImp
     mkLam [] tm = tm
     mkLam (x :: xs) tm
-       = ILam fc RigW Explicit (Just x) (Implicit fc False) (mkLam xs tm)
+       = ILam fc top Explicit (Just x) (Implicit fc False) (mkLam xs tm)
 
     bindName : Name -> String
     bindName (UN n) = "__bind_" ++ n
@@ -181,11 +181,11 @@ getConstraintHint : {auto c : Ref Ctxt Defs} ->
                     (Name, RawImp) -> Core (Name, List ImpDecl)
 getConstraintHint {vars} fc env vis iname cname constraints meths params (cn, con)
     = do let ity = apply (IVar fc iname) (map (IVar fc) params)
-         let fty = IPi fc RigW Explicit Nothing ity con
+         let fty = IPi fc top Explicit Nothing ity con
          ty_imp <- bindTypeNames [] (meths ++ vars) fty
          let hintname = DN ("Constraint " ++ show con)
                           (UN ("__" ++ show iname ++ "_" ++ show con))
-         let tydecl = IClaim fc RigW vis [Inline, Hint False]
+         let tydecl = IClaim fc top vis [Inline, Hint False]
                           (MkImpTy fc hintname ty_imp)
          let conapp = apply (IVar fc cname)
                         (map (IBindVar fc) (map bindName constraints) ++
@@ -207,7 +207,7 @@ getSig : ImpDecl -> Maybe (FC, RigCount, List FnOpt, Name, (Bool, RawImp))
 getSig (IClaim _ c _ opts (MkImpTy fc n ty))
     = Just (fc, c, opts, n, (False, namePis 0 ty))
 getSig (IData _ _ (MkImpLater fc n ty))
-    = Just (fc, Rig0, [Invertible], n, (True, namePis 0 ty))
+    = Just (fc, erased, [Invertible], n, (True, namePis 0 ty))
 getSig _ = Nothing
 
 getDefault : ImpDecl -> Maybe (FC, List FnOpt, Name, List ImpClause)
@@ -281,7 +281,7 @@ elabInterface {vars} fc vis env nest constraints iname params dets mcon body
              log 5 $ "Method declarations: " ++ show meths
 
              consts <- traverse (getMethDecl env nest params meth_names)
-                                (map (\c => (fc, Rig1, [], c))
+                                (map (\c => (fc, linear, [], c))
                                    (map notData constraints))
              log 5 $ "Constraints: " ++ show consts
 

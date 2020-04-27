@@ -15,6 +15,11 @@ import Data.LengthMatch
 public export
 data Phase = CompileTime | RunTime
 
+Eq Phase where
+  CompileTime == CompileTime = True
+  RunTime == RunTime = True
+  _ == _ = False
+
 data ArgType : List Name -> Type where
      Known : RigCount -> (ty : Term vars) -> ArgType vars -- arg has type 'ty'
      Stuck : (fty : Term vars) -> ArgType vars
@@ -86,7 +91,7 @@ updatePats env nf (p :: ps)
 
 mkEnv : FC -> (vs : List Name) -> Env Term vs
 mkEnv fc [] = []
-mkEnv fc (n :: ns) = PVar RigW Explicit (Erased fc False) :: mkEnv fc ns
+mkEnv fc (n :: ns) = PVar top Explicit (Erased fc False) :: mkEnv fc ns
 
 substInPatInfo : {auto c : Ref Ctxt Defs} ->
                  FC -> Name -> Term vars -> PatInfo pvar vars ->
@@ -229,19 +234,25 @@ clauseType : Phase -> PatClause vars (a :: as) -> ClauseType
 clauseType phase (MkPatClause pvars (MkInfo arg _ ty :: rest) rhs)
     = getClauseType phase arg ty
   where
+    -- used to get the remaining clause types
+    clauseType' : Pat -> ClauseType
+    clauseType' (PCon _ _ _ _ xs) = ConClause
+    clauseType' (PTyCon _ _ _ xs) = ConClause
+    clauseType' (PConst _ x)      = ConClause
+    clauseType' (PArrow _ _ s t)  = ConClause
+    clauseType' (PDelay _ _ _ _)  = ConClause
+    clauseType' _                 = VarClause
+
     getClauseType : Phase -> Pat -> ArgType vars -> ClauseType
-    getClauseType CompileTime (PCon _ _ _ _ xs) (Known Rig0 t)
-        = if all (namesIn (pvars ++ concatMap namesFrom (getPatInfo rest))) xs
+    getClauseType CompileTime (PCon _ _ _ _ xs) (Known r t)
+        = if isErased r && all (namesIn (pvars ++ concatMap namesFrom (getPatInfo rest))) xs
              then VarClause
              else ConClause
     getClauseType phase (PAs _ _ p) t = getClauseType phase p t
-    getClauseType phase _ (Known Rig0 t) = VarClause
-    getClauseType phase (PCon _ _ _ _ xs) _ = ConClause
-    getClauseType phase (PTyCon _ _ _ xs) _ = ConClause
-    getClauseType phase (PConst _ x) _ = ConClause
-    getClauseType phase (PArrow _ _ s t) _ = ConClause
-    getClauseType phase (PDelay _ _ _ _) t = ConClause
-    getClauseType phase _ _ = VarClause
+    getClauseType phase l (Known r t) = if isErased r
+      then VarClause
+      else clauseType' l
+    getClauseType phase l _ = clauseType' l
 
 partition : Phase -> (ps : List (PatClause vars (a :: as))) -> Partitions ps
 partition phase [] = NoClauses
@@ -413,8 +424,8 @@ groupCons fc fn pvars cs
     -- the same name in each of the clauses
     addConG {todo} n tag pargs pats rhs []
         = do cty <- the (Core (NF vars)) $ if n == UN "->"
-                      then pure $ NBind fc (MN "_" 0) (Pi RigW Explicit (NType fc)) $
-                              (\d, a => pure $ NBind fc (MN "_" 1) (Pi RigW Explicit (NErased fc False))
+                      then pure $ NBind fc (MN "_" 0) (Pi top Explicit (NType fc)) $
+                              (\d, a => pure $ NBind fc (MN "_" 1) (Pi top Explicit (NErased fc False))
                                 (\d, a => pure $ NType fc))
                       else do defs <- get Ctxt
                               Just t <- lookupTyExact n (gamma defs)
@@ -458,10 +469,10 @@ groupCons fc fn pvars cs
                 (acc : List (Group vars todo)) ->
                 Core (List (Group vars todo))
     addDelayG {todo} pty parg pats rhs []
-        = do let dty = NBind fc (MN "a" 0) (Pi Rig0 Explicit (NType fc)) $
+        = do let dty = NBind fc (MN "a" 0) (Pi erased Explicit (NType fc)) $
                         (\d, a =>
                             do a' <- evalClosure d a
-                               pure (NBind fc (MN "x" 0) (Pi RigW Explicit a')
+                               pure (NBind fc (MN "x" 0) (Pi top Explicit a')
                                        (\dv, av => pure (NDelayed fc LUnknown a'))))
              ([tyname, argname] ** newargs) <- nextNames {vars} fc "e" [pty, parg]
                                                   (Just dty)
@@ -559,7 +570,8 @@ sameType fc phase fn env [] = pure ()
 sameType {ns} fc phase fn env (p :: xs)
     = do defs <- get Ctxt
          case getFirstArgType p of
-              Known _ t => sameTypeAs phase !(nf defs env t)
+              Known _ t => sameTypeAs phase
+                                      !(nf defs env t)
                                       (map getFirstArgType xs)
               ty => throw (CaseCompile fc fn DifferingTypes)
   where
@@ -577,14 +589,14 @@ sameType {ns} fc phase fn env (p :: xs)
 
     sameTypeAs : Phase -> NF ns -> List (ArgType ns) -> Core ()
     sameTypeAs _ ty [] = pure ()
-    sameTypeAs RunTime ty (Known Rig0 t :: xs)
-          = throw (CaseCompile fc fn (MatchErased (_ ** (env, mkTerm _ (firstPat p)))))
-                -- Can't match on erased thing
-    sameTypeAs p ty (Known c t :: xs)
-          = do defs <- get Ctxt
-               if headEq ty !(nf defs env t) phase
-                  then sameTypeAs p ty xs
-                  else throw (CaseCompile fc fn DifferingTypes)
+    sameTypeAs ph ty (Known r t :: xs) =
+      if ph == RunTime && isErased r
+         -- Can't match on erased thing
+         then throw (CaseCompile fc fn (MatchErased (_ ** (env, mkTerm _ (firstPat p)))))
+         else do defs <- get Ctxt
+                 if headEq ty !(nf defs env t) phase
+                    then sameTypeAs ph ty xs
+                    else throw (CaseCompile fc fn DifferingTypes)
     sameTypeAs p ty _ = throw (CaseCompile fc fn DifferingTypes)
 
 -- Check whether all the initial patterns are the same, or are all a variable.

@@ -82,21 +82,21 @@ perror (NotTotal fc n r)
     = pure $ !(prettyName n) ++ " is not total"
 perror (LinearUsed fc count n)
     = pure $ "There are " ++ show count ++ " uses of linear name " ++ sugarName n
-perror (LinearMisuse fc n Rig0 ctx)
-    = pure $ show n ++ " is not accessible in this context"
 perror (LinearMisuse fc n exp ctx)
-    = pure $ "Trying to use " ++ showRig exp ++ " name " ++ sugarName n ++
+    = pure $ if isErased exp
+         then show n ++ " is not accessible in this context"
+         else "Trying to use " ++ showRig exp ++ " name " ++ sugarName n ++
                  " in " ++ showRel ctx ++ " context"
   where
     showRig : RigCount -> String
-    showRig Rig0 = "irrelevant"
-    showRig Rig1 = "linear"
-    showRig RigW = "unrestricted"
+    showRig = elimSemi "irrelevant"
+                       "linear"
+                       (const "unrestricted")
 
     showRel : RigCount -> String
-    showRel Rig0 = "irrelevant"
-    showRel Rig1 = "relevant"
-    showRel RigW = "non-linear"
+    showRel = elimSemi "irrelevant"
+                       "relevant"
+                       (const "non-linear")
 perror (BorrowPartial fc env tm arg)
     = pure $ !(pshow env tm) ++
              " borrows argument " ++ !(pshow env arg) ++

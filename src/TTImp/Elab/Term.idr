@@ -146,7 +146,7 @@ checkTerm rig elabinfo nest env (ISearch fc depth) (Just gexpty)
 checkTerm rig elabinfo nest env (ISearch fc depth) Nothing
     = do est <- get EST
          nmty <- genName "searchTy"
-         ty <- metaVar fc Rig0 env nmty (TType fc)
+         ty <- metaVar fc erased env nmty (TType fc)
          nm <- genName "search"
          sval <- searchVar fc rig depth (Resolved (defining est)) env nm ty
          pure (sval, gnf env ty)
@@ -207,7 +207,7 @@ checkTerm rig elabinfo nest env (Implicit fc b) (Just gexpty)
          pure (metaval, gexpty)
 checkTerm rig elabinfo nest env (Implicit fc b) Nothing
     = do nmty <- genName "implicit_type"
-         ty <- metaVar fc Rig0 env nmty (TType fc)
+         ty <- metaVar fc erased env nmty (TType fc)
          nm <- genName "_"
          metaval <- metaVar fc rig env nm ty
          -- Add to 'bindIfUnsolved' if 'b' set

@@ -41,7 +41,7 @@ checkDelay : {vars : _} ->
              Core (Term vars, Glued vars)
 checkDelay rig elabinfo nest env fc tm mexpected
     = do expected <- maybe (do nm <- genName "delayTy"
-                               ty <- metaVar fc Rig0 env nm (TType fc)
+                               ty <- metaVar fc erased env nm (TType fc)
                                pure (gnf env ty))
                            pure mexpected
          let solvemode = case elabMode elabinfo of

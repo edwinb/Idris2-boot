@@ -106,7 +106,7 @@ mkSpecDef {vars} fc env gdef pename sargs fn stk
          -- Add as RigW - if it's something else, we don't need it at
          -- runtime anyway so this is wasted effort, therefore a failure
          -- is okay!
-         peidx <- addDef pename (newDef fc pename RigW [] sty Public None)
+         peidx <- addDef pename (newDef fc pename top [] sty Public None)
          addToSave (Resolved peidx)
 
          let PMDef pminfo pmargs ct tr pats = definition gdef

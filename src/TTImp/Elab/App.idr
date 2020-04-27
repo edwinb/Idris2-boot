@@ -65,10 +65,8 @@ getNameType rigc env fc x
     isLet _ = False
 
     rigSafe : RigCount -> RigCount -> Core ()
-    rigSafe Rig1 RigW = throw (LinearMisuse fc !(getFullName x) Rig1 RigW)
-    rigSafe Rig0 RigW = throw (LinearMisuse fc !(getFullName x) Rig0 RigW)
-    rigSafe Rig0 Rig1 = throw (LinearMisuse fc !(getFullName x) Rig0 Rig1)
-    rigSafe _ _ = pure ()
+    rigSafe lhs rhs = when (lhs < rhs)
+                           (throw (LinearMisuse fc !(getFullName x) lhs rhs))
 
 -- Get the type of a variable, looking it up in the nested names first.
 getVarType : {vars : _} ->
@@ -210,7 +208,7 @@ mutual
                     RigCount -> RigCount -> ElabInfo ->
                     NestedNames vars -> Env Term vars ->
                     FC -> (fntm : Term vars) ->
-                    Name -> NF vars -> NF vars -> 
+                    Name -> NF vars -> NF vars ->
                     (Defs -> Closure vars -> Core (NF vars)) ->
                     (argpos : (Maybe Name, Nat)) ->
                     (expargs : List RawImp) ->
@@ -296,28 +294,29 @@ mutual
   checkPatTyValid fc defs env (NApp _ (NMeta n i _) _) arg got
       = do Just gdef <- lookupCtxtExact (Resolved i) (gamma defs)
                 | Nothing => pure ()
-           case multiplicity gdef of
-                Rig0 =>
-                   do -- Argument is only valid if gotnf is not a concrete type
+           if isErased (multiplicity gdef)
+              then do -- Argument is only valid if gotnf is not a concrete type
                       gotnf <- getNF got
                       if !(concrete defs env gotnf)
                          then throw (MatchTooSpecific fc env arg)
                          else pure ()
-                _ => pure ()
+              else pure ()
   checkPatTyValid fc defs env _ _ _ = pure ()
 
   dotErased : {auto c : Ref Ctxt Defs} ->
               Maybe Name -> Nat -> ElabMode -> RigCount -> RawImp -> Core RawImp
-  dotErased _ _ (InLHS Rig0) r tm = pure $ tm
-  dotErased mn argpos (InLHS _) Rig0 tm
-      = -- if argpos is an erased position of 'n', leave it, otherwise dot if
-        -- necessary
-        do defs <- get Ctxt
-           Just gdef <- maybe (pure Nothing) (\n => lookupCtxtExact n (gamma defs)) mn
-                | Nothing => pure (dotTerm tm)
-           if argpos `elem` safeErase gdef
-              then pure tm
-              else pure $ dotTerm tm
+  dotErased mn argpos (InLHS lrig ) rig tm
+      = if not (isErased lrig) && isErased rig
+           then
+                -- if argpos is an erased position of 'n', leave it, otherwise dot if
+                -- necessary
+                do defs <- get Ctxt
+                   Just gdef <- maybe (pure Nothing) (\n => lookupCtxtExact n (gamma defs)) mn
+                        | Nothing => pure (dotTerm tm)
+                   if argpos `elem` safeErase gdef
+                      then pure tm
+                      else pure $ dotTerm tm
+           else pure tm
     where
       dotTerm : RawImp -> RawImp
       dotTerm tm
@@ -329,7 +328,7 @@ mutual
                  IAs _ _ _ (Implicit _ _) => tm
                  IAs fc p t arg => IAs fc p t (IMustUnify fc ErasedArg tm)
                  _ => IMustUnify (getFC tm) ErasedArg tm
-  dotErased _ _ _ r tm = pure $ tm
+  dotErased _ _ _ _ tm = pure tm
 
   -- Check the rest of an application given the argument type and the
   -- raw argument. We choose elaboration order depending on whether we know
@@ -445,7 +444,7 @@ mutual
   -- Ordinary explicit argument
   checkAppWith rig elabinfo nest env fc tm (NBind tfc x (Pi rigb Explicit aty) sc)
                argdata (arg :: expargs) impargs kr expty
-      = do let argRig = rigMult rig rigb
+      = do let argRig = rig |*| rigb
            checkRestApp rig argRig elabinfo nest env fc
                         tm x aty sc argdata arg expargs impargs kr expty
   -- Function type is delayed, so force the term and continue
@@ -455,7 +454,7 @@ mutual
   -- the expected type line up, stop
   checkAppWith rig elabinfo nest env fc tm ty@(NBind tfc x (Pi rigb Implicit aty) sc)
                argdata [] [] kr (Just expty_in)
-      = do let argRig = rigMult rig rigb
+      = do let argRig = rig |*| rigb
            expty <- getNF expty_in
            defs <- get Ctxt
            case expty of
@@ -469,7 +468,7 @@ mutual
                                (\err => makeImplicit rig argRig elabinfo nest env fc tm x aty sc argdata [] [] kr (Just expty_in))
   checkAppWith rig elabinfo nest env fc tm ty@(NBind tfc x (Pi rigb AutoImplicit aty) sc)
                argdata [] [] kr (Just expty_in)
-      = do let argRig = rigMult rig rigb
+      = do let argRig = rig |*| rigb
            expty <- getNF expty_in
            defs <- get Ctxt
            case expty of
@@ -491,7 +490,7 @@ mutual
   -- Check next auto implicit argument
   checkAppWith rig elabinfo nest env fc tm (NBind tfc x (Pi rigb AutoImplicit aty) sc)
                argdata expargs impargs kr expty
-      = let argRig = rigMult rig rigb in
+      = let argRig = rig |*| rigb in
             case useAutoImp [] impargs of
                Nothing => makeAutoImplicit rig argRig elabinfo nest env fc tm
                                            x aty sc argdata expargs impargs kr expty
@@ -513,7 +512,7 @@ mutual
   -- Check next implicit argument
   checkAppWith rig elabinfo nest env fc tm (NBind tfc x (Pi rigb Implicit aty) sc)
                argdata expargs impargs kr expty
-      = let argRig = rigMult rig rigb in
+      = let argRig = rig |*| rigb in
             case useImp [] impargs of
                Nothing => makeImplicit rig argRig elabinfo nest env fc tm
                                        x aty sc argdata expargs impargs kr expty
@@ -571,17 +570,17 @@ mutual
            logTerm 10 "Function " tm
            argn <- genName "argTy"
            retn <- genName "retTy"
-           argTy <- metaVar fc Rig0 env argn (TType fc)
+           argTy <- metaVar fc erased env argn (TType fc)
            let argTyG = gnf env argTy
            retTy <- metaVar -- {vars = argn :: vars}
-                            fc Rig0 env -- (Pi RigW Explicit argTy :: env)
+                            fc erased env -- (Pi RigW Explicit argTy :: env)
                             retn (TType fc)
            (argv, argt) <- check rig elabinfo
                                  nest env arg (Just argTyG)
            let fntm = App fc tm argv
            defs <- get Ctxt
            fnty <- nf defs env retTy -- (Bind fc argn (Let RigW argv argTy) retTy)
-           let expfnty = gnf env (Bind fc argn (Pi RigW Explicit argTy) (weaken retTy))
+           let expfnty = gnf env (Bind fc argn (Pi top Explicit argTy) (weaken retTy))
            logGlue 10 "Expected function type" env expfnty
            maybe (pure ()) (logGlue 10 "Expected result type" env) expty
            res <- checkAppWith rig elabinfo nest env fc fntm fnty (n, 1 + argpos) expargs impargs kr expty
@@ -623,7 +622,7 @@ checkApp rig elabinfo nest env fc (IVar fc' n) expargs impargs exp
                                                  etynf <- normaliseHoles defs env ety
                                                  pure (Just !(toFullNames etynf)))
                                        exp
-                    pure ("Checking application of " ++ show !(getFullName n) ++ 
+                    pure ("Checking application of " ++ show !(getFullName n) ++
                           " (" ++ show n ++ ")" ++
                           " to " ++ show expargs ++ "\n\tFunction type " ++
                           (show !(toFullNames fnty)) ++ "\n\tExpected app type "

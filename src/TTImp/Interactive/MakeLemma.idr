@@ -13,8 +13,7 @@ import TTImp.Utils
 %default covering
 
 used : RigCount -> Bool
-used Rig0 = False
-used _ = True
+used = not . isErased
 
 hiddenName : Name -> Bool
 hiddenName (MN "_" _) = True
@@ -46,11 +45,11 @@ getArgs {vars} env (S k) (Bind _ x (Pi c p ty) sc)
          let x' = UN !(uniqueName defs (map nameRoot vars) (nameRoot x))
          (sc', ty) <- getArgs (Pi c p ty :: env) k (renameTop x' sc)
          -- Don't need to use the name if it's not used in the scope type
-         let mn = case c of
-                       RigW => case shrinkTerm sc (DropCons SubRefl) of
+         let mn = if c == top
+                       then case shrinkTerm sc (DropCons SubRefl) of
                                     Nothing => Just x'
                                     _ => Nothing
-                       _ => Just x'
+                       else Just x'
          let p' = if used c && not (bindableArg 0 sc) && not (hiddenName x)
                      then Explicit
                      else Implicit

@@ -923,7 +923,7 @@ addBuiltin : {auto x : Ref Ctxt Defs} ->
              Name -> ClosedTerm -> Totality ->
              PrimFn arity -> Core ()
 addBuiltin n ty tot op
-    = do addDef n (MkGlobalDef emptyFC n ty [] [] [] RigW [] Public tot
+    = do addDef n (MkGlobalDef emptyFC n ty [] [] [] top [] Public tot
                                [Inline] Nothing Nothing
                                False False True (Builtin op)
                                Nothing Nothing [])
@@ -1635,7 +1635,7 @@ addData : {auto c : Ref Ctxt Defs} ->
 addData vars vis tidx (MkData (MkCon dfc tyn arity tycon) datacons)
     = do defs <- get Ctxt
          tag <- getNextTypeTag
-         let tydef = newDef dfc tyn RigW vars tycon vis
+         let tydef = newDef dfc tyn top vars tycon vis
                             (TCon tag arity
                                   (paramPos (Resolved tidx) (map type datacons))
                                   (allDet arity)
@@ -1657,7 +1657,7 @@ addData vars vis tidx (MkData (MkCon dfc tyn arity tycon) datacons)
                           Context -> Core Context
     addDataConstructors tag [] gam = pure gam
     addDataConstructors tag (MkCon fc n a ty :: cs) gam
-        = do let condef = newDef fc n RigW vars ty (conVisibility vis) (DCon tag a Nothing)
+        = do let condef = newDef fc n top vars ty (conVisibility vis) (DCon tag a Nothing)
              (idx, gam') <- addCtxt n condef gam
              addDataConstructors (tag + 1) cs gam'
 

@@ -305,7 +305,7 @@ checkAlternative : {vars : _} ->
 checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
     = do checkAmbigDepth fc elabinfo
          expected <- maybe (do nm <- genName "altTy"
-                               ty <- metaVar fc Rig0 env nm (TType fc)
+                               ty <- metaVar fc erased env nm (TType fc)
                                pure (gnf env ty))
                            pure mexpected
          let solvemode = case elabMode elabinfo of
@@ -355,7 +355,7 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
            [alt] => checkImp rig elabinfo nest env alt mexpected
            _ =>
              do expected <- maybe (do nm <- genName "altTy"
-                                      ty <- metaVar fc Rig0 env nm (TType fc)
+                                      ty <- metaVar fc erased env nm (TType fc)
                                       pure (gnf env ty))
                                   pure mexpected
                 let solvemode = case elabMode elabinfo of
