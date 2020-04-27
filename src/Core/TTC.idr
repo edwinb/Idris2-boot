@@ -714,12 +714,14 @@ TTC CG where
   toBuf b Chez = tag 0
   toBuf b Chicken = tag 1
   toBuf b Racket = tag 2
+  toBuf b Coredris = tag 3
 
   fromBuf b
       = case !getTag of
              0 => pure Chez
              1 => pure Chicken
              2 => pure Racket
+             3 => pure Coredris
              _ => corrupt "CG"
 
 export
