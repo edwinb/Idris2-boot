@@ -77,3 +77,13 @@ After installing chicken scheme you may need to install the 'numbers' package.
 Racket is available from:
 
 + https://download.racket-lang.org/
+
+The following packages are required in order to run Idris:
+
+- base
+- racket-lib
+- compiler-lib
+- r6rs-lib
+- math-lib
+
+These can be installed with `raco setup` and `raco pkg install`.
