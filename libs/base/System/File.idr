@@ -147,7 +147,7 @@ readFile file
                 else
                   do Right str <- fGetLine h
                         | Left err => pure (Left err)
-                     read (str :: "\n" :: acc) h
+                     read ("\n" :: str :: acc) h  -- this list will be reversed before concatenation
 
 ||| Write a string to a file
 export
