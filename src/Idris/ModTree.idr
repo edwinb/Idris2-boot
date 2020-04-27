@@ -162,7 +162,7 @@ buildMod loc num len mod
         let needsBuilding =
                case ttcTime of
                     Nothing => True
-                    Just t => any (\x => x > t) (srcTime :: map snd depTimes)
+                    Just t => any {t = List} (\x => x > t) (srcTime :: map snd depTimes)
         u <- newRef UST initUState
         m <- newRef MD initMetadata
         put Syn initSyntax

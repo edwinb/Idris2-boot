@@ -161,8 +161,8 @@ mutual
                          lookupExactBy (\d => (fullname d, definition d))
                                        fn (gamma defs)
                        | _ => pure aup
-                   hs <- traverse (updateHoleUsagePats useInHole var args) pats
-                   pure (or (aup :: map Delay hs))
+                   hs <- Core.traverse (updateHoleUsagePats useInHole var args) pats
+                   pure (or {t = List} (aup :: map Delay hs))
              (f, []) => pure False
              (f, args) => updateHoleUsageArgs useInHole var zs (f :: args)
 

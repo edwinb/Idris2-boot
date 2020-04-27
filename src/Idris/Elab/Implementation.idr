@@ -171,7 +171,7 @@ elabImplementation {vars} fc vis opts_in pass env nest is cons iname ps impln nu
                log 5 $ "Missing methods: " ++ show missing
 
                -- Add the 'using' hints
-               log 10 $ "Open hints: " ++ (show (impName :: nusing))
+               log 10 $ "Open hints: " ++ show (the (List Name) (impName :: nusing))
                traverse_ (\n => do n' <- checkUnambig fc n
                                    addOpenHint n') nusing
 

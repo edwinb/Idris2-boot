@@ -380,7 +380,7 @@ mutual
                   then pure (fromMaybe (CErased fc) def)
                   else pure $ natHackTree $
                             CConCase fc (CLocal fc x) cases def
-  toCExpTree' tags n (Case _ x scTy alts@(DelayCase _ _ _ :: _))
+  toCExpTree' tags n (Case _ x scTy (DelayCase _ _ _ :: _))
       = throw (InternalError "Unexpected DelayCase")
   toCExpTree' tags n (Case fc x scTy alts@(ConstCase _ _ :: _))
       = let fc = getLoc scTy in
@@ -389,7 +389,7 @@ mutual
                if isNil cases
                   then pure (fromMaybe (CErased fc) def)
                   else pure $ CConstCase fc (CLocal fc x) cases def
-  toCExpTree' tags n (Case _ x scTy alts@(DefaultCase sc :: _))
+  toCExpTree' tags n (Case _ x scTy (DefaultCase sc :: _))
       = toCExpTree tags n sc
   toCExpTree' tags n (Case _ x scTy [])
       = pure $ CCrash (getLoc scTy) $ "Missing case tree in " ++ show n

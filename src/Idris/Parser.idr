@@ -7,6 +7,8 @@ import        Parser.Lexer
 import        TTImp.TTImp
 
 import public Text.Parser
+import        Data.Either.Extra
+import        Data.List.NonEmpty
 import        Data.List.Views
 
 %default covering
@@ -510,10 +512,23 @@ mutual
        bindAll fc ((rig, pat, ty) :: rest) scope
            = PLam fc rig Explicit pat ty (bindAll fc rest scope)
 
-  letBinder : FileName -> IndentInfo ->
-              Rule (FilePos, FilePos, RigCount, PTerm, PTerm, PTerm, List PClause)
-  letBinder fname indents
+  LetBinder : Type
+  LetBinder = (RigCount, PTerm, PTerm, PTerm, List PClause)
+
+  LetDecl : Type
+  LetDecl = List PDecl
+
+  letBlock : FileName -> IndentInfo ->
+              Rule ((FilePos, FilePos), Either LetBinder LetDecl)
+  letBlock fname indents
       = do start <- location
+           res <- Left <$> letBinder fname indents start
+              <|> Right <$> topDecl fname indents
+           end <- location
+           pure ((start, end), res)
+
+  letBinder : FileName -> IndentInfo -> FilePos -> Rule LetBinder
+  letBinder fname indents start = do
            rigc <- multiplicity
            pat <- expr plhs fname indents
            tyend <- location
@@ -523,30 +538,29 @@ mutual
            symbol "="
            val <- expr pnowith fname indents
            alts <- block (patAlt fname)
-           end <- location
            rig <- getMult rigc
-           pure (start, end, rig, pat, ty, val, alts)
+           pure (rig, pat, ty, val, alts)
 
   buildLets : FileName ->
-              List (FilePos, FilePos, RigCount, PTerm, PTerm, PTerm, List PClause) ->
+              List ((FilePos, FilePos), LetBinder) ->
               PTerm -> PTerm
   buildLets fname [] sc = sc
-  buildLets fname ((start, end, rig, pat, ty, val, alts) :: rest) sc
+  buildLets fname (((start, end), rig, pat, ty, val, alts) :: rest) sc
       = let fc = MkFC fname start end in
             PLet fc rig pat ty val
                  (buildLets fname rest sc) alts
 
   buildDoLets : FileName ->
-                List (FilePos, FilePos, RigCount, PTerm, PTerm, PTerm, List PClause) ->
+                List ((FilePos, FilePos), LetBinder) ->
                 List PDo
   buildDoLets fname [] = []
-  buildDoLets fname ((start, end, rig, PRef fc' (UN n), ty, val, []) :: rest)
+  buildDoLets fname (((start, end), rig, PRef fc' (UN n), ty, val, []) :: rest)
       = let fc = MkFC fname start end in
             if lowerFirst n
                then DoLet fc (UN n) rig ty val :: buildDoLets fname rest
                else DoLetPat fc (PRef fc' (UN n)) ty val []
                          :: buildDoLets fname rest
-  buildDoLets fname ((start, end, rig, pat, ty, val, alts) :: rest)
+  buildDoLets fname (((start, end), rig, pat, ty, val, alts) :: rest)
       = let fc = MkFC fname start end in
             DoLetPat fc pat ty val alts :: buildDoLets fname rest
 
@@ -554,20 +568,48 @@ mutual
   let_ fname indents
       = do start <- location
            keyword "let"
-           res <- nonEmptyBlock (letBinder fname)
+           blocks <- nonEmptyBlock (letBlock fname)
            commitKeyword indents "in"
            scope <- typeExpr pdef fname indents
            end <- location
-           pure (buildLets fname res scope)
+           pure $ mkLets fname blocks scope
 
-    <|> do start <- location
-           keyword "let"
-           commit
-           ds <- nonEmptyBlock (topDecl fname)
-           commitKeyword indents "in"
-           scope <- typeExpr pdef fname indents
-           end <- location
-           pure (PLocal (MkFC fname start end) (collectDefs (concat ds)) scope)
+  letFactory
+     : (List ((FilePos, FilePos), LetBinder) -> a -> a) ->
+       ((FilePos, FilePos) -> List PDecl -> a -> a) ->
+       List1 ((FilePos, FilePos), Either LetBinder LetDecl) ->
+       a -> a
+  letFactory {a} letBind letDeclare blocks scope = foldr mkLet scope groups where
+
+     LetBlock : Type
+     LetBlock = Either (List1 ((FilePos, FilePos), LetBinder))
+                       (List1 ((FilePos, FilePos), LetDecl))
+
+     groups : List LetBlock
+     groups = group (NonEmpty.toList $ map (uncurry pushInto) blocks)
+
+     mkLet : LetBlock -> a -> a
+     mkLet (Left  letBinds) = letBind (NonEmpty.toList letBinds)
+     mkLet (Right letDecls) =
+       let ((start,_), _) = head letDecls
+           ((_, end),_)   = last letDecls
+       in letDeclare (start, end) (concatMap snd letDecls)
+
+  mkLets : FileName ->
+           List1 ((FilePos, FilePos), Either LetBinder LetDecl) ->
+           PTerm -> PTerm
+  mkLets fname = letFactory (buildLets fname)
+    (\ (start, end), decls, scope => PLocal (MkFC fname start end) decls scope)
+
+  mkDoLets : FileName ->
+           List1 ((FilePos, FilePos), Either LetBinder LetDecl) ->
+           List PDo
+  mkDoLets fname lets = letFactory
+    (\ binds, rest => buildDoLets fname binds ++ rest)
+    (\ (start, end), decls, rest => DoLetLocal (MkFC fname start end) decls :: rest)
+    lets
+    []
+
 
   case_ : FileName -> IndentInfo -> Rule PTerm
   case_ fname indents
@@ -687,15 +729,9 @@ mutual
            end <- location
            pure [DoBind (MkFC fname start end) n val]
     <|> do keyword "let"
-           res <- block (letBinder fname)
+           res <- nonEmptyBlock (letBlock fname)
            atEnd indents
-           pure (buildDoLets fname res)
-    <|> do start <- location
-           keyword "let"
-           res <- block (topDecl fname)
-           end <- location
-           atEnd indents
-           pure [DoLetLocal (MkFC fname start end) (concat res)]
+           pure (mkDoLets fname res)
     <|> do start <- location
            keyword "rewrite"
            rule <- expr pdef fname indents
@@ -818,7 +854,7 @@ mutual
             wval <- bracketedExpr fname wstart indents
             ws <- nonEmptyBlock (clause (S withArgs) fname)
             end <- location
-            pure (MkWithClause (MkFC fname start end) lhs wval ws)
+            pure (MkWithClause (MkFC fname start end) lhs wval (NonEmpty.toList ws))
      <|> do keyword "impossible"
             atEnd indents
             end <- location

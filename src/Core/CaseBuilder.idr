@@ -764,7 +764,7 @@ mutual
   -- will be a broken case tree... so we should find a way to express this
   -- in the type if we can.
   conRule {a} fc fn phase cs@(MkPatClause pvars (MkInfo pat pprf fty :: pats) rhs :: rest) err
-      = do refinedcs <- traverse (substInClause fc) cs
+      = do refinedcs <- Core.traverse (substInClause fc) cs
            groups <- groupCons fc fn pvars refinedcs
            ty <- case fty of
                       Known _ t => pure t
