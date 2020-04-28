@@ -924,6 +924,8 @@ dataOpt
          pure (SearchBy ns)
   <|> do exactIdent "external"
          pure External
+  <|> do exactIdent "noNewtype"
+         pure NoNewtype
 
 dataBody : FileName -> Int -> FilePos -> Name -> IndentInfo -> PTerm ->
            EmptyRule PDataDecl

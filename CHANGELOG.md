@@ -6,6 +6,10 @@ Compiler updates:
 * Data types with a single constructor, with a single unerased arguments,
   are translated to just that argument, to save repeated packing and unpacking.
   (c.f. `newtype` in Haskell)
+  + A data type can opt out of this behaviour by specifying `noNewtype` in its
+    options list. `noNewtype` allows code generators to apply special handling
+    to the generated constructor/deconstructor, for a newtype-like data type,
+    that would otherwise be optimised away.
 * 0-multiplicity constructor arguments are now properly erased, not just
   given a placeholder null value.
 
