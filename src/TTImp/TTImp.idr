@@ -498,7 +498,8 @@ implicitsAs defs ns tm = setAs (map Just (ns ++ map UN (findIBinds tm))) tm
 export
 definedInBlock : List String -> -- namespace to resolve names
                  List ImpDecl -> List Name
-definedInBlock ns = concatMap (defName ns)
+definedInBlock ns decls =
+    concatMap (defName ns) decls
   where
     getName : ImpTy -> Name
     getName (MkImpTy _ n _) = n
@@ -509,6 +510,7 @@ definedInBlock ns = concatMap (defName ns)
     expandNS : List String -> Name -> Name
     expandNS [] n = n
     expandNS ns (UN n) = NS ns (UN n)
+    expandNS ns (RF n) = NS ns (RF n)
     expandNS ns n@(MN _ _) = NS ns n
     expandNS ns n@(DN _ _) = NS ns n
     expandNS ns n = n
@@ -521,11 +523,31 @@ definedInBlock ns = concatMap (defName ns)
     defName ns (IParameters _ _ pds) = concatMap (defName ns) pds
     defName ns (INamespace _ n nds) = concatMap (defName (n ++ ns)) nds
     defName ns (IRecord _ fldns _ (MkImpRecord _ n _ con flds))
-        = let fldns = maybe ns (\f => f :: ns) fldns
-              all : List Name
-                  = expandNS ns n ::
-                    map (expandNS fldns) (map getFieldName flds) in
-              expandNS ns con :: all
+        = expandNS ns con :: all
+      where
+        fldns' : List String
+        fldns' = maybe ns (\f => f :: ns) fldns
+
+        toRF : Name -> Name
+        toRF (UN n) = RF n
+        toRF n = n
+
+        fnsUN : List Name
+        fnsUN = map getFieldName flds
+
+        fnsRF : List Name
+        fnsRF = map toRF fnsUN
+
+        -- Depending on %undotted_record_projections,
+        -- the record may or may not produce undotted projections (fnsUN).
+        --
+        -- However, since definedInBlock is pure, we can't check that flag
+        -- (and it would also be wrong if %undotted_record_projections appears
+        -- inside the parameter block)
+        -- so let's just declare all of them and some may go unused.
+        all : List Name
+        all = expandNS ns n :: map (expandNS fldns') (fnsRF ++ fnsUN)
+
     defName _ _ = []
 
 export

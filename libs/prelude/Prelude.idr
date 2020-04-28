@@ -22,7 +22,7 @@ As such, it should contain:
 - Semigroup, Monoid
 - Functor, Applicative, Monad and related functions
 - Foldable
-- [TODO: Enum for range syntax]
+- Enum for range syntax
 - Console IO
 
 Everything else should be in the base libraries, and imported as required.
@@ -1610,7 +1610,8 @@ public export
 countFrom : n -> (n -> n) -> Stream n
 countFrom start diff = start :: countFrom (diff start) diff
 
-public export
+-- this and takeBefore are for range syntax, and not exported here since
+-- they're partial. They are exported from Data.Stream instead.
 partial
 takeUntil : (n -> Bool) -> Stream n -> List n
 takeUntil p (x :: xs)

@@ -68,7 +68,7 @@ Chicken scheme offers binary distributions (and source tar balls) from
 
 + https://code.call-cc.org/
 
-You can find chicken in many a package manager.
+You can find chicken in many package managers.
 
 After installing chicken scheme you may need to install the 'numbers' package.
 
@@ -77,3 +77,13 @@ After installing chicken scheme you may need to install the 'numbers' package.
 Racket is available from:
 
 + https://download.racket-lang.org/
+
+The following packages are required in order to run Idris:
+
+- base
+- racket-lib
+- compiler-lib
+- r6rs-lib
+- math-lib
+
+These can be installed with `raco setup` and `raco pkg install`.

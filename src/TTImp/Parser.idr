@@ -35,8 +35,7 @@ atom fname
          end <- location
          pure (Implicit (MkFC fname start end) False)
   <|> do start <- location
-         symbol "%"
-         exactIdent "search"
+         pragma "search"
          end <- location
          pure (ISearch (MkFC fname start end) 1000)
   <|> do start <- location
@@ -78,22 +77,22 @@ totalityOpt
          pure CoveringOnly
 
 fnOpt : Rule FnOpt
-fnOpt = do x <- totalityOpt          
+fnOpt = do x <- totalityOpt
            pure $ Totality x
 
 fnDirectOpt : Rule FnOpt
 fnDirectOpt
-    = do exactIdent "hint"
+    = do pragma "hint"
          pure (Hint True)
-  <|> do exactIdent "chaser"
+  <|> do pragma "chaser"
          pure (Hint False)
-  <|> do exactIdent "globalhint"
+  <|> do pragma "globalhint"
          pure (GlobalHint True)
-  <|> do exactIdent "defaulthint"
+  <|> do pragma "defaulthint"
          pure (GlobalHint False)
-  <|> do exactIdent "inline"
+  <|> do pragma "inline"
          pure Inline
-  <|> do exactIdent "extern"
+  <|> do pragma "extern"
          pure ExternFn
 
 visOpt : Rule (Either Visibility FnOpt)
@@ -102,8 +101,7 @@ visOpt
          pure (Left vis)
   <|> do tot <- fnOpt
          pure (Right tot)
-  <|> do symbol "%"
-         opt <- fnDirectOpt
+  <|> do opt <- fnDirectOpt
          pure (Right opt)
 
 getVisibility : Maybe Visibility -> List (Either Visibility FnOpt) ->
@@ -203,9 +201,9 @@ mutual
     <|> pure Nothing
 
   getMult : Maybe Integer -> EmptyRule RigCount
-  getMult (Just 0) = pure Rig0
-  getMult (Just 1) = pure Rig1
-  getMult Nothing = pure RigW
+  getMult (Just 0) = pure erased
+  getMult (Just 1) = pure linear
+  getMult Nothing = pure top
   getMult _ = fatalError "Invalid multiplicity (must be 0 or 1)"
 
   pibindAll : FC -> PiInfo RawImp -> List (RigCount, Maybe Name, RawImp) ->
@@ -276,7 +274,7 @@ mutual
            ns <- sepBy1 (symbol ",") unqualifiedName
            nend <- location
            let nfc = MkFC fname nstart nend
-           let binders = map (\n => (Rig0, Just (UN n), Implicit nfc False)) ns
+           let binders = map (\n => (erased, Just (UN n), Implicit nfc False)) ns
            symbol "."
            scope <- typeExpr fname indents
            end <- location
@@ -455,7 +453,7 @@ mutual
       mkPi : FilePos -> FilePos -> RawImp -> List (PiInfo RawImp, RawImp) -> RawImp
       mkPi start end arg [] = arg
       mkPi start end arg ((exp, a) :: as)
-            = IPi (MkFC fname start end) RigW exp Nothing arg
+            = IPi (MkFC fname start end) top exp Nothing arg
                   (mkPi start end a as)
 
   export
@@ -571,7 +569,7 @@ recordParam fname indents
          commit
          start <- location
          info <- the (EmptyRule (PiInfo RawImp))
-                 (pure  AutoImplicit <* keyword "auto" 
+                 (pure  AutoImplicit <* keyword "auto"
               <|>(do
                   keyword "default"
                   t <- simpleExpr fname indents
@@ -583,7 +581,7 @@ recordParam fname indents
   <|> do start <- location
          n <- name
          end <- location
-         pure [(n, RigW, Explicit, Implicit (MkFC fname start end) False)]
+         pure [(n, top, Explicit, Implicit (MkFC fname start end) False)]
 
 fieldDecl : FileName -> IndentInfo -> Rule (List IField)
 fieldDecl fname indents
@@ -605,7 +603,7 @@ fieldDecl fname indents
              ty <- expr fname indents
              end <- location
              pure (map (\n => MkIField (MkFC fname start end)
-                                       Rig1 p (UN n) ty) ns)
+                                       linear p (UN n) ty) ns)
 
 recordDecl : FileName -> IndentInfo -> Rule ImpDecl
 recordDecl fname indents
@@ -629,16 +627,18 @@ namespaceDecl : Rule (List String)
 namespaceDecl
     = do keyword "namespace"
          commit
-         ns <- namespace_
+         ns <- nsIdent
          pure ns
 
 directive : FileName -> IndentInfo -> Rule ImpDecl
 directive fname indents
-    = do exactIdent "logging"
+    = do pragma "logging"
+         commit
          lvl <- intLit
          atEnd indents
          pure (ILog (cast lvl))
-  <|> do exactIdent "pair"
+  <|> do pragma "pair"
+         commit
          start <- location
          p <- name
          f <- name
@@ -646,7 +646,8 @@ directive fname indents
          end <- location
          let fc = MkFC fname start end
          pure (IPragma (\c, nest, env => setPair {c} fc p f s))
-  <|> do keyword "rewrite"
+  <|> do pragma "rewrite"
+         commit
          start <- location
          eq <- name
          rw <- name
@@ -673,10 +674,9 @@ topDecl fname indents
          let opts = mapMaybe getRight visOpts
          claim <- tyDecl fname indents
          end <- location
-         pure (IClaim (MkFC fname start end) RigW vis opts claim)
+         pure (IClaim (MkFC fname start end) top vis opts claim)
   <|> recordDecl fname indents
-  <|> do symbol "%"; commit
-         directive fname indents
+  <|> directive fname indents
   <|> definition fname indents
 
 -- Declared at the top

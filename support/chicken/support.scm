@@ -93,15 +93,15 @@
         (let ((str (read-line p)))
             (if (eof-object? str)
                 ""
-                (string-append str "\n")))
+                str))
         void))
 
 (define (blodwen-get-char p)
     (if (port? p)
-        (let ((char (read-char p)))
-            (if (eof-object? char)
+        (let ((chr (read-char p)))
+            (if (eof-object? chr)
                 #\nul
-                char))
+                chr))
         void))
 
 (define (blodwen-eof p)

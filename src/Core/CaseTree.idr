@@ -222,7 +222,7 @@ mkTerm vars (PTyCon fc x arity xs)
                (map (mkTerm vars) xs)
 mkTerm vars (PConst fc c) = PrimVal fc c
 mkTerm vars (PArrow fc x s t)
-    = Bind fc x (Pi RigW Explicit (mkTerm vars s)) (mkTerm (x :: vars) t)
+    = Bind fc x (Pi top Explicit (mkTerm vars s)) (mkTerm (x :: vars) t)
 mkTerm vars (PDelay fc r ty p)
     = TDelay fc r (mkTerm vars ty) (mkTerm vars p)
 mkTerm vars (PLoc fc n)

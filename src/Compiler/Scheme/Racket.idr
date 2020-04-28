@@ -33,6 +33,7 @@ findRacoExe =
 schHeader : String -> String
 schHeader libs
   = "#lang racket/base\n" ++
+    "(require racket/math)\n" ++ -- for math ops
     "(require racket/promise)\n" ++ -- for force/delay
     "(require racket/system)\n" ++ -- for system
     "(require rnrs/bytevectors-6)\n" ++ -- for buffers
@@ -70,11 +71,11 @@ mutual
   racketPrim i CCall [ret, fn, args, world]
       = throw (InternalError ("Can't compile C FFI calls to Racket yet"))
   racketPrim i GetField [NmPrimVal _ (Str s), _, _, struct,
-                             NmPrimVal _ (Str fld), _]
+                         NmPrimVal _ (Str fld), _]
       = do structsc <- schExp racketPrim racketString 0 struct
            pure $ "(" ++ s ++ "-" ++ fld ++ " " ++ structsc ++ ")"
   racketPrim i GetField [_,_,_,_,_,_]
-      = pure "(error \"bad setField\")"
+      = pure "(error \"bad getField\")"
   racketPrim i SetField [NmPrimVal _ (Str s), _, _, struct,
                          NmPrimVal _ (Str fld), _, val, world]
       = do structsc <- schExp racketPrim racketString 0 struct

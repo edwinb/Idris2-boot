@@ -34,15 +34,16 @@ doPLetRenames ns drops (Bind fc n b@(PLet _ _ _) sc)
 doPLetRenames ns drops (Bind fc n b sc)
     = case lookup n ns of
            Just (c, n') =>
-              Bind fc n' (setMultiplicity b (max c (multiplicity b)))
+           Bind fc n' (setMultiplicity b (c `lub` (multiplicity b)))
                    (doPLetRenames ns (n' :: drops) (renameTop n' sc))
            Nothing => Bind fc n b (doPLetRenames ns drops sc)
 doPLetRenames ns drops sc = sc
 
 getRigNeeded : ElabMode -> RigCount
-getRigNeeded InType = Rig0 -- unrestricted usage in types
-getRigNeeded (InLHS Rig0) = Rig0
-getRigNeeded _ = Rig1
+getRigNeeded InType = erased -- unrestricted usage in types
+getRigNeeded (InLHS r) = if isErased r then erased
+                                     else linear
+getRigNeeded _ = linear
 
 -- Make sure the types of holes have the references to solved holes normalised
 -- away (since solved holes don't get written to .tti)
@@ -242,7 +243,7 @@ checkTermSub defining mode opts nest env env' sub tm ty
                Core RawImp
     bindImps loc env [] ty = pure ty
     bindImps loc env ((n, ty) :: ntys) sc
-        = pure $ IPi loc Rig0 Implicit (Just n)
+        = pure $ IPi loc erased Implicit (Just n)
                      !(unelabNoSugar env ty) !(bindImps loc env ntys sc)
 
 export

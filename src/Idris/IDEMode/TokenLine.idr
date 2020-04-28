@@ -15,11 +15,11 @@ data SourcePart
   | Other String
 
 holeIdent : Lexer
-holeIdent = is '?' <+> identStrict
+holeIdent = is '?' <+> identNormal
 
 srcTokens : TokenMap SourcePart
 srcTokens =
-    [(identStrict, Name),
+    [(identNormal, Name),
      (holeIdent, \x => HoleName (assert_total (strTail x))),
      (space, Whitespace),
      (is '{', const LBrace),

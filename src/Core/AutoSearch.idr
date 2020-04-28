@@ -167,7 +167,7 @@ getAllEnv : FC -> RigCount -> (done : List Name) ->
 getAllEnv fc rigc done [] = []
 getAllEnv {vars = v :: vs} fc rigc done (b :: env)
    = let rest = getAllEnv fc rigc (done ++ [v]) env in
-         if multiplicity b == RigW || rigc == Rig0
+         if multiplicity b == top || isErased rigc
             then let MkVar p = weakenVar {name=v} {inner=v :: vs} done First in
                      (Local fc Nothing _ p,
                        rewrite appendAssociative done [v] vs in
@@ -250,7 +250,7 @@ searchLocalWith {vars} fc rigc defaults trying depth def top env (prf, ty) targe
                  NF vars ->  -- local's type
                  (target : NF vars) ->
                  Core (Term vars)
-    findDirect defs prf f ty target
+    findDirect defs p f ty target
         = do (args, appTy) <- mkArgs fc rigc env ty
              logNF 10 "Trying" env ty
              logNF 10 "For target" env target
@@ -278,7 +278,7 @@ searchLocalWith {vars} fc rigc defaults trying depth def top env (prf, ty) targe
               NF vars ->  -- local's type
               (target : NF vars) ->
               Core (Term vars)
-    findPos defs prf f nty@(NTCon pfc pn _ _ [xty, yty]) target
+    findPos defs p f nty@(NTCon pfc pn _ _ [xty, yty]) target
         = handleUnify (findDirect defs prf f nty target) (\e =>
            if ambig e then throw e else
              do fname <- maybe (throw (CantSolveGoal fc [] top))
@@ -293,22 +293,22 @@ searchLocalWith {vars} fc rigc defaults trying depth def top env (prf, ty) targe
                            ytytm <- quote empty env yty
                            exactlyOne fc env top
                             [(do xtynf <- evalClosure defs xty
-                                 findPos defs prf
+                                 findPos defs p
                                      (\arg => apply fc (Ref fc Func fname)
                                                         [xtytm,
                                                          ytytm,
                                                          f arg])
                                      xtynf target),
                              (do ytynf <- evalClosure defs yty
-                                 findPos defs prf
+                                 findPos defs p
                                      (\arg => apply fc (Ref fc Func sname)
                                                         [xtytm,
                                                          ytytm,
                                                          f arg])
                                      ytynf target)]
                    else throw (CantSolveGoal fc [] top))
-    findPos defs prf f nty target
-        = findDirect defs prf f nty target
+    findPos defs p f nty target
+        = findDirect defs p f nty target
 
 searchLocal : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
@@ -414,15 +414,15 @@ concreteDets {vars} fc defaults env top pos dets (arg :: args)
                  concrete defs argnf True
                  concreteDets fc defaults env top (1 + pos) dets args
   where
-    concrete : Defs -> NF vars -> (top : Bool) -> Core ()
-    concrete defs (NBind nfc x b sc) top
+    concrete : Defs -> NF vars -> (atTop : Bool) -> Core ()
+    concrete defs (NBind nfc x b sc) atTop
         = do scnf <- sc defs (toClosure defaultOpts env (Erased nfc False))
              concrete defs scnf False
-    concrete defs (NTCon nfc n t a args) top
+    concrete defs (NTCon nfc n t a args) atTop
         = do traverse (\ parg => do argnf <- evalClosure defs parg
                                     concrete defs argnf False) args
              pure ()
-    concrete defs (NDCon nfc n t a args) top
+    concrete defs (NDCon nfc n t a args) atTop
         = do traverse (\ parg => do argnf <- evalClosure defs parg
                                     concrete defs argnf False) args
              pure ()
@@ -434,7 +434,7 @@ concreteDets {vars} fc defaults env top pos dets (arg :: args)
         = do Just (Hole _ True) <- lookupDefExact n (gamma defs)
                   | def => throw (CantSolveGoal fc [] top)
              pure ()
-    concrete defs tm top = pure ()
+    concrete defs tm atTop = pure ()
 
 checkConcreteDets : {auto c : Ref Ctxt Defs} ->
                     {auto u : Ref UST UState} ->

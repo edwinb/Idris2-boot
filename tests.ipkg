@@ -1,7 +1,5 @@
 package runtests
 
-pkgs = contrib
-
 sourcedir = tests
 executable = runtests
 

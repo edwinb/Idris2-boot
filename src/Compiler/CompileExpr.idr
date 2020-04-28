@@ -213,10 +213,10 @@ mutual
       = pure $ CApp fc (CRef fc mn) !(traverse (toCExp tags n) args)
   toCExpTm tags n (Bind fc x (Lam _ _ _) sc)
       = pure $ CLam fc x !(toCExp tags n sc)
-  toCExpTm tags n (Bind fc x (Let Rig0 val _) sc)
-      = pure $ shrinkCExp (DropCons SubRefl) !(toCExp tags n sc)
-  toCExpTm tags n (Bind fc x (Let _ val _) sc)
-      = pure $ CLet fc x True !(toCExp tags n val) !(toCExp tags n sc)
+  toCExpTm tags n (Bind fc x (Let rig val _) sc)
+      = pure $ branchZero (shrinkCExp (DropCons SubRefl) !(toCExp tags n sc))
+                          (CLet fc x True !(toCExp tags n val) !(toCExp tags n sc))
+                          rig
   toCExpTm tags n (Bind fc x (Pi c e ty) sc)
       = pure $ CCon fc (UN "->") 1 [!(toCExp tags n ty),
                                     CLam fc x !(toCExp tags n sc)]
@@ -457,7 +457,7 @@ nfToCFType : {auto c : Ref Ctxt Defs} ->
              FC -> (inStruct : Bool) -> NF [] -> Core CFType
 nfToCFType _ _ (NPrimVal _ IntType) = pure CFInt
 nfToCFType _ False (NPrimVal _ StringType) = pure CFString
-nfToCFType fc True (NPrimVal _ StringType) 
+nfToCFType fc True (NPrimVal _ StringType)
     = throw (GenericMsg fc "String not allowed in a foreign struct")
 nfToCFType _ _ (NPrimVal _ DoubleType) = pure CFDouble
 nfToCFType _ _ (NPrimVal _ CharType) = pure CFChar
@@ -477,7 +477,7 @@ nfToCFType _ s (NTCon fc n _ _ args)
                 do nargs <- traverse (evalClosure defs) uargs
                    cargs <- traverse (nfToCFType fc s) nargs
                    pure (CFUser n cargs)
-              Struct n fs => 
+              Struct n fs =>
                 do fs' <- traverse
                              (\ (n, ty) =>
                                     do tynf <- evalClosure defs ty

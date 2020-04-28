@@ -246,11 +246,11 @@ constant
                                              Nothing => Nothing
                                              Just c' => Just (Ch c')
                            DoubleLit d => Just (Db d)
-                           Ident "Int" => Just IntType
-                           Ident "Integer" => Just IntegerType
-                           Ident "String" => Just StringType
-                           Ident "Char" => Just CharType
-                           Ident "Double" => Just DoubleType
+                           NSIdent ["Int"] => Just IntType
+                           NSIdent ["Integer"] => Just IntegerType
+                           NSIdent ["String"] => Just StringType
+                           NSIdent ["Char"] => Just CharType
+                           NSIdent ["Double"] => Just DoubleType
                            _ => Nothing)
 
 export
@@ -267,6 +267,14 @@ strLit
     = terminal "Expected string literal"
                (\x => case tok x of
                            StrLit s => Just s
+                           _ => Nothing)
+
+export
+recField : Rule Name
+recField
+    = terminal "Expected record field"
+               (\x => case tok x of
+                           RecordField s => Just (RF s)
                            _ => Nothing)
 
 export
@@ -292,39 +300,46 @@ exactIdent : String -> Rule ()
 exactIdent req
     = terminal ("Expected " ++ req)
                (\x => case tok x of
-                           Ident s => if s == req then Just ()
-                                                  else Nothing
+                           NSIdent [s] => if s == req then Just ()
+                                                      else Nothing
                            _ => Nothing)
 
 export
-operator : Rule String
+pragma : String -> Rule ()
+pragma n =
+  terminal ("Expected pragma " ++ n)
+    (\x => case tok x of
+      Pragma s =>
+        if s == n
+          then Just ()
+          else Nothing
+      _ => Nothing)
+
+export
+operator : Rule Name
 operator
     = terminal "Expected operator"
                (\x => case tok x of
                            Symbol s =>
                                 if s `elem` reservedSymbols
                                    then Nothing
-                                   else Just s
+                                   else Just (UN s)
                            _ => Nothing)
 
 identPart : Rule String
 identPart
     = terminal "Expected name"
                (\x => case tok x of
-                           Ident str => Just str
+                           NSIdent [str] => Just str
                            _ => Nothing)
 
 export
-namespace_ : Rule (List String)
-namespace_
-    = do ns <- sepBy1 (do col <- column
-                          symbol "."
-                          col' <- column
-                          if (col' - col == 1)
-                             then pure ()
-                             else fail "No whitepace allowed after namespace separator")
-                    identPart
-         pure (reverse ns) -- innermost first, so reverse
+nsIdent : Rule (List String)
+nsIdent
+    = terminal "Expected namespaced name"
+        (\x => case tok x of
+            NSIdent ns => Just ns
+            _ => Nothing)
 
 export
 unqualifiedName : Rule String
@@ -345,32 +360,33 @@ reservedNames
 
 export
 name : Rule Name
-name
-    = do ns <- namespace_
-         (do symbol ".("
-             op <- operator
-             symbol ")"
-             pure (NS ns (UN op))) <|>
-           (either (\n => fail ("Can't use reserved name " ++ n))
-                   pure (mkFullName ns))
-  <|> do symbol "("
-         op <- operator
-         symbol ")"
-         pure (UN op)
+name = opNonNS <|> do
+  ns <- nsIdent
+  opNS ns <|> nameNS ns
  where
-   reserved : String -> Bool
-   reserved n = n `elem` reservedNames
+  reserved : String -> Bool
+  reserved n = n `elem` reservedNames
 
-   mkFullName : List String -> Either String Name
-   mkFullName [] = Right $ UN "NONE" -- Can't happen :)
-   mkFullName [n]
-       = if reserved n
-            then Left n
-            else Right (UN n)
-   mkFullName (n :: ns)
-       = if reserved n
-            then Left n
-            else Right (NS ns (UN n))
+  nameNS : List String -> Grammar (TokenData Token) False Name
+  nameNS [] = pure $ UN "IMPOSSIBLE"
+  nameNS [x] = 
+    if reserved x
+      then fail $ "can't use reserved name " ++ x
+      else pure $ UN x
+  nameNS (x :: xs) =
+    if reserved x
+      then fail $ "can't use reserved name " ++ x
+      else pure $ NS xs (UN x)
+
+  opNonNS : Rule Name
+  opNonNS = symbol "(" *> (operator <|> recField) <* symbol ")"
+
+  opNS : List String -> Rule Name
+  opNS ns = do
+    symbol ".("
+    n <- (operator <|> recField)
+    symbol ")"
+    pure (NS ns n)
 
 export
 IndentInfo : Type

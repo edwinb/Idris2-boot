@@ -43,7 +43,7 @@ mkOuterHole loc rig n topenv Nothing
          let sub = subEnv est
          let env = outerEnv est
          nm <- genName ("type_of_" ++ nameRoot n)
-         ty <- metaVar loc Rig0 env nm (TType loc)
+         ty <- metaVar loc erased env nm (TType loc)
          log 10 $ "Made metavariable for type of " ++ show n ++ ": " ++ show nm
          put EST (addBindIfUnsolved nm rig Explicit topenv (embedSub sub ty) (TType loc) est)
          tm <- implBindVar loc rig env n ty
@@ -427,17 +427,14 @@ checkBindVar rig elabinfo nest env fc str topexp
                   AsBinding _ p tm ty pat => (bn, AsBinding c p tm ty pat) :: bs
              else (bn, r) :: updateRig n c bs
 
+    -- Two variables are incompatble if at least one of them appears in a linear position
+    -- and their sum is bigger than 1
+    isIncompatible : RigCount -> RigCount -> Bool
+    isIncompatible l r = (isLinear l || isLinear r) && linear < l |+| r
+
     combine : Name -> RigCount -> RigCount -> Core ()
-    combine n Rig1 Rig1 = throw (LinearUsed fc 2 n)
-    combine n Rig1 RigW = throw (LinearUsed fc 2 n)
-    combine n RigW Rig1 = throw (LinearUsed fc 2 n)
-    combine n RigW RigW = pure ()
-    combine n Rig0 c = pure ()
-    combine n c Rig0
-       -- It was 0, make it c
-       = do est <- get EST
-            put EST (record { boundNames $= updateRig n c,
-                              toBind $= updateRig n c } est)
+    combine n l r = when (isIncompatible l r)
+                         (throw (LinearUsed fc 2 n))
 
 export
 checkBindHere : {vars : _} ->

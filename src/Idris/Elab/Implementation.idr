@@ -35,7 +35,7 @@ bindConstraints : FC -> PiInfo RawImp ->
                   List (Maybe Name, RawImp) -> RawImp -> RawImp
 bindConstraints fc p [] ty = ty
 bindConstraints fc p ((n, ty) :: rest) sc
-    = IPi fc RigW p n ty (bindConstraints fc p rest sc)
+    = IPi fc top p n ty (bindConstraints fc p rest sc)
 
 bindImpls : FC -> List (Name, RigCount, RawImp) -> RawImp -> RawImp
 bindImpls fc [] ty = ty
@@ -147,7 +147,7 @@ elabImplementation {vars} fc vis opts_in pass env nest is cons iname ps impln nu
                           else []
          let impTy = doBind paramBinds initTy
 
-         let impTyDecl = IClaim fc RigW vis opts (MkImpTy fc impName impTy)
+         let impTyDecl = IClaim fc top vis opts (MkImpTy fc impName impTy)
          log 5 $ "Implementation type: " ++ show impTy
 
          when (typePass pass) $ processDecl [] nest env impTyDecl
@@ -171,6 +171,8 @@ elabImplementation {vars} fc vis opts_in pass env nest is cons iname ps impln nu
                log 5 $ "Missing methods: " ++ show missing
 
                -- Add the 'using' hints
+               defs <- get Ctxt
+               let hs = openHints defs -- snapshot open hint state
                log 10 $ "Open hints: " ++ show (the (List Name) (impName :: nusing))
                traverse_ (\n => do n' <- checkUnambig fc n
                                    addOpenHint n') nusing
@@ -201,8 +203,6 @@ elabImplementation {vars} fc vis opts_in pass env nest is cons iname ps impln nu
 
                -- If it's a named implementation, add it as a global hint while
                -- elaborating the record and bodies
-               defs <- get Ctxt
-               let hs = openHints defs
                maybe (pure ()) (\x => addOpenHint impName) impln
 
                -- Make sure we don't use this name to solve parent constraints

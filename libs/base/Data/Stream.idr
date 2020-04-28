@@ -89,6 +89,22 @@ cycle {a} (x :: xs) {ok = IsNonEmpty} = x :: cycle' xs
         cycle' []        = x :: cycle' xs
         cycle' (y :: ys) = y :: cycle' ys
 
+public export
+partial
+takeUntil : (n -> Bool) -> Stream n -> List n
+takeUntil p (x :: xs)
+    = if p x
+         then [x]
+         else x :: takeUntil p xs
+
+public export
+partial
+takeBefore : (n -> Bool) -> Stream n -> List n
+takeBefore p (x :: xs)
+    = if p x
+         then []
+         else x :: takeBefore p xs
+
 export
 Applicative Stream where
   pure = repeat

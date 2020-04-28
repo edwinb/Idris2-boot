@@ -6,7 +6,7 @@ import Utils.Hex
 %default total
 
 public export
-data Token = Ident String
+data Token = NSIdent (List String)
            | HoleIdent String
            | Literal Integer
            | StrLit String
@@ -18,11 +18,12 @@ data Token = Ident String
            | Comment String
            | DocComment String
            | CGDirective String
+           | RecordField String
+           | Pragma String
            | EndInput
 
 export
 Show Token where
-  show (Ident x) = "identifier " ++ x
   show (HoleIdent x) = "hole identifier " ++ x
   show (Literal x) = "literal " ++ show x
   show (StrLit x) = "string " ++ show x
@@ -34,7 +35,16 @@ Show Token where
   show (Comment _) = "comment"
   show (DocComment _) = "doc comment"
   show (CGDirective x) = "CGDirective " ++ x
+  show (RecordField x) = "record field " ++ x
+  show (Pragma x) = "pragma " ++ x
   show EndInput = "end of input"
+  show (NSIdent [x]) = "identifier " ++ x
+  show (NSIdent xs) = "namespaced identifier " ++ dotSep (reverse xs)
+    where
+      dotSep : List String -> String
+      dotSep [] = ""
+      dotSep [x] = x
+      dotSep (x :: xs) = x ++ concat ["." ++ y | y <- xs]
 
 export
 Show (TokenData Token) where
@@ -100,39 +110,48 @@ docComment : Lexer
 docComment = is '|' <+> is '|' <+> is '|' <+> many (isNot '\n')
 
 -- Identifier Lexer
---
--- There are two variants, a strict ident and a relaxed ident.
--- Prime definitions recieve a boolean determining if it is relaxed.
+-- There are multiple variants.
 
-startIdent : Char -> Bool
-startIdent '_' = True
-startIdent  x  = isAlpha x || x > chr 127
+data Flavour = Capitalised | AllowDashes | Normal
+
+startIdent : Flavour -> Char -> Bool
+startIdent Capitalised x = isUpper x
+startIdent _ '_' = True
+startIdent _  x  = isAlpha x || x > chr 127
 
 %inline
-validIdent' : Bool -> Char -> Bool
+validIdent' : Flavour -> Char -> Bool
 validIdent' _ '_'  = True
-validIdent' r '-'  = r
+validIdent' AllowDashes '-'  = True
+validIdent' _ '-'  = False
 validIdent' _ '\'' = True
 validIdent' _  x   = isAlphaNum x || x > chr 127
 
 %inline
-ident' : Bool -> Lexer
-ident' relaxed =
-  (pred $ startIdent) <+>
-    (many . pred $ validIdent' relaxed)
-
--- This are the two identifier lexer specializations
+ident : Flavour -> Lexer
+ident flavour =
+  (pred $ startIdent flavour) <+>
+    (many . pred $ validIdent' flavour)
 
 export
-identStrict : Lexer
-identStrict = ident' False
+identNormal : Lexer
+identNormal = ident Normal
 
 export
-identRelaxed : Lexer
-identRelaxed = ident' True
+identAllowDashes : Lexer
+identAllowDashes = ident AllowDashes
 
 holeIdent : Lexer
-holeIdent = is '?' <+> identStrict
+holeIdent = is '?' <+> ident Normal
+
+nsIdent : Lexer
+nsIdent = ident Capitalised <+> many (is '.' <+> ident Normal)
+
+recField : Lexer
+recField = is '.' <+> ident Normal
+
+pragma : Lexer
+pragma = is '%' <+> ident Normal
 
 doubleLit : Lexer
 doubleLit
@@ -217,7 +236,10 @@ rawTokens =
      (digits, \x => Literal (cast x)),
      (stringLit, \x => StrLit (stripQuotes x)),
      (charLit, \x => CharLit (stripQuotes x)),
-     (identStrict, \x => if x `elem` keywords then Keyword x else Ident x),
+     (recField, \x => RecordField (assert_total $ strTail x)),
+     (nsIdent, parseNSIdent),
+     (ident Normal, parseIdent),
+     (pragma, \x => Pragma (assert_total $ strTail x)),
      (space, Comment),
      (validSymbol, Symbol),
      (symbol, Unrecognised)]
@@ -225,6 +247,15 @@ rawTokens =
     stripQuotes : String -> String
     -- ASSUMPTION! Only total because we know we're getting quoted strings.
     stripQuotes = assert_total (strTail . reverse . strTail . reverse)
+
+    parseNSIdent : String -> Token
+    parseNSIdent = NSIdent . reverse . split (== '.')
+
+    parseIdent : String -> Token
+    parseIdent x =
+      if x `elem` keywords
+        then Keyword x
+        else NSIdent [x]
 
 export
 lexTo : (TokenData Token -> Bool) ->

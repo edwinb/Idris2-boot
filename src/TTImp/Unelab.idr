@@ -218,7 +218,7 @@ mutual
   unelabBinder umode fc env x (Pi rig p ty) sctm sc scty
       = do (ty', _) <- unelabTy umode env ty
            p' <- unelabPi umode env p
-           let nm = if used 0 sctm || rig /= RigW || isDefImp p
+           let nm = if used 0 sctm || rig /= top || isDefImp p
                        then Just x else Nothing
            pure (IPi fc rig p' nm ty' sc, gType fc)
     where

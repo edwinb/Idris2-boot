@@ -53,6 +53,7 @@ toFileError 1 = FileReadError
 toFileError 2 = FileWriteError
 toFileError 3 = FileNotFound
 toFileError 4 = PermissionDenied
+toFileError 5 = FileExists
 toFileError x = GenericFileError (x - 256)
 
 fpure : Either Int a -> IO (Either FileError a)
