@@ -265,8 +265,10 @@ unifyArgs : (Unify tm, Quote tm) =>
             Core UnifyResult
 unifyArgs mode loc env [] [] = pure success
 unifyArgs mode loc env (cx :: cxs) (cy :: cys)
-    = do res <- unify (lower mode) loc env cx cy
+    = do -- Do later arguments first, since they may depend on earlier
+         -- arguments and use their solutions.
          cs <- unifyArgs mode loc env cxs cys
+         res <- unify (lower mode) loc env cx cy
          pure (union res cs)
 unifyArgs mode loc env _ _ = ufail loc ""
 
@@ -390,10 +392,6 @@ patternEnvTm {vars} env args
 
 -- Check that the metavariable name doesn't occur in the solution.
 -- If it does, normalising might help. If it still does, that's an error.
-
--- Also block if there's an unsolved meta under a function application,
--- because that might cause future problems to get stuck even if they're
--- solvable.
 occursCheck : {auto c : Ref Ctxt Defs} ->
               FC -> Env Term vars -> UnifyInfo ->
               Name -> Term vars -> Core (Maybe (Term vars))

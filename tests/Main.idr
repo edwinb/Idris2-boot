@@ -22,7 +22,7 @@ ttimpTests
        "qtt001", "qtt002", "qtt003",
        "search001", "search002", "search003", "search004", "search005",
        "total001", "total002", "total003",
-       "with001",  "with002" ]
+       "with001"]
 
 idrisTests : List String
 idrisTests
@@ -81,12 +81,12 @@ idrisTests
        -- Miscellaneous regressions
        "reg001", "reg002", "reg003", "reg004", "reg005", "reg006", "reg007",
        "reg008", "reg009", "reg010", "reg011", "reg012", "reg013", "reg014",
-       "reg015", "reg016", "reg017",
+       "reg015", "reg016", "reg017", "reg018",
        -- Totality checking
        "total001", "total002", "total003", "total004", "total005",
        "total006",
        -- The 'with' rule
-       "with001"]
+       "with001", "with002"]
 
 typeddTests : List String
 typeddTests
