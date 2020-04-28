@@ -84,6 +84,7 @@ modules =
     Text.Parser.Core,
     Text.Quantity,
     Text.Token,
+    Text.Readline,
 
     TTImp.BindImplicits,
     TTImp.Elab,
