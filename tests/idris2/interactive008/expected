@@ -1,5 +1,9 @@
 1/1: Building IEdit (IEdit.idr)
-Main> \f => \g => \x => g (f x)
-Main> (\x => \zs => x :: zs)
-Main> f : a -> b -> c
-Main> Bye for now!
+Main> :ps 8 baz
+\f => \g => \x => g (f x)
+Main> :ps 15 foo
+(\x => \zs => x :: zs)
+Main> :typeat 12 33 f
+f : a -> b -> c
+Main> :q
+Bye for now!

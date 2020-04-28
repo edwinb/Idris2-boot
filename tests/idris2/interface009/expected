@@ -1,5 +1,6 @@
 1/1: Building Odd (Odd.idr)
-Main>  0 v : Type
+Main> :t bang
+ 0 v : Type
  0 k' : Type
  0 k : Type
    x : k'
@@ -7,4 +8,5 @@ Main>  0 v : Type
    z : List (k', v)
 -------------------------------------
 bang : List (k', v)
-Main> Bye for now!
+Main> :q
+Bye for now!

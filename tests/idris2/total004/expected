@@ -1,19 +1,37 @@
 1/1: Building Total (Total.idr)
-Main> Main.ack is total
-Main> Main.foo is total
-Main> Main.ordElim is total
-Main> Main.bar is total
-Main> Main.swapR is total
-Main> Main.loopy is possibly not terminating due to recursive path Main.loopy
-Main> Main.foom is total
-Main> Main.pfoom is possibly not terminating due to recursive path Main.pfoom -> Main.pfoom
-Main> Main.even is total
-Main> Main.vtrans is possibly not terminating due to recursive path Main.vtrans -> Main.vtrans
-Main> Main.GTree is total
-Main> Main.size is total
-Main> Main.qsortBad is possibly not terminating due to recursive path Main.qsortBad -> Main.qsortBad
-Main> Main.qsort is total
-Main> Main.qsort' is total
-Main> Main.mySorted is total
-Main> Main.myMergeBy is total
-Main> Bye for now!
+Main> :total ack
+Main.ack is total
+Main> :total foo
+Main.foo is total
+Main> :total ordElim
+Main.ordElim is total
+Main> :total bar
+Main.bar is total
+Main> :total swapR
+Main.swapR is total
+Main> :total loopy
+Main.loopy is possibly not terminating due to recursive path Main.loopy
+Main> :total foom
+Main.foom is total
+Main> :total pfoom
+Main.pfoom is possibly not terminating due to recursive path Main.pfoom -> Main.pfoom
+Main> :total even
+Main.even is total
+Main> :total vtrans
+Main.vtrans is possibly not terminating due to recursive path Main.vtrans -> Main.vtrans
+Main> :total GTree
+Main.GTree is total
+Main> :total size
+Main.size is total
+Main> :total qsortBad
+Main.qsortBad is possibly not terminating due to recursive path Main.qsortBad -> Main.qsortBad
+Main> :total qsort
+Main.qsort is total
+Main> :total qsort'
+Main.qsort' is total
+Main> :total mySorted
+Main.mySorted is total
+Main> :total myMergeBy
+Main.myMergeBy is total
+Main> :q
+Bye for now!

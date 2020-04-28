@@ -1,8 +1,15 @@
 1/1: Building Mut (Mut.idr)
-Main> MyTrue
-Main> MyFalse
-Main> (True, False)
-Main> (False, True)
-Main> MkBox 40
-Main> MkBox 20
-Main> Bye for now!
+Main> even 4
+MyTrue
+Main> odd 4
+MyFalse
+Main> eodd 4
+(True, False)
+Main> eodd 5
+(False, True)
+Main> boxy
+MkBox 40
+Main> map (*2) (MkBox 10)
+MkBox 20
+Main> :q
+Bye for now!

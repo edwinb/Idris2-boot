@@ -1,10 +1,13 @@
 1/1: Building Linear (Linear.idr)
-Main>  0 y : Nat
+Main> :t this
+ 0 y : Nat
  1 x : Nat
 -------------------------------------
 this : Nat
-Main>  1 y : Nat
+Main> :t that
+ 1 y : Nat
  0 x : Nat
 -------------------------------------
 that : Nat
-Main> Bye for now!
+Main> :q
+Bye for now!

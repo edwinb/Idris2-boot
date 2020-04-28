@@ -1,3 +1,5 @@
 1/1: Building Idiom (Idiom.idr)
-Main> Just 7
-Main> Bye for now!
+Main> addm (Just 3) (Just 4)
+Just 7
+Main> :q
+Bye for now!

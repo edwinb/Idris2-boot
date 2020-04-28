@@ -1,3 +1,5 @@
-(3 ** [2, 4, 6])
 1/1: Building Filter (Filter.idr)
-Main> Main> Bye for now!
+Main> :exec printLn (filter even [S Z,2,3,4,5,6])
+(3 ** [2, 4, 6])
+Main> :q
+Bye for now!

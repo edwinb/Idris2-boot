@@ -1,7 +1,12 @@
 1/1: Building Cover (Cover.idr)
-Main> Main.zsym is total
-Main> Main.zsym':
+Main> :total zsym
+Main.zsym is total
+Main> :missing zsym'
+Main.zsym':
 zsym' (NS _) _
-Main> Main.foo is total
-Main> Main.bar is total
-Main> Bye for now!
+Main> :total foo
+Main.foo is total
+Main> :total bar
+Main.bar is total
+Main> :q
+Bye for now!

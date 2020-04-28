@@ -1,6 +1,11 @@
 1/1: Building Params (Params.idr)
-Main> 2
-Main> 0
-Main> 1
-Main> 1
-Main> Bye for now!
+Main> add 1 1
+2
+Main> add 0 0
+0
+Main> add 1 0
+1
+Main> add 0 1
+1
+Main> :q
+Bye for now!

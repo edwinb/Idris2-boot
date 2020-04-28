@@ -1,5 +1,9 @@
 1/1: Building Record (Record.idr)
-Main> [1, 2, 3, 4, 5]
-Main> [1, 2, 3, 4, 5]
-Main> some_fn testPerson : Nat -> Nat
-Main> Bye for now!
+Main> dsnd testPair
+[1, 2, 3, 4, 5]
+Main> vec testDVect
+[1, 2, 3, 4, 5]
+Main> :t some_fn testPerson
+some_fn testPerson : Nat -> Nat
+Main> :q
+Bye for now!

@@ -1,25 +1,36 @@
 1/2: Building Stuff (Stuff.idr)
 2/2: Building Erase (Erase.idr)
-Main> S Z
-Main> S (S Z)
-Main> S Z
-Main> (interactive):1:15--1:16:x is not accessible in this context
-Main> (interactive):1:5--1:31:When unifying Nat -> Nat -> Nat and (0 x : Nat) -> Nat -> Nat
+Main> efn (\x, y => y)        -- Good
+S Z
+Main> efn (\x, y => plus y y) -- Good
+S (S Z)
+Main> efn ignore              -- Good
+S Z
+Main> efn (\x, y => x)        -- Bad
+(interactive):1:15--1:16:x is not accessible in this context
+Main> efn plus                -- Bad
+(interactive):1:5--1:31:When unifying Nat -> Nat -> Nat and (0 x : Nat) -> Nat -> Nat
 Mismatch between:
 	Nat -> Nat -> Nat
 and
 	(0 x : Nat) -> Nat -> Nat
-Main> (interactive):1:5--1:31:When unifying (1 x : Nat) -> Nat -> Nat and (0 x : Nat) -> Nat -> Nat
+Main> efn lin                 -- Bad
+(interactive):1:5--1:31:When unifying (1 x : Nat) -> Nat -> Nat and (0 x : Nat) -> Nat -> Nat
 Mismatch between:
 	(1 x : Nat) -> Nat -> Nat
 and
 	(0 x : Nat) -> Nat -> Nat
-Main> (interactive):1:20--1:22:x is not accessible in this context
-Main> S (S Z)
-Main> S (S Z)
-Main> (interactive):1:6--1:31:When unifying (0 x : Nat) -> Nat -> Nat and Nat -> Nat -> Nat
+Main> efn (\x, y => plus x y) -- Bad
+(interactive):1:20--1:22:x is not accessible in this context
+Main> okfn plus               -- Good
+S (S Z)
+Main> okfn lin                -- Good
+S (S Z)
+Main> okfn ignore             -- Bad
+(interactive):1:6--1:31:When unifying (0 x : Nat) -> Nat -> Nat and Nat -> Nat -> Nat
 Mismatch between:
 	(0 x : Nat) -> Nat -> Nat
 and
 	Nat -> Nat -> Nat
-Main> Bye for now!
+Main> :q
+Bye for now!

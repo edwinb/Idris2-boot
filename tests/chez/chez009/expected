@@ -1,4 +1,6 @@
+1/1: Building uni (uni.idr)
+Main> :exec main
 42
 ällo
-1/1: Building uni (uni.idr)
-Main> Main> Bye for now!
+Main> :q
+Bye for now!

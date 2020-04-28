@@ -1,7 +1,11 @@
 1/1: Building Vect (Vect.idr)
-Main> Main.append: All cases covered
-Main> Main.funny: All cases covered
-Main> Main.notFunny:
+Main> :missing append
+Main.append: All cases covered
+Main> :missing funny
+Main.funny: All cases covered
+Main> :missing notFunny
+Main.notFunny:
 notFunny (False :: (False :: (True :: (True :: _))))
 notFunny (False :: (True :: (True :: (True :: _))))
-Main> Bye for now!
+Main> :q
+Bye for now!

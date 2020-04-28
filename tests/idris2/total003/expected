@@ -1,8 +1,13 @@
 1/1: Building Total (Total.idr)
-Main> Main.onlyOne:
+Main> :missing onlyOne
+Main.onlyOne:
 onlyOne _
-Main> Main.covered: All cases covered
-Main> Main.matchInt: All cases covered
-Main> Main.matchInt':
+Main> :missing covered
+Main.covered: All cases covered
+Main> :missing matchInt
+Main.matchInt: All cases covered
+Main> :missing matchInt'
+Main.matchInt':
 matchInt' _ _ _
-Main> Bye for now!
+Main> :q
+Bye for now!

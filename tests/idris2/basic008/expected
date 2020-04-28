@@ -1,5 +1,9 @@
 1/1: Building If (If.idr)
-Main> "Zero"
-Main> "Odd"
-Main> "Even"
-Main> Bye for now!
+Main> testZ Z
+"Zero"
+Main> testZ (S (S (S Z)))
+"Odd"
+Main> testZ (S (S (S (S Z))))
+"Even"
+Main> :q
+Bye for now!

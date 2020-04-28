@@ -2,6 +2,8 @@
 1/1: Building HelloHole (HelloHole.idr)
 1/1: Building Hello (Hello.idr)
 1/1: Building HoleFix (HoleFix.idr)
-Main> -------------------------------------
+Main> :t convert
+-------------------------------------
 convert : Char -> String
-Main> Bye for now!
+Main> :q
+Bye for now!

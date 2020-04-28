@@ -1,6 +1,10 @@
 1/1: Building Vect (Vect.idr)
-Main> Main.append:
+Main> :missing append
+Main.append:
 append (_ :: _) _
-Main> Main.lookup: All cases covered
-Main> Main.zip: All cases covered
-Main> Bye for now!
+Main> :missing lookup
+Main.lookup: All cases covered
+Main> :missing zip
+Main.zip: All cases covered
+Main> :q
+Bye for now!

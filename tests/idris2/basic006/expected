@@ -1,5 +1,8 @@
 1/2: Building Stuff (Stuff.idr)
 2/2: Building PMLet (PMLet.idr)
-Main> 99
-Main> 64
-Main> Bye for now!
+Main> testLet 0
+99
+Main> testLet 8
+64
+Main> :q
+Bye for now!

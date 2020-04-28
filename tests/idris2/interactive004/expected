@@ -1,8 +1,15 @@
 1/1: Building IEdit (IEdit.idr)
-Main> f (x, y)
-Main> f (fst x) (snd x)
-Main> ys
-Main> x :: append xs ys
-Main> []
-Main> f x y :: zipWith f xs ys
-Main> Bye for now!
+Main> :ps 8 curry_rhs
+f (x, y)
+Main> :ps 11 uncurry_rhs
+f (fst x) (snd x)
+Main> :ps 14 append_rhs_1
+ys
+Main> :ps 15 append_rhs_2
+x :: append xs ys
+Main> :ps 18 zipWith_rhs_1
+[]
+Main> :ps 19 zipWith_rhs_2
+f x y :: zipWith f xs ys
+Main> :q
+Bye for now!

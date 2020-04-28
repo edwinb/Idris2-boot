@@ -2,4 +2,5 @@
 NoInfer.idr:1:7--1:9:Unsolved holes:
 Main.{_:1} introduced at NoInfer.idr:1:7--1:9
 
-Main> Bye for now!
+Main> :q
+Bye for now!
