@@ -798,7 +798,7 @@ implementation {k : Nat} -> Applicative (Vect k) where
 implementation {k : Nat} -> Monad (Vect k) where
     m >>= f = diag (map f m)
 
-export
+public export
 implementation Traversable (Vect k) where
     traverse f []        = pure []
     traverse f (x :: xs) = [| f x :: traverse f xs |]
