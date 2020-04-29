@@ -801,7 +801,7 @@ implementation {k : Nat} -> Monad (Vect k) where
 export
 implementation Traversable (Vect n) where
     traverse f []        = pure []
-    traverse f (x :: xs) = pure (::) <*> (f x) <*> (traverse f xs)
+    traverse f (x :: xs) = [| f x :: traverse f xs |]
 
 --------------------------------------------------------------------------------
 -- Elem
