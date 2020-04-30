@@ -312,7 +312,7 @@ mutual
           start <- location
           symbol ".("
           e <- bracketedExpr fname start indents
-          symbol ")"
+          -- bracketedExpr eats the closing bracket
           pure e
 
     <|> do

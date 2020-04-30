@@ -26,6 +26,6 @@ x pt
 map (.length.squared.show) ["foo", "booo"]
 3.squared
 pt.x.squared
-pts.for $ \pt => printLn pt  -- big indented do block
+-- pts.for $ \pt => printLn pt  -- big indented do block
 
 :q
