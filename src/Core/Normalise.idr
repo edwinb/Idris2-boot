@@ -170,6 +170,13 @@ parameters (defs : Defs, topopts : EvalOpts)
               env fc mrig (S idx) (Later p) stk (_ :: locs)
         = evalLocal {vars = xs} env fc mrig idx p stk locs
 
+    updateLocal : (idx : Nat) -> .(IsVar name idx (vars ++ free)) ->
+                  LocalEnv free vars -> NF free ->
+                  LocalEnv free vars
+    updateLocal Z First (x :: locs) nf = MkNFClosure nf :: locs
+    updateLocal (S idx) (Later p) (x :: locs) nf = x :: updateLocal idx p locs nf
+    updateLocal _ _ locs nf = locs
+
     evalMeta : Env Term free ->
                FC -> Name -> Int -> List (Closure free) ->
                Stack free -> Core (NF free)
@@ -288,14 +295,15 @@ parameters (defs : Defs, topopts : EvalOpts)
                (default : Core (NF free)) -> Core (NF free)
     evalTree env loc opts fc stk (Case idx x _ alts) def
       = do xval <- evalLocal env fc Nothing idx (varExtend x) [] loc
-           findAlt env loc opts fc stk xval alts def
+           let loc' = updateLocal idx (varExtend x) loc xval
+           findAlt env loc' opts fc stk xval alts def
     evalTree env loc opts fc stk (STerm tm) def
-          = do case fuel opts of
-                    Nothing => evalWithOpts defs opts env loc (embed tm) stk
-                    Just Z => def
-                    Just (S k) =>
-                         do let opts' = record { fuel = Just k } opts
-                            evalWithOpts defs opts' env loc (embed tm) stk
+          = case fuel opts of
+                 Nothing => evalWithOpts defs opts env loc (embed tm) stk
+                 Just Z => def
+                 Just (S k) =>
+                      do let opts' = record { fuel = Just k } opts
+                         evalWithOpts defs opts' env loc (embed tm) stk
     evalTree env loc opts fc stk _ def = def
 
     -- Take arguments from the stack, as long as there's enough.
@@ -558,7 +566,7 @@ mutual
                 NDelay fc _ _ arg =>
                    do argNF <- evalClosure defs arg
                       pure $ apply fc !(quoteGenNF q defs bound env argNF) args'
-                t => do arg' <- quoteGenNF q defs bound env arg
+                _ => do arg' <- quoteGenNF q defs bound env arg
                         pure $ apply fc (TForce fc r arg') args'
   quoteGenNF q defs bound env (NPrimVal fc c) = pure $ PrimVal fc c
   quoteGenNF q defs bound env (NErased fc i) = pure $ Erased fc i

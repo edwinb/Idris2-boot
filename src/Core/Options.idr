@@ -46,8 +46,8 @@ Eq CG where
 export
 availableCGs : List (String, CG)
 availableCGs
-    = [ ("chez", Chez),
---        ("chicken", Chicken),
+    = [("chez", Chez),
+       ("chicken", Chicken),
        ("racket", Racket)]
 
 export
