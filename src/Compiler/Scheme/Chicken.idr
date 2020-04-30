@@ -60,23 +60,26 @@ chickenString : String -> String
 chickenString cs = strCons '"' (showChickenString (unpack cs) "\"")
 
 mutual
-  chickenPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String
-  chickenPrim i vs CCall [ret, fn, args, world]
+  chickenPrim : Int -> ExtPrim -> List NamedCExp -> Core String
+  chickenPrim i CCall [ret, fn, args, world]
       = throw (InternalError ("Can't compile C FFI calls to Chicken Scheme yet"))
-  chickenPrim i vs SysCodegen []
+  chickenPrim i SysCodegen []
       = pure $ "\"chicken\""
-  chickenPrim i vs prim args
-      = schExtCommon chickenPrim chickenString i vs prim args
+  chickenPrim i prim args
+      = schExtCommon chickenPrim chickenString i prim args
 
 compileToSCM : Ref Ctxt Defs ->
                ClosedTerm -> (outfile : String) -> Core ()
 compileToSCM c tm outfile
     = do ds <- getDirectives Chicken
-         (ns, tags) <- findUsedNames tm
+         cdata <- getCompileData tm
+         let ns = allNames cdata
+         let tags = nameTags cdata
+         let ctm = forget (mainExpr cdata)
          defs <- get Ctxt
          compdefs <- traverse (getScheme chickenPrim chickenString defs) ns
          let code = concat compdefs
-         main <- schExp chickenPrim chickenString 0 [] !(compileExp tags tm)
+         main <- schExp chickenPrim chickenString 0 ctm
          support <- readDataFile "chicken/support.scm"
          let scm = schHeader ds ++ support ++ code ++ main ++ schFooter
          Right () <- coreLift $ writeFile outfile scm
