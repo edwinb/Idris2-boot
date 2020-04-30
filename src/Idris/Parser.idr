@@ -306,21 +306,34 @@ mutual
       mergePairs end ((estart, exp) :: rest)
           = PPair (MkFC fname estart end) exp (mergePairs end rest)
 
+  postfixOp : FileName -> IndentInfo -> Rule PTerm
+  postfixOp fname indents =
+    (symbol ".(" *> bracketedExpr fname indents <* symbol ")")
+    <|> do
+        start <- location
+        n <- dotIdent
+        end <- location
+        pure $ PRef (MkFC fname start end) n
+
   simpleExpr : FileName -> IndentInfo -> Rule PTerm
   simpleExpr fname indents =
         do
           start <- location
-          recFields <- some recField
+          tms <- some $ postfixOp fname indents
           end <- location
-          pure $ PRecordProjection (MkFC fname start end) recFields
+          pure $ PDotChain (MkFC fname start end) tms
     <|> do
           start <- location
           root <- simplerExpr fname indents
-          recFields <- many recField
+          mid <- location
+          ops <- many $ postfixOp fname indents
           end <- location
-          pure $ case recFields of
+          pure $ case ops of
             [] => root
-            fs => PRecordFieldAccess (MkFC fname start end) root recFields
+            _  => PApp
+                    (MkFC fname start end)
+                    (PDotChain (MkFC fname mid end) ops)
+                    root
 
   simplerExpr : FileName -> IndentInfo -> Rule PTerm
   simplerExpr fname indents
@@ -660,13 +673,12 @@ mutual
     where
       fieldName : Name -> String
       fieldName (UN s) = s
-      fieldName (RF s) = s
       fieldName _ = "_impossible"
 
       -- this allows the dotted syntax .field
       -- but also the arrowed syntax ->field for compatibility with Idris 1
       recFieldCompat : Rule Name
-      recFieldCompat = recField <|> (symbol "->" *> name)
+      recFieldCompat = (symbol "->" <|> symbol ".") *> name
 
   rewrite_ : FileName -> IndentInfo -> Rule PTerm
   rewrite_ fname indents
@@ -1014,10 +1026,6 @@ directive fname indents
          b <- onoff
          atEnd indents
          pure (UnboundImplicits b)
-  <|> do pragma "undotted_record_projections"
-         b <- onoff
-         atEnd indents
-         pure (UndottedRecordProjections b)
   <|> do pragma "ambiguity_depth"
          lvl <- intLit
          atEnd indents

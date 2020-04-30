@@ -20,4 +20,12 @@ x pt
 (record { topLeft.x $= (+1) } rect).topLeft.x
 (record { topLeft->x = 3 } rect).topLeft.x
 (record { topLeft->x $= (+1) } rect).topLeft.x
+
+"hello".show
+"hello".length.squared
+"hello".length.((+1)).squared
+3.squared
+pt.x.squared
+
+
 :q
