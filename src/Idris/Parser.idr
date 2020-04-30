@@ -308,12 +308,18 @@ mutual
 
   postfixOp : FileName -> IndentInfo -> Rule PTerm
   postfixOp fname indents =
-    (symbol ".(" *> bracketedExpr fname indents <* symbol ")")
+        do
+          start <- location
+          symbol ".("
+          e <- bracketedExpr fname start indents
+          symbol ")"
+          pure e
+
     <|> do
-        start <- location
-        n <- dotIdent
-        end <- location
-        pure $ PRef (MkFC fname start end) n
+          start <- location
+          n <- dotIdent
+          end <- location
+          pure $ PRef (MkFC fname start end) n
 
   simpleExpr : FileName -> IndentInfo -> Rule PTerm
   simpleExpr fname indents =
@@ -678,7 +684,7 @@ mutual
       -- this allows the dotted syntax .field
       -- but also the arrowed syntax ->field for compatibility with Idris 1
       recFieldCompat : Rule Name
-      recFieldCompat = (symbol "->" <|> symbol ".") *> name
+      recFieldCompat = dotIdent <|> (symbol "->" *> name)
 
   rewrite_ : FileName -> IndentInfo -> Rule PTerm
   rewrite_ fname indents

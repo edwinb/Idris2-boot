@@ -441,6 +441,7 @@ mutual
     showPrec _ (PHole _ _ n) = "?" ++ n
     showPrec _ (PType _) = "Type"
     showPrec d (PAs _ n p) = showPrec d n ++ "@" ++ showPrec d p
+    showPrec d (PDotted _ p) = "." ++ showPrec d p
     showPrec _ (PImplicit _) = "_"
     showPrec _ (PInfer _) = "?"
     showPrec d (POp _ op x y) = showPrec d x ++ " " ++ showPrec d op ++ " " ++ showPrec d y

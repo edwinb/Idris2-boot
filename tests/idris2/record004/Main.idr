@@ -5,6 +5,9 @@ record Point where
   x : Double
   y : Double
 
+Show Point where
+  show p = "(" ++ show p.x ++ ", " ++ show p.y ++ ")"
+
 -- a record creates two projections:
 --
 -- x : Point -> Double
@@ -21,6 +24,9 @@ record Rect where
 
 pt : Point
 pt = MkPoint 4.2 6.6
+
+pts : List Point
+pts = [pt, pt, pt]
 
 rect : Rect
 rect =
