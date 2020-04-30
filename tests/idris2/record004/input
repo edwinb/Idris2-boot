@@ -23,7 +23,7 @@ x pt
 "hello".length
 "hello".length.cast.squared
 "hello".length.(the Nat).(*1).(cast {to = Double}).(*4).squared
-map (.length.squared.show) ["foo", "booo"]
+map (.length.show) ["foo", "booo"]
 3.squared
 pt.x.squared
 -- pts.for $ \pt => printLn pt  -- big indented do block

@@ -19,10 +19,15 @@ Main> 4.2
 Main> 4.2
 Main> 4.2
 Main> 4.2
-Main> 4.2
-Main> 4.2
 Main> 3
 Main> 2.1
 Main> 3
 Main> 2.1
-Main> Bye for now!
+Main> Main> "\"hello\""
+Main> 5
+Main> 25
+Main> 400
+Main> ["3", "4"]
+Main> 9
+Main> 17.64
+Main> Main> Main> Bye for now!
