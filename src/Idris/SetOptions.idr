@@ -92,6 +92,12 @@ preOptions (DumpCases f :: opts)
 preOptions (DumpLifted f :: opts)
     = do setSession (record { dumplifted = Just f } !getSession)
          preOptions opts
+preOptions (DumpANF f :: opts)
+    = do setSession (record { dumpanf = Just f } !getSession)
+         preOptions opts
+preOptions (DumpVMCode f :: opts)
+    = do setSession (record { dumpvmcode = Just f } !getSession)
+         preOptions opts
 preOptions (_ :: opts) = preOptions opts
 
 -- Options to be processed after type checking. Returns whether execution

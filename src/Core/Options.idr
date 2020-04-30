@@ -45,7 +45,10 @@ Eq CG where
 
 export
 availableCGs : List (String, CG)
-availableCGs = [("chez", Chez), ("chicken", Chicken), ("racket", Racket)]
+availableCGs
+    = [ ("chez", Chez),
+--        ("chicken", Chicken),
+       ("racket", Racket)]
 
 export
 getCG : String -> Maybe CG
@@ -101,6 +104,8 @@ record Session where
   debugElabCheck : Bool -- do conversion check to verify results of elaborator
   dumpcases : Maybe String -- file to output compiled case trees
   dumplifted : Maybe String -- file to output lambda lifted definitions
+  dumpanf : Maybe String -- file to output ANF definitions
+  dumpvmcode : Maybe String -- file to output VM code definitions
 
 public export
 record PPrinter where
@@ -146,7 +151,7 @@ defaultPPrint = MkPPOpts False True False
 
 defaultSession : Session
 defaultSession = MkSessionOpts False False False Chez 0 False False
-                               Nothing Nothing
+                               Nothing Nothing Nothing Nothing
 
 defaultElab : ElabDirectives
 defaultElab = MkElabDirectives True True PartialOK 3 True

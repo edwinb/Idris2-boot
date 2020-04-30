@@ -73,6 +73,10 @@ data CLOpt
   DumpCases String |
    ||| Dump lambda lifted defs before compiling
   DumpLifted String |
+   ||| Dump ANF defs before compiling
+  DumpANF String |
+   ||| Dump VM code defs before compiling
+  DumpVMCode String |
    ||| Run a REPL command then exit immediately
   RunREPL String |
   FindIPKG |
@@ -150,7 +154,11 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
            MkOpt ["--dumpcases"] ["output file"] (\f => [DumpCases f])
               Nothing, -- dump case trees to the given file
            MkOpt ["--dumplifted"] ["output file"] (\f => [DumpLifted f])
-              Nothing, -- dump case trees to the given file
+              Nothing, -- dump lambda lifted trees to the given file
+           MkOpt ["--dumpanf"] ["output file"] (\f => [DumpANF f])
+              Nothing, -- dump ANF to the given file
+           MkOpt ["--dumpvmcode"] ["output file"] (\f => [DumpVMCode f])
+              Nothing, -- dump VM Code to the given file
            MkOpt ["--debug-elab-check"] [] [DebugElabCheck]
               Nothing -- do more elaborator checks (currently conversion in LinearCheck)
            ]

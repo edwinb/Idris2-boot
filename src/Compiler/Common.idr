@@ -1,8 +1,10 @@
 module Compiler.Common
 
+import Compiler.ANF
 import Compiler.CompileExpr
 import Compiler.Inline
 import Compiler.LambdaLift
+import Compiler.VMCode
 
 import Core.Context
 import Core.Directory
@@ -26,6 +28,24 @@ record Codegen where
                 ClosedTerm -> (outfile : String) -> Core (Maybe String)
   ||| Execute an Idris 2 expression directly.
   executeExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> Core ()
+
+public export
+record CompileData where
+  constructor MkCompileData
+  allNames : List Name -- names which need to be compiled
+  nameTags : NameTags -- a mapping from type names to constructor tags
+  mainExpr : CExp [] -- main expression to execute. This also appears in
+                     -- the definitions below as MN "__mainExpression" 0
+  lambdaLifted : List (Name, LiftedDef)
+       -- ^ lambda lifted definitions, if required. Only the top level names
+       -- will be in the context, and (for the moment...) I don't expect to
+       -- need to look anything up, so it's just an alist.
+  anf : List (Name, ANFDef)
+       -- ^ lambda lifted and converted to ANF (all arguments to functions
+       -- and constructors transformed to either variables or Null if erased)
+  vmcode : List (Name, VMDef)
+       -- ^ A much simplified virtual machine code, suitable for passing
+       -- to a more low level target such as C
 
 ||| compile
 ||| Given a value of type Codegen, produce a standalone function
@@ -102,6 +122,7 @@ fastAppend xs
     build b (x :: xs) = do addToStringBuffer b x
                            build b xs
 
+-- Hmm, these dump functions are all very similar aren't they...
 dumpCases : Defs -> String -> List Name ->
             Core ()
 dumpCases defs fn cns
@@ -137,16 +158,33 @@ dumpLifted fn lns
     dumpDef : (Name, LiftedDef) -> String
     dumpDef (n, d) = fullShow n ++ " = " ++ show d ++ "\n"
 
-public export
-record CompileData where
-  constructor MkCompileData
-  allNames : List Name -- names which need to be compiled
-  nameTags : NameTags -- a mapping from type names to constructor tags
-  mainExpr : CExp [] -- main expression to execute
-  lambdaLifted : List (Name, LiftedDef)
-       -- ^ lambda lifted definitions, if required. Only the top level names
-       -- will be in the context, and (for the moment...) I don't expect to
-       -- need to look anything up, so it's just an alist.
+dumpANF : String -> List (Name, ANFDef) -> Core ()
+dumpANF fn lns
+    = do let cstrs = map dumpDef lns
+         Right () <- coreLift $ writeFile fn (fastAppend cstrs)
+               | Left err => throw (FileErr fn err)
+         pure ()
+  where
+    fullShow : Name -> String
+    fullShow (DN _ n) = show n
+    fullShow n = show n
+
+    dumpDef : (Name, ANFDef) -> String
+    dumpDef (n, d) = fullShow n ++ " = " ++ show d ++ "\n"
+
+dumpVMCode : String -> List (Name, VMDef) -> Core ()
+dumpVMCode fn lns
+    = do let cstrs = map dumpDef lns
+         Right () <- coreLift $ writeFile fn (fastAppend cstrs)
+               | Left err => throw (FileErr fn err)
+         pure ()
+  where
+    fullShow : Name -> String
+    fullShow (DN _ n) = show n
+    fullShow n = show n
+
+    dumpDef : (Name, VMDef) -> String
+    dumpDef (n, d) = fullShow n ++ " = " ++ show d ++ "\n"
 
 -- Find all the names which need compiling, from a given expression, and compile
 -- them to CExp form (and update that in the Defs).
@@ -183,9 +221,17 @@ getCompileData tm
          logTime "Fix arity" $ traverse_ fixArityDef cns
          logTime "Forget names" $ traverse_ mkForgetDef cns
 
-         lifted <- logTime "Lambda lift" $ traverse lambdaLift cns
-
          compiledtm <- fixArityExp !(compileExp tycontags tm)
+         let mainname = MN "__mainExpression" 0
+         (liftedtm, ldefs) <- liftBody mainname compiledtm
+
+         lifted_in <- logTime "Lambda lift" $ traverse lambdaLift cns
+
+         let lifted = (mainname, MkLFun [] [] liftedtm) ::
+                      ldefs ++ concat lifted_in
+
+         anf <- logTime "Get ANF" $ traverse (\ (n, d) => pure (n, !(toANF d))) lifted
+         vmcode <- logTime "Get VM Code" $ pure (allDefs anf)
 
          defs <- get Ctxt
          maybe (pure ())
@@ -194,9 +240,18 @@ getCompileData tm
                (dumpcases sopts)
          maybe (pure ())
                (\f => do coreLift $ putStrLn $ "Dumping lambda lifted defs to " ++ f
-                         dumpLifted f (concat lifted))
+                         dumpLifted f lifted)
                (dumplifted sopts)
-         pure (MkCompileData cns tycontags compiledtm (concat lifted))
+         maybe (pure ())
+               (\f => do coreLift $ putStrLn $ "Dumping ANF defs to " ++ f
+                         dumpANF f anf)
+               (dumpanf sopts)
+         maybe (pure ())
+               (\f => do coreLift $ putStrLn $ "Dumping VM defs to " ++ f
+                         dumpVMCode f vmcode)
+               (dumpvmcode sopts)
+         pure (MkCompileData cns tycontags compiledtm
+                             lifted anf vmcode)
   where
     primTags : Int -> NameTags -> List Constant -> NameTags
     primTags t tags [] = tags

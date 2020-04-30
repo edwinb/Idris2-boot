@@ -59,7 +59,7 @@ etaExpand i Z exp args = mkApp exp (map (mkLocal (getFC exp)) (reverse args))
     mkApp (CExtPrim fc p args) args' = CExtPrim fc p (args ++ args')
     mkApp tm args = CApp (getFC tm) tm args
 etaExpand i (S k) exp args
-    = CLam (getFC exp) (MN "x" i)
+    = CLam (getFC exp) (MN "eta" i)
              (etaExpand (i + 1) k (weaken exp)
                   (MkVar First :: map weakenVar args))
 

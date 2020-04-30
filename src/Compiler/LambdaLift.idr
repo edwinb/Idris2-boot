@@ -54,7 +54,10 @@ data LiftedDef : Type where
      -- We take the outer scope and the function arguments separately so that
      -- we don't have to reshuffle de Bruijn indices, which is expensive.
      -- This should be compiled as a function which takes 'args' first,
-     -- then 'scope'.
+     -- then 'reverse scope'.
+     -- (Sorry for the awkward API - it's to do with how the indices are
+     -- arranged for the variables, and it oculd be expensive to reshuffle them!
+     -- See Compiler.ANF for an example of how they get resolved to names)
      MkLFun : (args : List Name) -> -- function arguments
               (scope : List Name) -> -- outer scope
               Lifted (scope ++ args) -> LiftedDef
@@ -107,7 +110,8 @@ mutual
 
 export
 Show LiftedDef where
-  show (MkLFun args scope exp) = show args ++ show scope ++ ": " ++ show exp
+  show (MkLFun args scope exp)
+      = show args ++ show (reverse scope) ++ ": " ++ show exp
   show (MkLCon tag arity pos)
       = "Constructor tag " ++ show tag ++ " arity " ++ show arity ++
         maybe "" (\n => " (newtype by " ++ show n ++ ")") pos
@@ -136,6 +140,7 @@ genName
     mkName : Name -> Int -> Name
     mkName (NS ns b) i = NS ns (mkName b i)
     mkName (UN n) i = MN n i
+    mkName (DN _ n) i = mkName n i
     mkName n i = MN (show n) i
 
 unload : FC -> Lifted vars -> List (Lifted vars) -> Core (Lifted vars)
@@ -188,7 +193,7 @@ mutual
       traverseArgs (a :: as) = pure $ !(liftExp a) :: !(traverseArgs as)
   liftExp (CExtPrim fc p args) = pure $ LExtPrim fc p !(traverse liftExp args)
   liftExp (CForce fc tm) = liftExp (CApp fc tm [CErased fc])
-  liftExp (CDelay fc tm) = liftExp (CLam fc (MN "x" 0) (weaken tm))
+  liftExp (CDelay fc tm) = liftExp (CLam fc (MN "act" 0) (weaken tm))
   liftExp (CConCase fc sc alts def)
       = pure $ LConCase fc !(liftExp sc) !(traverse liftConAlt alts)
                            !(traverseOpt liftExp def)
@@ -205,6 +210,7 @@ mutual
   liftExp (CErased fc) = pure $ LErased fc
   liftExp (CCrash fc str) = pure $ LCrash fc str
 
+export
 liftBody : Name -> CExp vars -> Core (Lifted vars, List (Name, LiftedDef))
 liftBody n tm
     = do l <- newRef Lifts (MkLDefs n [] 0)

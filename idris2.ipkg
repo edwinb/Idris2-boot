@@ -1,6 +1,7 @@
 package idris2
 
 modules =
+    Compiler.ANF,
     Compiler.Common,
     Compiler.CompileExpr,
     Compiler.Inline,
@@ -9,6 +10,7 @@ modules =
 --     Compiler.Scheme.Chicken,
     Compiler.Scheme.Racket,
     Compiler.Scheme.Common,
+    Compiler.VMCode,
 
     Control.Delayed,
 
