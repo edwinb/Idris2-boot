@@ -1,22 +1,39 @@
+;; XXX Macro could be useful if schConstructor used #( instead of (vector
 (define (blodwen-read-args desc)
   (case (vector-ref desc 0)
     ((0) '())
     ((1) (cons (vector-ref desc 2)
                (blodwen-read-args (vector-ref desc 3))))))
 
-(define (b+ x y bits) (remainder (+ x y) (arithmetic-shift 1 bits)))
-(define (b- x y bits) (remainder (- x y) (arithmetic-shift 1 bits)))
-(define (b* x y bits) (remainder (* x y) (arithmetic-shift 1 bits)))
-(define (b/ x y bits) (remainder (exact-floor (/ x y)) (arithmetic-shift 1 bits)))
+(define-macro (b+ x y bits)
+  (if (exact-integer? bits)
+      `(remainder (+ ,x ,y) ,(arithmetic-shift 1 bits))
+      `(remainder (+ ,x ,y) (arithmetic-shift 1 ,bits))))
+(define-macro (b- x y bits)
+  (if (exact-integer? bits)
+      `(remainder (- ,x ,y) ,(arithmetic-shift 1 bits))
+      `(remainder (- ,x ,y) (arithmetic-shift 1 ,bits))))
+(define-macro (b* x y bits)
+  (if (exact-integer? bits)
+      `(remainder (* ,x ,y) ,(arithmetic-shift 1 bits))
+      `(remainder (* ,x ,y) (arithmetic-shift 1 ,bits))))
+(define-macro (b/ x y bits)
+  (if (exact-integer? bits)
+      `(remainder (floor (/ ,x ,y)) ,(arithmetic-shift 1 bits))
+      `(remainder (floor (/ ,x ,y)) (arithmetic-shift 1 ,bits))))
 
-(define blodwen-and bitwise-and)
-(define blodwen-or bitwise-ior)
-(define blodwen-xor bitwise-xor)
-(define blodwen-shl arithmetic-shift)
-(define (blodwen-shr x y) (arithmetic-shift x (- y)))
+(define-macro (blodwen-and . args) `(bitwise-and ,@args))
+(define-macro (blodwen-or . args) `(bitwise-ior ,@args))
+(define-macro (blodwen-xor . args) `(bitwise-xor ,@args))
+(define-macro (blodwen-shl x y) `(arithmetic-shift ,x ,y))
+(define-macro (blodwen-shr x y) `(arithmetic-shift ,x (- ,y)))
 
-(define exact-floor ##flonum->fixnum) ; XXX
+(define-macro (exact-floor x)
+  (let ((s (gensym)))
+    `(let ((,s ,x))
+      (if (flonum? ,s) (##flonum->exact-int ,s) (##floor ,s)))))
 
+;; TODO Convert to macro
 (define (cast-string-double x)
   (define (cast-num x)
     (if (number? x) x 0))
@@ -24,32 +41,33 @@
     (if (or (equal? x "") (char=? (string-ref x 0) #\#)) "" x))
   (cast-num (string->number (destroy-prefix x))))
 
-(define (cast-string-int x)
-  (exact-floor (cast-string-double x)))
+(define-macro (cast-string-int x)
+  `(floor (cast-string-double ,x)))
 
-(define (string-cons x y)
-  (string-append (string x) y))
+(define-macro (string-cons x y)
+  `(string-append (string ,x) ,y))
 
-(define (string-reverse x)
-  (list->string (reverse! (string->list x))))
+(define-macro (string-reverse x)
+  `(list->string (reverse! (string->list ,x))))
 
+;; TODO Convert to macro
 (define (string-substr off len s)
   (let* ((start (max 0 off))
          (end (min (+ start (max 0 len))
                    (string-length s))))
     (substring s start end)))
 
-(define (get-tag x)
-  (vector-ref x 0))
+(define-macro (get-tag x) `(vector-ref ,x 0))
 
 ;; These two are only used in this file
-(define (either-left x) (vector 0 x))
-(define (either-right x) (vector 1 x))
+(define-macro (either-left x) `(vector 0 ,x))
+(define-macro (either-right x) `(vector 1 ,x))
 
-(define (blodwen-error-quit msg)
-  (display msg)
-  (newline)
-  (exit 1))
+(define-macro (blodwen-error-quit msg)
+  `(begin
+    (display ,msg)
+    (newline)
+    (exit 1)))
 
 ;; Buffers
 
@@ -139,23 +157,22 @@
     ((string=? mode "r+") (open-file settings))
     ((string=? mode "w+") (open-file (append settings '(create: maybe truncate: #t))))
     ((string=? mode "w+x") (open-file (append settings '(create: #t truncate: #t))))
-    ((string=? mode "a+") (open-file (append settings '(create: maybe append: #t))))
-    (else (raise 'i/o-error)))) ; XXX
+    ((string=? mode "a+") (open-file (append settings '(create: maybe append: #t))))))
 
 (define (blodwen-close-port p)
   (if (port? p) (close-port p)))
 
 (define (blodwen-get-line p)
   (if (input-port? p)
-      (let ((str (read-line p #\newline #t)))
+      (let ((str (read-line p)))
         (if (eof-object? str) "" str))
       ""))
 
 (define (blodwen-get-char p)
   (if (input-port? p)
       (let ((chr (read-char p)))
-        (if (eof-object? chr) #\nul chr))
-      #\nul))
+        (if (eof-object? chr) #\null chr))
+      #\null))
 
 (define (blodwen-file-modified-time p) ; XXX
   (exact-floor (time->seconds (file-last-modification-time (##port-name p)))))
