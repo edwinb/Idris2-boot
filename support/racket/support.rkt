@@ -136,7 +136,7 @@
       (either-right (op))))
 
 (define (blodwen-putstring p s)
-    (if (port? p) (write-string p s) void)
+    (if (port? p) (write-string s p) void)
     0)
 
 (define (blodwen-open file mode bin)
