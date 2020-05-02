@@ -32,12 +32,12 @@ findGSC =
   do env <- getEnv "GAMBIT_GSC"
      pure $ fromMaybe "/usr/bin/env -S gsc-script" env
 
--- TODO Tweak the header for optimal results
 schHeader : String
 schHeader = "(declare (block)
          (standard-bindings)
          (extended-bindings)
-         (not safe))\n"
+         (not safe)
+         (optimize-dead-definitions))\n"
 
 showGambitChar : Char -> String -> String
 showGambitChar '\\' = ("\\\\" ++)
