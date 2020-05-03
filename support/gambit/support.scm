@@ -1,9 +1,9 @@
-;; XXX Macro could be useful if schConstructor used #( instead of (vector
+;; TODO Convert to macro
 (define (blodwen-read-args desc)
-  (case (vector-ref desc 0)
-    ((0) '())
-    ((1) (cons (vector-ref desc 2)
-               (blodwen-read-args (vector-ref desc 3))))))
+  (if (fx= (vector-ref desc 0) 0)
+      '()
+      (cons (vector-ref desc 2)
+            (blodwen-read-args (vector-ref desc 3)))))
 
 (define-macro (b+ x y bits)
   (if (exact-integer? bits)
@@ -38,7 +38,7 @@
   (define (cast-num x)
     (if (number? x) x 0))
   (define (destroy-prefix x)
-    (if (or (equal? x "") (char=? (string-ref x 0) #\#)) "" x))
+    (if (or (string=? x "") (char=? (string-ref x 0) #\#)) "" x))
   (cast-num (string->number (destroy-prefix x))))
 
 (define-macro (cast-string-int x)
@@ -52,9 +52,9 @@
 
 ;; TODO Convert to macro
 (define (string-substr off len s)
-  (let* ((start (max 0 off))
-         (end (min (+ start (max 0 len))
-                   (string-length s))))
+  (let* ((start (fxmax 0 off))
+         (end (fxmin (fx+ start (fxmax 0 len))
+                     (string-length s))))
     (substring s start end)))
 
 (define-macro (get-tag x) `(vector-ref ,x 0))
@@ -93,16 +93,16 @@
 
 (define (blodwen-buffer-getstring buf loc len)
   (let ((newvec (make-u8vector len)))
-    (u8vector-copy! newvec 0 buf loc (+ loc len))
+    (u8vector-copy! newvec 0 buf loc (fx+ loc len))
     (utf8->string newvec)))
 
 (define (blodwen-buffer-copydata buf start len dest loc)
-  (u8vector-copy! dest loc buf start (+ start len)))
+  (u8vector-copy! dest loc buf start (fx+ start len)))
 
 (define (blodwen-readbuffer-bytes h buf loc max)
   (with-exception-catcher
     (lambda (e) -1)
-    (lambda () (read-subu8vector buf loc (+ loc max) h))))
+    (lambda () (read-subu8vector buf loc (fx+ loc max) h))))
 
 (define (blodwen-readbuffer h)
   (with-exception-catcher
@@ -112,9 +112,13 @@
 (define (blodwen-writebuffer h buf loc max)
   (with-exception-catcher
     (lambda (e) -1)
-    (lambda () (write-subu8vector buf loc (+ loc max) h) max)))
+    (lambda () (write-subu8vector buf loc (fx+ loc max) h) max)))
 
 ;; Files
+
+;; Only used in this file for errno extraction
+(define-macro (errno-magic)
+  (fx- 0 (fxnot (fx- (fxarithmetic-shift 1 29) 1)) (fxarithmetic-shift 320 16)))
 
 ;; If the file operation raises an error, catch it and return an appropriate
 ;; error code
@@ -122,15 +126,13 @@
   ;; All the file operations are implemented as primitives which return
   ;; Either Int x, where the Int is an error code:
   (define (blodwen-error-code x)
-    (define magic ;; For errno extraction
-      (fx- 0 (fxnot (- (fxarithmetic-shift 1 29) 1)) (fxarithmetic-shift 320 16)))
     (either-left
       ;; TODO Equivalent of i/o-read-error? and i/o-write-error?
       ;; TODO Uncomment the lines below on the next release (> 4.9.3) of Gambit
       (cond ((no-such-file-or-directory-exception? x) 3)
             ; ((permission-denied-exception? x) 4)
             ; ((file-exists-exception? x) 5)
-            (else (fx+ (os-exception-code x) magic 256)))))
+            (else (fx+ (os-exception-code x) (errno-magic) 256)))))
   (with-exception-catcher
     blodwen-error-code
     (lambda () (either-right (op)))))
@@ -152,12 +154,12 @@
   (cond
     ((string=? mode "r") (open-input-file settings))
     ((string=? mode "w") (open-output-file settings))
-    ((string=? mode "wx") (open-output-file (append settings '(create: #t))))
-    ((string=? mode "a") (open-output-file (append settings '(append: #t))))
+    ((string=? mode "wx") (open-output-file `(,@settings create: #t)))
+    ((string=? mode "a") (open-output-file `(,@settings append: #t)))
     ((string=? mode "r+") (open-file settings))
-    ((string=? mode "w+") (open-file (append settings '(create: maybe truncate: #t))))
-    ((string=? mode "w+x") (open-file (append settings '(create: #t truncate: #t))))
-    ((string=? mode "a+") (open-file (append settings '(create: maybe append: #t))))))
+    ((string=? mode "w+") (open-file `(,@settings create: maybe truncate: #t)))
+    ((string=? mode "w+x") (open-file `(,@settings create: #t truncate: #t)))
+    ((string=? mode "a+") (open-file `(,@settings create: maybe append: #t)))))
 
 (define (blodwen-close-port p)
   (if (port? p) (close-port p)))
