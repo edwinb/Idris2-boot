@@ -69,11 +69,36 @@ record RewriteNames where
   rewriteName : Name
 
 public export
-record PrimNames where
-  constructor MkPrimNs
+record PrimCastNames where
+  constructor MkPrimCastNames
   fromIntegerName : Maybe Name
   fromStringName : Maybe Name
   fromCharName : Maybe Name
+
+public export
+record PrimBuiltinNames where
+  constructor MkPrimBuiltinNames
+  -- Naturals
+  builtinNatZero : Maybe Name
+  builtinNatSucc : Maybe Name
+  builtinNatToInteger : Maybe Name
+  builtinIntegerToNat : Maybe Name
+  builtinNatAdd : Maybe Name
+  builtinNatSub : Maybe Name
+  builtinNatMul : Maybe Name
+  builtinNatDiv : Maybe Name
+  builtinNatMod : Maybe Name
+  builtinNatEq  : Maybe Name
+  builtinNatLT  : Maybe Name
+  builtinNatLTE : Maybe Name
+  builtinNatGT  : Maybe Name
+  builtinNatGTE : Maybe Name
+
+public export
+record PrimNames where
+  constructor MkPrimNames
+  primCastNames    : PrimCastNames
+  primBuiltinNames : PrimBuiltinNames
 
 public export
 data LangExt = Borrowing -- not yet implemented
@@ -142,8 +167,8 @@ pathSep : Char
 pathSep = if isWindows then ';' else ':'
 
 defaultDirs : Dirs
-defaultDirs = MkDirs "." Nothing "build" 
-                     ("build" ++ dirSep ++ "exec") 
+defaultDirs = MkDirs "." Nothing "build"
+                     ("build" ++ dirSep ++ "exec")
                      "/usr/local" ["."] [] []
 
 defaultPPrint : PPrinter
@@ -156,21 +181,38 @@ defaultSession = MkSessionOpts False False False Chez 0 False False
 defaultElab : ElabDirectives
 defaultElab = MkElabDirectives True True PartialOK 3 True
 
+defaultPrimNames : PrimNames
+defaultPrimNames =
+  MkPrimNames
+    (MkPrimCastNames Nothing Nothing Nothing)
+    (MkPrimBuiltinNames Nothing Nothing Nothing Nothing Nothing Nothing Nothing
+       Nothing Nothing Nothing Nothing Nothing Nothing Nothing)
+
 export
 defaults : Options
 defaults = MkOptions defaultDirs defaultPPrint defaultSession
-                     defaultElab Nothing Nothing
-                     (MkPrimNs Nothing Nothing Nothing)
+                     defaultElab Nothing Nothing defaultPrimNames
                      []
+
+-- Getters
+
+export
+getDefinedBuiltinNames : PrimBuiltinNames -> List Name
+getDefinedBuiltinNames primBuiltinNames = catMaybes $
+  [builtinNatZero, builtinNatSucc, builtinNatToInteger, builtinIntegerToNat,
+   builtinNatAdd, builtinNatSub, builtinNatMul, builtinNatDiv, builtinNatMod,
+   builtinNatEq, builtinNatLT, builtinNatLTE, builtinNatGT, builtinNatGTE] <*> [primBuiltinNames]
 
 -- Reset the options which are set by source files
 export
 clearNames : Options -> Options
 clearNames = record { pairnames = Nothing,
                       rewritenames = Nothing,
-                      primnames = MkPrimNs Nothing Nothing Nothing,
+                      primnames = defaultPrimNames,
                       extensions = []
                     }
+
+-- Setters
 
 export
 setPair : (pairType : Name) -> (fstn : Name) -> (sndn : Name) ->
@@ -183,15 +225,71 @@ setRewrite eq rw = record { rewritenames = Just (MkRewriteNs eq rw) }
 
 export
 setFromInteger : Name -> Options -> Options
-setFromInteger n = record { primnames->fromIntegerName = Just n }
+setFromInteger n = record { primnames->primCastNames->fromIntegerName = Just n }
 
 export
 setFromString : Name -> Options -> Options
-setFromString n = record { primnames->fromStringName = Just n }
+setFromString n = record { primnames->primCastNames->fromStringName = Just n }
 
 export
 setFromChar : Name -> Options -> Options
-setFromChar n = record { primnames->fromCharName = Just n }
+setFromChar n = record { primnames->primCastNames->fromCharName = Just n }
+
+export
+setBuiltinNatZero : Name -> Options -> Options
+setBuiltinNatZero n = record { primnames->primBuiltinNames->builtinNatZero = Just n }
+
+export
+setBuiltinNatSucc : Name -> Options -> Options
+setBuiltinNatSucc n = record { primnames->primBuiltinNames->builtinNatSucc = Just n }
+
+export
+setBuiltinNatToInteger : Name -> Options -> Options
+setBuiltinNatToInteger n = record { primnames->primBuiltinNames->builtinNatToInteger = Just n }
+
+export
+setBuiltinIntegerToNat : Name -> Options -> Options
+setBuiltinIntegerToNat n = record { primnames->primBuiltinNames->builtinIntegerToNat = Just n }
+
+export
+setBuiltinNatAdd : Name -> Options -> Options
+setBuiltinNatAdd n = record { primnames->primBuiltinNames->builtinNatAdd = Just n }
+
+export
+setBuiltinNatSub : Name -> Options -> Options
+setBuiltinNatSub n = record { primnames->primBuiltinNames->builtinNatSub = Just n }
+
+export
+setBuiltinNatMul : Name -> Options -> Options
+setBuiltinNatMul n = record { primnames->primBuiltinNames->builtinNatMul = Just n }
+
+export
+setBuiltinNatDiv : Name -> Options -> Options
+setBuiltinNatDiv n = record { primnames->primBuiltinNames->builtinNatDiv = Just n }
+
+export
+setBuiltinNatMod : Name -> Options -> Options
+setBuiltinNatMod n = record { primnames->primBuiltinNames->builtinNatMod = Just n }
+
+export
+setBuiltinNatEq : Name -> Options -> Options
+setBuiltinNatEq n = record { primnames->primBuiltinNames->builtinNatEq = Just n }
+
+export
+setBuiltinNatLT : Name -> Options -> Options
+setBuiltinNatLT n = record { primnames->primBuiltinNames->builtinNatLT = Just n }
+
+export
+setBuiltinNatLTE : Name -> Options -> Options
+setBuiltinNatLTE n = record { primnames->primBuiltinNames->builtinNatLTE = Just n }
+
+export
+setBuiltinNatGT : Name -> Options -> Options
+setBuiltinNatGT n = record { primnames->primBuiltinNames->builtinNatGT = Just n }
+
+export
+setBuiltinNatGTE : Name -> Options -> Options
+setBuiltinNatGTE n = record { primnames->primBuiltinNames->builtinNatGTE = Just n }
 
 export
 setExtension : LangExt -> Options -> Options

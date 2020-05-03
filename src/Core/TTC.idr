@@ -751,16 +751,61 @@ TTC RewriteNames where
            pure (MkRewriteNs ty l)
 
 export
-TTC PrimNames where
+TTC PrimCastNames where
   toBuf b l
       = do toBuf b (fromIntegerName l)
            toBuf b (fromStringName l)
            toBuf b (fromCharName l)
   fromBuf b
       = do i <- fromBuf b
-           str <- fromBuf b
-           c <- fromBuf b
-           pure (MkPrimNs i str c)
+           str  <- fromBuf b
+           c    <- fromBuf b
+           pure (MkPrimCastNames i str c)
+
+export
+TTC PrimBuiltinNames where
+  toBuf b l
+      = do toBuf b (builtinNatZero l)
+           toBuf b (builtinNatSucc l)
+           toBuf b (builtinNatToInteger l)
+           toBuf b (builtinIntegerToNat l)
+           toBuf b (builtinNatAdd l)
+           toBuf b (builtinNatSub l)
+           toBuf b (builtinNatMul l)
+           toBuf b (builtinNatDiv l)
+           toBuf b (builtinNatMod l)
+           toBuf b (builtinNatEq  l)
+           toBuf b (builtinNatLT  l)
+           toBuf b (builtinNatLTE l)
+           toBuf b (builtinNatGT  l)
+           toBuf b (builtinNatGTE l)
+  fromBuf b
+      = do natZero <- fromBuf b
+           natSucc <- fromBuf b
+           natToInteger <- fromBuf b
+           integerToNat <- fromBuf b
+           natAdd <- fromBuf b
+           natSub <- fromBuf b
+           natMul <- fromBuf b
+           natDiv <- fromBuf b
+           natMod <- fromBuf b
+           natEq  <- fromBuf b
+           natLT  <- fromBuf b
+           natLTE <- fromBuf b
+           natGT  <- fromBuf b
+           natGTE <- fromBuf b
+           pure (MkPrimBuiltinNames natZero natSucc natToInteger integerToNat
+                   natAdd natSub natMul natDiv natMod natEq natLT natLTE natGT natGTE)
+
+export
+TTC PrimNames where
+  toBuf b l
+      = do toBuf b (primCastNames l)
+           toBuf b (primBuiltinNames l)
+  fromBuf b
+      = do castNames    <- fromBuf b
+           builtinNames <- fromBuf b
+           pure (MkPrimNames castNames builtinNames)
 
 export
 TTC HoleInfo where

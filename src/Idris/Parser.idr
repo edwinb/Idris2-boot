@@ -1035,6 +1035,9 @@ directive fname indents
          rw <- name
          atEnd indents
          pure (RewriteName eq rw)
+
+  -- Prim Cast
+
   <|> do pragma "integerLit"
          n <- name
          atEnd indents
@@ -1047,6 +1050,66 @@ directive fname indents
          n <- name
          atEnd indents
          pure (PrimChar n)
+
+  -- Prim Nat Optimizations
+
+  <|> do pragma "builtinNatZero"
+         n <- name
+         atEnd indents
+         pure (PrimNatZero n)
+  <|> do pragma "builtinNatSucc"
+         n <- name
+         atEnd indents
+         pure (PrimNatSucc n)
+  <|> do pragma "builtinNatToInteger"
+         n <- name
+         atEnd indents
+         pure (PrimNatToInteger n)
+  <|> do pragma "builtinIntegerToNat"
+         n <- name
+         atEnd indents
+         pure (PrimIntegerToNat n)
+  <|> do pragma "builtinNatAdd"
+         n <- name
+         atEnd indents
+         pure (PrimNatAdd n)
+  <|> do pragma "builtinNatSub"
+         n <- name
+         atEnd indents
+         pure (PrimNatSub n)
+  <|> do pragma "builtinNatMul"
+         n <- name
+         atEnd indents
+         pure (PrimNatMul n)
+  <|> do pragma "builtinNatDiv"
+         n <- name
+         atEnd indents
+         pure (PrimNatDiv n)
+  <|> do pragma "builtinNatMod"
+         n <- name
+         atEnd indents
+         pure (PrimNatMod n)
+  <|> do pragma "builtinNatEq"
+         n <- name
+         atEnd indents
+         pure (PrimNatEq n)
+  <|> do pragma "builtinNatLT"
+         n <- name
+         atEnd indents
+         pure (PrimNatLT n)
+  <|> do pragma "builtinNatLTE"
+         n <- name
+         atEnd indents
+         pure (PrimNatLTE n)
+  <|> do pragma "builtinNatGT"
+         n <- name
+         atEnd indents
+         pure (PrimNatGT n)
+  <|> do pragma "builtinNatGTE"
+         n <- name
+         atEnd indents
+         pure (PrimNatGTE n)
+
   <|> do pragma "name"
          n <- name
          ns <- sepBy1 (symbol ",") unqualifiedName

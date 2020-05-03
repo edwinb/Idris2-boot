@@ -158,9 +158,25 @@ mutual
        AmbigDepth : Nat -> Directive
        PairNames : Name -> Name -> Name -> Directive
        RewriteName : Name -> Name -> Directive
+       -- Prim Casting
        PrimInteger : Name -> Directive
        PrimString : Name -> Directive
        PrimChar : Name -> Directive
+       -- Prim Nat Optimizations
+       PrimNatZero : Name -> Directive
+       PrimNatSucc : Name -> Directive
+       PrimNatToInteger : Name -> Directive
+       PrimIntegerToNat : Name -> Directive
+       PrimNatAdd : Name -> Directive
+       PrimNatSub : Name -> Directive
+       PrimNatMul : Name -> Directive
+       PrimNatDiv : Name -> Directive
+       PrimNatMod : Name -> Directive
+       PrimNatEq  : Name -> Directive
+       PrimNatLT  : Name -> Directive
+       PrimNatLTE : Name -> Directive
+       PrimNatGT  : Name -> Directive
+       PrimNatGTE : Name -> Directive
        CGAction : String -> String -> Directive
        Names : Name -> List String -> Directive
        StartExpr : PTerm -> Directive

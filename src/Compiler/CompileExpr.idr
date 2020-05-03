@@ -6,6 +6,7 @@ import Core.Context
 import Core.Env
 import Core.Name
 import Core.Normalise
+import Core.Options
 import Core.TT
 import Core.Value
 
@@ -129,20 +130,36 @@ mkDropSubst i es rest (x :: xs)
 -- NOTE: Make sure that names mentioned here are listed in 'natHackNames' in
 -- Common.idr, so that they get compiled, as they won't be spotted by the
 -- usual calls to 'getRefs'.
-natHack : CExp vars -> CExp vars
-natHack (CCon fc (NS ["Prelude"] (UN "Z")) _ []) = CPrimVal fc (BI 0)
-natHack (CCon fc (NS ["Prelude"] (UN "S")) _ [k])
-    = CApp fc (CRef fc (UN "prim__add_Integer")) [CPrimVal fc (BI 1), k]
-natHack (CApp fc (CRef _ (NS ["Prelude"] (UN "natToInteger"))) [k]) = k
-natHack (CApp fc (CRef _ (NS ["Prelude"] (UN "integerToNat"))) [k]) = k
-natHack (CApp fc (CRef fc' (NS ["Prelude"] (UN "plus"))) args)
-    = CApp fc (CRef fc' (UN "prim__add_Integer")) args
-natHack (CApp fc (CRef fc' (NS ["Prelude"] (UN "mult"))) args)
-    = CApp fc (CRef fc' (UN "prim__mul_Integer")) args
-natHack (CApp fc (CRef fc' (NS ["Nat", "Data"] (UN "minus"))) args)
-    = CApp fc (CRef fc' (UN "prim__sub_Integer")) args
-natHack (CLam fc x exp) = CLam fc x (natHack exp)
-natHack t = t
+natHack : PrimBuiltinNames -> CExp vars -> CExp vars
+natHack primBuiltinNames (CCon fc name t [])
+  = if Just name == builtinNatZero primBuiltinNames
+    then CPrimVal fc (BI 0)
+    else (CCon fc name t [])
+natHack primBuiltinNames (CCon fc name t [k])
+  = if Just name == builtinNatSucc primBuiltinNames
+    then CApp fc (CRef fc (UN "prim__add_Integer")) [CPrimVal fc (BI 1), k]
+    else (CCon fc name t [k])
+natHack primBuiltinNames (CApp fc (CRef fc' name) [k])
+  = if Just name == builtinNatToInteger primBuiltinNames
+    then k
+    else if Just name == builtinIntegerToNat primBuiltinNames
+    then k
+    else (CApp fc (CRef fc' name) [k])
+natHack primBuiltinNames (CApp fc (CRef fc' name) args)
+  = if Just name == builtinNatAdd primBuiltinNames
+    then CApp fc (CRef fc' (UN "prim__add_Integer")) args
+    else if Just name == builtinNatSub primBuiltinNames
+    then CApp fc (CRef fc' (UN "prim__sub_Integer")) args
+    else if Just name == builtinNatMul primBuiltinNames
+    then CApp fc (CRef fc' (UN "prim__mul_Integer")) args
+    else if Just name == builtinNatDiv primBuiltinNames
+    then CApp fc (CRef fc' (UN "prim__div_Integer")) args
+    else if Just name == builtinNatMod primBuiltinNames
+    then CApp fc (CRef fc' (UN "prim__mod_Integer")) args
+    else (CApp fc (CRef fc' name) args)
+    -- TODO: Eq, LT, LTE, GT, GTE
+natHack p (CLam fc x exp) = CLam fc x (natHack p exp)
+natHack _ t = t
 
 isNatCon : Name -> Bool
 isNatCon (NS ["Prelude"] (UN "Z")) = True
@@ -269,16 +286,17 @@ mutual
              (f, args) =>
                 do args' <- traverse (toCExp n) args
                    defs <- get Ctxt
+                   builtins <- getBuiltins
                    f' <- toCExpTm n f
                    Arity a <- numArgs defs f
                       | NewTypeBy arity pos =>
                             do let res = applyNewType arity pos f' args'
-                               pure $ natHack res
+                               pure $ natHack builtins res
                       | EraseArgs arity epos =>
                             do let res = eraseConArgs arity epos f' args'
-                               pure $ natHack res
+                               pure $ natHack builtins res
                    let res = expandToArity a f' args'
-                   pure $ natHack res
+                   pure $ natHack builtins res
 
 mutual
   conCases : {auto c : Ref Ctxt Defs} ->

@@ -692,6 +692,9 @@ for = flip traverse
 -- NATS ---
 -----------
 
+%builtinNatZero Z
+%builtinNatSucc S
+
 ||| Natural numbers: unbounded, unsigned integers which can be pattern matched.
 public export
 data Nat =
@@ -702,12 +705,26 @@ data Nat =
 
 %name Nat k, j, i
 
+%builtinIntegerToNat integerToNat
+%builtinNatToInteger natToInteger
+
 public export
 integerToNat : Integer -> Nat
 integerToNat x
   = if intToBool (prim__lte_Integer x 0)
        then Z
        else S (assert_total (integerToNat (prim__sub_Integer x 1)))
+
+public export
+natToInteger : Nat -> Integer
+natToInteger Z = 0
+natToInteger (S k) = 1 + natToInteger k
+  -- integer (+) may be non-linear in second
+  -- argument
+
+%builtinNatAdd plus
+%builtinNatSub minus
+%builtinNatMul mult
 
 -- Define separately so we can spot the name when optimising Nats
 ||| Add two natural numbers.
@@ -751,13 +768,6 @@ Ord Nat where
   compare Z (S k) = LT
   compare (S k) Z = GT
   compare (S j) (S k) = compare j k
-
-public export
-natToInteger : Nat -> Integer
-natToInteger Z = 0
-natToInteger (S k) = 1 + natToInteger k
-                         -- integer (+) may be non-linear in second
-                         -- argument
 
 -----------
 -- PAIRS --

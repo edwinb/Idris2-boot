@@ -2032,6 +2032,118 @@ setFromChar n
          put Ctxt (record { options $= setFromChar n } defs)
 
 export
+setBuiltinNatZero : {auto c : Ref Ctxt Defs} ->
+                    Name -> Core ()
+setBuiltinNatZero n
+    = do defs <- get Ctxt
+         ns <- getNS
+         put Ctxt (record {options $= setBuiltinNatZero (NS ns n) } defs)
+
+export
+setBuiltinNatSucc : {auto c : Ref Ctxt Defs} ->
+                    Name -> Core ()
+setBuiltinNatSucc n
+    = do defs <- get Ctxt
+         ns <- getNS
+         put Ctxt (record {options $= setBuiltinNatSucc (NS ns n) } defs)
+
+export
+setBuiltinNatToInteger : {auto c : Ref Ctxt Defs} ->
+                         Name -> Core ()
+setBuiltinNatToInteger n
+    = do defs <- get Ctxt
+         ns <- getNS
+         put Ctxt (record {options $= setBuiltinNatToInteger (NS ns n) } defs)
+
+export
+setBuiltinIntegerToNat : {auto c : Ref Ctxt Defs} ->
+                         Name -> Core ()
+setBuiltinIntegerToNat n
+    = do defs <- get Ctxt
+         ns <- getNS
+         put Ctxt (record {options $= setBuiltinIntegerToNat (NS ns n) } defs)
+
+export
+setBuiltinNatAdd : {auto c : Ref Ctxt Defs} ->
+                   Name -> Core ()
+setBuiltinNatAdd n
+    = do defs <- get Ctxt
+         ns <- getNS
+         put Ctxt (record {options $= setBuiltinNatAdd (NS ns n) } defs)
+
+export
+setBuiltinNatSub : {auto c : Ref Ctxt Defs} ->
+                    Name -> Core ()
+setBuiltinNatSub n
+    = do defs <- get Ctxt
+         ns <- getNS
+         put Ctxt (record {options $= setBuiltinNatSub (NS ns n) } defs)
+
+export
+setBuiltinNatMul : {auto c : Ref Ctxt Defs} ->
+                    Name -> Core ()
+setBuiltinNatMul n
+    = do defs <- get Ctxt
+         ns <- getNS
+         put Ctxt (record {options $= setBuiltinNatMul (NS ns n) } defs)
+
+export
+setBuiltinNatDiv : {auto c : Ref Ctxt Defs} ->
+                   Name -> Core ()
+setBuiltinNatDiv n
+    = do defs <- get Ctxt
+         ns <- getNS
+         put Ctxt (record {options $= setBuiltinNatDiv (NS ns n) } defs)
+
+export
+setBuiltinNatMod : {auto c : Ref Ctxt Defs} ->
+                   Name -> Core ()
+setBuiltinNatMod n
+    = do defs <- get Ctxt
+         ns <- getNS
+         put Ctxt(record {options $= setBuiltinNatMod (NS ns n) } defs)
+
+export
+setBuiltinNatEq : {auto c : Ref Ctxt Defs} ->
+                  Name -> Core ()
+setBuiltinNatEq n
+    = do defs <- get Ctxt
+         ns <- getNS
+         put Ctxt(record {options $= setBuiltinNatEq (NS ns n) } defs)
+
+export
+setBuiltinNatLT : {auto c : Ref Ctxt Defs} ->
+                  Name -> Core ()
+setBuiltinNatLT n
+    = do defs <- get Ctxt
+         ns <- getNS
+         put Ctxt(record {options $= setBuiltinNatLT (NS ns n) } defs)
+
+export
+setBuiltinNatLTE : {auto c : Ref Ctxt Defs} ->
+                   Name -> Core ()
+setBuiltinNatLTE n
+    = do defs <- get Ctxt
+         ns <- getNS
+         put Ctxt(record {options $= setBuiltinNatLTE (NS ns n) } defs)
+
+export
+setBuiltinNatGT : {auto c : Ref Ctxt Defs} ->
+                  Name -> Core ()
+setBuiltinNatGT n
+    = do defs <- get Ctxt
+         ns <- getNS
+         put Ctxt(record {options $= setBuiltinNatGT (NS ns n) } defs)
+
+export
+setBuiltinNatGTE : {auto c : Ref Ctxt Defs} ->
+                   Name -> Core ()
+setBuiltinNatGTE n
+    = do defs <- get Ctxt
+         ns <- getNS
+         put Ctxt(record {options $= setBuiltinNatGTE (NS ns n) } defs)
+
+export
 addNameDirective : {auto c : Ref Ctxt Defs} ->
                    FC -> Name -> List String -> Core ()
 addNameDirective fc n ns
@@ -2080,26 +2192,36 @@ isEqualTy n
               Nothing => pure False
               Just r => pure $ !(getFullName n) == !(getFullName (equalType r))
 
+-- Get Cast functions from Built-in Types
+
 export
 fromIntegerName : {auto c : Ref Ctxt Defs} ->
                   Core (Maybe Name)
 fromIntegerName
     = do defs <- get Ctxt
-         pure $ fromIntegerName (primnames (options defs))
+         pure . fromIntegerName . primCastNames . primnames . options $ defs
 
 export
 fromStringName : {auto c : Ref Ctxt Defs} ->
                  Core (Maybe Name)
 fromStringName
     = do defs <- get Ctxt
-         pure $ fromStringName (primnames (options defs))
+         pure . fromStringName . primCastNames . primnames . options $ defs
 
 export
 fromCharName : {auto c : Ref Ctxt Defs} ->
                Core (Maybe Name)
 fromCharName
     = do defs <- get Ctxt
-         pure $ fromCharName (primnames (options defs))
+         pure . fromCharName . primCastNames .  primnames . options $ defs
+
+-- Get Optimization Hints for some Elemental Types like Nat and their functions
+
+export
+getBuiltins : {auto c : Ref Ctxt Defs} -> Core PrimBuiltinNames
+getBuiltins
+    = do defs <- get Ctxt
+         pure . primBuiltinNames . primnames . options $ defs
 
 export
 setLogLevel : {auto c : Ref Ctxt Defs} ->
