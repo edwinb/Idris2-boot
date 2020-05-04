@@ -563,7 +563,7 @@ mkRunTime n
            log 5 $ "Runtime tree for " ++ show (fullname gdef) ++ ": " ++ show tree_rt
            let Just Refl = nameListEq cargs rargs
                    | Nothing => throw (InternalError "WAT")
-           addDef n (record { definition = PMDef r cargs tree_ct tree_rt pats'
+           addDef n (record { definition = PMDef r cargs tree_ct tree_rt pats
                             } gdef)
            pure ()
   where

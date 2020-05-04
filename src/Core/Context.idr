@@ -55,8 +55,10 @@ data Def : Type where
             (treeRT : CaseTree args) ->
             (pats : List (vs ** (Env Term vs, Term vs, Term vs))) ->
                 -- original checked patterns (LHS/RHS) with the names in
-                -- the environment. Used for display purposes, and for helping
-                -- find size changes in termination checking
+                -- the environment. Used for display purposes, for helping
+                -- find size changes in termination checking, and for
+                -- generating specialised definitions (so needs to be the
+                -- full, non-erased, term)
             Def -- Ordinary function definition
     ExternDef : (arity : Nat) -> Def
     ForeignDef : (arity : Nat) ->
