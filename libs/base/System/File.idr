@@ -147,7 +147,7 @@ readFile file
                 else
                   do Right str <- fGetLine h
                         | Left err => pure (Left err)
-                     read (str :: acc) h
+                     read ((str ++ "\n") :: acc) h
 
 ||| Write a string to a file
 export
