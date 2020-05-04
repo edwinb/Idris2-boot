@@ -332,6 +332,14 @@ identPart
                            NSIdent [str] => Just str
                            _ => Nothing)
 
+packageIdent : Rule String
+packageIdent
+    = terminal "Expected package name"
+        (\x => case tok x of
+            NSIdent      [str] => Just str
+            PackageIdent  str  => Just str
+            _ => Nothing)
+
 export
 nsIdent : Rule (List String)
 nsIdent
@@ -343,6 +351,10 @@ nsIdent
 export
 unqualifiedName : Rule String
 unqualifiedName = identPart
+
+export
+packageName : Rule String
+packageName = packageIdent
 
 export
 holeName : Rule String

@@ -8,6 +8,7 @@ import Utils.Hex
 public export
 data Token = NSIdent (List String)
            | HoleIdent String
+           | PackageIdent String
            | Literal Integer
            | StrLit String
            | CharLit String
@@ -40,6 +41,7 @@ Show Token where
   show EndInput = "end of input"
   show (NSIdent [x]) = "identifier " ++ x
   show (NSIdent xs) = "namespaced identifier " ++ dotSep (reverse xs)
+  show (PackageIdent p) = "package identifier " ++ p
     where
       dotSep : List String -> String
       dotSep [] = ""
@@ -238,7 +240,8 @@ rawTokens =
      (charLit, \x => CharLit (stripQuotes x)),
      (recField, \x => RecordField (assert_total $ strTail x)),
      (nsIdent, parseNSIdent),
-     (ident Normal, parseIdent),
+     (identNormal, parseIdent),
+     (identAllowDashes, PackageIdent),
      (pragma, \x => Pragma (assert_total $ strTail x)),
      (space, Comment),
      (validSymbol, Symbol),

@@ -167,7 +167,7 @@ field fname
 parsePkgDesc : String -> Rule (String, List DescField)
 parsePkgDesc fname
     = do exactIdent "package"
-         name <- unqualifiedName
+         name <- packageName
          fields <- many (field fname)
          pure (name, fields)
 
