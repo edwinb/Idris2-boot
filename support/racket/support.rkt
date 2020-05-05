@@ -254,3 +254,15 @@
   (if (system cmd)
       0
       1))
+
+;; Randoms
+(random-seed (date*-nanosecond (current-date))) ; initialize random seed
+
+(define blodwen-random
+  (case-lambda
+    ;; no argument, pick a real value from [0, 1.0)
+    [() (random)]
+    ;; single argument k, pick an integral value from [0, k)
+    [(k) (if (> k 0)
+           (random k)
+           (raise 'blodwen-random-invalid-range-argument))]))

@@ -41,4 +41,5 @@ modules = Control.App,
           System.File,
           System.FFI,
           System.Info,
-          System.REPL
+          System.REPL,
+          System.Random
