@@ -34,6 +34,7 @@ findGSC =
 
 schHeader : String
 schHeader = "(declare (block)
+         (inlining-limit 450)
          (standard-bindings)
          (extended-bindings)
          (not safe)
