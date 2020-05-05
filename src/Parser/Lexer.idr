@@ -2,6 +2,7 @@ module Parser.Lexer
 
 import public Text.Lexer
 import Utils.Hex
+import Utils.String
 
 %default total
 
@@ -244,10 +245,6 @@ rawTokens =
      (validSymbol, Symbol),
      (symbol, Unrecognised)]
   where
-    stripQuotes : String -> String
-    -- ASSUMPTION! Only total because we know we're getting quoted strings.
-    stripQuotes = assert_total (strTail . reverse . strTail . reverse)
-
     parseNSIdent : String -> Token
     parseNSIdent = NSIdent . reverse . split (== '.')
 

@@ -1,6 +1,6 @@
 package idris2api
 
-modules = 
+modules =
     Compiler.Common,
     Compiler.CompileExpr,
     Compiler.Inline,
@@ -120,6 +120,7 @@ modules =
     Utils.Binary,
     Utils.Hex,
     Utils.Shunting,
+    Utils.String,
 
     Yaffle.Main,
     Yaffle.REPL
