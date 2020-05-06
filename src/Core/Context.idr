@@ -161,6 +161,11 @@ data DefFlag
     | SetTotal TotalReq
     | BlockedHint -- a hint, but blocked for the moment (so don't use)
     | Macro
+    | PartialEval (List (Name, Nat)) -- Partially evaluate on completing defintion.
+         -- This means the definition is standing for a specialisation so we
+         -- should evaluate the RHS, with reduction limits on the given names,
+         -- and ensure the name has made progress in doing so (i.e. has reduced
+         -- at least once)
 
 export
 Eq DefFlag where
@@ -171,6 +176,7 @@ Eq DefFlag where
     (==) (SetTotal x) (SetTotal y) = x == y
     (==) BlockedHint BlockedHint = True
     (==) Macro Macro = True
+    (==) (PartialEval x) (PartialEval y) = x == y
     (==) _ _ = False
 
 public export

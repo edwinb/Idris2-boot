@@ -870,6 +870,7 @@ TTC DefFlag where
   toBuf b (SetTotal x) = do tag 6; toBuf b x
   toBuf b BlockedHint = tag 7
   toBuf b Macro = tag 8
+  toBuf b (PartialEval x) = do tag 9; toBuf b x
 
   fromBuf b
       = case !getTag of
@@ -880,6 +881,7 @@ TTC DefFlag where
              6 => do x <- fromBuf b; pure (SetTotal x)
              7 => pure BlockedHint
              8 => pure Macro
+             9 => do x <- fromBuf b; pure (PartialEval x)
              _ => corrupt "DefFlag"
 
 export

@@ -17,22 +17,24 @@ record EvalOpts where
   evalAll : Bool -- evaluate everything, including private names
   tcInline : Bool -- inline for totality checking
   fuel : Maybe Nat -- Limit for recursion depth
+  reduceLimit : List (Name, Nat) -- reduction limits for given names. If not
+                     -- present, no limit
 
 export
 defaultOpts : EvalOpts
-defaultOpts = MkEvalOpts False False True empty False False Nothing
+defaultOpts = MkEvalOpts False False True empty False False Nothing []
 
 export
 withHoles : EvalOpts
-withHoles = MkEvalOpts True True False empty False False Nothing
+withHoles = MkEvalOpts True True False empty False False Nothing []
 
 export
 withAll : EvalOpts
-withAll = MkEvalOpts False False True empty True False Nothing
+withAll = MkEvalOpts False False True empty True False Nothing []
 
 export
 withArgHoles : EvalOpts
-withArgHoles = MkEvalOpts False True False empty False False Nothing
+withArgHoles = MkEvalOpts False True False empty False False Nothing []
 
 export
 tcOnly : EvalOpts

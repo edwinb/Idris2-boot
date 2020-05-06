@@ -548,7 +548,8 @@ mkRunTime : {auto c : Ref Ctxt Defs} ->
             {auto u : Ref UST UState} ->
             Name -> Core ()
 mkRunTime n
-    = do defs <- get Ctxt
+    = do log 5 $ "Making run time definition for " ++ show !(toFullNames n)
+         defs <- get Ctxt
          Just gdef <- lookupCtxtExact n (gamma defs)
               | _ => pure ()
          -- If it's erased at run time, don't build the tree
@@ -556,7 +557,10 @@ mkRunTime n
            let PMDef r cargs tree_ct _ pats = definition gdef
                 | _ => pure () -- not a function definition
            let ty = type gdef
-           pats' <- traverse (toErased (location gdef)) pats
+           -- Prepare RHS of definitions, by erasing 0-multiplicities, and
+           -- finding any applications to specialise (partially evaluate)
+           pats' <- traverse (toErased (location gdef) (getSpec (flags gdef)))
+                             pats
 
            (rargs ** tree_rt) <- getPMDef (location gdef) RunTime n ty
                                           (map (toClause (location gdef)) pats')
@@ -567,11 +571,18 @@ mkRunTime n
                             } gdef)
            pure ()
   where
-    toErased : FC -> (vars ** (Env Term vars, Term vars, Term vars)) ->
+    getSpec : List DefFlag -> Maybe (List (Name, Nat))
+    getSpec [] = Nothing
+    getSpec (PartialEval n :: _) = Just n
+    getSpec (x :: xs) = getSpec xs
+
+    toErased : FC -> Maybe (List (Name, Nat)) ->
+               (vars ** (Env Term vars, Term vars, Term vars)) ->
                Core (vars ** (Env Term vars, Term vars, Term vars))
-    toErased fc (_ ** (env, lhs, rhs))
+    toErased fc spec (_ ** (env, lhs, rhs))
         = do lhs_erased <- linearCheck fc linear True env lhs
-             rhs' <- applySpecialise env rhs
+             -- Partially evaluate RHS here, where appropriate
+             rhs' <- applySpecialise env spec rhs
              rhs_erased <- linearCheck fc linear True env rhs'
              pure (_ ** (env, lhs_erased, rhs_erased))
 
