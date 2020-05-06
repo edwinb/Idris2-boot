@@ -19,12 +19,12 @@ Random Int where
     let maxInt = shiftL 1 31 - 1 in
     let minInt = negate $ shiftL 1 31 in
     let range = maxInt - minInt in
-      map (+ minInt) $ prim_randomInt range where
+      map (+ minInt) $ prim_randomInt range
 
   -- Generate a random value within [lo, hi].
   randomRIO (lo, hi) =
     let range = hi - lo + 1 in
-      map (+ lo) $ prim_randomInt range where
+      map (+ lo) $ prim_randomInt range
 
 prim_randomDouble : IO Double
 prim_randomDouble = schemeCall Double "blodwen-random" []
