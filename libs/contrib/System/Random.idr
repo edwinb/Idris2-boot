@@ -16,15 +16,15 @@ public export
 Random Int where
   -- Generate a random value within [-2^31, 2^31-1].
   randomIO =
-    let maxInt = shiftL 1 31 - 1 in
-    let minInt = negate $ shiftL 1 31 in
-    let range = maxInt - minInt in
-      map (+ minInt) $ prim_randomInt range
+    let maxInt = shiftL 1 31 - 1
+        minInt = negate $ shiftL 1 31
+        range = maxInt - minInt
+     in map (+ minInt) $ prim_randomInt range
 
   -- Generate a random value within [lo, hi].
   randomRIO (lo, hi) =
-    let range = hi - lo + 1 in
-      map (+ lo) $ prim_randomInt range
+    let range = hi - lo + 1
+     in map (+ lo) $ prim_randomInt range
 
 prim_randomDouble : IO Double
 prim_randomDouble = schemeCall Double "blodwen-random" []
