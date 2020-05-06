@@ -39,9 +39,9 @@ Show Token where
   show (RecordField x) = "record field " ++ x
   show (Pragma x) = "pragma " ++ x
   show EndInput = "end of input"
+  show (PackageIdent p) = "package identifier " ++ p
   show (NSIdent [x]) = "identifier " ++ x
   show (NSIdent xs) = "namespaced identifier " ++ dotSep (reverse xs)
-  show (PackageIdent p) = "package identifier " ++ p
     where
       dotSep : List String -> String
       dotSep [] = ""
