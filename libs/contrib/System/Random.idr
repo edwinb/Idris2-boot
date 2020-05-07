@@ -41,6 +41,11 @@ Random Double where
   -- Generate a random value within [lo, hi].
   randomRIO (lo, hi) = map ((+ lo) . (* (hi - lo))) prim_randomDouble
 
+||| Sets the random seed
+export
+srand : Integer -> IO ()
+srand n = schemeCall () "blodwen-random-seed" [n]
+
 ||| Generate a random number in Fin (S `k`)
 |||
 ||| Note that rndFin k takes values 0, 1, ..., k.
@@ -61,7 +66,3 @@ rndSelect' {k} xs = pure $ Vect.index !(rndFin k) xs
 public export
 rndSelect : (elems : List a) -> {auto prf : NonEmpty elems} -> IO a
 rndSelect (x :: xs) {prf = IsNonEmpty} = rndSelect' $ fromList (x :: xs)
-
-||| Sets the random seed
---srand : Integer -> IO ()
---srand n = call $ SetSeed n

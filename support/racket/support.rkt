@@ -258,6 +258,7 @@
 ;; Randoms
 (random-seed (date*-nanosecond (current-date))) ; initialize random seed
 
+(define (blodwen-random-seed s) (random-seed s))
 (define blodwen-random
   (case-lambda
     ;; no argument, pick a real value from [0, 1.0)

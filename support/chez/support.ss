@@ -263,6 +263,9 @@
         (set-virtual-register! random-seed-register seed)
         (random-seed seed))))
 
+(define (blodwen-random-seed seed)
+  (set-virtual-register! random-seed-register seed)
+  (random-seed seed))
 (define blodwen-random
   (case-lambda
     ;; no argument, pick a real value from [0, 1.0)
