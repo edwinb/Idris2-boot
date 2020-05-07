@@ -65,12 +65,15 @@ useMeta True fc n defs opts
               | Nothing => throw (UndefinedName fc n)
          useMeta True fc (Resolved i) defs opts
 
-updateLimit : Name -> EvalOpts -> Core (Maybe EvalOpts)
-updateLimit n opts
-    = case lookup n (reduceLimit opts) of
-           Nothing => pure (Just opts)
-           Just Z => pure Nothing
-           Just (S k) => pure (Just (record { reduceLimit $= set n k } opts))
+updateLimit : NameType -> Name -> EvalOpts -> Core (Maybe EvalOpts)
+updateLimit Func n opts
+    = if not (isNil (reduceLimit opts))
+         then case lookup n (reduceLimit opts) of
+                   Nothing => pure Nothing
+                   Just Z => pure Nothing
+                   Just (S k) =>
+                      pure (Just (record { reduceLimit $= set n k } opts))
+         else pure (Just opts)
   where
     set : Name -> Nat -> List (Name, Nat) -> List (Name, Nat)
     set n v [] = []
@@ -78,6 +81,7 @@ updateLimit n opts
         = if x == n
              then (x, v) :: xs
              else (x, l) :: set n v xs
+updateLimit t n opts = pure (Just opts)
 
 parameters (defs : Defs, topopts : EvalOpts)
   mutual
@@ -219,7 +223,7 @@ parameters (defs : Defs, topopts : EvalOpts)
                 then do
                    Just opts' <- useMeta (noCycles res) fc n defs topopts
                         | Nothing => pure def
-                   Just opts' <- updateLimit n opts'
+                   Just opts' <- updateLimit nt n opts'
                         | Nothing => pure def -- name is past reduction limit
                    evalDef env opts' meta fc
                            (multiplicity res) (definition res) (flags res) stk def

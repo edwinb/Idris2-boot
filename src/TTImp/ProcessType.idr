@@ -56,7 +56,8 @@ processFnOpt fc ndef (SpecArgs ns)
               | Nothing => throw (UndefinedName fc ndef)
          nty <- nf defs [] (type gdef)
          ps <- getNamePos 0 nty
-         specs <- collectSpec [] ps nty
+         ddeps <- collectDDeps nty
+         specs <- collectSpec [] ddeps ps nty
          addDef ndef (record { specArgs = specs } gdef)
          pure ()
   where
@@ -69,18 +70,42 @@ processFnOpt fc ndef (SpecArgs ns)
                               then insertDeps acc ps ns
                               else insertDeps (pos :: acc) ps ns
 
-    collectSpec : List Nat -> List (Name, Nat) -> NF [] -> Core (List Nat)
-    collectSpec acc ps (NBind tfc x (Pi _ _ nty) sc)
+    -- Collect the argument names which the dynamic args depend on
+    collectDDeps : NF [] -> Core (List Name)
+    collectDDeps (NBind tfc x (Pi _ _ nty) sc)
+        = do defs <- get Ctxt
+             empty <- clearDefs defs
+             sc' <- sc defs (toClosure defaultOpts [] (Ref tfc Bound x))
+             if x `elem` ns
+                then collectDDeps sc'
+                else do aty <- quote empty [] nty
+                        -- Get names depended on by nty
+                        let deps = keys (getRefs (UN "_") aty)
+                        rest <- collectDDeps sc'
+                        pure (rest ++ deps)
+    collectDDeps _ = pure []
+
+    -- If the name of an argument is in the list of specialisable arguments,
+    -- record the position. Also record the position of anything the argument
+    -- depends on which is only dependend on by declared static arguments.
+    collectSpec : List Nat -> -- specialisable so far
+                  List Name -> -- things depended on by dynamic args
+                               -- We're assuming  it's a short list, so just use
+                               -- List and don't worry about duplicates.
+                  List (Name, Nat) -> NF [] -> Core (List Nat)
+    collectSpec acc ddeps ps (NBind tfc x (Pi _ _ nty) sc)
         = do defs <- get Ctxt
              empty <- clearDefs defs
              sc' <- sc defs (toClosure defaultOpts [] (Ref tfc Bound x))
              if x `elem` ns
                 then do aty <- quote empty [] nty
-                        let rs = getRefs (UN "_") aty
-                        let acc' = insertDeps acc ps (x :: keys rs)
-                        collectSpec acc' ps sc'
-                else collectSpec acc ps sc'
-    collectSpec acc ps _ = pure acc
+                        -- Get names depended on by nty
+                        let rs = filter (\x => not (x `elem` ddeps))
+                                        (keys (getRefs (UN "_") aty))
+                        let acc' = insertDeps acc ps (x :: rs)
+                        collectSpec acc' ddeps ps sc'
+                else collectSpec acc ddeps ps sc'
+    collectSpec acc ddeps ps _ = pure acc
 
     getNamePos : Nat -> NF [] -> Core (List (Name, Nat))
     getNamePos i (NBind tfc x (Pi _ _ _) sc)

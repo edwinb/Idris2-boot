@@ -16,9 +16,11 @@ import TTImp.Unelab
 
 import Utils.Hex
 
+import Data.NameMap
+
 %default covering
 
-data ArgMode = Static (Term []) | Dynamic
+data ArgMode = Static ClosedTerm | Dynamic
 
 Show ArgMode where
   show (Static tm) = "Static " ++ show tm
@@ -153,7 +155,12 @@ getSpecPats fc pename fn stk fnty args sargs pats
              sc' <- sc defs (toClosure defaultOpts [] (Erased fc False))
              tm' <- unelabNoSugar [] tm
              mkRHSargs sc' (IImplicitApp fc app (Just x) tm') as ds
-    mkRHSargs _ app _ _ = pure app
+    -- Type will depend on the value here (we assume a variadic function) but
+    -- the argument names are still needed
+    mkRHSargs ty app (a :: as) ((_, Dynamic) :: ds)
+        = mkRHSargs ty (IApp fc app (IVar fc (UN a))) as ds
+    mkRHSargs _ app _ _
+        = pure app
 
     getRawArgs : List (Maybe Name, RawImp) -> RawImp -> List (Maybe Name, RawImp)
     getRawArgs args (IApp _ f arg) = getRawArgs ((Nothing, arg) :: args) f
@@ -186,6 +193,24 @@ getSpecPats fc pename fn stk fnty args sargs pats
         = do lhsapp <- unelabNoSugar env lhs
              pure $ dropArgs pename lhsapp
 
+-- Get the reducible names in a function to be partially evaluated. In practice,
+-- that's all the functions it refers to
+-- TODO: May want to take care with 'partial' names?
+getReducible : List Name -> -- calls to check
+               NameMap Nat -> -- which nodes have been visited. If the entry is
+                              -- present, it's visited
+               Defs -> Core (NameMap Nat)
+getReducible [] refs defs = pure refs
+getReducible (n :: rest) refs defs
+  = do let Nothing = lookup n refs
+           | Just _ => getReducible rest refs defs
+       case !(lookupCtxtExact n (gamma defs)) of
+            Nothing => getReducible rest refs defs
+            Just def =>
+              do let refs' = insert n 65536 refs
+                 let calls = refersTo def
+                 getReducible (keys calls ++ rest) refs' defs
+
 mkSpecDef : {auto c : Ref Ctxt Defs} ->
             {auto m : Ref MD Metadata} ->
             {auto u : Ref UST UState} ->
@@ -201,9 +226,9 @@ mkSpecDef {vars} fc gdef pename sargs fn stk
          let peapp = unload (dropSpec 0 staticargs stk) (Ref fc Func pename)
          Nothing <- lookupCtxtExact pename (gamma defs)
              | Just _ => -- already specialised
-                         do log 0 $ "Already specialised " ++ show pename
+                         do log 5 $ "Already specialised " ++ show pename
                             pure peapp
-         logC 0 (do fnfull <- toFullNames fn
+         logC 3 (do fnfull <- toFullNames fn
                     args' <- traverse (\ (i, arg) =>
                                  do arg' <- the (Core ArgMode) $ case arg of
                                                  Static a =>
@@ -213,30 +238,46 @@ mkSpecDef {vars} fc gdef pename sargs fn stk
                     pure $ "Specialising " ++ show fnfull ++ " by " ++
                            showSep ", " args')
          let sty = specialiseTy 0 staticargs (type gdef)
-         logTermNF 0 ("Specialised type " ++ show pename) [] sty
+         logTermNF 3 ("Specialised type " ++ show pename) [] sty
 
          -- Add as RigW - if it's something else, we don't need it at
          -- runtime anyway so this is wasted effort, therefore a failure
          -- is okay!
          peidx <- addDef pename (newDef fc pename top [] sty Public None)
          addToSave (Resolved peidx)
-         setFlag fc (Resolved peidx) (PartialEval [(!(toFullNames fn), 65536)])
+
+         -- Reduce the function to be specialised, and reduce any name in
+         -- the arguments at most once (so that recursive definitions aren't
+         -- unfolded forever)
+         let specnames = getAllRefs empty (map snd sargs)
+         specLimits <- traverse (\n => pure (n, 1))
+                                (keys specnames)
+        
+         defs <- get Ctxt
+         reds <- getReducible [fn] empty defs
+         setFlag fc (Resolved peidx) (PartialEval (specLimits ++ toList reds))
 
          let PMDef pminfo pmargs ct tr pats = definition gdef
              | _ => pure (unload stk (Ref fc Func fn))
-         logC 0 (do inpats <- traverse unelabDef pats
+         logC 5 (do inpats <- traverse unelabDef pats
                     pure $ "Attempting to specialise:\n" ++
                            showSep "\n" (map showPat inpats))
 
          Just newpats <- getSpecPats fc pename fn stk !(nf defs [] (type gdef))
                                      sargs staticargs pats
               | Nothing => pure (unload stk (Ref fc Func fn))
-         log 0 $ "New patterns for " ++ show pename ++ ":\n" ++
+         log 5 $ "New patterns for " ++ show pename ++ ":\n" ++
                   showSep "\n" (map showPat newpats)
 
          processDecl [] (MkNested []) [] (IDef fc (Resolved peidx) newpats)
          pure peapp
   where
+    getAllRefs : NameMap Bool -> List ArgMode -> NameMap Bool
+    getAllRefs ns (Dynamic :: xs) = getAllRefs ns xs
+    getAllRefs ns (Static t :: xs)
+        = addRefs False (UN "_") (getAllRefs ns xs) t
+    getAllRefs ns [] = ns
+
     updateApp : Name -> RawImp -> RawImp
     updateApp n (IApp fc f a) = IApp fc (updateApp n f) a
     updateApp n (IImplicitApp fc f m a) = IImplicitApp fc (updateApp n f) m a
@@ -254,6 +295,33 @@ mkSpecDef {vars} fc gdef pename sargs fn stk
     showPat : ImpClause -> String
     showPat (PatClause _ lhs rhs) = show lhs ++ " = " ++ show rhs
     showPat _ = "Can't happen"
+
+eraseInferred : {auto c : Ref Ctxt Defs} ->
+                Term vars -> Core (Term vars)
+eraseInferred (Bind fc x b tm)
+    = do b' <- traverse eraseInferred b
+         tm' <- eraseInferred tm
+         pure (Bind fc x b' tm')
+eraseInferred tm
+    = case getFnArgs tm of
+           (f, []) => pure f
+           (Ref fc Func n, args) =>
+                do defs <- get Ctxt
+                   Just gdef <- lookupCtxtExact n (gamma defs)
+                        | Nothing => pure tm
+                   let argsE = dropErased fc 0 (inferrable gdef) args
+                   argsE' <- traverse eraseInferred argsE
+                   pure (apply fc (Ref fc Func n) argsE')
+           (f, args) =>
+                do args' <- traverse eraseInferred args
+                   pure (apply (getLoc f) f args)
+  where
+    dropErased : FC -> Nat -> List Nat -> List (Term vars) -> List (Term vars)
+    dropErased fc pos ps [] = []
+    dropErased fc pos ps (n :: ns)
+        = if pos `elem` ps
+             then Erased fc False :: dropErased fc pos ps ns
+             else n :: dropErased fc pos ps ns
 
 -- Specialise a function name according to arguments. Return the specialised
 -- application on success, or Nothing if it's not specialisable (due to static
@@ -294,6 +362,7 @@ specialise {vars} fc env gdef fn stk
              if i `elem` specs
                 then do defs <- get Ctxt
                         x' <- normaliseHoles defs env x
+                        x' <- eraseInferred x'
                         let Just xok = concrete x'
                             | Nothing => pure Nothing
                         pure $ Just ((i, Static xok) :: xs')
@@ -465,12 +534,12 @@ mutual
                 [] => do args' <- quoteArgs q defs bound env args
                          pure $ apply fc (Ref fc Func fn) args'
                 _ => do empty <- clearDefs defs
-                        -- Use the empty global context for the args so that we don't
-                        -- reduce names prematurely if this static function gets stuck
-                        args' <- quoteArgs q empty bound env args
+                        args' <- quoteArgs q defs bound env args
                         Just r <- specialise fc (extendEnv bound env) gdef fn (map (\t => (fc, t)) args')
-                             | Nothing => -- can't specialise, quote normally 
-                                  do args' <- quoteArgs q defs bound env args
+                             | Nothing =>
+                                  -- can't specialise, keep the arguments
+                                  -- unreduced
+                                  do args' <- quoteArgs q empty bound env args
                                      pure $ apply fc (Ref fc Func fn) args'
                         pure r
      where
@@ -498,9 +567,10 @@ mutual
       = do argQ <- quoteGenNF q defs bound env arg
            pure (TDelayed fc r argQ)
   quoteGenNF q defs bound env (NDelay fc r ty arg)
-      = do argNF <- evalClosure defs (toHolesOnly arg)
+      -- unlike main evaluator, we want to look under Delays
+      = do argNF <- evalClosure defs arg
            argQ <- quoteGenNF q defs bound env argNF
-           tyNF <- evalClosure defs (toHolesOnly ty)
+           tyNF <- evalClosure defs ty
            tyQ <- quoteGenNF q defs bound env tyNF
            pure (TDelay fc r tyQ argQ)
     where
@@ -547,5 +617,5 @@ applySpecialise env (Just ls) tm -- specialising, evaluate RHS while looking
          let nopts = record { reduceLimit = ls } defaultOpts
          tm' <- evalRHS env !(nfOpts nopts defs env tm)
          tmfull <- toFullNames tm'
-         logTerm 0 ("New RHS") tmfull
+         logTermNF 5 ("New RHS") env tmfull
          pure tmfull
