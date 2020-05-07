@@ -1,5 +1,9 @@
 module System.Random
 
+import Data.Fin
+import Data.Vect
+import Data.List
+
 public export
 interface Random a where
   randomIO : IO a
@@ -36,3 +40,28 @@ Random Double where
 
   -- Generate a random value within [lo, hi].
   randomRIO (lo, hi) = map ((+ lo) . (* (hi - lo))) prim_randomDouble
+
+||| Generate a random number in Fin (S `k`)
+|||
+||| Note that rndFin k takes values 0, 1, ..., k.
+public export
+rndFin : (n : Nat) -> IO (Fin (S n))
+rndFin 0 = pure FZ
+rndFin (S k) = do
+  let intBound = the Int (cast (S k))
+  randomInt <- randomRIO (0, intBound)
+  pure $ restrict (S k) (cast randomInt)
+
+||| Select a random element from a vector
+public export
+rndSelect' : {k : Nat} -> Vect (S k) a -> IO a
+rndSelect' {k} xs = pure $ Vect.index !(rndFin k) xs
+
+||| Select a random element from a non-empty list
+public export
+rndSelect : (elems : List a) -> {auto prf : NonEmpty elems} -> IO a
+rndSelect (x :: xs) {prf = IsNonEmpty} = rndSelect' $ fromList (x :: xs)
+
+||| Sets the random seed
+--srand : Integer -> IO ()
+--srand n = call $ SetSeed n
