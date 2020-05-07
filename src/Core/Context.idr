@@ -213,6 +213,7 @@ record GlobalDef where
                        -- erasable without 'dotting', because their types
                        -- are collapsible relative to non-erased arguments
   specArgs : List Nat -- arguments to specialise by
+  inferrable : List Nat -- arguments which can be inferred from elsewhere in the type
   multiplicity : RigCount
   vars : List Name -- environment name is defined in
   visibility : Visibility
@@ -498,7 +499,7 @@ export
 newDef : FC -> Name -> RigCount -> List Name ->
          ClosedTerm -> Visibility -> Def -> GlobalDef
 newDef fc n rig vars ty vis def
-    = MkGlobalDef fc n ty [] [] []
+    = MkGlobalDef fc n ty [] [] [] []
                   rig vars vis unchecked [] Nothing Nothing False False False def
                   Nothing Nothing []
 
@@ -931,7 +932,7 @@ addBuiltin : {auto x : Ref Ctxt Defs} ->
              Name -> ClosedTerm -> Totality ->
              PrimFn arity -> Core ()
 addBuiltin n ty tot op
-    = do addDef n (MkGlobalDef emptyFC n ty [] [] [] top [] Public tot
+    = do addDef n (MkGlobalDef emptyFC n ty [] [] [] [] top [] Public tot
                                [Inline] Nothing Nothing
                                False False True (Builtin op)
                                Nothing Nothing [])

@@ -127,6 +127,43 @@ initDef n env ty (ForeignFn cs :: opts)
          pure (ForeignDef a cs')
 initDef n env ty (_ :: opts) = initDef n env ty opts
 
+-- Find the inferrable argument positions in a type. This is useful for
+-- generalising partially evaluated definitions and (potentially) in interactive
+-- editing
+findInferrable : Defs -> NF [] -> Core (List Nat)
+findInferrable defs ty = fi 0 0 [] [] ty
+  where
+    mutual
+      -- Add to the inferrable arguments from the given type. An argument is
+      -- inferrable if it's guarded by a constructor, or on its own
+      findInf : List Nat -> List (Name, Nat) ->
+                NF [] -> Core (List Nat)
+      findInf acc pos (NApp _ (NRef Bound n) [])
+          = case lookup n pos of
+                 Nothing => pure acc
+                 Just p => if p `elem` acc then pure acc else pure (p :: acc)
+      findInf acc pos (NDCon _ _ _ _ args)
+          = do args' <- traverse (evalClosure defs) args
+               findInfs acc pos args'
+      findInf acc pos (NTCon _ _ _ _ args)
+          = do args' <- traverse (evalClosure defs) args
+               findInfs acc pos args'
+      findInf acc pos (NDelayed _ _ t) = findInf acc pos t
+      findInf acc _ _ = pure acc
+
+      findInfs : List Nat -> List (Name, Nat) -> List (NF []) -> Core (List Nat)
+      findInfs acc pos [] = pure acc
+      findInfs acc pos (n :: ns) = findInf !(findInfs acc pos ns) pos n
+
+    fi : Nat -> Int -> List (Name, Nat) -> List Nat -> NF [] -> Core (List Nat)
+    fi pos i args acc (NBind fc x (Pi _ _ aty) sc)
+        = do let argn = MN "inf" i
+             sc' <- sc defs (toClosure defaultOpts [] (Ref fc Bound argn))
+             acc' <- findInf acc args aty
+             rest <- fi (1 + pos) (1 + i) ((argn, pos) :: args) acc' sc'
+             pure rest
+    fi pos i args acc ret = findInf acc args ret
+
 export
 processType : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
@@ -158,10 +195,14 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
          def <- initDef n env ty opts
          let fullty = abstractEnvType tfc env ty
          (erased, dterased) <- findErased fullty
+         defs <- get Ctxt
+         empty <- clearDefs defs
+         infargs <- findInferrable empty !(nf defs [] fullty)
 
          addDef (Resolved idx)
                 (record { eraseArgs = erased,
-                          safeErase = dterased }
+                          safeErase = dterased,
+                          inferrable = infargs }
                         (newDef fc n rig vars fullty vis def))
          -- Flag it as checked, because we're going to check the clauses
          -- from the top level.

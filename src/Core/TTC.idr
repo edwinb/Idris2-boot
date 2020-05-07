@@ -870,7 +870,7 @@ TTC DefFlag where
   toBuf b (SetTotal x) = do tag 6; toBuf b x
   toBuf b BlockedHint = tag 7
   toBuf b Macro = tag 8
-  toBuf b (PartialEval x) = do tag 9; toBuf b x
+  toBuf b (PartialEval x) = tag 9 -- names not useful any more
 
   fromBuf b
       = case !getTag of
@@ -881,7 +881,7 @@ TTC DefFlag where
              6 => do x <- fromBuf b; pure (SetTotal x)
              7 => pure BlockedHint
              8 => pure Macro
-             9 => do x <- fromBuf b; pure (PartialEval x)
+             9 => pure (PartialEval [])
              _ => corrupt "DefFlag"
 
 export
@@ -921,6 +921,7 @@ TTC GlobalDef where
                  toBuf b (eraseArgs gdef)
                  toBuf b (safeErase gdef)
                  toBuf b (specArgs gdef)
+                 toBuf b (inferrable gdef)
                  toBuf b (multiplicity gdef)
                  toBuf b (vars gdef)
                  toBuf b (visibility gdef)
@@ -942,16 +943,17 @@ TTC GlobalDef where
            if isUserName name
               then do ty <- fromBuf b; eargs <- fromBuf b;
                       seargs <- fromBuf b; specargs <- fromBuf b
+                      iargs <- fromBuf b;
                       mul <- fromBuf b; vars <- fromBuf b
                       vis <- fromBuf b; tot <- fromBuf b
                       fl <- fromBuf b
                       inv <- fromBuf b
                       c <- fromBuf b
                       sc <- fromBuf b
-                      pure (MkGlobalDef loc name ty eargs seargs specargs
+                      pure (MkGlobalDef loc name ty eargs seargs specargs iargs
                                         mul vars vis
                                         tot fl refs refsR inv c True def cdef Nothing sc)
-              else pure (MkGlobalDef loc name (Erased loc False) [] [] []
+              else pure (MkGlobalDef loc name (Erased loc False) [] [] [] []
                                      top [] Public unchecked [] refs refsR
                                      False False True def cdef Nothing [])
 

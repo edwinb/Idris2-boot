@@ -58,6 +58,7 @@ showInfo (n, idx, d)
          coreLift $ putStrLn ("Erasable args: " ++ show (eraseArgs d))
          coreLift $ putStrLn ("Detaggable arg types: " ++ show (safeErase d))
          coreLift $ putStrLn ("Specialise args: " ++ show (specArgs d))
+         coreLift $ putStrLn ("Inferrable args: " ++ show (inferrable d))
          case compexpr d of
               Nothing => pure ()
               Just expr => coreLift $ putStrLn ("Compiled: " ++ show expr)
