@@ -19,7 +19,8 @@ checkVisibleNS : {auto c : Ref Ctxt Defs} ->
                  FC -> Name -> Visibility -> Core ()
 checkVisibleNS fc (NS ns x) vis
     = if !(isVisible ns)
-         then if visibleInAny (!getNS :: !getNestedNS) (NS ns x) vis
+         then if !isAllPublic
+                       || visibleInAny (!getNS :: !getNestedNS) (NS ns x) vis
                  then pure ()
                  else throw $ InvisibleName fc (NS ns x) Nothing
          else throw $ InvisibleName fc (NS ns x) (Just ns)

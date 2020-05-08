@@ -96,7 +96,7 @@ elabTermSub : {vars : _} ->
               Core (Term vars, Glued vars)
 elabTermSub {vars} defining mode opts nest env env' sub tm ty
     = do let incase = elem InCase opts
-         let holesokay = elem HolesOkay opts
+         let inPE = elem InPartialEval opts
 
          -- Record the current hole state; we only check the list of current
          -- holes is completely solved so this needs to be accurate.
@@ -145,7 +145,10 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
 
          dumpConstraints 4 False
          defs <- get Ctxt
-         chktm <- normaliseArgHoles defs env chktm
+         chktm <- if inPE -- Need to fully normalise holes in partial evaluation
+                          -- because the holes don't have types saved to ttc
+                     then normaliseHoles defs env chktm
+                     else normaliseArgHoles defs env chktm
 
          -- Linearity and hole checking.
          -- on the LHS, all holes need to have been solved
@@ -156,7 +159,7 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
               -- solved, though we defer that if it's a case block since we
               -- might learn a bit more later.
               _ => if (not incase)
-                      then do checkNoGuards
+                      then do checkUserHoles inPE
                               linearCheck (getFC tm) rigc False env chktm
                           -- Linearity checking looks in case blocks, so no
                           -- need to check here.

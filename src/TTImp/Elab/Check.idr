@@ -31,11 +31,13 @@ public export
 data ElabOpt
   = HolesOkay
   | InCase
+  | InPartialEval
 
 public export
 Eq ElabOpt where
   HolesOkay == HolesOkay = True
   InCase == InCase = True
+  InPartialEval == InPartialEval = True
   _ == _ = False
 
 -- Descriptions of implicit name bindings. They're either just the name,

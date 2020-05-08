@@ -218,66 +218,73 @@ mkSpecDef : {auto c : Ref Ctxt Defs} ->
             Name -> List (Nat, ArgMode) -> Name -> List (FC, Term vars) ->
             Core (Term vars)
 mkSpecDef {vars} fc gdef pename sargs fn stk
-    = do defs <- get Ctxt
-         let staticargs
-               = mapMaybe (\ (x, s) => case s of
-                                            Dynamic => Nothing
-                                            Static t => Just (x, t)) sargs
-         let peapp = unload (dropSpec 0 staticargs stk) (Ref fc Func pename)
-         Nothing <- lookupCtxtExact pename (gamma defs)
-             | Just _ => -- already specialised
-                         do log 5 $ "Already specialised " ++ show pename
-                            pure peapp
-         logC 3 (do fnfull <- toFullNames fn
-                    args' <- traverse (\ (i, arg) =>
-                                 do arg' <- the (Core ArgMode) $ case arg of
-                                                 Static a =>
-                                                    pure $ Static !(toFullNames a)
-                                                 Dynamic => pure Dynamic
-                                    pure (show (i, arg'))) sargs
-                    pure $ "Specialising " ++ show fnfull ++ " by " ++
-                           showSep ", " args')
-         let sty = specialiseTy 0 staticargs (type gdef)
-         logTermNF 3 ("Specialised type " ++ show pename) [] sty
+    = handleUnify
+       (do defs <- get Ctxt
+           setAllPublic True
+           let staticargs
+                 = mapMaybe (\ (x, s) => case s of
+                                              Dynamic => Nothing
+                                              Static t => Just (x, t)) sargs
+           let peapp = unload (dropSpec 0 staticargs stk) (Ref fc Func pename)
+           Nothing <- lookupCtxtExact pename (gamma defs)
+               | Just _ => -- already specialised
+                           do log 5 $ "Already specialised " ++ show pename
+                              pure peapp
+           logC 5 (do fnfull <- toFullNames fn
+                      args' <- traverse (\ (i, arg) =>
+                                   do arg' <- the (Core ArgMode) $ case arg of
+                                                   Static a =>
+                                                      pure $ Static !(toFullNames a)
+                                                   Dynamic => pure Dynamic
+                                      pure (show (i, arg'))) sargs
+                      pure $ "Specialising " ++ show fnfull ++
+                             " (" ++ show fn ++ ") by " ++
+                             showSep ", " args')
+           let sty = specialiseTy 0 staticargs (type gdef)
+           logTermNF 3 ("Specialised type " ++ show pename) [] sty
 
-         -- Add as RigW - if it's something else, we don't need it at
-         -- runtime anyway so this is wasted effort, therefore a failure
-         -- is okay!
-         peidx <- addDef pename (newDef fc pename top [] sty Public None)
-         addToSave (Resolved peidx)
+           -- Add as RigW - if it's something else, we don't need it at
+           -- runtime anyway so this is wasted effort, therefore a failure
+           -- is okay!
+           peidx <- addDef pename (newDef fc pename top [] sty Public None)
+           addToSave (Resolved peidx)
 
-         -- Reduce the function to be specialised, and reduce any name in
-         -- the arguments at most once (so that recursive definitions aren't
-         -- unfolded forever)
-         let specnames = getAllRefs empty (map snd sargs)
-         specLimits <- traverse (\n => pure (n, 1))
-                                (keys specnames)
-        
-         defs <- get Ctxt
-         reds <- getReducible [fn] empty defs
-         setFlag fc (Resolved peidx) (PartialEval (specLimits ++ toList reds))
+           -- Reduce the function to be specialised, and reduce any name in
+           -- the arguments at most once (so that recursive definitions aren't
+           -- unfolded forever)
+           let specnames = getAllRefs empty (map snd sargs)
+           specLimits <- traverse (\n => pure (n, 1))
+                                  (keys specnames)
 
-         let PMDef pminfo pmargs ct tr pats = definition gdef
-             | _ => pure (unload stk (Ref fc Func fn))
-         logC 5 (do inpats <- traverse unelabDef pats
-                    pure $ "Attempting to specialise:\n" ++
-                           showSep "\n" (map showPat inpats))
+           defs <- get Ctxt
+           reds <- getReducible [fn] empty defs
+           setFlag fc (Resolved peidx) (PartialEval (specLimits ++ toList reds))
 
-         Just newpats <- getSpecPats fc pename fn stk !(nf defs [] (type gdef))
-                                     sargs staticargs pats
-              | Nothing => pure (unload stk (Ref fc Func fn))
-         log 5 $ "New patterns for " ++ show pename ++ ":\n" ++
-                  showSep "\n" (map showPat newpats)
+           let PMDef pminfo pmargs ct tr pats = definition gdef
+               | _ => pure (unload stk (Ref fc Func fn))
+           logC 5 (do inpats <- traverse unelabDef pats
+                      pure $ "Attempting to specialise:\n" ++
+                             showSep "\n" (map showPat inpats))
 
-         -- If the partially evaluated definition fails, just use the initial
-         -- application. It might indicates a bug in the P.E. function generation
-         -- if it fails, but I don't want the whole system to be dependent on
-         -- the correctness of PE!
-         tryUnify
-            (do processDecl [] (MkNested []) [] (IDef fc (Resolved peidx) newpats)
-                pure peapp)
-            (do log 1 $ "Partial evaluation of " ++ show !(toFullNames fn) ++ " failed"
-                pure (unload stk (Ref fc Func fn)))
+           Just newpats <- getSpecPats fc pename fn stk !(nf defs [] (type gdef))
+                                       sargs staticargs pats
+                | Nothing => pure (unload stk (Ref fc Func fn))
+           log 5 $ "New patterns for " ++ show pename ++ ":\n" ++
+                    showSep "\n" (map showPat newpats)
+           processDecl [InPartialEval] (MkNested []) []
+                       (IDef fc (Resolved peidx) newpats)
+           setAllPublic False
+           pure peapp)
+           -- If the partially evaluated definition fails, just use the initial
+           -- application. It might indicates a bug in the P.E. function generation
+           -- if it fails, but I don't want the whole system to be dependent on
+           -- the correctness of PE!
+        (\err =>
+           do log 1 $ "Partial evaluation of " ++ show !(toFullNames fn) ++ " failed" ++
+                      "\n" ++ show err
+              defs <- get Ctxt
+              put Ctxt (record { peFailures $= insert pename () } defs)
+              pure (unload stk (Ref fc Func fn)))
   where
     getAllRefs : NameMap Bool -> List ArgMode -> NameMap Bool
     getAllRefs ns (Dynamic :: xs) = getAllRefs ns xs
@@ -327,8 +334,8 @@ eraseInferred tm
     dropErased fc pos ps [] = []
     dropErased fc pos ps (n :: ns)
         = if pos `elem` ps
-             then Erased fc False :: dropErased fc pos ps ns
-             else n :: dropErased fc pos ps ns
+             then Erased fc False :: dropErased fc (1 + pos) ps ns
+             else n :: dropErased fc (1 + pos) ps ns
 
 -- Specialise a function name according to arguments. Return the specialised
 -- application on success, or Nothing if it's not specialisable (due to static
@@ -349,9 +356,13 @@ specialise {vars} fc env gdef fn stk
                Just sargs <- getSpecArgs 0 specs stk
                    | Nothing => pure Nothing
                let nhash = hash (mapMaybe getStatic (map snd sargs))
+                              `hashWithSalt` fn -- add function name to hash to avoid namespace clashes
                let pename = NS ["_PE"]
                             (UN ("PE_" ++ nameRoot fnfull ++ "_" ++ asHex nhash))
-               Just <$> mkSpecDef fc gdef pename sargs fn stk
+               defs <- get Ctxt
+               case lookup pename (peFailures defs) of
+                    Nothing => Just <$> mkSpecDef fc gdef pename sargs fn stk
+                    Just _ => pure Nothing
   where
     dropAll : {vs : _} -> SubVars [] vs
     dropAll {vs = []} = SubRefl
@@ -618,11 +629,13 @@ applySpecialise : {auto c : Ref Ctxt Defs} ->
                   Core (Term vars)
 applySpecialise env Nothing tm
     = findSpecs env [] tm -- not specialising, just search through RHS
-applySpecialise env (Just ls) tm -- specialising, evaluate RHS while looking
+applySpecialise env (Just ls) tmin -- specialising, evaluate RHS while looking
                                  -- for names to specialise
     = do defs <- get Ctxt
-         let nopts = record { reduceLimit = ls } defaultOpts
-         tm' <- evalRHS env !(nfOpts nopts defs env tm)
+         tm <- toResolvedNames tmin
+         let nopts = record { reduceLimit = ls } withAll
+         nf <- nf defs env tm
+         tm' <- evalRHS env nf
          tmfull <- toFullNames tm'
          logTermNF 5 ("New RHS") env tmfull
          pure tmfull

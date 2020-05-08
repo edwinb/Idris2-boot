@@ -918,7 +918,7 @@ TTC GlobalDef where
            toBuf b (map toList (refersToM gdef))
            toBuf b (map toList (refersToRuntimeM gdef))
            toBuf b (location gdef)
-           when (isUserName (fullname gdef)) $
+           when (isUserName (fullname gdef) || cwName (fullname gdef)) $
               do toBuf b (type gdef)
                  toBuf b (eraseArgs gdef)
                  toBuf b (safeErase gdef)
@@ -932,7 +932,11 @@ TTC GlobalDef where
                  toBuf b (invertible gdef)
                  toBuf b (noCycles gdef)
                  toBuf b (sizeChange gdef)
-
+    where
+      cwName : Name -> Bool
+      cwName (CaseBlock _ _) = True
+      cwName (WithBlock _ _) = True
+      cwName _ = False
   fromBuf b
       = do name <- fromBuf b
            def <- fromBuf b
