@@ -269,8 +269,15 @@ mkSpecDef {vars} fc gdef pename sargs fn stk
          log 5 $ "New patterns for " ++ show pename ++ ":\n" ++
                   showSep "\n" (map showPat newpats)
 
-         processDecl [] (MkNested []) [] (IDef fc (Resolved peidx) newpats)
-         pure peapp
+         -- If the partially evaluated definition fails, just use the initial
+         -- application. It might indicates a bug in the P.E. function generation
+         -- if it fails, but I don't want the whole system to be dependent on
+         -- the correctness of PE!
+         tryUnify
+            (do processDecl [] (MkNested []) [] (IDef fc (Resolved peidx) newpats)
+                pure peapp)
+            (do log 1 $ "Partial evaluation of " ++ show !(toFullNames fn) ++ " failed"
+                pure (unload stk (Ref fc Func fn)))
   where
     getAllRefs : NameMap Bool -> List ArgMode -> NameMap Bool
     getAllRefs ns (Dynamic :: xs) = getAllRefs ns xs
