@@ -5,7 +5,7 @@ import PrimIO
 ||| The various types of system clock available.
 public export
 data ClockType
-  = UTC       -- The time elapsed since some arbitrary point in the past
+  = UTC       -- The time elapsed since the "epoch:" 00:00:00 UTC, January 1, 1970
   | Monotonic -- The time elapsed since some arbitrary point in the past
   | Duration  -- Representing a time duration.
   | Process   -- The amount of CPU time used by the current process.
