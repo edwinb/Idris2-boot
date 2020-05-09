@@ -13,6 +13,8 @@ import TTImp.Elab.Check
 import TTImp.Elab.Delayed
 import TTImp.TTImp
 
+import Data.NameMap
+
 %default covering
 
 export
@@ -46,7 +48,7 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
                         let prims = mapMaybe id [fi, si, ci]
                         let primApp = isPrimName prims x
                         case lookup x (unambiguousNames est) of
-                          Just xNS => do log 10 $ "unambiguous: " ++ show x'
+                          Just xNS => do log 10 $ with Strings ("unambiguous: " ++ show xNS)
                                          pure $ mkAlt primApp est xNS
                           Nothing => do
                             ns <- lookupCtxtName x (gamma defs)
