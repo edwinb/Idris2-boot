@@ -486,6 +486,7 @@ findIpkg fname
         pkg <- addFields fs (initPkgDesc pname)
         setSourceDir (sourcedir pkg)
         processOptions (options pkg)
+        loadDependencies (depends pkg)
         case fname of
              Nothing => pure Nothing
              Just src =>
@@ -499,3 +500,5 @@ findIpkg fname
     dropHead str [] = []
     dropHead str (x :: xs)
         = if x == str then xs else x :: xs
+    loadDependencies : List String -> Core ()
+    loadDependencies = traverse_ addPkgDir
