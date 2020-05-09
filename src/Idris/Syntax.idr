@@ -495,7 +495,7 @@ mutual
         = showPrec d rec ++ concatMap show fields
     showPrec d (PRecordProjection fc fields)
         = concatMap show fields
-    showPrec d (PUnambigNames fc ns rhs)
+    showPrec d (PWithUnambigNames fc ns rhs)
         = "with " ++ show ns ++ " " ++ showPrec d rhs
 
 public export

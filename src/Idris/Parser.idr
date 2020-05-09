@@ -688,16 +688,16 @@ mutual
            rhs <- expr pdef fname indents
            pure (PWithUnambigNames (MkFC fname start end) ns rhs)
     where
-      singleName : FileName -> IndentInfo -> Rule (List Name)
-      singleName fname indents = do
+      singleName : Rule (List Name)
+      singleName = do
         n <- name
         pure [n]
 
-      nameList : FileName -> IndentInfo -> Rule (List Name)
-      nameList fname indents = do
+      nameList : Rule (List Name)
+      nameList = do
         symbol "["
         commit
-        ns <- name `sepBy1` symbol ","
+        ns <- sepBy1 (symbol ",") name
         symbol "]"
         pure ns
 
