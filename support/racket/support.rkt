@@ -241,6 +241,17 @@
 
 (define (blodwen-time) (current-seconds))
 
+(define (blodwen-clock-time-utc) (current-time 'time-utc))
+(define (blodwen-clock-time-monotonic) (current-time 'time-monotonic))
+(define (blodwen-clock-time-duration) (current-time 'time-duration))
+(define (blodwen-clock-time-process) (current-time 'time-process))
+(define (blodwen-clock-time-thread) (current-time 'time-thread))
+(define (blodwen-clock-time-gccpu) 0) ;; unsupported
+(define (blodwen-clock-time-gcreal) 0) ;; unsupported
+(define (blodwen-is-time? clk) (if (time? clk) 1 0))
+(define (blodwen-clock-second time) (time-second time))
+(define (blodwen-clock-nanosecond time) (time-nanosecond time))
+
 (define (blodwen-args)
   (define (blodwen-build-args args)
     (if (null? args)

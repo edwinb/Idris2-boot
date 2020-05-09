@@ -38,6 +38,7 @@ schHeader libs
     "(require racket/system)\n" ++ -- for system
     "(require rnrs/bytevectors-6)\n" ++ -- for buffers
     "(require rnrs/io/ports-6)\n" ++ -- for file handling
+    "(require srfi/19)\n" ++ -- for file handling
     "(require ffi/unsafe ffi/unsafe/define)\n" ++ -- for calling C
     libs ++
     "(let ()\n"

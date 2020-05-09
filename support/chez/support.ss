@@ -241,6 +241,16 @@
        (sleep (make-time 'time-duration (* 1000 micro) sec))))
 
 (define (blodwen-time) (time-second (current-time)))
+(define (blodwen-clock-time-utc) (current-time 'time-utc))
+(define (blodwen-clock-time-monotonic) (current-time 'time-monotonic))
+(define (blodwen-clock-time-duration) (current-time 'time-duration))
+(define (blodwen-clock-time-process) (current-time 'time-process))
+(define (blodwen-clock-time-thread) (current-time 'time-thread))
+(define (blodwen-clock-time-gccpu) (current-time 'time-collector-cpu))
+(define (blodwen-clock-time-gcreal) (current-time 'time-collector-real))
+(define (blodwen-is-time? clk) (if (time? clk) 1 0))
+(define (blodwen-clock-second time) (time-second time))
+(define (blodwen-clock-nanosecond time) (time-nanosecond time))
 
 (define (blodwen-args)
   (define (blodwen-build-args args)
