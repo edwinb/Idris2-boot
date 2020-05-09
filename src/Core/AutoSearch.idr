@@ -483,7 +483,7 @@ searchType fc rigc defaults trying depth def checkdets top env (Bind nfc x (Let 
 searchType {vars} fc rigc defaults trying depth def checkdets top env target
     = do defs <- get Ctxt
          abandonIfCycle env target trying
-         let trying' = target :: trying
+         let trying' = the (List (Term vars)) (target :: trying)
          nty <- nf defs env target
          case nty of
               NTCon tfc tyn t a args =>

@@ -6,6 +6,7 @@ import public Parser.Unlit
 import public Text.Parser
 
 import Core.TT
+import Data.List.NonEmpty
 import Data.List.Views
 
 %default total
@@ -594,7 +595,7 @@ blockWithOptHeaderAfter {ty} mincol header item
                            pure (Nothing, ps)
 
 export
-nonEmptyBlock : (IndentInfo -> Rule ty) -> Rule (List ty)
+nonEmptyBlock : (IndentInfo -> Rule ty) -> Rule (List1 ty)
 nonEmptyBlock item
     = do symbol "{"
          commit
