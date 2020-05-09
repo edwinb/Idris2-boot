@@ -254,3 +254,28 @@
 
 (define (blodwen-system cmd)
   (system cmd))
+
+;; Randoms
+(define random-seed-register 0)
+(define (initialize-random-seed-once)
+  (if (= (virtual-register random-seed-register) 0)
+      (let ([seed (time-nanosecond (current-time))])
+        (set-virtual-register! random-seed-register seed)
+        (random-seed seed))))
+
+(define (blodwen-random-seed seed)
+  (set-virtual-register! random-seed-register seed)
+  (random-seed seed))
+(define blodwen-random
+  (case-lambda
+    ;; no argument, pick a real value from [0, 1.0)
+    [() (begin
+          (initialize-random-seed-once)
+          (random 1.0))]
+    ;; single argument k, pick an integral value from [0, k)
+    [(k)
+      (begin
+        (initialize-random-seed-once)
+        (if (> k 0)
+              (random k)
+              (assertion-violationf 'blodwen-random "invalid range argument ~a" k)))]))
