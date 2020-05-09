@@ -32,17 +32,6 @@ data Clock : (type : ClockType) -> Type where
     -> Clock type
 
 public export
-seconds : Clock type -> Integer
-seconds (MkClock s _) = s
-
-public export
-nanoseconds : Clock type -> Integer
-nanoseconds (MkClock _ ns) = ns
-
-||| Opaque clock value manipulated by the back-end.
-data OSClock : Type where [external]
-
-public export
 Eq (Clock type) where
   (MkClock seconds1 nanoseconds1) == (MkClock seconds2 nanoseconds2) =
     seconds1 == seconds2 && nanoseconds1 == nanoseconds2
@@ -60,23 +49,23 @@ Show (Clock type) where
   show (MkClock {type} seconds nanoseconds) =
     show type ++ ": " ++ show seconds ++ "s " ++ show nanoseconds ++ "ns"
 
-prim_clockTimeUTC : IO OSClock
-prim_clockTimeUTC = schemeCall OSClock "blodwen-clock-time-utc" []
+||| A helper to deconstruct a Clock.
+public export
+seconds : Clock type -> Integer
+seconds (MkClock s _) = s
 
-prim_clockTimeMonotonic : IO OSClock
-prim_clockTimeMonotonic = schemeCall OSClock "blodwen-clock-time-monotonic" []
+||| A helper to deconstruct a Clock.
+public export
+nanoseconds : Clock type -> Integer
+nanoseconds (MkClock _ ns) = ns
 
-prim_clockTimeProcess : IO OSClock
-prim_clockTimeProcess = schemeCall OSClock "blodwen-clock-time-process" []
+||| Make a duration value.
+public export
+makeDuration : Integer -> Integer -> Clock Duration
+makeDuration = MkClock
 
-prim_clockTimeThread : IO OSClock
-prim_clockTimeThread = schemeCall OSClock "blodwen-clock-time-thread" []
-
-prim_clockTimeGCCPU : IO OSClock
-prim_clockTimeGCCPU = schemeCall OSClock "blodwen-clock-time-gccpu" []
-
-prim_clockTimeGCReal : IO OSClock
-prim_clockTimeGCReal = schemeCall OSClock "blodwen-clock-time-gcreal" []
+||| Opaque clock value manipulated by the back-end.
+data OSClock : Type where [external]
 
 ||| Note: Back-ends are required to implement UTC, monotonic time, CPU time
 ||| in current process/thread, and time duration; the rest are optional.
@@ -90,13 +79,16 @@ isClockMandatory GCCPU  = Optional
 isClockMandatory GCReal = Optional
 isClockMandatory _      = Mandatory
 
+prim_clockTimeMonotonic : IO OSClock
+prim_clockTimeMonotonic = schemeCall OSClock "blodwen-clock-time-monotonic" []
+
 fetchOSClock : ClockType -> IO OSClock
-fetchOSClock UTC       = prim_clockTimeUTC
+fetchOSClock UTC       = schemeCall OSClock "blodwen-clock-time-utc" []
 fetchOSClock Monotonic = prim_clockTimeMonotonic
-fetchOSClock Process   = prim_clockTimeProcess
-fetchOSClock Thread    = prim_clockTimeThread
-fetchOSClock GCCPU     = prim_clockTimeGCCPU
-fetchOSClock GCReal    = prim_clockTimeGCReal
+fetchOSClock Process   = schemeCall OSClock "blodwen-clock-time-process" []
+fetchOSClock Thread    = schemeCall OSClock "blodwen-clock-time-thread" []
+fetchOSClock GCCPU     = schemeCall OSClock "blodwen-clock-time-gccpu" []
+fetchOSClock GCReal    = schemeCall OSClock "blodwen-clock-time-gcreal" []
 fetchOSClock Duration  = prim_clockTimeMonotonic
 
 ||| A test to determine the status of optional clocks.
@@ -129,11 +121,6 @@ clockTime clockType with (isClockMandatory clockType)
     if valid
       then map Just $ fromOSClock clk
       else pure Nothing
-
-||| Make a duration value.
-public export
-makeDuration : Integer -> Integer -> Clock Duration
-makeDuration = MkClock
 
 toNano : Clock type -> Integer
 toNano (MkClock seconds nanoseconds) =
