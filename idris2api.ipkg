@@ -1,11 +1,12 @@
 package idris2api
 
-modules = 
+modules =
     Compiler.Common,
     Compiler.CompileExpr,
     Compiler.Inline,
     Compiler.Scheme.Chez,
     Compiler.Scheme.Racket,
+    Compiler.Scheme.Gambit,
     Compiler.Scheme.Common,
 
     Control.Delayed,

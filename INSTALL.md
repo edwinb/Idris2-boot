@@ -1,7 +1,7 @@
 # Installation
 
 Idris 2 is built using Idris, and provides support for two default code
-generation targets: Chez Scheme, and Racket. To build from source, it requires
+generation targets: Chez Scheme, Racket, and Gambit. To build from source, it requires
 at least Idris version 1.3.2 (see https://www.idris-lang.org/pages/download.html). You
 can also build from the generated C.
 
@@ -64,7 +64,7 @@ you run `./configure --threads` to build multithreading support in.
 
 ### Chicken
 
-Chicken scheme offers binary distributions (and source tar balls) from
+Chicken Scheme offers binary distributions (and source tar balls) from
 
 + https://code.call-cc.org/
 
@@ -87,3 +87,14 @@ The following packages are required in order to run Idris:
 - math-lib
 
 These can be installed with `raco setup` and `raco pkg install`.
+
+### Gambit
+
+Gambit Scheme offers binary releases and source tarballs on
+http://gambitscheme.org.
+
+GNU/Linux users can usually find a package on their distribution under one of
+the following names: `gambit`, `gambit-c` or `gambc`.
+
+The default backend of Gambit is C, so you are expected to have a C compiler
+(GCC preferred).

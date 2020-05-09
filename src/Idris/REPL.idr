@@ -3,6 +3,7 @@ module Idris.REPL
 import Compiler.Scheme.Chez
 -- import Compiler.Scheme.Chicken
 import Compiler.Scheme.Racket
+import Compiler.Scheme.Gambit
 import Compiler.Common
 
 import Core.AutoSearch
@@ -242,6 +243,7 @@ findCG
               Chicken => throw (InternalError "Chicken CG not available")
                          -- pure codegenChicken
               Racket => pure codegenRacket
+              Gambit => pure codegenGambit
 
 anyAt : (FC -> Bool) -> FC -> a -> Bool
 anyAt p loc y = p loc
