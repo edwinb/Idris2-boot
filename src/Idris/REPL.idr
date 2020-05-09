@@ -1,7 +1,6 @@
 module Idris.REPL
 
 import Compiler.Scheme.Chez
--- import Compiler.Scheme.Chicken
 import Compiler.Scheme.Racket
 import Compiler.Scheme.Gambit
 import Compiler.Common
@@ -242,8 +241,6 @@ findCG
     = do defs <- get Ctxt
          case codegen (session (options defs)) of
               Chez => pure codegenChez
-              Chicken => throw (InternalError "Chicken CG not available")
-                         -- pure codegenChicken
               Racket => pure codegenRacket
               Gambit => pure codegenGambit
 
