@@ -112,7 +112,7 @@ Syntax:
 The given instructions are passed directly to the code generator, to be
 interpreted in a backend-specific way.
 
-Currently known backends are: `chez`, `chicken` and `racket`.
+Currently known backends are: `chez`, `chicken`, `racket` and `gambit`.
 
 ## Backend Specific Directives
 

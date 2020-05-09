@@ -9,6 +9,7 @@ import Text.Parser
 import Parser.Lexer
 import Parser.Support
 import Text.Lexer
+import Utils.String
 
 %hide Lexer.symbols
 
@@ -22,10 +23,6 @@ ideTokens =
      (stringLit, \x => StrLit (stripQuotes x)),
      (identAllowDashes, \x => NSIdent [x]),
      (space, Comment)]
-  where
-    stripQuotes : String -> String
-    -- ASSUMPTION! Only total because we know we're getting quoted strings.
-    stripQuotes = assert_total (strTail . reverse . strTail . reverse)
 
 idelex : String -> Either (Int, Int, String) (List (TokenData Token))
 idelex str
@@ -75,5 +72,3 @@ export
 parseSExp : String -> Either ParseError SExp
 parseSExp inp
     = ideParser inp (do c <- sexp; eoi; pure c)
-
-

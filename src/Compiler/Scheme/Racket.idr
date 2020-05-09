@@ -40,6 +40,7 @@ schHeader libs
     "(require rnrs/io/ports-6)\n" ++ -- for file handling
     "(require srfi/19)\n" ++ -- for file handling
     "(require ffi/unsafe ffi/unsafe/define)\n" ++ -- for calling C
+    "(require racket/date)\n" ++ -- for date
     libs ++
     "(let ()\n"
 

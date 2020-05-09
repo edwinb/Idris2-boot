@@ -4,6 +4,7 @@ import Core.Core
 import Core.Context
 import Core.TT
 import Core.Value
+import Utils.String
 
 import Data.Vect
 
@@ -31,7 +32,7 @@ unaryOp _ _ = Nothing
 castString : Vect 1 (NF vars) -> Maybe (NF vars)
 castString [NPrimVal fc (I i)] = Just (NPrimVal fc (Str (show i)))
 castString [NPrimVal fc (BI i)] = Just (NPrimVal fc (Str (show i)))
-castString [NPrimVal fc (Ch i)] = Just (NPrimVal fc (Str (show i)))
+castString [NPrimVal fc (Ch i)] = Just (NPrimVal fc (Str (stripQuotes (show i))))
 castString [NPrimVal fc (Db i)] = Just (NPrimVal fc (Str (show i)))
 castString _ = Nothing
 
@@ -434,4 +435,3 @@ allPrimitives =
     map (\t => MkPrim (Cast t IntType) (predTy t IntType) isTotal) [StringType, IntegerType, CharType, DoubleType] ++
     map (\t => MkPrim (Cast t DoubleType) (predTy t DoubleType) isTotal) [StringType, IntType, IntegerType] ++
     map (\t => MkPrim (Cast t CharType) (predTy t CharType) isTotal) [StringType, IntType]
-
