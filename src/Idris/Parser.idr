@@ -121,6 +121,7 @@ mutual
     <|> lambdaCase fname indents
     <|> lazy fname indents
     <|> if_ fname indents
+    <|> with_ fname indents
     <|> doBlock fname indents
     <|> do start <- location
            f <- simpleExpr fname indents
