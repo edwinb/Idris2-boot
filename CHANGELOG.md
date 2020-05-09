@@ -6,8 +6,13 @@ Compiler updates:
 * Data types with a single constructor, with a single unerased arguments,
   are translated to just that argument, to save repeated packing and unpacking.
   (c.f. `newtype` in Haskell)
+
 * 0-multiplicity constructor arguments are now properly erased, not just
   given a placeholder null value.
+
+* To improve error messages, one can use `with NS.name <term>`
+  or `with [NS.name1, NS.name2, ...] <term>` to disable disambiguation
+  for the given names in `<term>`. Example: `with MyNS.(>>=) do ...`.
 
 Other improvements:
 
