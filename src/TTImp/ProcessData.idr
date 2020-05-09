@@ -29,6 +29,8 @@ processDataOpt fc ndef UniqueSearch
     = setUniqueSearch fc ndef True
 processDataOpt fc ndef External
     = setExternal fc ndef True
+processDataOpt fc ndef NoNewtype
+    = pure ()
 
 checkRetType : {auto c : Ref Ctxt Defs} ->
                Env Term vars -> NF vars ->
@@ -330,7 +332,12 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
 
          let ddef = MkData (MkCon dfc n arity fullty) cons
          addData vars vis tidx ddef
-         findNewtype cons
+
+         -- Flag data type as a newtype, if possible (See `findNewtype` for criteria).
+         -- Skip optimisation if the data type has specified `noNewtype` in its
+         -- options list.
+         when (not (NoNewtype `elem` opts)) $
+              findNewtype cons
 
          -- Type is defined mutually with every data type undefined at the
          -- point it was declared, and every data type undefined right now
