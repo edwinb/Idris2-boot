@@ -1,7 +1,5 @@
 module Data.IORef
 
-%cg chicken (use box)
-
 -- Implemented externally
 -- e.g., in Scheme, passed around as a box
 data Mut : Type -> Type where [external]

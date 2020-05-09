@@ -513,11 +513,12 @@ newDef fc n rig vars ty vis def
 -- 'NF but we're working with terms rather than values...)
 public export
 data Transform : Type where
-     MkTransform : Env Term vars -> Term vars -> Term vars -> Transform
+     MkTransform : Name -> -- name for identifying the rule
+                   Env Term vars -> Term vars -> Term vars -> Transform
 
 export
 getFnName : Transform -> Maybe Name
-getFnName (MkTransform _ app _)
+getFnName (MkTransform _ _ app _)
     = case getFn app of
            Ref _ _ fn => Just fn
            _ => Nothing
@@ -771,11 +772,12 @@ HasNames GlobalDef where
 
 export
 HasNames Transform where
-  full gam (MkTransform env lhs rhs)
-      = pure $ MkTransform !(full gam env) !(full gam lhs) !(full gam rhs)
+  full gam (MkTransform n env lhs rhs)
+      = pure $ MkTransform !(full gam n) !(full gam env)
+                           !(full gam lhs) !(full gam rhs)
 
-  resolved gam (MkTransform env lhs rhs)
-      = pure $ MkTransform !(resolved gam env)
+  resolved gam (MkTransform n env lhs rhs)
+      = pure $ MkTransform !(resolved gam n) !(resolved gam env)
                            !(resolved gam lhs) !(resolved gam rhs)
 
 public export

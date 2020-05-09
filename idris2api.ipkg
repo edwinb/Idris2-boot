@@ -112,6 +112,7 @@ modules =
     TTImp.ProcessDef,
     TTImp.ProcessParams,
     TTImp.ProcessRecord,
+    TTImp.ProcessTransform,
     TTImp.ProcessType,
     TTImp.TTImp,
     TTImp.Unelab,

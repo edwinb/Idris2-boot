@@ -1093,13 +1093,14 @@ namespaceDecl fname indents
 
 transformDecl : FileName -> IndentInfo -> Rule PDecl
 transformDecl fname indents
-    = do pragma "transform"
-         start <- location
+    = do start <- location
+         pragma "transform"
+         n <- strLit
          lhs <- expr plhs fname indents
          symbol "="
          rhs <- expr pnowith fname indents
          end <- location
-         pure (PTransform (MkFC fname start end) lhs rhs)
+         pure (PTransform (MkFC fname start end) n lhs rhs)
 
 mutualDecls : FileName -> IndentInfo -> Rule PDecl
 mutualDecls fname indents

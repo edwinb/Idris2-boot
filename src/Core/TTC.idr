@@ -961,19 +961,22 @@ TTC GlobalDef where
                                      top [] Public unchecked [] refs refsR
                                      False False True def cdef Nothing [])
 
+export
 TTC Transform where
-  toBuf b (MkTransform {vars} env lhs rhs)
+  toBuf b (MkTransform {vars} n env lhs rhs)
       = do toBuf b vars
+           toBuf b n
            toBuf b env
            toBuf b lhs
            toBuf b rhs
 
   fromBuf b
       = do vars <- fromBuf b
+           n <- fromBuf b
            env <- fromBuf b
            lhs <- fromBuf b
            rhs <- fromBuf b
-           pure (MkTransform {vars} env lhs rhs)
+           pure (MkTransform {vars} n env lhs rhs)
 
 -- decode : Context -> Int -> (update : Bool) -> ContextEntry -> Core GlobalDef
 Core.Context.decode gam idx update (Coded bin)

@@ -790,10 +790,10 @@ mutual
   desugarDecl ps (PNamespace fc ns decls)
       = do ds <- traverse (desugarDecl ps) decls
            pure [INamespace fc ns (concat ds)]
-  desugarDecl ps (PTransform fc lhs rhs)
+  desugarDecl ps (PTransform fc n lhs rhs)
       = do (bound, blhs) <- bindNames False !(desugar LHS ps lhs)
            rhs' <- desugar AnyExpr (bound ++ ps) rhs
-           pure [ITransform fc blhs rhs']
+           pure [ITransform fc (UN n) blhs rhs']
   desugarDecl ps (PDirective fc d)
       = case d of
              Hide n => pure [IPragma (\c, nest, env => hide fc n)]

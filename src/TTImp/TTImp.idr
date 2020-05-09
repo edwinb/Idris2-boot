@@ -311,7 +311,7 @@ mutual
                  Maybe String -> -- nested namespace
                  Visibility -> ImpRecord -> ImpDecl
        INamespace : FC -> List String -> List ImpDecl -> ImpDecl
-       ITransform : FC -> RawImp -> RawImp -> ImpDecl
+       ITransform : FC -> Name -> RawImp -> RawImp -> ImpDecl
        IPragma : ({vars : _} -> Ref Ctxt Defs ->
                   NestedNames vars -> Env Term vars -> Core ()) ->
                  ImpDecl
@@ -329,8 +329,8 @@ mutual
     show (INamespace _ ns decls)
         = "namespace " ++ show ns ++
           showSep "\n" (assert_total $ map show decls)
-    show (ITransform _ lhs rhs)
-        = "%transform " ++ show lhs ++ " ==> " ++ show rhs
+    show (ITransform _ n lhs rhs)
+        = "%transform " ++ show n ++ " " ++ show lhs ++ " ==> " ++ show rhs
     show (IPragma _) = "[externally defined pragma]"
     show (ILog lvl) = "%logging " ++ show lvl
 
@@ -933,8 +933,8 @@ mutual
         = do tag 4; toBuf b fc; toBuf b ns; toBuf b vis; toBuf b r
     toBuf b (INamespace fc xs ds)
         = do tag 5; toBuf b fc; toBuf b xs; toBuf b ds
-    toBuf b (ITransform fc lhs rhs)
-        = do tag 6; toBuf b fc; toBuf b lhs; toBuf b rhs
+    toBuf b (ITransform fc n lhs rhs)
+        = do tag 6; toBuf b fc; toBuf b n; toBuf b lhs; toBuf b rhs
     toBuf b (IPragma f) = throw (InternalError "Can't write Pragma")
     toBuf b (ILog n)
         = do tag 7; toBuf b n
@@ -960,8 +960,9 @@ mutual
                5 => do fc <- fromBuf b; xs <- fromBuf b
                        ds <- fromBuf b
                        pure (INamespace fc xs ds)
-               6 => do fc <- fromBuf b; lhs <- fromBuf b; rhs <- fromBuf b
-                       pure (ITransform fc lhs rhs)
+               6 => do fc <- fromBuf b; n <- fromBuf b
+                       lhs <- fromBuf b; rhs <- fromBuf b
+                       pure (ITransform fc n lhs rhs)
                7 => do n <- fromBuf b
                        pure (ILog n)
                _ => corrupt "ImpDecl"
