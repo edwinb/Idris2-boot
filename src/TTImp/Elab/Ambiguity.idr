@@ -45,16 +45,20 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
                         ci <- fromCharName
                         let prims = mapMaybe id [fi, si, ci]
                         let primApp = isPrimName prims x
-                        ns <- lookupCtxtName x (gamma defs)
-                        ns' <- filterM visible ns
-                        case ns' of
-                             [] => do log 10 $ "Failed to find " ++ show orig
-                                      pure orig
-                             [nalt] =>
-                                   do log 10 $ "Only one " ++ show (fst nalt)
-                                      pure $ mkAlt primApp est nalt
-                             nalts => pure $ IAlternative fc (uniqType fi si ci x args)
-                                                    (map (mkAlt primApp est) nalts)
+                        case lookup x (unambiguousNames est) of
+                          Just xNS => do log 10 $ "unambiguous: " ++ show x'
+                                         pure $ mkAlt primApp est xNS
+                          Nothing => do
+                            ns <- lookupCtxtName x (gamma defs)
+                            ns' <- filterM visible ns
+                            case ns' of
+                               [] => do log 10 $ "Failed to find " ++ show orig
+                                        pure orig
+                               [nalt] =>
+                                     do log 10 $ "Only one " ++ show (fst nalt)
+                                        pure $ mkAlt primApp est nalt
+                               nalts => pure $ IAlternative fc (uniqType fi si ci x args)
+                                                      (map (mkAlt primApp est) nalts)
   where
     visible : (Name, Int, GlobalDef) -> Core Bool
     visible (n, i, def)
