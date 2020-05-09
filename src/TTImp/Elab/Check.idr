@@ -120,7 +120,7 @@ record EState (vars : List Name) where
   allowDelay : Bool -- Delaying elaborators is okay. We can't nest delays.
   linearUsed : List (Var vars)
   saveHoles : NameMap () -- things we'll need to save to TTC, even if solved
-  unambiguousNames : NameMap (Name, Int, GlobalDef)
+  unambiguousNames : StringMap (Name, Int, GlobalDef)
                   -- Mapping from userNameRoot to fully resolved names.
                   -- For names in this mapping, we don't run disambiguation.
                   -- Used in with-expressions.

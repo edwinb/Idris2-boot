@@ -11,6 +11,8 @@ import Core.Unify
 import Core.TT
 import Core.Value
 
+import Data.StringMap
+
 import TTImp.Elab.Ambiguity
 import TTImp.Elab.App
 import TTImp.Elab.As
@@ -215,7 +217,7 @@ checkTerm rig elabinfo nest env (Implicit fc b) Nothing
             do est <- get EST
                put EST (addBindIfUnsolved nm rig Explicit env metaval ty est)
          pure (metaval, gnf env ty)
-checkTerm rig elabinfo nest env (IWithUnambNames fc ns rhs)
+checkTerm rig elabinfo nest env (IWithUnambigNames fc ns rhs)
     = do -- enter the scope -> add unambiguous names
          est <- get EST
          rns <- resolveNames fc ns
@@ -229,15 +231,20 @@ checkTerm rig elabinfo nest env (IWithUnambNames fc ns rhs)
          put EST $ record { unambiguousNames = unambiguousNames est } newEST
   where
     resolveNames : FC -> List Name -> Core (NameMap (Name, Int, GlobalDef))
-    resolveNames fc [] = empty
-    resolveNames fc (n :: ns) = do
-      -- this will always be a global name
-      -- so we lookup only among the globals
-      ctxt <- get Ctxt
-      case lookupCtxtName n (gamma ctxt) of
-        [rn] => insert n rn <$> resolveNames ns
-        [] => throw $ UndefinedName fc n
-        rns => throw $ AmbiguousName fc (map (\(n,_,_) => n) rns)
+    resolveNames fc [] = pure empty
+    resolveNames fc (n :: ns) =
+      case userNameRoot n of
+        -- should never happen
+        Nothing => throw $ InternalError $ "non-UN in \"with\" LHS: " ++ show n
+        Just nRoot => do
+          -- this will always be a global name
+          -- so we lookup only among the globals
+          ctxt <- get Ctxt
+          rns <- lookupCtxtName n (gamma ctxt)
+          case rns of
+            []   => throw $ UndefinedName fc n
+            [rn] => insert nRoot rn <$> resolveNames fc ns
+            _    => throw $ AmbiguousName fc (map fst rns)
 
 -- Declared in TTImp.Elab.Check
 -- check : {vars : _} ->

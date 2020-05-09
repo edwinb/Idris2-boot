@@ -13,7 +13,7 @@ import TTImp.Elab.Check
 import TTImp.Elab.Delayed
 import TTImp.TTImp
 
-import Data.NameMap
+import Data.StringMap
 
 %default covering
 
@@ -47,9 +47,10 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
                         ci <- fromCharName
                         let prims = mapMaybe id [fi, si, ci]
                         let primApp = isPrimName prims x
-                        case lookup x (unambiguousNames est) of
-                          Just xNS => do log 10 $ with Strings ("unambiguous: " ++ show xNS)
-                                         pure $ mkAlt primApp est xNS
+                        case lookupUN (userNameRoot x) (unambiguousNames est) of
+                          Just xr => do
+                            log 10 $ "unambiguous: " ++ show (fst xr)
+                            pure $ mkAlt primApp est xr
                           Nothing => do
                             ns <- lookupCtxtName x (gamma defs)
                             ns' <- filterM visible ns
@@ -62,6 +63,10 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
                                nalts => pure $ IAlternative fc (uniqType fi si ci x args)
                                                       (map (mkAlt primApp est) nalts)
   where
+    lookupUN : Maybe String -> StringMap a -> Maybe a
+    lookupUN Nothing _ = Nothing
+    lookupUN (Just n) sm = lookup n sm
+
     visible : (Name, Int, GlobalDef) -> Core Bool
     visible (n, i, def)
         = do let NS ns x = fullname def

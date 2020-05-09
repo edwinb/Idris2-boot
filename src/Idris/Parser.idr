@@ -678,6 +678,29 @@ mutual
            end <- location
            pure (PRewrite (MkFC fname start end) rule tm)
 
+  with_ : FileName -> IndentInfo -> Rule PTerm
+  with_ fname indents
+      = do start <- location
+           keyword "with"
+           commit
+           ns <- singleName <|> nameList
+           end <- location
+           rhs <- expr pdef fname indents
+           pure (PWithUnambigNames (MkFC fname start end) ns rhs)
+    where
+      singleName : FileName -> IndentInfo -> Rule (List Name)
+      singleName fname indents = do
+        n <- name
+        pure [n]
+
+      nameList : FileName -> IndentInfo -> Rule (List Name)
+      nameList fname indents = do
+        symbol "["
+        commit
+        ns <- name `sepBy1` symbol ","
+        symbol "]"
+        pure ns
+
   doBlock : FileName -> IndentInfo -> Rule PTerm
   doBlock fname indents
       = do start <- location

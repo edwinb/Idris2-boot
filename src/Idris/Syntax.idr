@@ -98,7 +98,7 @@ mutual
        -- Debugging
        PUnifyLog : FC -> Nat -> PTerm -> PTerm
 
-       -- TODO: 'with' disambiguation
+       PWithUnambigNames : FC -> List Name -> PTerm -> PTerm
 
   public export
   data PFieldUpdate : Type where
@@ -495,6 +495,8 @@ mutual
         = showPrec d rec ++ concatMap show fields
     showPrec d (PRecordProjection fc fields)
         = concatMap show fields
+    showPrec d (PUnambigNames fc ns rhs)
+        = "with " ++ show ns ++ " " ++ showPrec d rhs
 
 public export
 record IFaceInfo where
@@ -778,6 +780,9 @@ mapPTermM f = goPTerm where
       >>= f
     goPTerm (PRecordProjection fc fields) =
       f (PRecordProjection fc fields)
+    goPTerm (PWithUnambigNames fc ns rhs) =
+      PWithUnambigNames fc ns <$> goPTerm rhs
+      >>= f
 
     goPFieldUpdate : PFieldUpdate -> Core PFieldUpdate
     goPFieldUpdate (PSetField p t)    = PSetField p <$> goPTerm t

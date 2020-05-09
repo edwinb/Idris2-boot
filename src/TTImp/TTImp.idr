@@ -170,6 +170,7 @@ mutual
       show (IType fc) = "%type"
       show (Implicit fc True) = "_"
       show (Implicit fc False) = "?"
+      show (IWithUnambigNames fc ns rhs) = "(%with " ++ show ns ++ " " ++ show rhs ++ ")"
 
   export
   Show IFieldUpdate where
