@@ -217,20 +217,23 @@ checkTerm rig elabinfo nest env (Implicit fc b) Nothing
             do est <- get EST
                put EST (addBindIfUnsolved nm rig Explicit env metaval ty est)
          pure (metaval, gnf env ty)
-checkTerm rig elabinfo nest env (IWithUnambigNames fc ns rhs)
-    = do -- enter the scope -> add unambiguous names
+checkTerm rig elabinfo nest env (IWithUnambigNames fc ns rhs) exp
+    = with Core do
+         -- enter the scope -> add unambiguous names
          est <- get EST
          rns <- resolveNames fc ns
          put EST $ record { unambiguousNames = mergeLeft rns (unambiguousNames est) } est
 
          -- inside the scope -> check the RHS
-         checkTerm rig elabinfo nest env rhs
+         result <- check rig elabinfo nest env rhs exp
 
          -- exit the scope -> restore unambiguous names
          newEST <- get EST
          put EST $ record { unambiguousNames = unambiguousNames est } newEST
+
+         pure result
   where
-    resolveNames : FC -> List Name -> Core (NameMap (Name, Int, GlobalDef))
+    resolveNames : FC -> List Name -> Core (StringMap (Name, Int, GlobalDef))
     resolveNames fc [] = pure empty
     resolveNames fc (n :: ns) =
       case userNameRoot n of
