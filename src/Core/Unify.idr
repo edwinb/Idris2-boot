@@ -675,13 +675,13 @@ mutual
   unifyHoleApp swap mode loc env mname mref margs margs' (NTCon nfc n t a args')
       = do defs <- get Ctxt
            mty <- lookupTyExact n (gamma defs)
-           unifyInvertible swap mode loc env mname mref margs margs' mty (NTCon nfc n t a) args'
+           unifyInvertible swap (lower mode) loc env mname mref margs margs' mty (NTCon nfc n t a) args'
   unifyHoleApp swap mode loc env mname mref margs margs' (NDCon nfc n t a args')
       = do defs <- get Ctxt
            mty <- lookupTyExact n (gamma defs)
-           unifyInvertible swap mode loc env mname mref margs margs' mty (NTCon nfc n t a) args'
+           unifyInvertible swap (lower mode) loc env mname mref margs margs' mty (NTCon nfc n t a) args'
   unifyHoleApp swap mode loc env mname mref margs margs' (NApp nfc (NLocal r idx p) args')
-      = unifyInvertible swap mode loc env mname mref margs margs' Nothing
+      = unifyInvertible swap (lower mode) loc env mname mref margs margs' Nothing
                         (NApp nfc (NLocal r idx p)) args'
   unifyHoleApp swap mode loc env mname mref margs margs' tm@(NApp nfc (NMeta n i margs2) args2')
       = do defs <- get Ctxt
@@ -689,7 +689,7 @@ mutual
                 | Nothing => throw (UndefinedName nfc mname)
            let inv = isPatName n || invertible mdef
            if inv
-              then unifyInvertible swap mode loc env mname mref margs margs' Nothing
+              then unifyInvertible swap (lower mode) loc env mname mref margs margs' Nothing
                                    (NApp nfc (NMeta n i margs2)) args2'
               else postponeS True swap loc mode "Postponing hole application" env
                              (NApp loc (NMeta mname mref margs) margs') tm
