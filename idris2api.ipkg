@@ -121,6 +121,7 @@ modules =
     Utils.Binary,
     Utils.Hex,
     Utils.Shunting,
+    Utils.String,
 
     Yaffle.Main,
     Yaffle.REPL
