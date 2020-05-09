@@ -5,4 +5,5 @@ with Prelude.(>>=) do printLn "foo"; printLn "boo"; map (+1) (printLn "woo"); pr
 :t with Prelude.Nil []
 :t with [Vect.Nil, Prelude.(::)] [1,2,3]
 :t with pure the (Maybe _) (pure 4)
+:t with [] 4
 :q

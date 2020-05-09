@@ -56,4 +56,5 @@ Mismatch between:
 and
 	List ?a
 Main> the (Maybe Integer) (pure 4) : Maybe Integer
+Main> Parse error: Unrecognised command (next tokens: [identifier t, with, symbol [, symbol ], literal 4, end of input])
 Main> Bye for now!
