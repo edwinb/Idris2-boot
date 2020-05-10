@@ -174,9 +174,8 @@ mutual
   makeAutoImplicit rig argRig elabinfo nest env fc tm x aty sc (n, argpos) expargs impargs kr expty
   -- on the LHS, just treat it as an implicit pattern variable.
   -- on the RHS, add a searchable hole
-      = case elabMode elabinfo of
-             InLHS _ =>
-                do defs <- get Ctxt
+      = if metavarImp (elabMode elabinfo)
+           then do defs <- get Ctxt
                    nm <- genMVName x
                    empty <- clearDefs defs
                    metaty <- quote empty env aty
@@ -187,8 +186,7 @@ mutual
                    put EST (addBindIfUnsolved nm argRig AutoImplicit env metaval metaty est)
                    checkAppWith rig elabinfo nest env fc
                                 fntm fnty (n, 1 + argpos) expargs impargs kr expty
-             _ =>
-                do defs <- get Ctxt
+           else do defs <- get Ctxt
                    nm <- genMVName x
                    -- We need the full normal form to check determining arguments
                    -- so we might as well calculate the whole thing now
@@ -200,6 +198,11 @@ mutual
                    fnty <- sc defs (toClosure defaultOpts env metaval)
                    checkAppWith rig elabinfo nest env fc
                                 fntm fnty (n, 1 + argpos) expargs impargs kr expty
+    where
+      metavarImp : ElabMode -> Bool
+      metavarImp (InLHS _) = True
+      metavarImp InTransform = True
+      metavarImp _ = False
 
   makeDefImplicit : {vars : _} ->
                     {auto c : Ref Ctxt Defs} ->
@@ -220,9 +223,8 @@ mutual
   makeDefImplicit rig argRig elabinfo nest env fc tm x arg aty sc (n, argpos) expargs impargs kr expty
   -- on the LHS, just treat it as an implicit pattern variable.
   -- on the RHS, use the default
-      = case elabMode elabinfo of
-             InLHS _ =>
-                do defs <- get Ctxt
+      = if metavarImp (elabMode elabinfo)
+           then do defs <- get Ctxt
                    nm <- genMVName x
                    empty <- clearDefs defs
                    metaty <- quote empty env aty
@@ -233,14 +235,18 @@ mutual
                    put EST (addBindIfUnsolved nm argRig AutoImplicit env metaval metaty est)
                    checkAppWith rig elabinfo nest env fc
                                 fntm fnty (n, 1 + argpos) expargs impargs kr expty
-             _ =>
-                do defs <- get Ctxt
+           else do defs <- get Ctxt
                    empty <- clearDefs defs
                    aval <- quote empty env arg
                    let fntm = App fc tm aval
                    fnty <- sc defs (toClosure defaultOpts env aval)
                    checkAppWith rig elabinfo nest env fc
                                 fntm fnty (n, 1 + argpos) expargs impargs kr expty
+    where
+      metavarImp : ElabMode -> Bool
+      metavarImp (InLHS _) = True
+      metavarImp InTransform = True
+      metavarImp _ = False
 
   -- Defer elaborating anything which will be easier given a known target
   -- type (ambiguity, cases, etc)

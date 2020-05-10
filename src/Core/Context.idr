@@ -1480,18 +1480,22 @@ setOpenHints hs
 export
 addTransform : {auto c : Ref Ctxt Defs} ->
                FC -> Transform -> Core ()
-addTransform fc t
+addTransform fc t_in
     = do defs <- get Ctxt
-         let Just fn = getFnName t
+         let Just fn_in = getFnName t_in
              | Nothing =>
                   throw (GenericMsg fc "LHS of a transformation must be a function application")
+         fn <- toResolvedNames fn_in
+         t <- toResolvedNames t_in
+         fn_full <- toFullNames fn_in
+         t_full <- toFullNames t_in
          case lookup fn (transforms defs) of
               Nothing =>
                  put Ctxt (record { transforms $= insert fn [t],
-                                    saveTransforms $= ((fn, t) ::) } defs)
+                                    saveTransforms $= ((fn_full, t_full) ::) } defs)
               Just ts =>
                  put Ctxt (record { transforms $= insert fn (t :: ts),
-                                    saveTransforms $= ((fn, t) ::) } defs)
+                                    saveTransforms $= ((fn_full, t_full) ::) } defs)
 
 export
 clearSavedHints : {auto c : Ref Ctxt Defs} -> Core ()

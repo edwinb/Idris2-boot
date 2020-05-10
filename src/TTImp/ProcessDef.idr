@@ -232,13 +232,15 @@ checkLHS {vars} trans mult hashit n opts nest env fc lhs_in
          setUnboundImplicits True
          (_, lhs_bound) <- bindNames False lhs_raw
          setUnboundImplicits autoimp
-         lhs <- implicitsAs defs vars lhs_bound
+         lhs <- if trans
+                   then pure lhs_bound
+                   else implicitsAs defs vars lhs_bound
 
          log 5 $ "Checking LHS of " ++ show !(getFullName (Resolved n)) ++
                  " " ++ show lhs
          logEnv 5 "In env" env
          let lhsMode = if trans
-                          then InExpr
+                          then InTransform
                           else InLHS mult
          (lhstm, lhstyg) <-
              wrapError (InLHS fc !(getFullName (Resolved n))) $

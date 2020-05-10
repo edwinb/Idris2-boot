@@ -365,7 +365,7 @@ updateTransforms : {auto c : Ref Ctxt Defs} ->
                    List (Name, Transform) -> Core ()
 updateTransforms [] = pure ()
 updateTransforms ((n, t) :: ts)
-    = do addT n t
+    = do addT !(toResolvedNames n) !(toResolvedNames t)
          updateTransforms ts
   where
     addT : Name -> Transform -> Core ()

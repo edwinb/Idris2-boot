@@ -96,6 +96,7 @@ elabTermSub : {vars : _} ->
 elabTermSub {vars} defining mode opts nest env env' sub tm ty
     = do let incase = elem InCase opts
          let inPE = elem InPartialEval opts
+         let inTrans = elem InTrans opts
 
          -- Record the current hole state; we only check the list of current
          -- holes is completely solved so this needs to be accurate.
@@ -154,11 +155,13 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
          chktm <- the (Core (Term vars)) $ case mode of
               InLHS _ => do when (not incase) $ checkUserHoles True
                             pure chktm
+              InTransform => do when (not incase) $ checkUserHoles True
+                                pure chktm
               -- elsewhere, all unification problems must be
               -- solved, though we defer that if it's a case block since we
               -- might learn a bit more later.
               _ => if (not incase)
-                      then do checkUserHoles inPE
+                      then do checkUserHoles (inTrans || inPE)
                               linearCheck (getFC tm) rigc False env chktm
                           -- Linearity checking looks in case blocks, so no
                           -- need to check here.
