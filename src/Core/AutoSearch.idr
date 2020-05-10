@@ -86,10 +86,15 @@ searchIfHole fc defaults trying ispair (S depth) def top env arg
 
          argdef <- searchType fc rig defaults trying depth def False top' env
                               !(normaliseScope defs env (argType arg))
-         vs <- unify inTerm fc env (metaApp arg) argdef
-         let [] = constraints vs
-              | _ => throw (CantSolveGoal fc [] top)
-         pure ()
+         logTermNF 5 "Solved arg" env argdef
+         logTermNF 5 "Arg meta" env (metaApp arg)
+         ok <- solveIfUndefined env (metaApp arg) argdef
+         if ok
+            then pure ()
+            else do vs <- unify inTerm fc env (metaApp arg) argdef
+                    let [] = constraints vs
+                        | _ => throw (CantSolveGoal fc [] top)
+                    pure ()
 
 successful : {vars : _} ->
              {auto c : Ref Ctxt Defs} ->
