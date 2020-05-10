@@ -11,6 +11,7 @@ import Core.LinearCheck
 import Core.Metadata
 import Core.Normalise
 import Core.Termination
+import Core.Transform
 import Core.Value
 import Core.UnifyState
 
@@ -589,7 +590,8 @@ mkRunTime n
     toErased fc spec (_ ** (env, lhs, rhs))
         = do lhs_erased <- linearCheck fc linear True env lhs
              -- Partially evaluate RHS here, where appropriate
-             rhs' <- applySpecialise env spec rhs
+             rhs' <- applyTransforms env rhs
+             rhs' <- applySpecialise env spec rhs'
              rhs_erased <- linearCheck fc linear True env rhs'
              pure (_ ** (env, lhs_erased, rhs_erased))
 

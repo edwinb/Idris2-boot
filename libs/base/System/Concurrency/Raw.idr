@@ -2,8 +2,6 @@ module System.Concurrency.Raw
 
 -- Mutexes and condition variables.
 
-%cg chicken (use srfi-18)
-
 export
 threadID : IO ThreadID
 threadID = schemeCall ThreadID "blodwen-thisthread" []

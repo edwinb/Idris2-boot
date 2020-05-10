@@ -513,7 +513,8 @@ newDef fc n rig vars ty vis def
 -- 'NF but we're working with terms rather than values...)
 public export
 data Transform : Type where
-     MkTransform : Name -> -- name for identifying the rule
+     MkTransform : {vars : _} ->
+                   Name -> -- name for identifying the rule
                    Env Term vars -> Term vars -> Term vars -> Transform
 
 export
@@ -808,7 +809,7 @@ record Defs where
      -- We don't look up anything in here, it's merely for saving out to TTC.
      -- We save the hints in the 'GlobalDef' itself for faster lookup.
   saveAutoHints : List (Name, Bool)
-  transforms : NameMap Transform
+  transforms : NameMap (List Transform)
      -- ^ A mapping from names to transformation rules which update applications
      -- of that name
   saveTransforms : List (Name, Transform)
@@ -1484,8 +1485,13 @@ addTransform fc t
          let Just fn = getFnName t
              | Nothing =>
                   throw (GenericMsg fc "LHS of a transformation must be a function application")
-         put Ctxt (record { transforms $= insert fn t,
-                            saveTransforms $= ((fn, t) ::) } defs)
+         case lookup fn (transforms defs) of
+              Nothing =>
+                 put Ctxt (record { transforms $= insert fn [t],
+                                    saveTransforms $= ((fn, t) ::) } defs)
+              Just ts =>
+                 put Ctxt (record { transforms $= insert fn (t :: ts),
+                                    saveTransforms $= ((fn, t) ::) } defs)
 
 export
 clearSavedHints : {auto c : Ref Ctxt Defs} -> Core ()

@@ -2,8 +2,6 @@ module System
 
 import Data.So
 
-%cg chicken (use posix)
-
 export
 sleep : Int -> IO ()
 sleep sec = schemeCall () "blodwen-sleep" [sec]

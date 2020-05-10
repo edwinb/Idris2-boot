@@ -365,9 +365,18 @@ updateTransforms : {auto c : Ref Ctxt Defs} ->
                    List (Name, Transform) -> Core ()
 updateTransforms [] = pure ()
 updateTransforms ((n, t) :: ts)
-    = do defs <- get Ctxt
-         put Ctxt (record { transforms $= insert n t } defs)
+    = do addT n t
          updateTransforms ts
+  where
+    addT : Name -> Transform -> Core ()
+    addT n t
+        = do defs <- get Ctxt
+             case lookup n (transforms defs) of
+                  Nothing =>
+                     put Ctxt (record { transforms $= insert n [t] } defs)
+                  Just ts =>
+                     put Ctxt (record { transforms $= insert n (t :: ts) } defs)
+
 
 getNSas : (String, (List String, Bool, List String)) ->
           (List String, List String)
