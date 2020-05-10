@@ -172,16 +172,14 @@ SIsNotZ Refl impossible
 
 export
 modNatNZ : Nat -> (y: Nat) -> Not (y = Z) -> Nat
-modNatNZ left Z         p = void (p Refl)
-modNatNZ left (S right) _ = mod' left left right
+modNatNZ left Z     p = void (p Refl)
+modNatNZ Z    _     _ = Z
+modNatNZ left right _ = mod' left
   where
-    mod' : Nat -> Nat -> Nat -> Nat
-    mod' Z        centre right = centre
-    mod' (S left) centre right =
-      if lte centre right then
-        centre
-      else
-        mod' left (minus centre (S right)) right
+    mod' : Nat -> Nat
+    mod' left with (lt left right)
+      mod' left | True = left
+      mod' left | False = mod' (minus left right)
 
 export
 modNat : Nat -> Nat -> Nat
@@ -189,16 +187,14 @@ modNat left (S right) = modNatNZ left (S right) SIsNotZ
 
 export
 divNatNZ : Nat -> (y: Nat) -> Not (y = Z) -> Nat
-divNatNZ left Z         p = void (p Refl)
-divNatNZ left (S right) _ = div' left left right
+divNatNZ left Z     p = void (p Refl)
+divNatNZ Z    _     _ = Z
+divNatNZ left right _ = div' left
   where
-    div' : Nat -> Nat -> Nat -> Nat
-    div' Z        centre right = Z
-    div' (S left) centre right =
-      if lte centre right then
-        Z
-      else
-        S (div' left (minus centre (S right)) right)
+    div' : Nat -> Nat
+    div' left with (lt left right)
+      div' left | True  = Z
+      div' left | False = S $ div' (minus left right)
 
 export
 divNat : Nat -> Nat -> Nat
