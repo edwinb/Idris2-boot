@@ -217,10 +217,14 @@ elabImplementation {vars} fc vis opts_in pass env nest is cons iname ps impln nu
                --    case of dependencies)
 
                -- 5. Elaborate the method bodies
-
-               body' <- traverse (updateBody (map methNameUpdate fns)) body
+               let upds = map methNameUpdate fns
+               body' <- traverse (updateBody upds) body
                log 10 $ "Implementation body: " ++ show body'
                traverse (processDecl [] nest env) body'
+
+               -- 6. Add transnformation rules for top level methods
+               traverse (addTransform impName upds) (methods cdata)
+
                -- Reset the open hints (remove the named implementation)
                setOpenHints hs
                pure ()) mbody
@@ -283,7 +287,8 @@ elabImplementation {vars} fc vis opts_in pass env nest is cons iname ps impln nu
     methName : Name -> Name
     methName (NS _ n) = methName n
     methName n
-        = DN (show n) (UN (show n ++ "_" ++ show iname ++ "_" ++
+        = DN (show n)
+             (UN (show n ++ "_" ++ show iname ++ "_" ++
                      maybe "" show impln ++ "_" ++
                      showSep "_" (map show ps)))
 
@@ -404,3 +409,24 @@ elabImplementation {vars} fc vis opts_in pass env nest is cons iname ps impln nu
     updateBody ns _
         = throw (GenericMsg fc
                    "Implementation body can only contain definitions")
+
+    addTransform : Name -> List (Name, Name) ->
+                   (Name, RigCount, Bool, RawImp) ->
+                   Core ()
+    addTransform iname ns (top, _, _, ty)
+        = do log 3 $ "Adding transform for " ++ show top ++ " : " ++ show ty ++
+                     "\n\tfor " ++ show iname ++ " in " ++ show ns
+             let lhs = IImplicitApp fc (IVar fc top)
+                                       (Just (UN "__con"))
+                                       (IVar fc iname)
+             let Just mname = lookup (dropNS top) ns
+                 | Nothing => pure ()
+             let rhs = IVar fc mname
+             log 5 $ show lhs ++ " ==> " ++ show rhs
+             handleUnify
+                 (processDecl [] nest env
+                     (ITransform fc (UN (show top ++ " " ++ show iname)) lhs rhs))
+                 (\err =>
+                     log 5 $ "Can't add transform " ++
+                                show lhs ++ " ==> " ++ show rhs ++
+                             "\n\t" ++ show err)

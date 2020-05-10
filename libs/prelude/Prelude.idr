@@ -1416,7 +1416,6 @@ Applicative IO where
           io_bind a (\a' =>
             io_pure (f' a')))
 
-%inline
 public export
 Monad IO where
   b >>= k = io_bind b k

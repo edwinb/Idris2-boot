@@ -108,8 +108,7 @@ trans env stk (Ref fc Func fn)
     = do defs <- get Ctxt
          case lookup fn (transforms defs) of
               Nothing => pure (unload stk (Ref fc Func fn))
-              Just ts => do fullapp <- normaliseHoles defs env
-                                            (unload stk (Ref fc Func fn))
+              Just ts => do let fullapp = unload stk (Ref fc Func fn)
                             let (u, tm') = apply ts fullapp
                             upd <- get Upd
                             put Upd (upd || u)
