@@ -62,16 +62,6 @@ Mac OS X users will want to build from source.
 **Note**: If you install ChezScheme from source files, building it locally, make sure
 you run `./configure --threads` to build multithreading support in.
 
-### Chicken
-
-Chicken Scheme offers binary distributions (and source tar balls) from
-
-+ https://code.call-cc.org/
-
-You can find chicken in many package managers.
-
-After installing chicken scheme you may need to install the 'numbers' package.
-
 ### Racket
 
 Racket is available from:
