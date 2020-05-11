@@ -1,6 +1,6 @@
 ##### Options which a user might set before building go here #####
 
-PREFIX ?= ${HOME}/.idris2
+export PREFIX ?= ${HOME}/.idris2
 
 # Add any optimisation/profiling flags for C here (e.g. -O2)
 export OPT=
@@ -48,7 +48,7 @@ ifeq ($(shell git status >/dev/null 2>&1; echo $$?), 0)
     endif
 endif
 
-IDRIS2_VERSION := ${MAJOR}.${MINOR}.${PATCH}
+export IDRIS2_VERSION := ${MAJOR}.${MINOR}.${PATCH}
 IDRIS2_VERSION_TAG := ${IDRIS2_VERSION}${VER_TAG}
 
 export IDRIS2_PATH = ${CURDIR}/libs/prelude/build/ttc:${CURDIR}/libs/base/build/ttc:${CURDIR}/libs/network/build/ttc
@@ -133,19 +133,23 @@ test:
 	idris --build tests.ipkg
 	@${MAKE} -C tests only=$(only)
 
+support:
+	@${MAKE} -C support/c
+
 install-all: install-exec install-support install-libs
 
 install: all install-all
 
 install-fromc: all-fromc install-all
 
-install-support:
+install-support: support
 	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chez
 	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/racket
 	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/gambit
 	install support/chez/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chez
 	install support/racket/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/racket
 	install support/gambit/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/gambit
+	@${MAKE} -C support/c install
 
 install-exec:
 	mkdir -p ${PREFIX}/bin
