@@ -383,17 +383,16 @@ count : List.Elem x xs -> Int
 count Here = 0
 count (There p) = 1 + count p
 
-toLimbs : Integer -> List Int
+toLimbs : Integer -> List Bits8
 toLimbs x
     = if x == 0
          then []
-         else if x == -1 then [-1]
-              else fromInteger (prim__andBigInt x 0xffffffff) ::
-                    toLimbs (prim__ashrBigInt x 32)
+         else fromInteger (prim__andBigInt x 0xff) ::
+              toLimbs (prim__ashrBigInt x 8)
 
-fromLimbs : List Int -> Integer
+fromLimbs : List Bits8 -> Integer
 fromLimbs [] = 0
-fromLimbs (x :: xs) = cast x + prim__shlBigInt (fromLimbs xs) 32
+fromLimbs (x :: xs) = prim__zextB8_BigInt x + prim__shlBigInt (fromLimbs xs) 8
 
 export
 TTC Integer where
