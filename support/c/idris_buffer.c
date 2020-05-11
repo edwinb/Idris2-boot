@@ -1,4 +1,5 @@
 #include "idris_buffer.h"
+#include <sys/stat.h>
 #include <string.h>
 
 typedef struct {
@@ -123,6 +124,41 @@ char* idris2_getBufferString(void* buffer, int loc, int len) {
     return rs;
 }
 
+void* idris2_readBufferFromFile(char* fn) {
+    FILE* f = fopen(fn, "r");
+    if (f == NULL) { return NULL; }
+
+    int fd = fileno(f);
+    int len;
+
+    struct stat fbuf;
+    if (fstat(fd, &fbuf) == 0) {
+        len = (int)(fbuf.st_size);
+    } else {
+        return NULL;
+    }
+
+    size_t size = sizeof(Buffer) + len*sizeof(uint8_t);
+    Buffer* buf = malloc(size);
+    buf->size = len;
+
+    fread((buf->data), sizeof(uint8_t), (size_t)len, f);
+    fclose(f);
+    return buf;
+}
+
+int idris2_writeBufferToFile(char* fn, void* buffer, int max) {
+    Buffer* b = buffer;
+    FILE* f = fopen(fn, "w");
+    if (f == NULL) { return 0; }
+
+    fwrite((b->data), sizeof(uint8_t), max, f);
+    fclose(f);
+    return -1;
+}
+
+// To be added when the file API has moved to the C support libs
+/*
 int idris2_readBuffer(FILE* h, void* buffer, int loc, int max) {
     Buffer* b = buffer;
     size_t len;
@@ -148,3 +184,4 @@ void idris2_writeBuffer(FILE* h, void* buffer, int loc, int len) {
         fwrite((b->data)+loc, sizeof(uint8_t), len, h);
     }
 }
+*/

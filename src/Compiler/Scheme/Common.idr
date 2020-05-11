@@ -366,7 +366,7 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
         = do tcode <- schExp (i+1) sc
              defc <- maybe (pure Nothing) (\v => pure (Just !(schExp i v))) def
              let n = "sc" ++ show i
-             pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) (case (get-tag " ++ n ++ ") "
+             pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) (case (vector-ref " ++ n ++ " 0) "
                      ++ showSep " " !(traverse (schConAlt (i+1) n) alts)
                      ++ schCaseDef defc ++ "))"
     schExp i (NmConstCase fc sc alts def)

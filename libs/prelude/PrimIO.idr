@@ -19,6 +19,7 @@ export
 prim_io_pure : a -> PrimIO a
 prim_io_pure x = \w => MkIORes x w
 
+%inline
 export
 io_pure : a -> IO a
 io_pure x = MkIO (\w => MkIORes x w)
@@ -28,7 +29,6 @@ prim_io_bind : (1 act : PrimIO a) -> (1 k : a -> PrimIO b) -> PrimIO b
 prim_io_bind fn k w
     = let MkIORes x' w' = fn w in k x' w'
 
-%inline
 export
 io_bind : (1 act : IO a) -> (1 k : a -> IO b) -> IO b
 io_bind (MkIO fn)

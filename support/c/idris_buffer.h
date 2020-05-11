@@ -18,8 +18,12 @@ void idris2_setBufferString(void* buffer, int loc, char* str);
 void idris2_copyBuffer(void* from, int start, int len,
                        void* to, int loc);
 
-int idris2_readBuffer(FILE* h, void* buffer, int loc, int max);
-void idris2_writeBuffer(FILE* h, void* buffer, int loc, int len);
+void* idris2_readBufferFromFile(char* fn);
+int idris2_writeBufferToFile(char* fn, void* buffer, int max);
+
+// To be added when the file API has moved to the C support libs
+// int idris2_readBuffer(FILE* h, void* buffer, int loc, int max);
+// void idris2_writeBuffer(FILE* h, void* buffer, int loc, int len);
 
 int idris2_getBufferByte(void* buffer, int loc);
 int idris2_getBufferInt(void* buffer, int loc);
