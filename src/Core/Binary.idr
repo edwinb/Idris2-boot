@@ -205,7 +205,7 @@ readTTCFile modns as b
            checkTTCVersion (show modns) ver ttcVersion
            ifaceHash <- fromBuf b
            importHashes <- fromBuf b
-           defs <- logTime ("Definitions " ++ show modns) $ fromBuf b
+           defs <- fromBuf b
            uholes <- fromBuf b
            autohs <- fromBuf b
            typehs <- fromBuf b
@@ -412,8 +412,7 @@ readFromTTC loc reexp fname modNS importAs
          let as = if importAs == modNS
                      then Nothing
                      else Just importAs
-         ttc <- logTime ("Read file " ++ show modNS) $
-                  readTTCFile modNS as bin
+         ttc <- readTTCFile modNS as bin
 
          -- If it's already imported, but without reexporting, then all we're
          -- interested in is returning which other modules to load.

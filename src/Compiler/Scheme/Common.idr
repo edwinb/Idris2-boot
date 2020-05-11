@@ -362,6 +362,20 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
              let n = "sc" ++ show i
              pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) " ++
                     !(schConUncheckedAlt (i+1) n alt) ++ ")"
+    schExp i (NmConCase fc sc alts Nothing)
+        = do tcode <- schExp (i+1) sc
+             let n = "sc" ++ show i
+             pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) (case (vector-ref " ++ n ++ " 0) "
+                     ++ !(showAlts n alts) ++
+                     "))"
+      where
+        showAlts : String -> List NamedConAlt -> Core String
+        showAlts n [] = pure ""
+        showAlts n [alt]
+           = pure $ "(else " ++ !(schConUncheckedAlt (i + 1) n alt) ++ ")"
+        showAlts n (alt :: alts)
+           = pure $ !(schConAlt (i + 1) n alt) ++ " " ++
+                    !(showAlts n alts)
     schExp i (NmConCase fc sc alts def)
         = do tcode <- schExp (i+1) sc
              defc <- maybe (pure Nothing) (\v => pure (Just !(schExp i v))) def
@@ -369,6 +383,20 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
              pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) (case (vector-ref " ++ n ++ " 0) "
                      ++ showSep " " !(traverse (schConAlt (i+1) n) alts)
                      ++ schCaseDef defc ++ "))"
+    schExp i (NmConstCase fc sc alts Nothing)
+        = do tcode <- schExp (i+1) sc
+             let n = "sc" ++ show i
+             pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) (cond "
+                      ++ !(showConstAlts n alts)
+                      ++ "))"
+      where
+        showConstAlts : String -> List NamedConstAlt -> Core String
+        showConstAlts n [] = pure ""
+        showConstAlts n [MkNConstAlt c exp]
+           = pure $ "(else " ++ !(schExp (i + 1) exp) ++ ")"
+        showConstAlts n (alt :: alts)
+           = pure $ !(schConstAlt (i + 1) n alt) ++ " " ++
+                    !(showConstAlts n alts)
     schExp i (NmConstCase fc sc alts def)
         = do defc <- maybe (pure Nothing) (\v => pure (Just !(schExp i v))) def
              tcode <- schExp (i+1) sc

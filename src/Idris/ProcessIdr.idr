@@ -65,8 +65,7 @@ readModule top loc vis reexp imp as
              | True => when vis (setVisible imp)
          Right fname <- nsToPath loc imp
                | Left err => throw err
-         Just (syn, hash, more) <- logTime ("Reading " ++ show imp) $
-                                         readFromTTC {extra = SyntaxInfo}
+         Just (syn, hash, more) <- readFromTTC {extra = SyntaxInfo}
                                                   loc vis fname imp as
               | Nothing => when vis (setVisible imp) -- already loaded, just set visibility
          extendAs imp as syn
@@ -319,11 +318,9 @@ process buildmsg file
                         do defs <- get Ctxt
                            d <- getDirs
                            makeBuildDirectory (pathToNS (working_dir d) (source_dir d) file)
-                           logTime ("Writing TTC for " ++ file) $
-                               writeToTTC !(get Syn) ttcf
+                           writeToTTC !(get Syn) ttcf
                            ttmf <- getTTCFileName file ".ttm"
-                           logTime ("Writing TTM for " ++ file) $
-                               writeToTTM ttmf
+                           writeToTTM ttmf
                            pure []
                       else do pure errs)
                (\err => pure [err])

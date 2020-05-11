@@ -69,7 +69,7 @@ schHeader chez libs
     "  [(i3nt ti3nt a6nt ta6nt) (load-shared-object \"msvcrt.dll\")]\n" ++
     "  [else (load-shared-object \"libc.so\")])\n\n" ++
     showSep "\n" (map (\x => "(load-shared-object \"" ++ escapeQuotes x ++ "\")") libs) ++ "\n\n" ++
-    "(optimize-level 3) (let ()\n"
+    "(let ()\n"
 
 schFooter : String
 schFooter = ")"
