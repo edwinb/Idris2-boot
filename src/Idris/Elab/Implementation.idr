@@ -137,8 +137,8 @@ elabImplementation {vars} fc vis opts_in pass env nest is cons iname ps impln nu
          -- given when using named implementations
          --    (cs : Constraints) -> Impl params
          -- Don't make it a hint if it's a named implementation
-         let opts = maybe (opts_in ++ [Inline, Hint True])
-                          (const (opts_in ++ [Inline])) impln
+         let opts = maybe ([Inline, Hint True])
+                          (const ([Inline])) impln
 
          let initTy = bindImpls fc is $ bindConstraints fc AutoImplicit cons
                          (apply (IVar fc iname) ps)

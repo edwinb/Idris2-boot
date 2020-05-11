@@ -265,6 +265,32 @@ schArglist [] = ""
 schArglist [x] = schName x
 schArglist (x :: xs) = schName x ++ " " ++ schArglist xs
 
+mutual
+  used : Name -> NamedCExp -> Bool
+  used n (NmLocal fc n') = n == n'
+  used n (NmRef _ _) = False
+  used n (NmLam _ _ sc) = used n sc
+  used n (NmLet _ _ v sc) = used n v || used n sc
+  used n (NmApp _ f args) = used n f || or (map Delay (map (used n) args))
+  used n (NmCon _ _ _ args) = or (map Delay (map (used n) args))
+  used n (NmOp _ _ args) = or (map Delay (toList (map (used n) args)))
+  used n (NmExtPrim _ _ args) = or (map Delay (map (used n) args))
+  used n (NmForce _ t) = used n t
+  used n (NmDelay _ t) = used n t
+  used n (NmConCase _ sc alts def)
+      = used n sc || or (map Delay (map (usedCon n) alts))
+            || maybe False (used n) def
+  used n (NmConstCase _ sc alts def)
+      = used n sc || or (map Delay (map (usedConst n) alts))
+            || maybe False (used n) def
+  used n _ = False
+
+  usedCon : Name -> NamedConAlt -> Bool
+  usedCon n (MkNConAlt _ _ _ sc) = used n sc
+
+  usedConst : Name -> NamedConstAlt -> Bool
+  usedConst n (MkNConstAlt _ sc) = used n sc
+
 parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
             schString : String -> String)
   mutual
@@ -276,8 +302,22 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
         bindArgs : Int -> (ns : List Name) -> String -> String
         bindArgs i [] body = body
         bindArgs i (n :: ns) body
-            = "(let ((" ++ schName n ++ " " ++ "(vector-ref " ++ target ++ " " ++ show i ++ "))) "
+            = if used n sc
+                 then "(let ((" ++ schName n ++ " " ++ "(vector-ref " ++ target ++ " " ++ show i ++ "))) "
                     ++ bindArgs (i + 1) ns body ++ ")"
+                 else bindArgs (i + 1) ns body
+
+    schConUncheckedAlt : Int -> String -> NamedConAlt -> Core String
+    schConUncheckedAlt i target (MkNConAlt n tag args sc)
+        = pure $ bindArgs 1 args !(schExp i sc)
+      where
+        bindArgs : Int -> (ns : List Name) -> String -> String
+        bindArgs i [] body = body
+        bindArgs i (n :: ns) body
+            = if used n sc
+                 then "(let ((" ++ schName n ++ " " ++ "(vector-ref " ++ target ++ " " ++ show i ++ "))) "
+                    ++ bindArgs (i + 1) ns body ++ ")"
+                 else bindArgs (i + 1) ns body
 
     schConstAlt : Int -> String -> NamedConstAlt -> Core String
     schConstAlt i target (MkNConstAlt c exp)
@@ -317,6 +357,11 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
              let n = "sc" ++ show i
              pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) "
                      ++ defc ++ ")"
+    schExp i (NmConCase fc sc [alt] Nothing)
+        = do tcode <- schExp (i+1) sc
+             let n = "sc" ++ show i
+             pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) " ++
+                    !(schConUncheckedAlt (i+1) n alt) ++ ")"
     schExp i (NmConCase fc sc alts def)
         = do tcode <- schExp (i+1) sc
              defc <- maybe (pure Nothing) (\v => pure (Just !(schExp i v))) def
