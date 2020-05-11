@@ -1,6 +1,11 @@
 1/1: Building Do (Do.idr)
-Main> Just (S (S (S Z)))
-Main> Just Z
-Main> Just (S (S (S Z)))
-Main> Just Z
-Main> Bye for now!
+Main> mPatBind (Just (S Z)) (Just (S (S Z)))
+Just (S (S (S Z)))
+Main> mPatBind (Just (S Z)) Nothing
+Just Z
+Main> mLetBind (Just (S Z)) (Just (S (S Z)))
+Just (S (S (S Z)))
+Main> mLetBind (Just (S Z)) Nothing
+Just Z
+Main> :q
+Bye for now!

@@ -1,10 +1,20 @@
 1/1: Building using (using.idr)
-Main> Main.foo : Show a => Eq a => a -> String
-Main> "9494"
-Main> Main.bar : Int -> Int
-Main> 20
-Main> Main.needle : Test a b => a -> b -> ()
-Main> Main.nardle : Test a b => a -> ()
-Main> Main.noo : Test a b => b -> ()
-Main> Main> Main.baz : {0 a : Type} -> {0 n : Nat} -> {0 xs : Vect n a} -> === {a = Vect n a} xs xs
-Main> Bye for now!
+Main> :t foo
+Main.foo : Show a => Eq a => a -> String
+Main> foo 94
+"9494"
+Main> :t bar
+Main.bar : Int -> Int
+Main> bar 10
+20
+Main> :t needle
+Main.needle : Test a b => a -> b -> ()
+Main> :t nardle
+Main.nardle : Test a b => a -> ()
+Main> :t noo
+Main.noo : Test a b => b -> ()
+Main> :set showimplicits
+Main> :t baz
+Main.baz : {0 a : Type} -> {0 n : Nat} -> {0 xs : Vect n a} -> === {a = Vect n a} xs xs
+Main> :q
+Bye for now!

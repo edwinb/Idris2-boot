@@ -1,8 +1,14 @@
 1/2: Building Stuff (Stuff.idr)
 2/2: Building DoLocal (DoLocal.idr)
-Main> Just 1
-Main> Just 0
-Main> Just 94
-Main> Nothing
-Main> Nothing
-Main> Bye for now!
+Main> mthings (Just (Just 20)) (Just Nothing)
+Just 1
+Main> mthings (Just Nothing) (Just (Just 54))
+Just 0
+Main> mthings (Just (Just 20)) (Just (Just 54))
+Just 94
+Main> mthings (Just (Just 20)) Nothing
+Nothing
+Main> mthings Nothing (Just (Just 54))
+Nothing
+Main> :q
+Bye for now!

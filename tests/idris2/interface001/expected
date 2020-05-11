@@ -1,10 +1,14 @@
 1/2: Building Stuff (Stuff.idr)
 2/2: Building IFace (IFace.idr)
-IFace> True
-IFace> False
-IFace> Bye for now!
+IFace> v1 == v1
+True
+IFace> v1 == v2
+False
+IFace> :q
+Bye for now!
 2/2: Building IFace1 (IFace1.idr)
-IFace1>  0 a : Type
+IFace1> :t foo
+ 0 a : Type
  0 p : a -> Type
    l : a
    r' : p l
@@ -12,4 +16,5 @@ IFace1>  0 a : Type
    l' : a
 -------------------------------------
 foo : Bool
-IFace1> Bye for now!
+IFace1> :q
+Bye for now!

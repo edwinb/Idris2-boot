@@ -1,5 +1,9 @@
 1/1: Building Total (Total.idr)
-Main> Main.noFinZ: All cases covered
-Main> Main.noFinZ': All cases covered
-Main> Main.noEmpty: All cases covered
-Main> Bye for now!
+Main> :missing noFinZ
+Main.noFinZ: All cases covered
+Main> :missing noFinZ'
+Main.noFinZ': All cases covered
+Main> :missing noEmpty
+Main.noEmpty: All cases covered
+Main> :q
+Bye for now!

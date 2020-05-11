@@ -1,8 +1,10 @@
 1/2: Building Stuff (Stuff.idr)
 2/2: Building LetCase (LetCase.idr)
-Main>    y : Nat
+Main> :t foo
+   y : Nat
    res : Nat
    x : Nat
 -------------------------------------
 foo : IsSuc y
-Main> Bye for now!
+Main> :q
+Bye for now!

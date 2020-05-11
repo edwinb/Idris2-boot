@@ -1,9 +1,17 @@
 1/1: Building Total (Total.idr)
-Main> Main.Bad is not strictly positive
-Main> Main.Bad1 is not strictly positive
-Main> Main.Bad2 is possibly not terminating due to call to Main.Bad1
-Main> Main.foo is possibly not terminating due to call to Main.MkBad'
-Main> Main.foo2 is possibly not terminating due to call to Main.MkBad'
-Main> Main.T is not strictly positive
-Main> Main.T2 is possibly not terminating due to call to Main.T
-Main> Bye for now!
+Main> :total Bad
+Main.Bad is not strictly positive
+Main> :total Bad1
+Main.Bad1 is not strictly positive
+Main> :total Bad2
+Main.Bad2 is possibly not terminating due to call to Main.Bad1
+Main> :total foo
+Main.foo is possibly not terminating due to call to Main.MkBad'
+Main> :total foo2
+Main.foo2 is possibly not terminating due to call to Main.MkBad'
+Main> :total T
+Main.T is not strictly positive
+Main> :total T2
+Main.T2 is possibly not terminating due to call to Main.T
+Main> :q
+Bye for now!

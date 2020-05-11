@@ -1,5 +1,7 @@
-1
-1
-1
 1/1: Building Nat (Nat.idr)
-Main> Main> Bye for now!
+Main> :exec main
+1
+1
+1
+Main> :q
+Bye for now!

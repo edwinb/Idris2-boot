@@ -1,2 +1,4 @@
-Main> 1.5
-Main> Bye for now!
+Main> 3.5 - 2.0
+1.5
+Main> :q
+Bye for now!

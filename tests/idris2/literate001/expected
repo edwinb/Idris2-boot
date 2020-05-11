@@ -1,8 +1,14 @@
 1/1: Building IEdit (IEdit.lidr)
-Main> > append {n = 0} [] ys = ?foo_1
+Main> :cs 8 14 xs
+> append {n = 0} [] ys = ?foo_1
 > append {n = (S k)} (x :: xs) ys = ?foo_2
-Main> > vadd [] [] = ?bar_1
-Main> > vadd (x :: xs) (y :: ys) = ?baz_1
-Main> > suc x x Refl = ?quux_1
-Main> > suc' {x = y} {y = y} Refl = ?quuz_1
-Main> Bye for now!
+Main> :cs 11 11 ys
+> vadd [] [] = ?bar_1
+Main> :cs 12 18 ys
+> vadd (x :: xs) (y :: ys) = ?baz_1
+Main> :cs 15 12 prf
+> suc x x Refl = ?quux_1
+Main> :cs 18 16 prf
+> suc' {x = y} {y = y} Refl = ?quuz_1
+Main> :q
+Bye for now!

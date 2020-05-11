@@ -1,3 +1,5 @@
+1/1: Building TypeCase (TypeCase.idr)
+Main> :exec main
 "Nat"
 "List of Nat"
 "List of Something else"
@@ -9,11 +11,13 @@
 "List of Int"
 43
 42
-1/1: Building TypeCase (TypeCase.idr)
-Main> Main> Main.strangeId is total
-Main> Main.strangeId':
+Main> :total strangeId
+Main.strangeId is total
+Main> :missing strangeId'
+Main.strangeId':
 strangeId' _
-Main> Bye for now!
+Main> :q
+Bye for now!
 1/1: Building TypeCase2 (TypeCase2.idr)
 TypeCase2.idr:5:14--5:17:While processing left hand side of strangeId at TypeCase2.idr:5:1--6:1:
 Can't match on Nat (Erased argument)

@@ -1,4 +1,6 @@
 1/1: Building IEdit (IEdit.lidr)
-Main> > transposeHelper [] [] = []
+Main> :gd 7 transposeHelper
+> transposeHelper [] [] = []
 > transposeHelper (x :: xs) (y :: ys) = (x :: y) :: transposeHelper xs ys
-Main> Bye for now!
+Main> :q
+Bye for now!

@@ -1,3 +1,5 @@
 1/1: Building Vending (Vending.idr)
-Main> Main.runMachine: All cases covered
-Main> Bye for now!
+Main> :missing runMachine
+Main.runMachine: All cases covered
+Main> :q
+Bye for now!

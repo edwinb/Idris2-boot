@@ -1,4 +1,7 @@
 1/1: Building LocType (LocType.idr)
-Main> Main.Vect : Nat -> Type -> Type
-Main> xs : Vect k a
-Main> Bye for now!
+Main> :typeat 1 7 Vect
+Main.Vect : Nat -> Type -> Type
+Main> :typeat 7 36 xs
+xs : Vect k a
+Main> :q
+Bye for now!

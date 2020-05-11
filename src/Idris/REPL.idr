@@ -45,6 +45,8 @@ import TTImp.ProcessDecls
 import Control.Catchable
 import Data.NameMap
 
+import Text.Readline
+
 import System
 
 %default covering
@@ -794,16 +796,14 @@ mutual
   repl
       = do ns <- getNS
            opts <- get ROpts
-           coreLift (putStr (prompt (evalMode opts) ++ showSep "." (reverse ns) ++ "> "))
-           inp <- coreLift getLine
-           end <- coreLift $ fEOF stdin
-           if end
-             then do
-               -- start a new line in REPL mode (not relevant in IDE mode)
-               coreLift $ putStrLn ""
-               iputStrLn "Bye for now!"
-              else do res <- interpret inp
-                      handleResult res
+           Just inp <- coreLift $ readline $ prompt (evalMode opts) ++ showSep "." (reverse ns) ++ "> "
+             | Nothing => do
+                -- start a new line in REPL mode (not relevant in IDE mode)
+                coreLift $ putStrLn ""
+                iputStrLn "Bye for now!"
+           coreLift $ addHistory inp
+           res <- interpret inp
+           handleResult res
 
     where
       prompt : REPLEval -> String

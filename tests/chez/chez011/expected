@@ -1,8 +1,15 @@
-5
-"12"
-True
-False
 1/1: Building bangs (bangs.idr)
-Main> Just 7
-Main> Just 7
-Main> Main> Main> Main> Main> Bye for now!
+Main> addm1 (Just 3) (Just 4)
+Just 7
+Main> addm2 (Just 3) (Just 4)
+Just 7
+Main> :exec printThing1
+5
+Main> :exec printThing2
+"12"
+Main> :exec printBool True
+True
+Main> :exec printBool False
+False
+Main> :q
+Bye for now!

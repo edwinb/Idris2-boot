@@ -1,6 +1,10 @@
 1/2: Building Stuff (Stuff.idr)
 2/2: Building Wheres (Wheres.idr)
-Wheres> [3, 2, 1]
-Wheres> 8
-Wheres> 84
-Wheres> Bye for now!
+Wheres> reverse (1 :: 2 :: 3 :: Nil)
+[3, 2, 1]
+Wheres> foo 4
+8
+Wheres> foo 21
+84
+Wheres> :q
+Bye for now!
