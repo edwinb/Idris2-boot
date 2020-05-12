@@ -62,7 +62,7 @@ VALID_IDRIS_VERSION_REGEXP = "1.3.2.*"
 
 .PHONY: ttimp idris2 idris2-fromc prelude test base clean lib_clean check_version idris2c dist/idris2.c
 
-all: idris2 libs test
+all: idris2 libs install-support test
 
 # test requires an Idris install! Maybe we should do a version in Idris2?
 all-fromc: idris2-fromc libs
