@@ -23,7 +23,7 @@ Uninhabited (IsJust Nothing) where
 public export
 isItJust : (v : Maybe a) -> Dec (IsJust v)
 isItJust (Just x) = Yes ItIsJust
-isItJust Nothing = No absurd
+isItJust Nothing = No (\ prf => absurd prf)
 
 ||| Convert a `Maybe a` value to an `a` value by providing a default `a` value
 ||| in the case that the `Maybe` value is `Nothing`.

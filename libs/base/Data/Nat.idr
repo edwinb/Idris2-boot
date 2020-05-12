@@ -28,7 +28,7 @@ Uninhabited (IsSucc Z) where
 
 public export
 isItSucc : (n : Nat) -> Dec (IsSucc n)
-isItSucc Z = No absurd
+isItSucc Z = No (\ prf => absurd prf)
 isItSucc (S n) = Yes ItIsSucc
 
 public export
