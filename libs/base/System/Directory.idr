@@ -3,37 +3,46 @@ module System.Directory
 import public System.File
 
 public export
-data DirPtr : Type where
+DirPtr : Type
+DirPtr = AnyPtr
 
-toFileError : Int -> FileError
-toFileError 1 = FileReadError
-toFileError 2 = FileWriteError
-toFileError 3 = FileNotFound
-toFileError 4 = PermissionDenied
-toFileError 5 = FileExists
-toFileError x = GenericFileError (x - 256)
+support : String -> String
+support fn = "C:" ++ fn ++ ", libidris2_support"
 
-fpure : Either Int a -> IO (Either FileError a)
-fpure (Left err) = pure (Left (toFileError err))
-fpure (Right x) = pure (Right x)
+%foreign support "idris2_fileErrno"
+prim_fileErrno : PrimIO Int
 
-%foreign "scheme:blodwen-current-directory"
-prim_currentDir : PrimIO String
+returnError : IO (Either FileError a)
+returnError
+    = do err <- primIO prim_fileErrno
+         case err of
+              0 => pure $ Left FileReadError
+              1 => pure $ Left FileWriteError
+              2 => pure $ Left FileNotFound
+              3 => pure $ Left PermissionDenied
+              4 => pure $ Left FileExists
+              _ => pure $ Left (GenericFileError (err-5))
 
-%foreign "scheme:blodwen-change-directory"
+ok : a -> IO (Either FileError a)
+ok x = pure (Right x)
+
+%foreign support "idris2_currentDirectory"
+prim_currentDir : PrimIO (Ptr String)
+
+%foreign support "idris2_changeDir"
 prim_changeDir : String -> PrimIO Int
 
-%foreign "scheme:blodwen-create-directory"
-prim_createDir : String -> PrimIO (Either Int ())
+%foreign support "idris2_createDir"
+prim_createDir : String -> PrimIO Int
 
-%foreign "scheme:blodwen-open-directory"
-prim_openDir : String -> PrimIO (Either Int DirPtr)
+%foreign support "idris2_dirOpen"
+prim_openDir : String -> PrimIO DirPtr
 
-%foreign "scheme:blodwen-close-directory"
+%foreign support "idris2_dirClose"
 prim_closeDir : DirPtr -> PrimIO ()
 
-%foreign "scheme:blodwen-next-dir-entry"
-prim_dirEntry : DirPtr -> PrimIO (Either Int String)
+%foreign support "idris2_nextDirEntry"
+prim_dirEntry : DirPtr -> PrimIO (Ptr String)
 
 export
 data Directory : Type where
@@ -42,8 +51,10 @@ data Directory : Type where
 export
 createDir : String -> IO (Either FileError ())
 createDir dir
-    = do ok <- primIO (prim_createDir dir)
-         fpure ok
+    = do res <- primIO (prim_createDir dir)
+         if res == 0
+            then ok ()
+            else returnError
 
 export
 changeDir : String -> IO Bool
@@ -52,14 +63,20 @@ changeDir dir
          pure (ok /= 0)
 
 export
-currentDir : IO String
-currentDir = primIO prim_currentDir
+currentDir : IO (Maybe String)
+currentDir
+    = do res <- primIO prim_currentDir
+         if prim__nullPtr res /= 0
+            then pure Nothing
+            else pure (Just (prim__getString res))
 
 export
 dirOpen : String -> IO (Either FileError Directory)
 dirOpen d
     = do res <- primIO (prim_openDir d)
-         fpure (map MkDir res)
+         if prim__nullAnyPtr res /= 0
+            then returnError
+            else ok (MkDir res)
 
 export
 dirClose : Directory -> IO ()
@@ -69,4 +86,6 @@ export
 dirEntry : Directory -> IO (Either FileError String)
 dirEntry (MkDir d)
     = do res <- primIO (prim_dirEntry d)
-         fpure res
+         if prim__nullPtr res /= 0
+            then returnError
+            else ok (prim__getString res)

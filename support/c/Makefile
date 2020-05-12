@@ -3,7 +3,9 @@ DYLIBTARGET = libidris2_support.so
 
 .PHONY: build clean install
 
-OBJS = getline.o idris_buffer.o idris_file.o idris_support.o
+OBJS = getline.o idris_buffer.o idris_directory.o idris_file.o \
+       idris_support.o
+
 CFLAGS := -fPIC -O2 ${CFLAGS}
 
 build : $(LIBTARGET) $(DYLIBTARGET)

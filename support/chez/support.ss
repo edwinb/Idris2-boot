@@ -73,46 +73,6 @@
                 chr))
         void))
 
-;; Directories
-
-(define (blodwen-error-code x)
-    (cond
-        ((i/o-read-error? x) 1)
-        ((i/o-write-error? x) 2)
-        ((i/o-file-does-not-exist-error? x) 3)
-        ((i/o-file-protection-error? x) 4)
-        (else 255)))
-
-(define (blodwen-file-op op)
-  (guard
-    (x ((i/o-error? x) (either-left (blodwen-error-code x))))
-    (either-right (op))))
-
-(define (blodwen-current-directory)
-  (current-directory))
-
-(define (blodwen-change-directory dir)
-  (if (file-directory? dir)
-      (begin (current-directory dir) 1)
-      0))
-
-(define (blodwen-create-directory dir)
-  (blodwen-file-op (lambda () (mkdir dir) 0)))
-
-; Scheme only gives a primitive for reading all the files in a directory,
-; so this is faking the C interface!
-(define (blodwen-open-directory dir)
-  (blodwen-file-op (lambda () (box (directory-list dir)))))
-
-(define (blodwen-close-directory dir) '()) ; no-op, it's not really open
-
-(define (blodwen-next-dir-entry dir)
-  (let [(dlist (unbox dir))]
-    (if (null? dlist)
-      (either-left 255)
-      (begin (set-box! dir (cdr dlist))
-             (either-right (car dlist))))))
-
 ;; Threads
 
 (define blodwen-thread-data (make-thread-parameter #f))

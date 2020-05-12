@@ -81,29 +81,6 @@
         (if (eof-object? chr) #\null chr))
       #\null))
 
-;; Directories
-
-(define blodwen-current-directory current-directory)
-
-(define (blodwen-change-directory dir)
-  (with-exception-catcher
-    (lambda (e) 0)
-    (lambda () (current-directory dir) 1)))
-
-(define (blodwen-create-directory dir)
-  (blodwen-file-op (lambda () (create-directory dir) 0)))
-
-(define (blodwen-open-directory dir)
-  (blodwen-file-op (lambda () (open-directory dir))))
-
-(define blodwen-close-directory close-input-port)
-
-(define (blodwen-next-dir-entry dir)
-  (let ((e (read dir)))
-    (if (eof-object? e)
-        (either-left 255)
-        (either-right e))))
-
 ;; Threads
 
 (define (blodwen-thread p)
