@@ -144,7 +144,7 @@ elabRecord {vars} eopts fc env nest newns vis tn params conName_in fields
                    processDecl [] nest env
                        (IClaim fc (if isErased rc
                                       then erased
-                                      else top) vis [] (MkImpTy fc projNameNS projTy))
+                                      else top) vis [Inline] (MkImpTy fc projNameNS projTy))
 
                    -- Define the LHS and RHS
                    let lhs_exp

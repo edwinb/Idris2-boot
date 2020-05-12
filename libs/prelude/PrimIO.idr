@@ -29,12 +29,17 @@ prim_io_bind : (1 act : PrimIO a) -> (1 k : a -> PrimIO b) -> PrimIO b
 prim_io_bind fn k w
     = let MkIORes x' w' = fn w in k x' w'
 
+-- There's a special case for inlining this is Compiler.Inline, because
+-- the inliner is cautious about case blocks at the moment. Once it's less
+-- cautious, add an explicit %inline directive and take out the special case.
+-- See also dealing with the newtype optimisation via %World in
+-- Compiler.CompileExpr
 export
 io_bind : (1 act : IO a) -> (1 k : a -> IO b) -> IO b
-io_bind (MkIO fn)
-    = \k => MkIO (\w => let MkIORes x' w' = fn w
-                            MkIO res = k x' in
-                            res w')
+io_bind (MkIO fn) k
+    = MkIO (\w => let MkIORes x' w' = fn w
+                      MkIO res = k x' in
+                      res w')
 
 %extern prim__putStr : String -> (1 x : %World) -> IORes ()
 %extern prim__getStr : (1 x : %World) -> IORes String

@@ -220,6 +220,12 @@ getCompileData tm_in
          logTime "Inline" $ traverse_ inlineDef cns
          logTime "Merge lambda" $ traverse_ mergeLamDef cns
          logTime "Fix arity" $ traverse_ fixArityDef cns
+         -- Do another round, since merging lambdas might expose more
+         -- optimisation opportunities, especially a really important one
+         -- for io_bind.
+         logTime "Inline" $ traverse_ inlineDef cns
+         logTime "Merge lambda" $ traverse_ mergeLamDef cns
+         logTime "Fix arity" $ traverse_ fixArityDef cns
          logTime "Forget names" $ traverse_ mkForgetDef cns
 
          compiledtm <- fixArityExp !(compileExp tycontags tm)

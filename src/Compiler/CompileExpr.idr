@@ -352,21 +352,28 @@ mutual
                 -- outside world, so we need to evaluate to keep the
                 -- side effect.
                 Just (DCon _ arity (Just (noworld, pos))) =>
-                     if noworld -- just substitute the scrutinee into
-                                -- the RHS
-                        then let env : SubstCEnv args vars
+-- FIXME: We don't need the commented out bit *for now* because io_bind
+-- isn't being inlined, but it does need to be a little bit cleverer to
+-- get the best performance.
+-- I'm (edwinb) keeping it visible here because I plan to put it back in
+-- more or less this form once case inlining works better and the whole thing
+-- works in a nice principled way.
+--                      if noworld -- just substitute the scrutinee into
+--                                 -- the RHS
+--                         then 
+                             let env : SubstCEnv args vars
                                      = mkSubst 0 scr pos args in
                                  pure $ Just (substs env !(toCExpTree tags n sc))
-                        else -- let bind the scrutinee, and substitute the
-                             -- name into the RHS
-                             let env : SubstCEnv args (MN "eff" 0 :: vars)
-                                     = mkSubst 0 (CLocal fc First) pos args in
-                             do sc' <- toCExpTree tags n sc
-                                let scope = thin {outer=args}
-                                                 {inner=vars}
-                                                 (MN "eff" 0) sc'
-                                pure $ Just (CLet fc (MN "eff" 0) False scr
-                                                  (substs env scope))
+--                         else -- let bind the scrutinee, and substitute the
+--                              -- name into the RHS
+--                              let env : SubstCEnv args (MN "eff" 0 :: vars)
+--                                      = mkSubst 0 (CLocal fc First) pos args in
+--                              do sc' <- toCExpTree tags n sc
+--                                 let scope = thin {outer=args}
+--                                                  {inner=vars}
+--                                                  (MN "eff" 0) sc'
+--                                 pure $ Just (CLet fc (MN "eff" 0) False scr
+--                                                   (substs env scope))
                 _ => pure Nothing -- there's a normal match to do
     where
       mkSubst : Nat -> CExp vs ->
