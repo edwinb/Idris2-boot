@@ -123,6 +123,25 @@ export
 prim_fork : (1 prog : PrimIO ()) -> PrimIO ThreadID
 prim_fork act w = prim__schemeCall ThreadID "blodwen-thread" [act] w
 
+%foreign "C:idris2_isNull, libidris2_support"
+export
+prim__nullAnyPtr : AnyPtr -> Int
+
+prim__forgetPtr : Ptr t -> AnyPtr
+prim__forgetPtr = believe_me
+
+export %inline
+prim__nullPtr : Ptr t -> Int -- can't pass 'type' to a foreign function
+prim__nullPtr p = prim__nullAnyPtr (prim__forgetPtr p)
+
+%foreign "C:idris2_getString, libidris2_support"
+export
+prim__getString : Ptr String -> String
+
+%foreign "C:idris2_readString, libidris2_support"
+export
+prim__getErrno : Int
+
 unsafeCreateWorld : (1 f : (1 x : %World) -> a) -> a
 unsafeCreateWorld f = f %MkWorld
 

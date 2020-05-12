@@ -161,12 +161,9 @@ schOp BelieveMe [_,_,x] = x
 public export
 data ExtPrim = CCall | SchemeCall
              | PutStr | GetStr | PutChar | GetChar
-             | FileOpen | FileClose | FileReadLine | FileWriteLine
-             | FileEOF | FileModifiedTime
              | NewIORef | ReadIORef | WriteIORef
              | NewArray | ArrayGet | ArraySet
              | GetField | SetField
-             | Stdin | Stdout | Stderr
              | VoidElim
              | SysOS | SysCodegen
              | Unknown Name
@@ -179,12 +176,6 @@ Show ExtPrim where
   show GetStr = "GetStr"
   show PutChar = "PutChar"
   show GetChar = "GetChar"
-  show FileOpen = "FileOpen"
-  show FileClose = "FileClose"
-  show FileReadLine = "FileReadLine"
-  show FileWriteLine = "FileWriteLine"
-  show FileEOF = "FileEOF"
-  show FileModifiedTime = "FileModifiedTime"
   show NewIORef = "NewIORef"
   show ReadIORef = "ReadIORef"
   show WriteIORef = "WriteIORef"
@@ -193,9 +184,6 @@ Show ExtPrim where
   show ArraySet = "ArraySet"
   show GetField = "GetField"
   show SetField = "SetField"
-  show Stdin = "Stdin"
-  show Stdout = "Stdout"
-  show Stderr = "Stderr"
   show VoidElim = "VoidElim"
   show SysOS = "SysOS"
   show SysCodegen = "SysCodegen"
@@ -210,12 +198,6 @@ toPrim pn@(NS _ n)
             (n == UN "prim__getStr", GetStr),
             (n == UN "prim__putChar", PutChar),
             (n == UN "prim__getChar", GetChar),
-            (n == UN "prim__open", FileOpen),
-            (n == UN "prim__close", FileClose),
-            (n == UN "prim__readLine", FileReadLine),
-            (n == UN "prim__writeLine", FileWriteLine),
-            (n == UN "prim__eof", FileEOF),
-            (n == UN "prim__fileModifiedTime", FileModifiedTime),
             (n == UN "prim__newIORef", NewIORef),
             (n == UN "prim__readIORef", ReadIORef),
             (n == UN "prim__writeIORef", WriteIORef),
@@ -224,9 +206,6 @@ toPrim pn@(NS _ n)
             (n == UN "prim__arraySet", ArraySet),
             (n == UN "prim__getField", GetField),
             (n == UN "prim__setField", SetField),
-            (n == UN "prim__stdin", Stdin),
-            (n == UN "prim__stdout", Stdout),
-            (n == UN "prim__stderr", Stderr),
             (n == UN "void", VoidElim),
             (n == UN "prim__os", SysOS),
             (n == UN "prim__codegen", SysCodegen)
@@ -434,24 +413,6 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
       = pure $ "(begin (display " ++ !(schExp i arg) ++ ") " ++ mkWorld (schConstructor 0 []) ++ ")" -- code for MkUnit
   schExtCommon i GetChar [world]
       = pure $ mkWorld "(blodwen-get-char (current-input-port))"
-  schExtCommon i FileOpen [file, mode, bin, world]
-      = pure $ mkWorld $ fileOp $ "(blodwen-open "
-                                      ++ !(schExp i file) ++ " "
-                                      ++ !(schExp i mode) ++ " "
-                                      ++ !(schExp i bin) ++ ")"
-  schExtCommon i FileClose [file, world]
-      = pure $ "(blodwen-close-port " ++ !(schExp i file) ++ ") " ++ mkWorld (schConstructor 0 [])
-  schExtCommon i FileReadLine [file, world]
-      = pure $ mkWorld $ fileOp $ "(blodwen-get-line " ++ !(schExp i file) ++ ")"
-  schExtCommon i FileWriteLine [file, str, world]
-      = pure $ mkWorld $ fileOp $ "(blodwen-putstring "
-                                        ++ !(schExp i file) ++ " "
-                                        ++ !(schExp i str) ++ ")"
-  schExtCommon i FileEOF [file, world]
-      = pure $ mkWorld $ "(blodwen-eof " ++ !(schExp i file) ++ ")"
-  schExtCommon i FileModifiedTime [file, world]
-      = pure $ mkWorld $ fileOp $ "(blodwen-file-modified-time "
-                                        ++ !(schExp i file) ++ ")"
   schExtCommon i NewIORef [_, val, world]
       = pure $ mkWorld $ "(box " ++ !(schExp i val) ++ ")"
   schExtCommon i ReadIORef [_, ref, world]
@@ -476,9 +437,6 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
       = pure $ show os
   schExtCommon i (Unknown n) args
       = throw (InternalError ("Can't compile unknown external primitive " ++ show n))
-  schExtCommon i Stdin [] = pure "(current-input-port)"
-  schExtCommon i Stdout [] = pure "(current-output-port)"
-  schExtCommon i Stderr [] = pure "(current-error-port)"
   schExtCommon i prim args
       = throw (InternalError ("Badly formed external primitive " ++ show prim
                                 ++ " " ++ show args))

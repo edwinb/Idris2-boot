@@ -534,7 +534,9 @@ nfToCFType _ s (NTCon fc n _ _ args)
 nfToCFType fc s t
     = do defs <- get Ctxt
          ty <- quote defs [] t
-         throw (GenericMsg (getLoc t) ("Can't marshal type for foreign call " ++ show ty))
+         throw (GenericMsg (getLoc t)
+                       ("Can't marshal type for foreign call " ++
+                                      show !(toFullNames ty)))
 
 getCFTypes : {auto c : Ref Ctxt Defs} ->
              List CFType -> NF [] ->

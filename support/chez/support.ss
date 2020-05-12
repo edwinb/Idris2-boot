@@ -57,105 +57,6 @@
     (newline)
     (exit 1)))
 
-;; Buffers
-
-(define (blodwen-new-buffer size)
-  (make-bytevector size 0))
-
-(define (blodwen-buffer-size buf)
-  (bytevector-length buf))
-
-(define (blodwen-buffer-setbyte buf loc val)
-  (bytevector-u8-set! buf loc val))
-
-(define (blodwen-buffer-getbyte buf loc)
-  (bytevector-u8-ref buf loc))
-
-(define (blodwen-buffer-setint buf loc val)
-  (bytevector-s32-set! buf loc val (native-endianness)))
-
-(define (blodwen-buffer-getint buf loc)
-  (bytevector-s32-ref buf loc (native-endianness)))
-
-(define (blodwen-buffer-setdouble buf loc val)
-  (bytevector-ieee-double-set! buf loc val (native-endianness)))
-
-(define (blodwen-buffer-getdouble buf loc)
-  (bytevector-ieee-double-ref buf loc (native-endianness)))
-
-(define (blodwen-stringbytelen str)
-  (bytevector-length (string->utf8 str)))
-
-(define (blodwen-buffer-setstring buf loc val)
-  (let* [(strvec (string->utf8 val))
-         (len (bytevector-length strvec))]
-    (bytevector-copy! strvec 0 buf loc len)))
-
-(define (blodwen-buffer-getstring buf loc len)
-  (let [(newvec (make-bytevector len))]
-    (bytevector-copy! buf loc newvec 0 len)
-    (utf8->string newvec)))
-
-(define (blodwen-buffer-copydata buf start len dest loc)
-  (bytevector-copy! buf start dest loc len))
-
-(define (blodwen-readbuffer-bytes h buf loc max)
-  (guard (x (#t -1))
-    (get-bytevector-n! h buf loc max)))
-
-(define (blodwen-readbuffer h)
-  (guard (x (#t (bytevector)))
-    (get-bytevector-all h)))
-
-(define (blodwen-writebuffer h buf loc max)
-  (guard (x (#t -1))
-     (put-bytevector h buf loc max)
-     max))
-
-;; Files: Much of the following adapted from idris-chez, thanks to Niklas
-;; Larsson
-
-;; All the file operations are implemented as primitives which return
-;; Either Int x, where the Int is an error code:
-(define (blodwen-error-code x)
-    (cond
-        ((i/o-read-error? x) 1)
-        ((i/o-write-error? x) 2)
-        ((i/o-file-does-not-exist-error? x) 3)
-        ((i/o-file-protection-error? x) 4)
-        (else 255)))
-
-;; If the file operation raises an error, catch it and return an appropriate
-;; error code
-(define (blodwen-file-op op)
-  (guard
-    (x ((i/o-error? x) (either-left (blodwen-error-code x))))
-    (either-right (op))))
-
-(define (blodwen-get-n n p)
-    (if (port? p) (get-string-n p n) ""))
-
-(define (blodwen-putstring p s)
-    (if (port? p) (put-string p s) void)
-    0)
-
-(define (blodwen-open file mode bin)
-    (define tc (if (= bin 1) #f (make-transcoder (utf-8-codec))))
-    (define bm (buffer-mode line))
-    (case mode
-        (("r") (open-file-input-port file (file-options) bm tc))
-        (("w") (open-file-output-port file (file-options no-fail) bm tc))
-        (("wx") (open-file-output-port file (file-options) bm tc))
-        (("a") (open-file-output-port file (file-options no-fail no-truncate) bm tc))
-        (("r+") (open-file-input/output-port file (file-options no-create) bm tc))
-        (("w+") (open-file-input/output-port file (file-options no-fail) bm tc))
-        (("w+x") (open-file-input/output-port file (file-options) bm tc))
-        (("a+") (open-file-input/output-port file (file-options no-fail no-truncate) bm tc))
-        (else (raise (make-i/o-error)))))
-
-(define (blodwen-close-port p)
-    (when (port? p) (close-port p)))
-
 (define (blodwen-get-line p)
     (if (port? p)
         (let ((str (get-line p)))
@@ -171,17 +72,6 @@
                 #\nul
                 chr))
         void))
-
-(define (blodwen-file-modified-time p)
-    (time-second (file-modification-time p)))
-
-(define (blodwen-file-size p)
-    (port-length p))
-
-(define (blodwen-eof p)
-    (if (port-eof? p)
-        1
-        0))
 
 ;; Directories
 
