@@ -26,13 +26,26 @@ prim_fileErrno : PrimIO Int
 
 %foreign support "idris2_readLine"
 prim__readLine : FilePtr -> PrimIO (Ptr String)
+%foreign support "idris2_readLine"
+prim__readChars : Int -> FilePtr -> PrimIO (Ptr String)
 %foreign support "idris2_writeLine"
 prim__writeLine : FilePtr -> String -> PrimIO Int
 %foreign support "idris2_eof"
 prim__eof : FilePtr -> PrimIO Int
 
+%foreign support "idris2_fileRemove"
+prim__fileRemove : String -> PrimIO Int
+%foreign support "idris2_fileSize"
+prim__fileSize : FilePtr -> PrimIO Int
+%foreign support "idris2_fileSize"
+prim__fPoll : FilePtr -> PrimIO Int
+
+%foreign support "idris2_fileAccessTime"
+prim__fileAccessTime : FilePtr -> PrimIO Int
 %foreign support "idris2_fileModifiedTime"
 prim__fileModifiedTime : FilePtr -> PrimIO Int
+%foreign support "idris2_fileStatusTime"
+prim__fileStatusTime : FilePtr -> PrimIO Int
 
 %foreign support "idris2_stdin"
 prim__stdin : FilePtr
@@ -117,6 +130,14 @@ fGetLine (FHandle f)
             else ok (prim__getString res)
 
 export
+fGetChars : (h : File) -> Int -> IO (Either FileError String)
+fGetChars (FHandle f) max
+    = do res <- primIO (prim__readChars max f)
+         if prim__nullPtr res /= 0
+            then returnError
+            else ok (prim__getString res)
+
+export
 fPutStr : (h : File) -> String -> IO (Either FileError ())
 fPutStr (FHandle f) str
     = do res <- primIO (prim__writeLine f str)
@@ -135,12 +156,50 @@ fEOF (FHandle f)
          pure (res /= 0)
 
 export
+fileAccessTime : (h : File) -> IO (Either FileError Int)
+fileAccessTime (FHandle f)
+    = do res <- primIO (prim__fileAccessTime f)
+         if res > 0
+            then ok res
+            else returnError
+
+export
 fileModifiedTime : (h : File) -> IO (Either FileError Int)
 fileModifiedTime (FHandle f)
     = do res <- primIO (prim__fileModifiedTime f)
          if res > 0
             then ok res
             else returnError
+
+export
+fileStatusTime : (h : File) -> IO (Either FileError Int)
+fileStatusTime (FHandle f)
+    = do res <- primIO (prim__fileStatusTime f)
+         if res > 0
+            then ok res
+            else returnError
+
+export
+fileRemove : String -> IO (Either FileError ())
+fileRemove fname
+    = do res <- primIO (prim__fileRemove fname)
+         if res == 0
+            then ok ()
+            else returnError
+
+export
+fileSize : (h : File) -> IO (Either FileError Int)
+fileSize (FHandle f)
+    = do res <- primIO (prim__fileSize f)
+         if res >= 0
+            then ok res
+            else returnError
+
+export
+fPoll : File -> IO Bool
+fPoll (FHandle f)
+    = do p <- primIO (prim__fPoll f)
+         pure (p > 0)
 
 export
 readFile : String -> IO (Either FileError String)

@@ -10,6 +10,8 @@
 
 #ifdef _WIN32
 #include "windows/win_utils.h"
+#else
+#include <sys/select.h>
 #endif
 
 FILE* idris2_openFile(char* name, char* mode) {
@@ -55,6 +57,27 @@ int idris2_fileSize(FILE* f) {
     }
 }
 
+int idris2_fpoll(FILE* f)
+{
+#ifdef _WIN32
+    return win_fpoll(f);
+#else
+    fd_set x;
+    struct timeval timeout;
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+    int fd = fileno(f);
+
+    FD_ZERO(&x);
+    FD_SET(fd, &x);
+
+    int r = select(fd+1, &x, 0, 0, &timeout);
+    return r;
+#endif
+}
+
+
+
 char* idris2_readLine(FILE* f) {
     char *buffer = NULL;
     size_t n = 0;
@@ -91,12 +114,34 @@ int idris2_eof(FILE* f) {
     return feof(f);
 }
 
+int idris2_fileAccessTime(FILE* f) {
+    int fd = fileno(f);
+
+    struct stat buf;
+    if (fstat(fd, &buf) == 0) {
+        return buf.st_atime;
+    } else {
+        return -1;
+    }
+}
+
 int idris2_fileModifiedTime(FILE* f) {
     int fd = fileno(f);
 
     struct stat buf;
     if (fstat(fd, &buf) == 0) {
         return buf.st_mtime;
+    } else {
+        return -1;
+    }
+}
+
+int idris2_fileStatusTime(FILE* f) {
+    int fd = fileno(f);
+
+    struct stat buf;
+    if (fstat(fd, &buf) == 0) {
+        return buf.st_ctime;
     } else {
         return -1;
     }
