@@ -141,7 +141,7 @@ Uninhabited Void where
 ||| @ a the goal type
 ||| @ h the contradictory hypothesis
 public export
-absurd : Uninhabited t => (h : t) -> a
+absurd : Uninhabited t => (0 h : t) -> a
 absurd h = void (uninhabited h)
 
 public export
