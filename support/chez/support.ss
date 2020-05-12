@@ -75,6 +75,19 @@
 
 ;; Directories
 
+(define (blodwen-error-code x)
+    (cond
+        ((i/o-read-error? x) 1)
+        ((i/o-write-error? x) 2)
+        ((i/o-file-does-not-exist-error? x) 3)
+        ((i/o-file-protection-error? x) 4)
+        (else 255)))
+
+(define (blodwen-file-op op)
+  (guard
+    (x ((i/o-error? x) (either-left (blodwen-error-code x))))
+    (either-right (op))))
+
 (define (blodwen-current-directory)
   (current-directory))
 

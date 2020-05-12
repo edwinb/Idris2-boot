@@ -8,4 +8,8 @@ int idris2_isNull(void*);
 char* idris2_getString(void *p);
 int idris2_getErrno();
 
+void idris2_sleep(int sec);
+void idris2_usleep(int usec);
+int idris2_time();
+
 #endif
