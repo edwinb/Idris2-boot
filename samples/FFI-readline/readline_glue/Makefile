@@ -1,44 +1,61 @@
-IDRIS           := idris2
-MACHINE         := $(shell $(CC) -dumpmachine)
 
-ifneq (, $(findstring darwin, $(MACHINE)))
-	OS      :=darwin
-else ifneq (, $(findstring cygwin, $(MACHINE)))
-	OS      :=windows
-else ifneq (, $(findstring mingw, $(MACHINE)))
-	OS      :=windows
-else ifneq (, $(findstring windows, $(MACHINE)))
-	OS      :=windows
-else
-	OS      :=unix
-endif
-
-ifeq ($(OS), darwin)
-        SHLIB_SUFFIX    :=dylib
-else ifeq ($(OS), windows)
-        SHLIB_SUFFIX    :=dll
-else
-        SHLIB_SUFFIX    :=so
-endif
-
-LIBTARGET = libidrisreadline.$(SHLIB_SUFFIX)
+IDRIS := idris2
 INSTALLDIR = `${IDRIS} --libdir`/readline/lib
 
-HDRS = idris_readline.h
-OBJS = idris_readline.o
+TARGET = libidrisreadline
 
-READLINE_LIBS := -lreadline
-READLINE_FLAGS := -fPIC
+MACHINE := $(shell $(CC) -dumpmachine)
+ifneq (,$(findstring cygwin, $(MACHINE)))
+	OS := windows
+	SHLIB_SUFFIX := .dll
+else ifneq (,$(findstring mingw, $(MACHINE)))
+	OS := windows
+	SHLIB_SUFFIX := .dll
+else ifneq (,$(findstring windows, $(MACHINE)))
+	OS := windows
+	SHLIB_SUFFIX := .dll
+else ifneq (,$(findstring darwin, $(MACHINE)))
+	OS := darwin
+	SHLIB_SUFFIX := .dylib
+	CFLAGS += -fPIC
+else
+	OS := unix
+	SHLIB_SUFFIX := .so
+	CFLAGS += -fPIC
+endif
 
-CFLAGS = $(READLINE_FLAGS)
 
-$(LIBTARGET): $(OBJS)
-	$(CC) -o $(LIBTARGET) -shared $(OBJS) $(READLINE_LIBS) $(READLINE_FLAGS)
-	
+CFLAGS := -Wall -Wextra $(CFLAGS)
+LDFLAGS := $(LDFLAGS) -lreadline
+
+SRCS = $(wildcard *.c)
+OBJS = $(SRCS:.c=.o)
+DEPS = $(OBJS:.o=.d)
+
+
+all: ${TARGET}$(SHLIB_SUFFIX)
+
+$(TARGET)$(SHLIB_SUFFIX): $(OBJS)
+	$(CC) -shared ${LDFLAGS} -o $@ $^
+
+
+-include $(DEPS)
+
+%.d: %.c
+	@$(CPP) $(CFLAGS) $< -MM -MT $(@:.d=.o) >$@
+
+
+.PHONY: clean
+
+clean :
+	rm -f $(OBJS) $(TARGET)$(SHLIB_SUFFIX)
+
+cleandep: clean
+	rm -f ${DEPS}
+
+
+.PHONY: install
+
 install:
 	@if ! [ -d $(INSTALLDIR) ]; then mkdir -p $(INSTALLDIR); fi
-	install $(LIBTARGET) $(HDRS) $(INSTALLDIR)
-clean:
-	rm $(OBJS) $(LIBTARGET)
-
-.PHONY: install clean
+	install $(TARGET)$(SHLIB_SUFFIX) $(wildcard *.h) $(INSTALLDIR)

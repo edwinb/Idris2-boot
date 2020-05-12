@@ -120,6 +120,7 @@ clean: clean-libs
 	${MAKE} -C src clean
 	${MAKE} -C tests clean
 	${MAKE} -C dist clean
+	${MAKE} -C support/c clean
 	rm -f runtests
 	rm -f idris2 dist/idris2.c
 

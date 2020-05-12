@@ -10,8 +10,7 @@ import Data.Strings
 
 -- ------------------------------------------------------------ [ Type Aliases ]
 
--- FIXME should be generic name with OS-dependent suffix
-%cg chez "libidris_net.so"
+%cg chez "libidris_net"
 
 public export
 ByteLength : Type

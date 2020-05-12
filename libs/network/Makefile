@@ -1,17 +1,33 @@
 RANLIB      ?=ranlib
 AR          ?=ar
 
-SHLIB_SUFFIX    :=.so
+MACHINE := $(shell $(CC) -dumpmachine)
+ifneq (,$(findstring cygwin, $(MACHINE)))
+	OS := windows
+	SHLIB_SUFFIX := .dll
+else ifneq (,$(findstring mingw, $(MACHINE)))
+	OS := windows
+	SHLIB_SUFFIX := .dll
+else ifneq (,$(findstring windows, $(MACHINE)))
+	OS := windows
+	SHLIB_SUFFIX := .dll
+else ifneq (,$(findstring darwin, $(MACHINE)))
+	OS := darwin
+	SHLIB_SUFFIX := .dylib
+	CFLAGS += -fPIC
+else
+	OS := unix
+	SHLIB_SUFFIX := .so
+	CFLAGS += -fPIC
+endif
+
 
 LIBNAME=idris_net
+
 OBJS = $(LIBNAME).o
 HDRS = $(LIBNAME).h
 CFLAGS := $(CFLAGS)
 IDRIS_SRCS = Network/Socket.idr Network/Socket/Data.idr Network/Socket/Raw.idr
-
-ifneq ($(OS), windows)
-	CFLAGS += -fPIC
-endif
 
 DYLIBTARGET = $(LIBNAME)$(SHLIB_SUFFIX)
 LIBTARGET = $(LIBNAME).a

@@ -1,4 +1,5 @@
 #include <readline/readline.h>
+#include <string.h>
 #include <stdlib.h>
 
 rl_compentry_func_t* my_compentry;
