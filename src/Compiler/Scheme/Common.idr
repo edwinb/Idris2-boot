@@ -156,6 +156,7 @@ schOp (Cast IntType CharType) [x] = op "integer->char" [x]
 schOp (Cast from to) [x] = "(blodwen-error-quit \"Invalid cast " ++ show from ++ "->" ++ show to ++ "\")"
 
 schOp BelieveMe [_,_,x] = x
+schOp Crash [_,msg] = "(blodwen-error-quit (string-append \"ERROR: \" " ++ msg ++ "))"
 
 ||| Extended primitives for the scheme backend, outside the standard set of primFn
 public export

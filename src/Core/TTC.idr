@@ -517,6 +517,7 @@ TTC (PrimFn n) where
 
   toBuf b (Cast x y) = do tag 99; toBuf b x; toBuf b y
   toBuf b BelieveMe = tag 100
+  toBuf b Crash = tag 101
 
   fromBuf {n} b
       = case n of
@@ -571,6 +572,7 @@ TTC (PrimFn n) where
                  37 => do ty <- fromBuf b; pure (BAnd ty)
                  38 => do ty <- fromBuf b; pure (BOr ty)
                  39 => do ty <- fromBuf b; pure (BXOr ty)
+                 101 => pure Crash
                  _ => corrupt "PrimFn 2"
 
       fromBuf3 : Ref Bin Binary ->

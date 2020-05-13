@@ -147,6 +147,7 @@ data PrimFn : Nat -> Type where
 
      Cast : Constant -> Constant -> PrimFn 1
      BelieveMe : PrimFn 3
+     Crash : PrimFn 2
 
 export
 Show (PrimFn arity) where
@@ -187,6 +188,7 @@ Show (PrimFn arity) where
   show DoubleCeiling = "op_doubleCeiling"
   show (Cast x y) = "cast-" ++ show x ++ "-" ++ show y
   show BelieveMe = "believe_me"
+  show Crash = "crash"
 
 public export
 data PiInfo t = Implicit | Explicit | AutoImplicit | DefImplicit t
