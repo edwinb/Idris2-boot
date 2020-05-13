@@ -198,15 +198,15 @@ boolHackTree (CConCase fc sc alts def)
          CConstCase fc sc alts' def
   where
     toBool : CConAlt vars -> Maybe (CConstAlt vars)
-    toBool (MkConAlt (NS ["Prelude"] (UN "True")) tag [] sc)
+    toBool (MkConAlt (NS ["Prelude"] (UN "True")) (Just tag) [] sc)
         = Just $ MkConstAlt (I tag) sc
-    toBool (MkConAlt (NS ["Prelude"] (UN "False")) tag [] sc)
+    toBool (MkConAlt (NS ["Prelude"] (UN "False")) (Just tag) [] sc)
         = Just $ MkConstAlt (I tag) sc
-    toBool (MkConAlt (NS ["Prelude"] (UN "LT")) tag [] sc)
+    toBool (MkConAlt (NS ["Prelude"] (UN "LT")) (Just tag) [] sc)
         = Just $ MkConstAlt (I tag) sc
-    toBool (MkConAlt (NS ["Prelude"] (UN "EQ")) tag [] sc)
+    toBool (MkConAlt (NS ["Prelude"] (UN "EQ")) (Just tag) [] sc)
         = Just $ MkConstAlt (I tag) sc
-    toBool (MkConAlt (NS ["Prelude"] (UN "GT")) tag [] sc)
+    toBool (MkConAlt (NS ["Prelude"] (UN "GT")) (Just tag) [] sc)
         = Just $ MkConstAlt (I tag) sc
     toBool _ = Nothing
 boolHackTree t = t
@@ -229,16 +229,10 @@ mutual
   toCExpTm tags n (Ref fc (DataCon tag Z) (NS ["Prelude"] (UN "GT")))
       = pure $ CPrimVal fc (I tag)
   toCExpTm tags n (Ref fc (DataCon tag arity) fn)
-      = let tag' = case lookup fn tags of
-                        Just t => t
-                        _ => tag in
-            -- get full name for readability, and the Nat hack
-            pure $ CCon fc !(getFullName fn) tag' []
+      = -- get full name for readability, and the Nat hack
+        pure $ CCon fc !(getFullName fn) (Just tag) []
   toCExpTm tags n (Ref fc (TyCon tag arity) fn)
-      = let tag' = case lookup fn tags of
-                        Just t => t
-                        _ => tag in
-            pure $ CCon fc fn tag' []
+      = pure $ CCon fc fn Nothing []
   toCExpTm tags n (Ref fc _ fn)
       = do full <- getFullName fn
                -- ^ For readability of output code, and the Nat hack,
@@ -252,7 +246,7 @@ mutual
                           (CLet fc x True !(toCExp tags n val) !(toCExp tags n sc))
                           rig
   toCExpTm tags n (Bind fc x (Pi c e ty) sc)
-      = pure $ CCon fc (UN "->") 1 [!(toCExp tags n ty),
+      = pure $ CCon fc (UN "->") Nothing [!(toCExp tags n ty),
                                     CLam fc x !(toCExp tags n sc)]
   toCExpTm tags n (Bind fc x b tm) = pure $ CErased fc
   -- We'd expect this to have been dealt with in toCExp, but for completeness...
@@ -270,9 +264,9 @@ mutual
       = let t = constTag c in
             if t == 0
                then pure $ CPrimVal fc c
-               else pure $ CCon fc (UN (show c)) t []
+               else pure $ CCon fc (UN (show c)) Nothing []
   toCExpTm tags n (Erased fc _) = pure $ CErased fc
-  toCExpTm tags n (TType fc) = pure $ CCon fc (UN "Type") 2 []
+  toCExpTm tags n (TType fc) = pure $ CCon fc (UN "Type") Nothing []
 
   toCExp : {auto c : Ref Ctxt Defs} ->
            NameTags -> Name -> Term vars -> Core (CExp vars)
@@ -301,22 +295,24 @@ mutual
            Just gdef <- lookupCtxtExact x (gamma defs)
                 | Nothing => -- primitive type match
                      do xn <- getFullName x
-                        let tag' = case lookup x tags of
-                                        Just t => t
-                                        _ => tag
-                        pure $ MkConAlt xn tag' args !(toCExpTree tags n sc)
+                        pure $ MkConAlt xn Nothing args !(toCExpTree tags n sc)
                                   :: !(conCases tags n ns)
            case (definition gdef) of
                 DCon _ arity (Just pos) => conCases tags n ns -- skip it
                 _ => do xn <- getFullName x
                         let (args' ** sub)
                             = mkDropSubst 0 (eraseArgs gdef) vars args
-                        let tag' = case lookup x tags of
-                                        Just t => t
-                                        _ => tag
-                        pure $ MkConAlt xn tag' args'
+                        if dcon (definition gdef)
+                           then pure $ MkConAlt xn (Just tag) args'
                                     (shrinkCExp sub !(toCExpTree tags n sc))
                                   :: !(conCases tags n ns)
+                           else pure $ MkConAlt xn Nothing args'
+                                    (shrinkCExp sub !(toCExpTree tags n sc))
+                                  :: !(conCases tags n ns)
+    where
+      dcon : Def -> Bool
+      dcon (DCon _ _ _) = True
+      dcon _ = False
   conCases tags n (_ :: ns) = conCases tags n ns
 
   constCases : {auto c : Ref Ctxt Defs} ->
@@ -582,9 +578,9 @@ toCDef tags n ty (Builtin {arity} op)
     getVars (ConsArg a rest) = MkVar First :: map weakenVar (getVars rest)
 toCDef tags n _ (DCon tag arity pos)
     = let nt = maybe Nothing (Just . snd) pos in
-          pure $ MkCon (fromMaybe tag $ lookup n tags) arity nt
+          pure $ MkCon (Just tag) arity nt
 toCDef tags n _ (TCon tag arity _ _ _ _ _ _)
-    = pure $ MkCon (fromMaybe tag $ lookup n tags) arity Nothing
+    = pure $ MkCon Nothing arity Nothing
 -- We do want to be able to compile these, but also report an error at run time
 -- (and, TODO: warn at compile time)
 toCDef tags n ty (Hole _ _)

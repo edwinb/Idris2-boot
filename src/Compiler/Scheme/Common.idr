@@ -66,8 +66,11 @@ lookupSVar First (n :: ns) = n
 lookupSVar (Later p) (n :: ns) = lookupSVar p ns
 
 export
-schConstructor : Int -> List String -> String
-schConstructor t args = "(vector " ++ show t ++ " " ++ showSep " " args ++ ")"
+schConstructor : (String -> String) -> Name -> Maybe Int -> List String -> String
+schConstructor _ _ (Just t) args
+    = "(vector " ++ show t ++ " " ++ showSep " " args ++ ")"
+schConstructor schString n Nothing args
+    = "(vector " ++ schString (show n) ++ " " ++ showSep " " args ++ ")"
 
 ||| Generate scheme for a plain function.
 op : String -> List String -> String
@@ -264,10 +267,14 @@ mutual
 
 parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
             schString : String -> String)
+  showTag : Name -> Maybe Int -> String
+  showTag n (Just i) = show i
+  showTag n Nothing = schString (show n)
+
   mutual
     schConAlt : Int -> String -> NamedConAlt -> Core String
     schConAlt i target (MkNConAlt n tag args sc)
-        = pure $ "((" ++ show tag ++ ") "
+        = pure $ "((" ++ showTag n tag ++ ") "
                       ++ bindArgs 1 args !(schExp i sc) ++ ")"
       where
         bindArgs : Int -> (ns : List Name) -> String -> String
@@ -315,7 +322,7 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
     schExp i (NmApp fc x args)
         = pure $ "(" ++ !(schExp i x) ++ " " ++ showSep " " !(traverse (schExp i) args) ++ ")"
     schExp i (NmCon fc x tag args)
-        = pure $ schConstructor tag !(traverse (schExp i) args)
+        = pure $ schConstructor schString x tag !(traverse (schExp i) args)
     schExp i (NmOp fc op args)
         = pure $ schOp op !(schArgs i args)
     schExp i (NmExtPrim fc p args)

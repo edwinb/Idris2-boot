@@ -27,7 +27,7 @@ mutual
        LApp : FC -> (closure : Lifted vars) -> (arg : Lifted vars) -> Lifted vars
        LLet : FC -> (x : Name) -> Lifted vars ->
               Lifted (x :: vars) -> Lifted vars
-       LCon : FC -> Name -> (tag : Int) -> List (Lifted vars) -> Lifted vars
+       LCon : FC -> Name -> (tag : Maybe Int) -> List (Lifted vars) -> Lifted vars
        LOp : FC -> PrimFn arity -> Vect arity (Lifted vars) -> Lifted vars
        LExtPrim : FC -> (p : Name) -> List (Lifted vars) -> Lifted vars
        LConCase : FC -> Lifted vars ->
@@ -42,7 +42,7 @@ mutual
 
   public export
   data LiftedConAlt : List Name -> Type where
-       MkLConAlt : Name -> (tag : Int) -> (args : List Name) ->
+       MkLConAlt : Name -> (tag : Maybe Int) -> (args : List Name) ->
                    Lifted (args ++ vars) -> LiftedConAlt vars
 
   public export
@@ -61,7 +61,7 @@ data LiftedDef : Type where
      MkLFun : (args : List Name) -> -- function arguments
               (scope : List Name) -> -- outer scope
               Lifted (scope ++ args) -> LiftedDef
-     MkLCon : (tag : Int) -> (arity : Nat) -> (nt : Maybe Nat) -> LiftedDef
+     MkLCon : (tag : Maybe Int) -> (arity : Nat) -> (nt : Maybe Nat) -> LiftedDef
      MkLForeign : (ccs : List String) ->
                   (fargs : List CFType) ->
                   CFType ->
