@@ -52,6 +52,7 @@ record TTCFile extra where
   primnames : PrimNames
   namedirectives : List (Name, List String)
   cgdirectives : List (CG, String)
+  transforms : List (Name, Transform)
   extraData : extra
 
 HasNames a => HasNames (List a) where
@@ -77,6 +78,10 @@ HasNames (Name, List String) where
   full c (n, b) = pure (!(full c n), b)
   resolved c (n, b) = pure (!(resolved c n), b)
 
+HasNames (Name, Transform) where
+  full c (n, b) = pure (!(full c n), !(full c b))
+  resolved c (n, b) = pure (!(resolved c n), !(resolved c b))
+
 HasNames (Name, Name, Bool) where
   full c (n1, n2, b) = pure (!(full c n1), !(full c n2), b)
   resolved c (n1, n2, b) = pure (!(resolved c n1), !(resolved c n2), b)
@@ -87,7 +92,7 @@ HasNames e => HasNames (TTCFile e) where
                       autoHints typeHints
                       imported nextVar currentNS nestedNS
                       pairnames rewritenames primnames
-                      namedirectives cgdirectives
+                      namedirectives cgdirectives trans
                       extra)
       = pure $ MkTTCFile version ifaceHash iHashes
                          context userHoles
@@ -99,6 +104,7 @@ HasNames e => HasNames (TTCFile e) where
                          !(fullPrim gam primnames)
                          !(full gam namedirectives)
                          cgdirectives
+                         !(full gam trans)
                          !(full gam extra)
     where
       fullPair : Context -> Maybe PairNames -> Core (Maybe PairNames)
@@ -124,7 +130,7 @@ HasNames e => HasNames (TTCFile e) where
                       autoHints typeHints
                       imported nextVar currentNS nestedNS
                       pairnames rewritenames primnames
-                      namedirectives cgdirectives
+                      namedirectives cgdirectives trans
                       extra)
       = pure $ MkTTCFile version ifaceHash iHashes
                          context userHoles
@@ -136,6 +142,7 @@ HasNames e => HasNames (TTCFile e) where
                          !(resolvedPrim gam primnames)
                          !(resolved gam namedirectives)
                          cgdirectives
+                         !(resolved gam trans)
                          !(resolved gam extra)
     where
       resolvedPair : Context -> Maybe PairNames -> Core (Maybe PairNames)
@@ -184,6 +191,7 @@ writeTTCFile b file_in
            toBuf b (primnames file)
            toBuf b (namedirectives file)
            toBuf b (cgdirectives file)
+           toBuf b (transforms file)
            toBuf b (extraData file)
 
 readTTCFile : TTC extra =>
@@ -197,7 +205,7 @@ readTTCFile modns as b
            checkTTCVersion (show modns) ver ttcVersion
            ifaceHash <- fromBuf b
            importHashes <- fromBuf b
-           defs <- logTime ("Definitions " ++ show modns) $ fromBuf b
+           defs <- fromBuf b
            uholes <- fromBuf b
            autohs <- fromBuf b
            typehs <- fromBuf b
@@ -212,11 +220,12 @@ readTTCFile modns as b
            prims <- fromBuf b
            nds <- fromBuf b
            cgds <- fromBuf b
+           trans <- fromBuf b
            ex <- fromBuf b
            pure (MkTTCFile ver ifaceHash importHashes
                            defs uholes
                            autohs typehs imp nextv cns nns
-                           pns rws prims nds cgds ex)
+                           pns rws prims nds cgds trans ex)
 
 -- Pull out the list of GlobalDefs that we want to save
 getSaveDefs : List Name -> List (Name, Binary) -> Defs ->
@@ -261,6 +270,7 @@ writeToTTC extradata fname
                               (primnames (options defs))
                               (NameMap.toList (namedirectives defs))
                               (cgdirectives defs)
+                              (saveTransforms defs)
                               extradata)
          Right ok <- coreLift $ writeToFile fname !(get Bin)
                | Left err => throw (InternalError (fname ++ ": " ++ show err))
@@ -350,6 +360,24 @@ updateCGDirectives cgs
          let cgs' = nub (cgs ++ cgdirectives defs)
          put Ctxt (record { cgdirectives = cgs' } defs)
 
+export
+updateTransforms : {auto c : Ref Ctxt Defs} ->
+                   List (Name, Transform) -> Core ()
+updateTransforms [] = pure ()
+updateTransforms ((n, t) :: ts)
+    = do addT !(toResolvedNames n) !(toResolvedNames t)
+         updateTransforms ts
+  where
+    addT : Name -> Transform -> Core ()
+    addT n t
+        = do defs <- get Ctxt
+             case lookup n (transforms defs) of
+                  Nothing =>
+                     put Ctxt (record { transforms $= insert n [t] } defs)
+                  Just ts =>
+                     put Ctxt (record { transforms $= insert n (t :: ts) } defs)
+
+
 getNSas : (String, (List String, Bool, List String)) ->
           (List String, List String)
 getNSas (a, (b, c, d)) = (b, d)
@@ -384,8 +412,7 @@ readFromTTC loc reexp fname modNS importAs
          let as = if importAs == modNS
                      then Nothing
                      else Just importAs
-         ttc <- logTime ("Read file " ++ show modNS) $
-                  readTTCFile modNS as bin
+         ttc <- readTTCFile modNS as bin
 
          -- If it's already imported, but without reexporting, then all we're
          -- interested in is returning which other modules to load.
@@ -407,6 +434,7 @@ readFromTTC loc reexp fname modNS importAs
                updatePrims (primnames ttc)
                updateNameDirectives (reverse (namedirectives ttc))
                updateCGDirectives (cgdirectives ttc)
+               updateTransforms (transforms ttc)
 
                when (not reexp) clearSavedHints
                resetFirstEntry

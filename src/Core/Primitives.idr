@@ -4,6 +4,7 @@ import Core.Core
 import Core.Context
 import Core.TT
 import Core.Value
+import Utils.String
 
 import Data.Vect
 
@@ -31,7 +32,7 @@ unaryOp _ _ = Nothing
 castString : Vect 1 (NF vars) -> Maybe (NF vars)
 castString [NPrimVal fc (I i)] = Just (NPrimVal fc (Str (show i)))
 castString [NPrimVal fc (BI i)] = Just (NPrimVal fc (Str (show i)))
-castString [NPrimVal fc (Ch i)] = Just (NPrimVal fc (Str (show i)))
+castString [NPrimVal fc (Ch i)] = Just (NPrimVal fc (Str (stripQuotes (show i))))
 castString [NPrimVal fc (Db i)] = Just (NPrimVal fc (Str (show i)))
 castString _ = Nothing
 
@@ -286,6 +287,12 @@ believeMeTy
       Bind emptyFC (UN "x") (Pi top Explicit (Local emptyFC Nothing _ (Later First))) $
       Local emptyFC Nothing _ (Later First)
 
+crashTy : ClosedTerm
+crashTy
+    = Bind emptyFC (UN "a") (Pi erased Explicit (TType emptyFC)) $
+      Bind emptyFC (UN "msg") (Pi top Explicit (PrimVal emptyFC StringType)) $
+      Local emptyFC Nothing _ (Later First)
+
 castTo : Constant -> Vect 1 (NF vars) -> Maybe (NF vars)
 castTo IntType = castInt
 castTo IntegerType = castInteger
@@ -384,6 +391,7 @@ opName DoubleFloor = prim "doubleFloor"
 opName DoubleCeiling = prim "doubleCeiling"
 opName (Cast x y) = prim $ "cast_" ++ show x ++ show y
 opName BelieveMe = prim $ "believe_me"
+opName Crash = prim $ "crash"
 
 export
 allPrimitives : List Prim
@@ -415,7 +423,8 @@ allPrimitives =
      MkPrim StrAppend (arithTy StringType) isTotal,
      MkPrim StrReverse (predTy StringType StringType) isTotal,
      MkPrim StrSubstr (constTy3 IntType IntType StringType StringType) isTotal,
-     MkPrim BelieveMe believeMeTy isTotal] ++
+     MkPrim BelieveMe believeMeTy isTotal,
+     MkPrim Crash crashTy notCovering] ++
 
     [MkPrim DoubleExp doubleTy isTotal,
      MkPrim DoubleLog doubleTy isTotal,
@@ -434,4 +443,3 @@ allPrimitives =
     map (\t => MkPrim (Cast t IntType) (predTy t IntType) isTotal) [StringType, IntegerType, CharType, DoubleType] ++
     map (\t => MkPrim (Cast t DoubleType) (predTy t DoubleType) isTotal) [StringType, IntType, IntegerType] ++
     map (\t => MkPrim (Cast t CharType) (predTy t CharType) isTotal) [StringType, IntType]
-

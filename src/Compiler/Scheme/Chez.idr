@@ -168,14 +168,14 @@ cftySpec fc t = throw (GenericMsg fc ("Can't pass argument of type " ++ show t +
 
 cCall : {auto c : Ref Ctxt Defs} ->
         {auto l : Ref Loaded (List String)} ->
-        FC -> (cfn : String) -> (clib : String) ->
+        String -> FC -> (cfn : String) -> (clib : String) ->
         List (Name, CFType) -> CFType -> Core (String, String)
-cCall fc cfn clib args ret
+cCall appdir fc cfn clib args ret
     = do loaded <- get Loaded
          lib <- if clib `elem` loaded
                    then pure ""
                    else do (fname, fullname) <- locate clib
-                           copyLib (fname, fullname)
+                           copyLib (appdir ++ dirSep ++ fname, fullname)
                            put Loaded (clib :: loaded)
                            pure $ "(load-shared-object \""
                                     ++ escapeQuotes fname
@@ -242,18 +242,18 @@ schemeCall fc sfn argns ret
 -- function call.
 useCC : {auto c : Ref Ctxt Defs} ->
         {auto l : Ref Loaded (List String)} ->
-        FC -> List String -> List (Name, CFType) -> CFType -> Core (String, String)
-useCC fc [] args ret
+        String -> FC -> List String -> List (Name, CFType) -> CFType -> Core (String, String)
+useCC appdir fc [] args ret
     = throw (GenericMsg fc "No recognised foreign calling convention")
-useCC fc (cc :: ccs) args ret
+useCC appdir fc (cc :: ccs) args ret
     = case parseCC cc of
-           Nothing => useCC fc ccs args ret
+           Nothing => useCC appdir fc ccs args ret
            Just ("scheme", [sfn]) =>
                do body <- schemeCall fc sfn (map fst args) ret
                   pure ("", body)
-           Just ("C", [cfn, clib]) => cCall fc cfn clib args ret
-           Just ("C", [cfn, clib, chdr]) => cCall fc cfn clib args ret
-           _ => useCC fc ccs args ret
+           Just ("C", [cfn, clib]) => cCall appdir fc cfn clib args ret
+           Just ("C", [cfn, clib, chdr]) => cCall appdir fc cfn clib args ret
+           _ => useCC appdir fc ccs args ret
 
 -- For every foreign arg type, return a name, and whether to pass it to the
 -- foreign call (we don't pass '%World')
@@ -282,34 +282,34 @@ mkStruct _ = pure ""
 schFgnDef : {auto c : Ref Ctxt Defs} ->
             {auto l : Ref Loaded (List String)} ->
             {auto s : Ref Structs (List String)} ->
-            FC -> Name -> CDef -> Core (String, String)
-schFgnDef fc n (MkForeign cs args ret)
+            String -> FC -> Name -> CDef -> Core (String, String)
+schFgnDef appdir fc n (MkForeign cs args ret)
     = do let argns = mkArgs 0 args
          let allargns = map fst argns
          let useargns = map fst (filter snd argns)
          argStrs <- traverse mkStruct args
          retStr <- mkStruct ret
-         (load, body) <- useCC fc cs (zip useargns args) ret
+         (load, body) <- useCC appdir fc cs (zip useargns args) ret
          defs <- get Ctxt
          pure (load,
                 concat argStrs ++ retStr ++
                 "(define " ++ schName !(full (gamma defs) n) ++
                 " (lambda (" ++ showSep " " (map schName allargns) ++ ") " ++
                 body ++ "))\n")
-schFgnDef _ _ _ = pure ("", "")
+schFgnDef _ _ _ _ = pure ("", "")
 
 getFgnCall : {auto c : Ref Ctxt Defs} ->
              {auto l : Ref Loaded (List String)} ->
              {auto s : Ref Structs (List String)} ->
-             Name -> Core (String, String)
-getFgnCall n
+             String -> Name -> Core (String, String)
+getFgnCall appdir n
     = do defs <- get Ctxt
          case !(lookupCtxtExact n (gamma defs)) of
            Nothing => throw (InternalError ("Compiling undefined name " ++ show n))
            Just def => case compexpr def of
                           Nothing =>
                              throw (InternalError ("No compiled definition for " ++ show n))
-                          Just d => schFgnDef (location def) n d
+                          Just d => schFgnDef appdir (location def) n d
 
 startChez : String -> String
 startChez target = unlines
@@ -321,8 +321,8 @@ startChez target = unlines
 
 ||| Compile a TT expression to Chez Scheme
 compileToSS : Ref Ctxt Defs ->
-              ClosedTerm -> (outfile : String) -> Core ()
-compileToSS c tm outfile
+              String -> ClosedTerm -> (outfile : String) -> Core ()
+compileToSS c appdir tm outfile
     = do ds <- getDirectives Chez
          libs <- findLibs ds
          traverse_ copyLib libs
@@ -334,7 +334,7 @@ compileToSS c tm outfile
          defs <- get Ctxt
          l <- newRef {t = List String} Loaded ["libc", "libc 6"]
          s <- newRef {t = List String} Structs []
-         fgndefs <- traverse getFgnCall ns
+         fgndefs <- traverse (getFgnCall appdir) ns
          compdefs <- traverse (getScheme chezExtPrim chezString defs) ns
          let code = fastAppend (map snd fgndefs ++ compdefs)
          main <- schExp chezExtPrim chezString 0 ctm
@@ -379,7 +379,7 @@ compileExpr makeitso c execDir tm outfile
          cwd <- coreLift currentDir
          let outSsAbs = cwd ++ dirSep ++ appDirRel ++ dirSep ++ outfile ++ ".ss"
          let outSoAbs = cwd ++ dirSep ++ appDirRel ++ dirSep ++ outfile ++ ".so"
-         compileToSS c tm outSsAbs
+         compileToSS c appDirRel tm outSsAbs
          logTime "Make SO" $ when makeitso $ compileToSO appDirRel outSsAbs
          let outShRel = execDir ++ dirSep ++ outfile
          makeSh outShRel (if makeitso then outSoAbs else outSsAbs)

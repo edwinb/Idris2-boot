@@ -1,8 +1,8 @@
 module Idris.REPL
 
 import Compiler.Scheme.Chez
--- import Compiler.Scheme.Chicken
 import Compiler.Scheme.Racket
+import Compiler.Scheme.Gambit
 import Compiler.Common
 
 import Core.AutoSearch
@@ -64,6 +64,8 @@ showInfo (n, idx, d)
               Just expr => coreLift $ putStrLn ("Compiled: " ++ show expr)
          coreLift $ putStrLn ("Refers to: " ++
                                show !(traverse getFullName (keys (refersTo d))))
+         coreLift $ putStrLn ("Refers to (runtime): " ++
+                               show !(traverse getFullName (keys (refersToRuntime d))))
          when (not (isNil (sizeChange d))) $
             let scinfo = map (\s => show (fnCall s) ++ ": " ++
                                     show (fnArgs s)) !(traverse toFullNames (sizeChange d)) in
@@ -239,9 +241,8 @@ findCG
     = do defs <- get Ctxt
          case codegen (session (options defs)) of
               Chez => pure codegenChez
-              Chicken => throw (InternalError "Chicken CG not available")
-                         -- pure codegenChicken
               Racket => pure codegenRacket
+              Gambit => pure codegenGambit
 
 anyAt : (FC -> Bool) -> FC -> a -> Bool
 anyAt p loc y = p loc

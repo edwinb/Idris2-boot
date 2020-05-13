@@ -517,6 +517,7 @@ TTC (PrimFn n) where
 
   toBuf b (Cast x y) = do tag 99; toBuf b x; toBuf b y
   toBuf b BelieveMe = tag 100
+  toBuf b Crash = tag 101
 
   fromBuf {n} b
       = case n of
@@ -571,6 +572,7 @@ TTC (PrimFn n) where
                  37 => do ty <- fromBuf b; pure (BAnd ty)
                  38 => do ty <- fromBuf b; pure (BOr ty)
                  39 => do ty <- fromBuf b; pure (BXOr ty)
+                 101 => pure Crash
                  _ => corrupt "PrimFn 2"
 
       fromBuf3 : Ref Bin Binary ->
@@ -716,14 +718,14 @@ TTC CDef where
 export
 TTC CG where
   toBuf b Chez = tag 0
-  toBuf b Chicken = tag 1
   toBuf b Racket = tag 2
+  toBuf b Gambit = tag 3
 
   fromBuf b
       = case !getTag of
              0 => pure Chez
-             1 => pure Chicken
              2 => pure Racket
+             3 => pure Gambit
              _ => corrupt "CG"
 
 export
@@ -916,7 +918,7 @@ TTC GlobalDef where
            toBuf b (map toList (refersToM gdef))
            toBuf b (map toList (refersToRuntimeM gdef))
            toBuf b (location gdef)
-           when (isUserName (fullname gdef)) $
+           when (isUserName (fullname gdef) || cwName (fullname gdef)) $
               do toBuf b (type gdef)
                  toBuf b (eraseArgs gdef)
                  toBuf b (safeErase gdef)
@@ -930,7 +932,11 @@ TTC GlobalDef where
                  toBuf b (invertible gdef)
                  toBuf b (noCycles gdef)
                  toBuf b (sizeChange gdef)
-
+    where
+      cwName : Name -> Bool
+      cwName (CaseBlock _ _) = True
+      cwName (WithBlock _ _) = True
+      cwName _ = False
   fromBuf b
       = do name <- fromBuf b
            def <- fromBuf b
@@ -957,19 +963,22 @@ TTC GlobalDef where
                                      top [] Public unchecked [] refs refsR
                                      False False True def cdef Nothing [])
 
+export
 TTC Transform where
-  toBuf b (MkTransform {vars} env lhs rhs)
+  toBuf b (MkTransform {vars} n env lhs rhs)
       = do toBuf b vars
+           toBuf b n
            toBuf b env
            toBuf b lhs
            toBuf b rhs
 
   fromBuf b
       = do vars <- fromBuf b
+           n <- fromBuf b
            env <- fromBuf b
            lhs <- fromBuf b
            rhs <- fromBuf b
-           pure (MkTransform {vars} env lhs rhs)
+           pure (MkTransform {vars} n env lhs rhs)
 
 -- decode : Context -> Int -> (update : Bool) -> ContextEntry -> Core GlobalDef
 Core.Context.decode gam idx update (Coded bin)

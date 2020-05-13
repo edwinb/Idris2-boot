@@ -261,10 +261,34 @@ treeMap f (Branch2 t1 k t2) = Branch2 (treeMap f t1) k (treeMap f t2)
 treeMap f (Branch3 t1 k1 t2 k2 t3)
     = Branch3 (treeMap f t1) k1 (treeMap f t2) k2 (treeMap f t3)
 
+treeTraverse : Applicative f => (a -> f b) -> Tree n k a o -> f (Tree n k b o)
+treeTraverse f (Leaf k v) = Leaf k <$> f v
+treeTraverse f (Branch2 t1 k t2) =
+  Branch2
+    <$> treeTraverse f t1
+    <*> pure k
+    <*> treeTraverse f t2
+treeTraverse f (Branch3 t1 k1 t2 k2 t3) =
+  Branch3
+    <$> treeTraverse f t1
+    <*> pure k1
+    <*> treeTraverse f t2
+    <*> pure k2
+    <*> treeTraverse f t3
+
 export
 implementation Functor (SortedMap k) where
   map _ Empty = Empty
   map f (M n t) = M _ (treeMap f t)
+
+export
+implementation Foldable (SortedMap k) where
+  foldr f z = foldr f z . values
+
+export
+implementation Traversable (SortedMap k) where
+  traverse _ Empty = pure Empty
+  traverse f (M n t) = M _ <$> treeTraverse f t
 
 ||| Merge two maps. When encountering duplicate keys, using a function to combine the values.
 ||| Uses the ordering of the first map given.

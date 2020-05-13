@@ -85,6 +85,55 @@ processFnOpt fc ndef (SpecArgs ns)
                         pure (rest ++ deps)
     collectDDeps _ = pure []
 
+    -- Return names the type depends on, and whether it's a parameter
+    mutual
+      getDepsArgs : Bool -> List (NF []) -> NameMap Bool ->
+                    Core (NameMap Bool)
+      getDepsArgs inparam [] ns = pure ns
+      getDepsArgs inparam (a :: as) ns
+          = do ns' <- getDeps inparam a ns
+               getDepsArgs inparam as ns'
+
+      getDeps : Bool -> NF [] -> NameMap Bool ->
+                Core (NameMap Bool)
+      getDeps inparam (NBind _ x (Pi _ _ pty) sc) ns
+          = do ns' <- getDeps inparam pty ns
+               defs <- get Ctxt
+               sc' <- sc defs (toClosure defaultOpts [] (Erased fc False))
+               getDeps inparam sc' ns'
+      getDeps inparam (NBind _ x b sc) ns
+          = do ns' <- getDeps False (binderType b) ns
+               defs <- get Ctxt
+               sc' <- sc defs (toClosure defaultOpts [] (Erased fc False))
+               getDeps False sc' ns
+      getDeps inparam (NApp _ (NRef Bound n) args) ns
+          = do defs <- get Ctxt
+               ns' <- getDepsArgs False !(traverse (evalClosure defs) args) ns
+               pure (insert n inparam ns')
+      getDeps inparam (NDCon _ n t a args) ns
+          = do defs <- get Ctxt
+               getDepsArgs False !(traverse (evalClosure defs) args) ns
+      getDeps inparam (NTCon _ n t a args) ns
+          = do defs <- get Ctxt
+               params <- case !(lookupDefExact n (gamma defs)) of
+                              Just (TCon _ _ ps _ _ _ _ _) => pure ps
+                              _ => pure []
+               let (ps, ds) = splitPs 0 params args
+               ns' <- getDepsArgs True !(traverse (evalClosure defs) ps) ns
+               getDepsArgs False !(traverse (evalClosure defs) ds) ns'
+        where
+          -- Split into arguments in parameter position, and others
+          splitPs : Nat -> List Nat -> List (Closure []) ->
+                    (List (Closure []), List (Closure []))
+          splitPs n params [] = ([], [])
+          splitPs n params (x :: xs)
+              = let (ps', ds') = splitPs (1 + n) params xs in
+                    if n `elem` params
+                       then (x :: ps', ds')
+                       else (ps', x :: ds')
+      getDeps inparam (NDelayed _ _ t) ns = getDeps inparam t ns
+      getDeps inparams nf ns = pure ns
+
     -- If the name of an argument is in the list of specialisable arguments,
     -- record the position. Also record the position of anything the argument
     -- depends on which is only dependend on by declared static arguments.
@@ -98,11 +147,15 @@ processFnOpt fc ndef (SpecArgs ns)
              empty <- clearDefs defs
              sc' <- sc defs (toClosure defaultOpts [] (Ref tfc Bound x))
              if x `elem` ns
-                then do aty <- quote empty [] nty
+                then do deps <- getDeps True nty NameMap.empty
                         -- Get names depended on by nty
-                        let rs = filter (\x => not (x `elem` ddeps))
-                                        (keys (getRefs (UN "_") aty))
-                        let acc' = insertDeps acc ps (x :: rs)
+                        -- Keep the ones which are either:
+                        --  * parameters
+                        --  * not depended on by a dynamic argument (the ddeps)
+                        let rs = filter (\x => snd x ||
+                                               not (fst x `elem` ddeps))
+                                        (toList deps)
+                        let acc' = insertDeps acc ps (x :: map fst rs)
                         collectSpec acc' ddeps ps sc'
                 else collectSpec acc ddeps ps sc'
     collectSpec acc ddeps ps _ = pure acc

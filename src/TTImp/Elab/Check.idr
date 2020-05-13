@@ -20,22 +20,27 @@ import Data.NameMap
 import Data.StringMap
 
 public export
-data ElabMode = InType | InLHS RigCount | InExpr
+data ElabMode = InType | InLHS RigCount | InExpr | InTransform
 
 Show ElabMode where
   show InType = "InType"
   show (InLHS c) = "InLHS " ++ show c
   show InExpr = "InExpr"
+  show InTransform = "InTransform"
 
 public export
 data ElabOpt
   = HolesOkay
   | InCase
+  | InPartialEval
+  | InTrans
 
 public export
 Eq ElabOpt where
   HolesOkay == HolesOkay = True
   InCase == InCase = True
+  InPartialEval == InPartialEval = True
+  InTrans == InTrans = True
   _ == _ = False
 
 -- Descriptions of implicit name bindings. They're either just the name,

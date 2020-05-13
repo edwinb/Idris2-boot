@@ -156,17 +156,14 @@ schOp (Cast IntType CharType) [x] = op "integer->char" [x]
 schOp (Cast from to) [x] = "(blodwen-error-quit \"Invalid cast " ++ show from ++ "->" ++ show to ++ "\")"
 
 schOp BelieveMe [_,_,x] = x
+schOp Crash [_,msg] = "(blodwen-error-quit (string-append \"ERROR: \" " ++ msg ++ "))"
 
 ||| Extended primitives for the scheme backend, outside the standard set of primFn
 public export
 data ExtPrim = CCall | SchemeCall
-             | PutStr | GetStr | PutChar | GetChar
-             | FileOpen | FileClose | FileReadLine | FileWriteLine
-             | FileEOF | FileModifiedTime
              | NewIORef | ReadIORef | WriteIORef
              | NewArray | ArrayGet | ArraySet
              | GetField | SetField
-             | Stdin | Stdout | Stderr
              | VoidElim
              | SysOS | SysCodegen
              | Unknown Name
@@ -175,16 +172,6 @@ export
 Show ExtPrim where
   show CCall = "CCall"
   show SchemeCall = "SchemeCall"
-  show PutStr = "PutStr"
-  show GetStr = "GetStr"
-  show PutChar = "PutChar"
-  show GetChar = "GetChar"
-  show FileOpen = "FileOpen"
-  show FileClose = "FileClose"
-  show FileReadLine = "FileReadLine"
-  show FileWriteLine = "FileWriteLine"
-  show FileEOF = "FileEOF"
-  show FileModifiedTime = "FileModifiedTime"
   show NewIORef = "NewIORef"
   show ReadIORef = "ReadIORef"
   show WriteIORef = "WriteIORef"
@@ -193,9 +180,6 @@ Show ExtPrim where
   show ArraySet = "ArraySet"
   show GetField = "GetField"
   show SetField = "SetField"
-  show Stdin = "Stdin"
-  show Stdout = "Stdout"
-  show Stderr = "Stderr"
   show VoidElim = "VoidElim"
   show SysOS = "SysOS"
   show SysCodegen = "SysCodegen"
@@ -206,16 +190,6 @@ toPrim : Name -> ExtPrim
 toPrim pn@(NS _ n)
     = cond [(n == UN "prim__schemeCall", SchemeCall),
             (n == UN "prim__cCall", CCall),
-            (n == UN "prim__putStr", PutStr),
-            (n == UN "prim__getStr", GetStr),
-            (n == UN "prim__putChar", PutChar),
-            (n == UN "prim__getChar", GetChar),
-            (n == UN "prim__open", FileOpen),
-            (n == UN "prim__close", FileClose),
-            (n == UN "prim__readLine", FileReadLine),
-            (n == UN "prim__writeLine", FileWriteLine),
-            (n == UN "prim__eof", FileEOF),
-            (n == UN "prim__fileModifiedTime", FileModifiedTime),
             (n == UN "prim__newIORef", NewIORef),
             (n == UN "prim__readIORef", ReadIORef),
             (n == UN "prim__writeIORef", WriteIORef),
@@ -224,9 +198,6 @@ toPrim pn@(NS _ n)
             (n == UN "prim__arraySet", ArraySet),
             (n == UN "prim__getField", GetField),
             (n == UN "prim__setField", SetField),
-            (n == UN "prim__stdin", Stdin),
-            (n == UN "prim__stdout", Stdout),
-            (n == UN "prim__stderr", Stderr),
             (n == UN "void", VoidElim),
             (n == UN "prim__os", SysOS),
             (n == UN "prim__codegen", SysCodegen)
@@ -265,6 +236,32 @@ schArglist [] = ""
 schArglist [x] = schName x
 schArglist (x :: xs) = schName x ++ " " ++ schArglist xs
 
+mutual
+  used : Name -> NamedCExp -> Bool
+  used n (NmLocal fc n') = n == n'
+  used n (NmRef _ _) = False
+  used n (NmLam _ _ sc) = used n sc
+  used n (NmLet _ _ v sc) = used n v || used n sc
+  used n (NmApp _ f args) = used n f || or (map Delay (map (used n) args))
+  used n (NmCon _ _ _ args) = or (map Delay (map (used n) args))
+  used n (NmOp _ _ args) = or (map Delay (toList (map (used n) args)))
+  used n (NmExtPrim _ _ args) = or (map Delay (map (used n) args))
+  used n (NmForce _ t) = used n t
+  used n (NmDelay _ t) = used n t
+  used n (NmConCase _ sc alts def)
+      = used n sc || or (map Delay (map (usedCon n) alts))
+            || maybe False (used n) def
+  used n (NmConstCase _ sc alts def)
+      = used n sc || or (map Delay (map (usedConst n) alts))
+            || maybe False (used n) def
+  used n _ = False
+
+  usedCon : Name -> NamedConAlt -> Bool
+  usedCon n (MkNConAlt _ _ _ sc) = used n sc
+
+  usedConst : Name -> NamedConstAlt -> Bool
+  usedConst n (MkNConstAlt _ sc) = used n sc
+
 parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
             schString : String -> String)
   mutual
@@ -276,8 +273,22 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
         bindArgs : Int -> (ns : List Name) -> String -> String
         bindArgs i [] body = body
         bindArgs i (n :: ns) body
-            = "(let ((" ++ schName n ++ " " ++ "(vector-ref " ++ target ++ " " ++ show i ++ "))) "
+            = if used n sc
+                 then "(let ((" ++ schName n ++ " " ++ "(vector-ref " ++ target ++ " " ++ show i ++ "))) "
                     ++ bindArgs (i + 1) ns body ++ ")"
+                 else bindArgs (i + 1) ns body
+
+    schConUncheckedAlt : Int -> String -> NamedConAlt -> Core String
+    schConUncheckedAlt i target (MkNConAlt n tag args sc)
+        = pure $ bindArgs 1 args !(schExp i sc)
+      where
+        bindArgs : Int -> (ns : List Name) -> String -> String
+        bindArgs i [] body = body
+        bindArgs i (n :: ns) body
+            = if used n sc
+                 then "(let ((" ++ schName n ++ " " ++ "(vector-ref " ++ target ++ " " ++ show i ++ "))) "
+                    ++ bindArgs (i + 1) ns body ++ ")"
+                 else bindArgs (i + 1) ns body
 
     schConstAlt : Int -> String -> NamedConstAlt -> Core String
     schConstAlt i target (MkNConstAlt c exp)
@@ -317,13 +328,46 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
              let n = "sc" ++ show i
              pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) "
                      ++ defc ++ ")"
+    schExp i (NmConCase fc sc [alt] Nothing)
+        = do tcode <- schExp (i+1) sc
+             let n = "sc" ++ show i
+             pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) " ++
+                    !(schConUncheckedAlt (i+1) n alt) ++ ")"
+    schExp i (NmConCase fc sc alts Nothing)
+        = do tcode <- schExp (i+1) sc
+             let n = "sc" ++ show i
+             pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) (case (vector-ref " ++ n ++ " 0) "
+                     ++ !(showAlts n alts) ++
+                     "))"
+      where
+        showAlts : String -> List NamedConAlt -> Core String
+        showAlts n [] = pure ""
+        showAlts n [alt]
+           = pure $ "(else " ++ !(schConUncheckedAlt (i + 1) n alt) ++ ")"
+        showAlts n (alt :: alts)
+           = pure $ !(schConAlt (i + 1) n alt) ++ " " ++
+                    !(showAlts n alts)
     schExp i (NmConCase fc sc alts def)
         = do tcode <- schExp (i+1) sc
              defc <- maybe (pure Nothing) (\v => pure (Just !(schExp i v))) def
              let n = "sc" ++ show i
-             pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) (case (get-tag " ++ n ++ ") "
+             pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) (case (vector-ref " ++ n ++ " 0) "
                      ++ showSep " " !(traverse (schConAlt (i+1) n) alts)
                      ++ schCaseDef defc ++ "))"
+    schExp i (NmConstCase fc sc alts Nothing)
+        = do tcode <- schExp (i+1) sc
+             let n = "sc" ++ show i
+             pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) (cond "
+                      ++ !(showConstAlts n alts)
+                      ++ "))"
+      where
+        showConstAlts : String -> List NamedConstAlt -> Core String
+        showConstAlts n [] = pure ""
+        showConstAlts n [MkNConstAlt c exp]
+           = pure $ "(else " ++ !(schExp (i + 1) exp) ++ ")"
+        showConstAlts n (alt :: alts)
+           = pure $ !(schConstAlt (i + 1) n alt) ++ " " ++
+                    !(showConstAlts n alts)
     schExp i (NmConstCase fc sc alts def)
         = do defc <- maybe (pure Nothing) (\v => pure (Just !(schExp i v))) def
              tcode <- schExp (i+1) sc
@@ -353,32 +397,6 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
   schExtCommon i SchemeCall [ret, fn, args, world]
        = pure $ mkWorld ("(apply (eval (string->symbol " ++ !(schExp i fn) ++")) "
                     ++ !(readArgs i args) ++ ")")
-  schExtCommon i PutStr [arg, world]
-      = pure $ "(begin (display " ++ !(schExp i arg) ++ ") " ++ mkWorld (schConstructor 0 []) ++ ")" -- code for MkUnit
-  schExtCommon i GetStr [world]
-      = pure $ mkWorld "(blodwen-get-line (current-input-port))"
-  schExtCommon i PutChar [arg, world]
-      = pure $ "(begin (display " ++ !(schExp i arg) ++ ") " ++ mkWorld (schConstructor 0 []) ++ ")" -- code for MkUnit
-  schExtCommon i GetChar [world]
-      = pure $ mkWorld "(blodwen-get-char (current-input-port))"
-  schExtCommon i FileOpen [file, mode, bin, world]
-      = pure $ mkWorld $ fileOp $ "(blodwen-open "
-                                      ++ !(schExp i file) ++ " "
-                                      ++ !(schExp i mode) ++ " "
-                                      ++ !(schExp i bin) ++ ")"
-  schExtCommon i FileClose [file, world]
-      = pure $ "(blodwen-close-port " ++ !(schExp i file) ++ ") " ++ mkWorld (schConstructor 0 [])
-  schExtCommon i FileReadLine [file, world]
-      = pure $ mkWorld $ fileOp $ "(blodwen-get-line " ++ !(schExp i file) ++ ")"
-  schExtCommon i FileWriteLine [file, str, world]
-      = pure $ mkWorld $ fileOp $ "(blodwen-putstring "
-                                        ++ !(schExp i file) ++ " "
-                                        ++ !(schExp i str) ++ ")"
-  schExtCommon i FileEOF [file, world]
-      = pure $ mkWorld $ "(blodwen-eof " ++ !(schExp i file) ++ ")"
-  schExtCommon i FileModifiedTime [file, world]
-      = pure $ mkWorld $ fileOp $ "(blodwen-file-modified-time "
-                                        ++ !(schExp i file) ++ ")"
   schExtCommon i NewIORef [_, val, world]
       = pure $ mkWorld $ "(box " ++ !(schExp i val) ++ ")"
   schExtCommon i ReadIORef [_, ref, world]
@@ -403,9 +421,6 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
       = pure $ show os
   schExtCommon i (Unknown n) args
       = throw (InternalError ("Can't compile unknown external primitive " ++ show n))
-  schExtCommon i Stdin [] = pure "(current-input-port)"
-  schExtCommon i Stdout [] = pure "(current-output-port)"
-  schExtCommon i Stderr [] = pure "(current-error-port)"
   schExtCommon i prim args
       = throw (InternalError ("Badly formed external primitive " ++ show prim
                                 ++ " " ++ show args))

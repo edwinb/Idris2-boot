@@ -2,41 +2,54 @@ module System
 
 import Data.So
 
-%cg chicken (use posix)
+support : String -> String
+support fn = "C:" ++ fn ++ ", libidris2_support"
+
+%foreign support "idris2_sleep"
+prim_sleep : Int -> PrimIO ()
+%foreign support "idris2_usleep"
+prim_usleep : Int -> PrimIO ()
 
 export
 sleep : Int -> IO ()
-sleep sec = schemeCall () "blodwen-sleep" [sec]
+sleep sec = primIO (prim_sleep sec)
 
 export
 usleep : (x : Int) -> So (x >= 0) => IO ()
-usleep usec = schemeCall () "blodwen-usleep" [usec]
+usleep sec = primIO (prim_usleep sec)
+
+-- This one is going to vary for different back ends. Probably needs a
+-- better convention. Will revisit...
+%foreign "scheme:blodwen-args"
+prim__getArgs : PrimIO (List String)
 
 export
 getArgs : IO (List String)
-getArgs = schemeCall (List String) "blodwen-args" []
+getArgs = primIO prim__getArgs
 
-%foreign "scheme:getenv"
-prim_getEnv : String -> PrimIO String
-
-%foreign "scheme:blodwen-hasenv"
-prim_hasEnv : String -> PrimIO Int
+%foreign "C:getenv,libc"
+prim_getEnv : String -> PrimIO (Ptr String)
 
 export
 getEnv : String -> IO (Maybe String)
 getEnv var
-   = do ok <- primIO $ prim_hasEnv var
-        if ok == 0
+   = do env <- primIO $ prim_getEnv var
+        if prim__nullPtr env /= 0
            then pure Nothing
-           else map pure $ primIO (prim_getEnv var)
+           else pure (Just (prim__getString env))
 
-%foreign "scheme:blodwen-system"
+%foreign "C:system,libc"
+         "scheme:blodwen-system"
 prim_system : String -> PrimIO Int
 
 export
 system : String -> IO Int
 system cmd = primIO (prim_system cmd)
 
+%foreign support "idris2_time"
+         "scheme:blodwen-time"
+prim_time : PrimIO Int
+
 export
 time : IO Integer
-time = schemeCall Integer "blodwen-time" []
+time = pure $ cast !(primIO prim_time)

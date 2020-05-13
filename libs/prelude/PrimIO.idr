@@ -19,6 +19,7 @@ export
 prim_io_pure : a -> PrimIO a
 prim_io_pure x = \w => MkIORes x w
 
+%inline
 export
 io_pure : a -> IO a
 io_pure x = MkIO (\w => MkIORes x w)
@@ -28,17 +29,21 @@ prim_io_bind : (1 act : PrimIO a) -> (1 k : a -> PrimIO b) -> PrimIO b
 prim_io_bind fn k w
     = let MkIORes x' w' = fn w in k x' w'
 
-%inline
+-- There's a special case for inlining this is Compiler.Inline, because
+-- the inliner is cautious about case blocks at the moment. Once it's less
+-- cautious, add an explicit %inline directive and take out the special case.
+-- See also dealing with the newtype optimisation via %World in
+-- Compiler.CompileExpr
 export
 io_bind : (1 act : IO a) -> (1 k : a -> IO b) -> IO b
-io_bind (MkIO fn)
-    = \k => MkIO (\w => let MkIORes x' w' = fn w
-                            MkIO res = k x' in
-                            res w')
+io_bind (MkIO fn) k
+    = MkIO (\w => let MkIORes x' w' = fn w
+                      MkIO res = k x' in
+                      res w')
 
-%extern prim__putStr : String -> (1 x : %World) -> IORes ()
-%extern prim__getStr : (1 x : %World) -> IORes String
-%extern prim__putChar : Char -> (1 x : %World) -> IORes ()
+%foreign "C:putchar,libc"
+prim__putChar : Char -> (1 x : %World) -> IORes ()
+%foreign "C:getchar,libc"
 %extern prim__getChar : (1 x : %World) -> IORes Char
 
 -- A pointer representing a given parameter type
@@ -80,6 +85,26 @@ export %inline
 cCall : (ret : Type) -> String -> FArgList -> IO ret
 cCall ret fn args = primIO (prim__cCall ret fn args)
 
+%foreign "C:idris2_isNull, libidris2_support"
+export
+prim__nullAnyPtr : AnyPtr -> Int
+
+prim__forgetPtr : Ptr t -> AnyPtr
+prim__forgetPtr = believe_me
+
+export %inline
+prim__nullPtr : Ptr t -> Int -- can't pass 'type' to a foreign function
+prim__nullPtr p = prim__nullAnyPtr (prim__forgetPtr p)
+
+%foreign "C:idris2_getString, libidris2_support"
+export
+prim__getString : Ptr String -> String
+
+%foreign "C:idris2_getStr,libidris2_support"
+prim__getStr : PrimIO String
+%foreign "C:idris2_putStr,libidris2_support"
+prim__putStr : String -> PrimIO ()
+
 ||| Output a string to stdout without a trailing newline.
 export
 putStr : String -> IO ()
@@ -117,6 +142,10 @@ fork (MkIO act) = schemeCall ThreadID "blodwen-thread" [act]
 export
 prim_fork : (1 prog : PrimIO ()) -> PrimIO ThreadID
 prim_fork act w = prim__schemeCall ThreadID "blodwen-thread" [act] w
+
+%foreign "C:idris2_readString, libidris2_support"
+export
+prim__getErrno : Int
 
 unsafeCreateWorld : (1 f : (1 x : %World) -> a) -> a
 unsafeCreateWorld f = f %MkWorld

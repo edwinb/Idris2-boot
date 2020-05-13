@@ -30,4 +30,3 @@ printBool x
     = if x
          then putStrLn !(fakeGetLine "True")
          else putStrLn !(fakeGetLine "False")
-

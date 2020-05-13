@@ -189,11 +189,45 @@ natHackTree (CConCase fc sc alts def)
         else CConCase fc sc alts def
 natHackTree t = t
 
+-- Rewrite case trees on Bool/Ord to be case trees on Integer
+-- TODO: Generalise to all enumerations
+boolHackTree : CExp vars -> CExp vars
+boolHackTree (CConCase fc sc alts def)
+   = let Just alts' = traverse toBool alts
+              | Nothing => CConCase fc sc alts def in
+         CConstCase fc sc alts' def
+  where
+    toBool : CConAlt vars -> Maybe (CConstAlt vars)
+    toBool (MkConAlt (NS ["Prelude"] (UN "True")) tag [] sc)
+        = Just $ MkConstAlt (I tag) sc
+    toBool (MkConAlt (NS ["Prelude"] (UN "False")) tag [] sc)
+        = Just $ MkConstAlt (I tag) sc
+    toBool (MkConAlt (NS ["Prelude"] (UN "LT")) tag [] sc)
+        = Just $ MkConstAlt (I tag) sc
+    toBool (MkConAlt (NS ["Prelude"] (UN "EQ")) tag [] sc)
+        = Just $ MkConstAlt (I tag) sc
+    toBool (MkConAlt (NS ["Prelude"] (UN "GT")) tag [] sc)
+        = Just $ MkConstAlt (I tag) sc
+    toBool _ = Nothing
+boolHackTree t = t
+
 mutual
   toCExpTm : {auto c : Ref Ctxt Defs} ->
              NameTags -> Name -> Term vars -> Core (CExp vars)
   toCExpTm tags n (Local fc _ _ prf)
       = pure $ CLocal fc prf
+  -- TMP HACK: extend this to all types which look like enumerations
+  -- after erasure
+  toCExpTm tags n (Ref fc (DataCon tag Z) (NS ["Prelude"] (UN "True")))
+      = pure $ CPrimVal fc (I tag)
+  toCExpTm tags n (Ref fc (DataCon tag Z) (NS ["Prelude"] (UN "False")))
+      = pure $ CPrimVal fc (I tag)
+  toCExpTm tags n (Ref fc (DataCon tag Z) (NS ["Prelude"] (UN "LT")))
+      = pure $ CPrimVal fc (I tag)
+  toCExpTm tags n (Ref fc (DataCon tag Z) (NS ["Prelude"] (UN "EQ")))
+      = pure $ CPrimVal fc (I tag)
+  toCExpTm tags n (Ref fc (DataCon tag Z) (NS ["Prelude"] (UN "GT")))
+      = pure $ CPrimVal fc (I tag)
   toCExpTm tags n (Ref fc (DataCon tag arity) fn)
       = let tag' = case lookup fn tags of
                         Just t => t
@@ -318,21 +352,28 @@ mutual
                 -- outside world, so we need to evaluate to keep the
                 -- side effect.
                 Just (DCon _ arity (Just (noworld, pos))) =>
-                     if noworld -- just substitute the scrutinee into
-                                -- the RHS
-                        then let env : SubstCEnv args vars
+-- FIXME: We don't need the commented out bit *for now* because io_bind
+-- isn't being inlined, but it does need to be a little bit cleverer to
+-- get the best performance.
+-- I'm (edwinb) keeping it visible here because I plan to put it back in
+-- more or less this form once case inlining works better and the whole thing
+-- works in a nice principled way.
+--                      if noworld -- just substitute the scrutinee into
+--                                 -- the RHS
+--                         then 
+                             let env : SubstCEnv args vars
                                      = mkSubst 0 scr pos args in
                                  pure $ Just (substs env !(toCExpTree tags n sc))
-                        else -- let bind the scrutinee, and substitute the
-                             -- name into the RHS
-                             let env : SubstCEnv args (MN "eff" 0 :: vars)
-                                     = mkSubst 0 (CLocal fc First) pos args in
-                             do sc' <- toCExpTree tags n sc
-                                let scope = thin {outer=args}
-                                                 {inner=vars}
-                                                 (MN "eff" 0) sc'
-                                pure $ Just (CLet fc (MN "eff" 0) False scr
-                                                  (substs env scope))
+--                         else -- let bind the scrutinee, and substitute the
+--                              -- name into the RHS
+--                              let env : SubstCEnv args (MN "eff" 0 :: vars)
+--                                      = mkSubst 0 (CLocal fc First) pos args in
+--                              do sc' <- toCExpTree tags n sc
+--                                 let scope = thin {outer=args}
+--                                                  {inner=vars}
+--                                                  (MN "eff" 0) sc'
+--                                 pure $ Just (CLet fc (MN "eff" 0) False scr
+--                                                   (substs env scope))
                 _ => pure Nothing -- there's a normal match to do
     where
       mkSubst : Nat -> CExp vs ->
@@ -378,7 +419,7 @@ mutual
                def <- getDef tags n alts
                if isNil cases
                   then pure (fromMaybe (CErased fc) def)
-                  else pure $ natHackTree $
+                  else pure $ boolHackTree $ natHackTree $
                             CConCase fc (CLocal fc x) cases def
   toCExpTree' tags n (Case _ x scTy alts@(DelayCase _ _ _ :: _))
       = throw (InternalError "Unexpected DelayCase")
@@ -493,7 +534,9 @@ nfToCFType _ s (NTCon fc n _ _ args)
 nfToCFType fc s t
     = do defs <- get Ctxt
          ty <- quote defs [] t
-         throw (GenericMsg (getLoc t) ("Can't marshal type for foreign call " ++ show ty))
+         throw (GenericMsg (getLoc t)
+                       ("Can't marshal type for foreign call " ++
+                                      show !(toFullNames ty)))
 
 getCFTypes : {auto c : Ref Ctxt Defs} ->
              List CFType -> NF [] ->

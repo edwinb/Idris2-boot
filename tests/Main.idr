@@ -34,7 +34,7 @@ idrisTests
        "basic021", "basic022", "basic023", "basic024", "basic025",
        "basic026", "basic027", "basic028", "basic029", "basic030",
        "basic031", "basic032", "basic033", "basic034", "basic035",
-       "basic036", "basic037", "basic038",
+       "basic036", "basic037", "basic038", "basic039",
        -- Coverage checking
        "coverage001", "coverage002", "coverage003", "coverage004",
        "coverage005", "coverage006",
@@ -81,7 +81,7 @@ idrisTests
        -- Miscellaneous regressions
        "reg001", "reg002", "reg003", "reg004", "reg005", "reg006", "reg007",
        "reg008", "reg009", "reg010", "reg011", "reg012", "reg013", "reg014",
-       "reg015", "reg016", "reg017", "reg018",
+       "reg015", "reg016", "reg017", "reg018", "reg019",
        -- Totality checking
        "total001", "total002", "total003", "total004", "total005",
        "total006",
@@ -100,7 +100,7 @@ chezTests : List String
 chezTests
    = ["chez001", "chez002", "chez003", "chez004", "chez005", "chez006",
       "chez007", "chez008", "chez009", "chez010", "chez011", "chez012",
-      "chez013", "chez014", "chez015", "chez016",
+      "chez013", "chez014", "chez015", "chez016",            "chez018",
       "reg001"]
 
 ideModeTests : List String

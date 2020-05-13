@@ -58,8 +58,8 @@ Summary of new features:
 + Better type checker implementation which minimises the need for compile
   time evaluation.
 + New Chez Scheme based back end which both compiles and runs faster than the
-  default Idris 1 back end. (Also, optionally, Chicken Scheme and Racket can
-  be used as targets).
+  default Idris 1 back end. (Also, optionally, Racket and Gambit can be used
+  as targets).
 + Everything works faster :).
 
 A significant change in the implementation is that there is an intermediate

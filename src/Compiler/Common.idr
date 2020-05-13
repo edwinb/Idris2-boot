@@ -192,10 +192,11 @@ dumpVMCode fn lns
 export
 getCompileData : {auto c : Ref Ctxt Defs} ->
                  ClosedTerm -> Core CompileData
-getCompileData tm
+getCompileData tm_in
     = do defs <- get Ctxt
          sopts <- getSession
-         let ns = getRefs (Resolved (-1)) tm
+         let ns = getRefs (Resolved (-1)) tm_in
+         tm <- toFullNames tm_in
          natHackNames' <- traverse toResolvedNames natHackNames
          -- make an array of Bools to hold which names we've found (quicker
          -- to check than a NameMap!)
@@ -216,6 +217,12 @@ getCompileData tm
          tycontags <- mkNameTags defs tyconInit 100 cns
          logTime ("Compile defs " ++ show (length cns) ++ "/" ++ show asize) $
            traverse_ (compileDef tycontags) cns
+         logTime "Inline" $ traverse_ inlineDef cns
+         logTime "Merge lambda" $ traverse_ mergeLamDef cns
+         logTime "Fix arity" $ traverse_ fixArityDef cns
+         -- Do another round, since merging lambdas might expose more
+         -- optimisation opportunities, especially a really important one
+         -- for io_bind.
          logTime "Inline" $ traverse_ inlineDef cns
          logTime "Merge lambda" $ traverse_ mergeLamDef cns
          logTime "Fix arity" $ traverse_ fixArityDef cns

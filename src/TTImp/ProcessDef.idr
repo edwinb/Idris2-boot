@@ -11,6 +11,7 @@ import Core.LinearCheck
 import Core.Metadata
 import Core.Normalise
 import Core.Termination
+import Core.Transform
 import Core.Value
 import Core.UnifyState
 
@@ -209,10 +210,12 @@ combineLinear loc ((n, count) :: cs)
         = do newc <- combine c c'
              combineAll newc cs
 
+export -- also used by Transforms
 checkLHS : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
            {auto m : Ref MD Metadata} ->
            {auto u : Ref UST UState} ->
+           Bool -> -- in transform
            (mult : RigCount) -> (hashit : Bool) ->
            Int -> List ElabOpt -> NestedNames vars -> Env Term vars ->
            FC -> RawImp ->
@@ -220,21 +223,28 @@ checkLHS : {vars : _} ->
                  (vars' ** (SubVars vars vars',
                            Env Term vars', NestedNames vars',
                            Term vars', Term vars')))
-checkLHS {vars} mult hashit n opts nest env fc lhs_in
+checkLHS {vars} trans mult hashit n opts nest env fc lhs_in
     = do defs <- get Ctxt
-         lhs_raw <- lhsInCurrentNS nest lhs_in
+         lhs_raw <- if trans
+                       then pure lhs_in
+                       else lhsInCurrentNS nest lhs_in
          autoimp <- isUnboundImplicits
          setUnboundImplicits True
          (_, lhs_bound) <- bindNames False lhs_raw
          setUnboundImplicits autoimp
-         lhs <- implicitsAs defs vars lhs_bound
+         lhs <- if trans
+                   then pure lhs_bound
+                   else implicitsAs defs vars lhs_bound
 
          log 5 $ "Checking LHS of " ++ show !(getFullName (Resolved n)) ++
                  " " ++ show lhs
          logEnv 5 "In env" env
+         let lhsMode = if trans
+                          then InTransform
+                          else InLHS mult
          (lhstm, lhstyg) <-
              wrapError (InLHS fc !(getFullName (Resolved n))) $
-                     elabTerm n (InLHS mult) opts nest env
+                     elabTerm n lhsMode opts nest env
                                 (IBindHere fc PATTERN lhs) Nothing
          logTerm 5 "Checked LHS term" lhstm
          lhsty <- getTerm lhstyg
@@ -361,7 +371,7 @@ checkClause mult hashit n opts nest env (ImpossibleClause fc lhs)
                               else throw (ValidCase fc env (Right err)))
 checkClause {vars} mult hashit n opts nest env (PatClause fc lhs_in rhs)
     = do (_, (vars'  ** (sub', env', nest', lhstm', lhsty'))) <-
-             checkLHS mult hashit n opts nest env fc lhs_in
+             checkLHS False mult hashit n opts nest env fc lhs_in
          let rhsMode = if isErased mult then InType else InExpr
          log 5 $ "Checking RHS " ++ show rhs
          logEnv 5 "In env" env'
@@ -386,7 +396,7 @@ checkClause {vars} mult hashit n opts nest env (PatClause fc lhs_in rhs)
 -- TODO: (to decide) With is complicated. Move this into its own module?
 checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs)
     = do (lhs, (vars'  ** (sub', env', nest', lhspat, reqty))) <-
-             checkLHS mult hashit n opts nest env fc lhs_in
+             checkLHS False mult hashit n opts nest env fc lhs_in
          let wmode
                = if isErased mult then InType else InExpr
 
@@ -582,7 +592,8 @@ mkRunTime n
     toErased fc spec (_ ** (env, lhs, rhs))
         = do lhs_erased <- linearCheck fc linear True env lhs
              -- Partially evaluate RHS here, where appropriate
-             rhs' <- applySpecialise env spec rhs
+             rhs' <- applyTransforms env rhs
+             rhs' <- applySpecialise env spec rhs'
              rhs_erased <- linearCheck fc linear True env rhs'
              pure (_ ** (env, lhs_erased, rhs_erased))
 

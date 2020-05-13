@@ -795,12 +795,13 @@ implementation {k : Nat} -> Applicative (Vect k) where
 
 -- ||| This monad is different from the List monad, (>>=)
 -- ||| uses the diagonal.
-implementation {len : Nat} -> Monad (Vect len) where
+implementation {k : Nat} -> Monad (Vect k) where
     m >>= f = diag (map f m)
 
-implementation {n : Nat} -> Traversable (Vect n) where
+public export
+implementation Traversable (Vect k) where
     traverse f []        = pure []
-    traverse f (x :: xs) = pure (::) <*> (f x) <*> (traverse f xs)
+    traverse f (x :: xs) = [| f x :: traverse f xs |]
 
 --------------------------------------------------------------------------------
 -- Elem

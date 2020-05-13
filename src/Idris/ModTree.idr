@@ -219,14 +219,12 @@ buildDeps fname
                        put MD initMetadata
                        mainttc <- getTTCFileName fname ".ttc"
                        log 10 $ "Reloading " ++ show mainttc
-                       logTime "Reading TTC" $
-                         readAsMain mainttc
+                       readAsMain mainttc
 
                        -- Load the associated metadata for interactive editing
                        mainttm <- getTTCFileName fname ".ttm"
                        log 10 $ "Reloading " ++ show mainttm
-                       logTime "Reading TTM" $
-                         readFromTTM mainttm
+                       readFromTTM mainttm
                        pure []
               errs => pure errs -- Error happened, give up
 

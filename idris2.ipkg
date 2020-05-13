@@ -7,8 +7,8 @@ modules =
     Compiler.Inline,
     Compiler.LambdaLift,
     Compiler.Scheme.Chez,
---     Compiler.Scheme.Chicken,
     Compiler.Scheme.Racket,
+    Compiler.Scheme.Gambit,
     Compiler.Scheme.Common,
     Compiler.VMCode,
 
@@ -118,6 +118,7 @@ modules =
     TTImp.ProcessDef,
     TTImp.ProcessParams,
     TTImp.ProcessRecord,
+    TTImp.ProcessTransform,
     TTImp.ProcessType,
 --     TTImp.Reflect,
     TTImp.TTImp,
@@ -128,6 +129,7 @@ modules =
     Utils.Binary,
     Utils.Hex,
     Utils.Shunting,
+    Utils.String,
 
     Yaffle.Main,
     Yaffle.REPL

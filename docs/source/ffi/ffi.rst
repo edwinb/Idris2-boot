@@ -24,8 +24,8 @@ example, in C:
 
 It is up to specific code generators to decide how to locate the function and
 the library. In this document, we will assume the default Chez Scheme code
-generator (the examples also work with the Racket code generator) and that the
-foreign language is C.
+generator (the examples also work with the Racket or Gambit code generator) and
+that the foreign language is C.
 
 Example
 -------

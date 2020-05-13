@@ -15,6 +15,7 @@ import TTImp.ProcessData
 import TTImp.ProcessDef
 import TTImp.ProcessParams
 import TTImp.ProcessRecord
+import TTImp.ProcessTransform
 import TTImp.ProcessType
 import TTImp.TTImp
 
@@ -42,8 +43,8 @@ process eopts nest env (INamespace fc ns decls)
          traverse_ (processDecl eopts nest env) decls
          defs <- get Ctxt
          put Ctxt (record { currentNS = cns } defs)
-process eopts nest env (ITransform fc lhs rhs)
-    = throw (GenericMsg fc "%transform not yet implemented")
+process eopts nest env (ITransform fc n lhs rhs)
+    = processTransform eopts nest env fc n lhs rhs
 process {c} eopts nest env (IPragma act)
     = act c nest env
 process eopts nest env (ILog n)

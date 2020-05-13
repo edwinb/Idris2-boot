@@ -11,11 +11,12 @@ export
 replWith : (state : a) -> (prompt : String) ->
            (onInput : a -> String -> Maybe (String, a)) -> IO ()
 replWith acc prompt fn
-   = do putStr prompt
-        eof <- fEOF stdin
+   = do eof <- fEOF stdin
         if eof
           then pure ()
-          else do x <- getLine
+          else do putStr prompt
+                  fflush stdout
+                  x <- getLine
                   case fn acc x of
                        Just (out, acc') =>
                            do putStr out

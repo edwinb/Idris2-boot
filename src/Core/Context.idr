@@ -278,6 +278,8 @@ record Context where
     -- access in a program - in all other cases, we'll assume everything is
     -- visible
     visibleNS : List (List String)
+    allPublic : Bool -- treat everything as public. This is only intended
+                     -- for checking partially evaluated definitions
     inlineOnly : Bool -- only return things with the 'alwaysReduce' flag
 
 export
@@ -300,7 +302,7 @@ initCtxtS : Int -> Core Context
 initCtxtS s
     = do arr <- coreLift $ newArray s
          aref <- newRef Arr arr
-         pure (MkContext 0 0 empty empty aref 0 empty [["_PE"]] False)
+         pure (MkContext 0 0 empty empty aref 0 empty [["_PE"]] False False)
 
 export
 initCtxt : Core Context
@@ -511,11 +513,13 @@ newDef fc n rig vars ty vis def
 -- 'NF but we're working with terms rather than values...)
 public export
 data Transform : Type where
-     MkTransform : Env Term vars -> Term vars -> Term vars -> Transform
+     MkTransform : {vars : _} ->
+                   Name -> -- name for identifying the rule
+                   Env Term vars -> Term vars -> Term vars -> Transform
 
 export
 getFnName : Transform -> Maybe Name
-getFnName (MkTransform _ app _)
+getFnName (MkTransform _ _ app _)
     = case getFn app of
            Ref _ _ fn => Just fn
            _ => Nothing
@@ -769,11 +773,12 @@ HasNames GlobalDef where
 
 export
 HasNames Transform where
-  full gam (MkTransform env lhs rhs)
-      = pure $ MkTransform !(full gam env) !(full gam lhs) !(full gam rhs)
+  full gam (MkTransform n env lhs rhs)
+      = pure $ MkTransform !(full gam n) !(full gam env)
+                           !(full gam lhs) !(full gam rhs)
 
-  resolved gam (MkTransform env lhs rhs)
-      = pure $ MkTransform !(resolved gam env)
+  resolved gam (MkTransform n env lhs rhs)
+      = pure $ MkTransform !(resolved gam n) !(resolved gam env)
                            !(resolved gam lhs) !(resolved gam rhs)
 
 public export
@@ -804,7 +809,7 @@ record Defs where
      -- We don't look up anything in here, it's merely for saving out to TTC.
      -- We save the hints in the 'GlobalDef' itself for faster lookup.
   saveAutoHints : List (Name, Bool)
-  transforms : NameMap Transform
+  transforms : NameMap (List Transform)
      -- ^ A mapping from names to transformation rules which update applications
      -- of that name
   saveTransforms : List (Name, Transform)
@@ -826,6 +831,9 @@ record Defs where
   userHoles : NameMap ()
      -- ^ Metavariables the user still has to fill in. In practice, that's
      -- everything with a user accessible name and a definition of Hole
+  peFailures : NameMap ()
+     -- ^ Partial evaluation names which have failed, so don't bother trying
+     -- again
   timings : StringMap (Bool, Integer)
      -- ^ record of timings from logTimeRecord
 
@@ -845,7 +853,7 @@ initDefs
     = do gam <- initCtxt
          pure (MkDefs gam [] ["Main"] [] defaults empty 100
                       empty empty empty [] [] empty []
-                      empty 5381 [] [] [] [] [] empty empty)
+                      empty 5381 [] [] [] [] [] empty empty empty)
 
 -- Reset the context, except for the options
 export
@@ -1472,13 +1480,22 @@ setOpenHints hs
 export
 addTransform : {auto c : Ref Ctxt Defs} ->
                FC -> Transform -> Core ()
-addTransform fc t
+addTransform fc t_in
     = do defs <- get Ctxt
-         let Just fn = getFnName t
+         let Just fn_in = getFnName t_in
              | Nothing =>
                   throw (GenericMsg fc "LHS of a transformation must be a function application")
-         put Ctxt (record { transforms $= insert fn t,
-                            saveTransforms $= ((fn, t) ::) } defs)
+         fn <- toResolvedNames fn_in
+         t <- toResolvedNames t_in
+         fn_full <- toFullNames fn_in
+         t_full <- toFullNames t_in
+         case lookup fn (transforms defs) of
+              Nothing =>
+                 put Ctxt (record { transforms $= insert fn [t],
+                                    saveTransforms $= ((fn_full, t_full) ::) } defs)
+              Just ts =>
+                 put Ctxt (record { transforms $= insert fn (t :: ts),
+                                    saveTransforms $= ((fn_full, t_full) ::) } defs)
 
 export
 clearSavedHints : {auto c : Ref Ctxt Defs} -> Core ()
@@ -1723,6 +1740,23 @@ getVisible : {auto c : Ref Ctxt Defs} ->
 getVisible
     = do defs <- get Ctxt
          pure (visibleNS (gamma defs))
+
+-- set whether all names should be viewed as public. Be careful with this,
+-- it's not intended for when checking user code! It's meant for allowing
+-- easy checking of partially evaluated definitions.
+export
+setAllPublic : {auto c : Ref Ctxt Defs} ->
+               (pub : Bool) -> Core ()
+setAllPublic pub
+    = do defs <- get Ctxt
+         put Ctxt (record { gamma->allPublic = pub } defs)
+
+export
+isAllPublic : {auto c : Ref Ctxt Defs} ->
+              Core Bool
+isAllPublic
+    = do defs <- get Ctxt
+         pure (allPublic (gamma defs))
 
 -- Return True if the given namespace is visible in the context (meaning
 -- the namespace itself, and any namespace it's nested inside)

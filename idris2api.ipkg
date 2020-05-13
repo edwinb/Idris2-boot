@@ -1,11 +1,12 @@
 package idris2api
 
-modules = 
+modules =
     Compiler.Common,
     Compiler.CompileExpr,
     Compiler.Inline,
     Compiler.Scheme.Chez,
     Compiler.Scheme.Racket,
+    Compiler.Scheme.Gambit,
     Compiler.Scheme.Common,
 
     Control.Delayed,
@@ -111,6 +112,7 @@ modules =
     TTImp.ProcessDef,
     TTImp.ProcessParams,
     TTImp.ProcessRecord,
+    TTImp.ProcessTransform,
     TTImp.ProcessType,
     TTImp.TTImp,
     TTImp.Unelab,
@@ -120,6 +122,7 @@ modules =
     Utils.Binary,
     Utils.Hex,
     Utils.Shunting,
+    Utils.String,
 
     Yaffle.Main,
     Yaffle.REPL

@@ -132,6 +132,18 @@ mutual
          List Name -> EEnv free vars -> Stack free -> CExp (vars ++ free) ->
          Core (CExp free)
   eval rec env stk (CLocal fc p) = evalLocal fc rec stk env p
+  -- This is hopefully a temporary hack, giving a special case for io_bind.
+  -- Currently the elaborator is a bit cautious about inlining case blocks
+  -- in case they duplicate work. We should fix that, to decide more accurately
+  -- whether they're safe to inline, but until then this gives such a huge
+  -- boost by removing unnecessary lambdas that we'll keep the special case.
+  eval rec env (_ :: _ :: act :: cont :: world :: stk)
+               (CRef fc (NS ["PrimIO"] (UN "io_bind")))
+      = do xn <- genName "act"
+           sc <- eval rec [] [] (CApp fc cont [CRef fc xn, world])
+           pure $ unload stk $
+                CLet fc xn False (CApp fc act [world])
+                     (refToLocal xn xn sc)
   eval rec env stk (CRef fc n)
       = do defs <- get Ctxt
            Just gdef <- lookupCtxtExact n (gamma defs)
