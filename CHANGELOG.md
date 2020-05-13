@@ -13,6 +13,15 @@ Compiler updates:
 * 0-multiplicity constructor arguments are now properly erased, not just
   given a placeholder null value.
 
+Language extensions:
+
+* %transform directive, for declaring transformation rules on runtime
+  expressions. Transformation rules are automatically added for top level
+  implementations of interfaces.
+* A %spec flag on functions which allows arguments to be marked for partial
+  evaluation, following the rules from "Scrapping Your Inefficient Engine"
+  (ICFP 2010, Brady & Hammond)
+
 Other improvements:
 
 * Various performance improvements in the typechecker:
