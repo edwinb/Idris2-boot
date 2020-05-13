@@ -1,62 +1,54 @@
-RANLIB      ?=ranlib
-AR          ?=ar
+include $(IDRIS2_CURDIR)/config.mk
 
-MACHINE := $(shell $(CC) -dumpmachine)
-ifneq (,$(findstring cygwin, $(MACHINE)))
-	OS := windows
-	SHLIB_SUFFIX := .dll
-else ifneq (,$(findstring mingw, $(MACHINE)))
-	OS := windows
-	SHLIB_SUFFIX := .dll
-else ifneq (,$(findstring windows, $(MACHINE)))
-	OS := windows
-	SHLIB_SUFFIX := .dll
-else ifneq (,$(findstring darwin, $(MACHINE)))
-	OS := darwin
-	SHLIB_SUFFIX := .dylib
-	CFLAGS += -fPIC
-else
-	OS := unix
-	SHLIB_SUFFIX := .so
-	CFLAGS += -fPIC
-endif
+INSTALLDIR = `${IDRIS2} --libdir`/network/lib
 
-
-LIBNAME=idris_net
-
-OBJS = $(LIBNAME).o
-HDRS = $(LIBNAME).h
-CFLAGS := $(CFLAGS)
 IDRIS_SRCS = Network/Socket.idr Network/Socket/Data.idr Network/Socket/Raw.idr
 
-DYLIBTARGET = $(LIBNAME)$(SHLIB_SUFFIX)
-LIBTARGET = $(LIBNAME).a
-TARGET=`${IDRIS2} --libdir`
+TARGET = idris_net
 
-build: $(DYLIBTARGET) $(IDRIS_SRCS)
+SRCS = $(wildcard *.c)
+OBJS = $(SRCS:.c=.o)
+DEPS = $(OBJS:.o=.d)
+
+
+all: $(TARGET)$(SHLIB_SUFFIX)
+	${IDRIS2} --build network.ipkg
+
+
+build: $(TARGET)$(SHLIB_SUFFIX) $(IDRIS_SRCS)
 	@if [ -z "${IDRIS2}" ]; then echo 'variable $$IDRIS2 is not set, aborting'; exit 1; fi
 	${IDRIS2} --build network.ipkg
 
-$(DYLIBTARGET) : $(OBJS)
-	$(CC) -o $(DYLIBTARGET) $(LIBFLAGS) -shared $(OBJS)
+$(TARGET)$(SHLIB_SUFFIX): $(OBJS)
+	$(CC) -shared $(LDFLAGS) -o $@ $^
+
+
+-include $(DEPS)
+
+%.d: %.c
+	@$(CPP) $(CFLAGS) $< -MM -MT $(@:.d=.o) >$@
+
+
+.PHONY: clean
+
+clean :
+	rm -f $(OBJS) $(TARGET)$(SHLIB_SUFFIX)
+	rm -rf build
+
+cleandep: clean
+	rm -f $(DEPS)
+
+
+.PHONY: install
 
 install:
 	@if [ -z "${IDRIS2}" ]; then echo 'variable $$IDRIS2 is not set, aborting'; exit 1; fi
 	${IDRIS2} --install network.ipkg
-	@if ! [ -d $(TARGET)/network/lib ]; then mkdir $(TARGET)/network/lib; fi
-	install $(DYLIBTARGET) $(HDRS) $(TARGET)/network/lib
+	@if ! [ -d $(INSTALLDIR) ]; then mkdir -p $(INSTALLDIR); fi
+	install $(TARGET)$(SHLIB_SUFFIX) $(wildcard *.h) $(INSTALLDIR)
 
-clean :
-	rm -rf $(OBJS) $(LIBTARGET) $(DYLIBTARGET) build
 
 test: build test.c
-	$(CC) -o network-tests -L. -I. test.c $(DYLIBTARGET)
+	$(CC) -o network-tests -L. -I. test.c $(TARGET)$(SHLIB_SUFFIX)
 	LD_LIBRARY_PATH=. ./network-tests
-	@rm -f ./network-tests
-
-$(OBJS): $(HDRS)
-
-all: $(DYLIBTARGET) $(LIBTARGET)
-	${IDRIS2} --build network.ipkg
-
-.PHONY: install clean
+	@rm -f ./network-tests test.o

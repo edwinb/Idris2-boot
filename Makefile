@@ -1,36 +1,4 @@
-##### Options which a user might set before building go here #####
-
-export PREFIX ?= ${HOME}/.idris2
-
-# Add any optimisation/profiling flags for C here (e.g. -O2)
-export OPT=
-export CC=clang # clang compiles the output much faster than gcc!
-
-##################################################################
-
-export MACHINE := $(shell $(CC) -dumpmachine)
-
-ifneq (, $(findstring darwin, $(MACHINE)))
-	OS := darwin
-else ifneq (, $(findstring cygwin, $(MACHINE)))
-	OS := windows
-else ifneq (, $(findstring mingw, $(MACHINE)))
-	OS := windows
-else ifneq (, $(findstring windows, $(MACHINE)))
-	OS := windows
-else ifneq (, $(findstring bsd, $(MACHINE)))
-	OS := bsd
-else
-	OS := linux
-endif
-export OS
-
-ifeq ($(OS),bsd)
-	MAKE := gmake
-else
-	MAKE := make
-endif
-export MAKE
+include config.mk
 
 # current Idris2 version components
 MAJOR=0
@@ -51,9 +19,10 @@ endif
 export IDRIS2_VERSION := ${MAJOR}.${MINOR}.${PATCH}
 IDRIS2_VERSION_TAG := ${IDRIS2_VERSION}${VER_TAG}
 
-export IDRIS2_PATH = ${CURDIR}/libs/prelude/build/ttc:${CURDIR}/libs/base/build/ttc:${CURDIR}/libs/network/build/ttc
-export IDRIS2_LIBS = ${CURDIR}/libs/network
-export IDRIS2_DATA = ${CURDIR}/support
+export IDRIS2_CURDIR = $(CURDIR)
+export IDRIS2_PATH = ${IDRIS2_CURDIR}/libs/prelude/build/ttc:${IDRIS2_CURDIR}/libs/base/build/ttc:${IDRIS2_CURDIR}/libs/network/build/ttc
+export IDRIS2_LIBS = ${IDRIS2_CURDIR}/libs/network
+export IDRIS2_DATA = ${IDRIS2_CURDIR}/support
 
 IDRIS_VERSION := $(shell idris --version)
 VALID_IDRIS_VERSION_REGEXP = "1.3.2.*"
