@@ -84,7 +84,7 @@
 ;; Threads
 
 (define (blodwen-thread p)
-  (thread-start! (make-thread (lambda () (p #(0))))))
+  (thread-start! (make-thread (lambda () (p '#(0))))))
 
 (define (blodwen-get-thread-data ty)
   (let ((data (thread-specific (current-thread))))
@@ -117,7 +117,7 @@
 (define (blodwen-args)
   (define (blodwen-build-args args)
     (if (null? args)
-        #(0) ; Prelude.List
+        (vector 0) ; Prelude.List
         (vector 1 (car args) (blodwen-build-args (cdr args)))))
   (blodwen-build-args (cdr (command-line))))
 
