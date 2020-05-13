@@ -12,15 +12,17 @@ OBJS = $(SRCS:.c=.o)
 DEPS = $(OBJS:.o=.d)
 
 
+all: build
+
 .PHONY: build
 
-build : $(LIBTARGET) $(DYLIBTARGET)
+build: $(LIBTARGET) $(DYLIBTARGET)
 
-$(LIBTARGET) : $(OBJS)
+$(LIBTARGET): $(OBJS)
 	$(AR) rc $@ $^
 	$(RANLIB) $@
 
-$(DYLIBTARGET) : $(OBJS)
+$(DYLIBTARGET): $(OBJS)
 	$(CC) -shared $(LDFLAGS) -o $@ $^
 
 
@@ -41,6 +43,6 @@ cleandep: clean
 
 .PHONY: install
 
-install: $(LIBTARGET) $(DYLIBTARGET)
+install: build
 	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/lib
 	install $(LIBTARGET) $(DYLIBTARGET) ${PREFIX}/idris2-${IDRIS2_VERSION}/lib

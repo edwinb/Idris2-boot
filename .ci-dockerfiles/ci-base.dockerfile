@@ -3,7 +3,7 @@ from haskell:8.2
 run apt-get update && apt-get install -y \
   clang lld-4.0 \
   curl wget \
-  chicken-bin racket \
+  racket gambc \
   libx11-dev uuid-dev \
   libncurses5-dev
 
