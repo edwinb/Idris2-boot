@@ -26,7 +26,7 @@ prim_fileErrno : PrimIO Int
 
 %foreign support "idris2_readLine"
 prim__readLine : FilePtr -> PrimIO (Ptr String)
-%foreign support "idris2_readLine"
+%foreign support "idris2_readChars"
 prim__readChars : Int -> FilePtr -> PrimIO (Ptr String)
 %foreign support "idris2_writeLine"
 prim__writeLine : FilePtr -> String -> PrimIO Int

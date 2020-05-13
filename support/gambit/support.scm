@@ -78,15 +78,15 @@
 (define (blodwen-get-char p)
   (if (input-port? p)
       (let ((chr (read-char p)))
-        (if (eof-object? chr) #\null chr))
-      #\null))
+        (if (eof-object? chr) #\nul chr))
+      #\nul))
 
 ;; Threads
 
 (define (blodwen-thread p)
-  (thread-start! (make-thread (lambda () (p #(0))))))
+  (thread-start! (make-thread (lambda () (p '#(0))))))
 
-(define (blodwen-get-thread-data)
+(define (blodwen-get-thread-data ty)
   (let ((data (thread-specific (current-thread))))
     (if (eq? data #!void) #f data)))
 
@@ -117,7 +117,7 @@
 (define (blodwen-args)
   (define (blodwen-build-args args)
     (if (null? args)
-        #(0) ; Prelude.List
+        (vector 0) ; Prelude.List
         (vector 1 (car args) (blodwen-build-args (cdr args)))))
   (blodwen-build-args (cdr (command-line))))
 

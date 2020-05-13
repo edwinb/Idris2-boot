@@ -22,6 +22,12 @@ Language extensions:
   evaluation, following the rules from "Scrapping Your Inefficient Engine"
   (ICFP 2010, Brady & Hammond)
 
+Library additions:
+
+* Additional file management operations in `base`
+* New modules in `contrib` for time (`System.Clock`); JSON (`Language.JSON.*`);
+  random numbers (`System.Random`)
+
 Other improvements:
 
 * Various performance improvements in the typechecker:

@@ -470,13 +470,13 @@ above (this is defined in the Idris library):
         _        <*> _        = Nothing
 
 Using ``<*>`` we can use this implementation as follows, where a function
-application ``[ f a1 …an |]`` is translated into ``pure f <*> a1 <*>
+application ``[| f a1 …an |]`` is translated into ``pure f <*> a1 <*>
 … <*> an``:
 
 .. code-block:: idris
 
     m_add' : Maybe Int -> Maybe Int -> Maybe Int
-    m_add' x y = [ x + y |]
+    m_add' x y = [| x + y |]
 
 An error-handling interpreter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

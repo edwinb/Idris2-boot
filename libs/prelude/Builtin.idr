@@ -140,3 +140,7 @@ trans Refl Refl = Refl
 public export
 believe_me : a -> b
 believe_me = prim__believe_me _ _
+
+export partial
+idris_crash : String -> a
+idris_crash = prim__crash _
