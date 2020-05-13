@@ -77,7 +77,7 @@
 (define (blodwen-thread p)
     (thread (lambda () (p (vector 0)))))
 
-(define (blodwen-get-thread-data)
+(define (blodwen-get-thread-data ty)
   (thread-cell-ref blodwen-thread-data))
 
 (define (blodwen-set-thread-data a)

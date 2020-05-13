@@ -80,7 +80,7 @@
 (define (blodwen-thread p)
     (fork-thread (lambda () (p (vector 0)))))
 
-(define (blodwen-get-thread-data)
+(define (blodwen-get-thread-data ty)
   (blodwen-thread-data))
 
 (define (blodwen-set-thread-data a)
