@@ -41,9 +41,9 @@ io_bind (MkIO fn) k
                       MkIO res = k x' in
                       res w')
 
-%extern prim__putStr : String -> (1 x : %World) -> IORes ()
-%extern prim__getStr : (1 x : %World) -> IORes String
-%extern prim__putChar : Char -> (1 x : %World) -> IORes ()
+%foreign "C:putchar,libc"
+prim__putChar : Char -> (1 x : %World) -> IORes ()
+%foreign "C:getchar,libc"
 %extern prim__getChar : (1 x : %World) -> IORes Char
 
 -- A pointer representing a given parameter type
@@ -85,6 +85,26 @@ export %inline
 cCall : (ret : Type) -> String -> FArgList -> IO ret
 cCall ret fn args = primIO (prim__cCall ret fn args)
 
+%foreign "C:idris2_isNull, libidris2_support"
+export
+prim__nullAnyPtr : AnyPtr -> Int
+
+prim__forgetPtr : Ptr t -> AnyPtr
+prim__forgetPtr = believe_me
+
+export %inline
+prim__nullPtr : Ptr t -> Int -- can't pass 'type' to a foreign function
+prim__nullPtr p = prim__nullAnyPtr (prim__forgetPtr p)
+
+%foreign "C:idris2_getString, libidris2_support"
+export
+prim__getString : Ptr String -> String
+
+%foreign "C:idris2_getStr,libidris2_support"
+prim__getStr : PrimIO String
+%foreign "C:idris2_putStr,libidris2_support"
+prim__putStr : String -> PrimIO ()
+
 ||| Output a string to stdout without a trailing newline.
 export
 putStr : String -> IO ()
@@ -122,21 +142,6 @@ fork (MkIO act) = schemeCall ThreadID "blodwen-thread" [act]
 export
 prim_fork : (1 prog : PrimIO ()) -> PrimIO ThreadID
 prim_fork act w = prim__schemeCall ThreadID "blodwen-thread" [act] w
-
-%foreign "C:idris2_isNull, libidris2_support"
-export
-prim__nullAnyPtr : AnyPtr -> Int
-
-prim__forgetPtr : Ptr t -> AnyPtr
-prim__forgetPtr = believe_me
-
-export %inline
-prim__nullPtr : Ptr t -> Int -- can't pass 'type' to a foreign function
-prim__nullPtr p = prim__nullAnyPtr (prim__forgetPtr p)
-
-%foreign "C:idris2_getString, libidris2_support"
-export
-prim__getString : Ptr String -> String
 
 %foreign "C:idris2_readString, libidris2_support"
 export

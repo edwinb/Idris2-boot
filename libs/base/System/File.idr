@@ -32,6 +32,8 @@ prim__readChars : Int -> FilePtr -> PrimIO (Ptr String)
 prim__writeLine : FilePtr -> String -> PrimIO Int
 %foreign support "idris2_eof"
 prim__eof : FilePtr -> PrimIO Int
+%foreign "C:fflush,libc"
+prim__flush : FilePtr -> PrimIO Int
 
 %foreign support "idris2_fileRemove"
 prim__fileRemove : String -> PrimIO Int
@@ -154,6 +156,12 @@ fEOF : (h : File) -> IO Bool
 fEOF (FHandle f)
     = do res <- primIO (prim__eof f)
          pure (res /= 0)
+
+export
+fflush : (h : File) -> IO ()
+fflush (FHandle f)
+    = do primIO (prim__flush f)
+         pure ()
 
 export
 fileAccessTime : (h : File) -> IO (Either FileError Int)

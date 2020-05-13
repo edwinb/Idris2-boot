@@ -160,7 +160,6 @@ schOp BelieveMe [_,_,x] = x
 ||| Extended primitives for the scheme backend, outside the standard set of primFn
 public export
 data ExtPrim = CCall | SchemeCall
-             | PutStr | GetStr | PutChar | GetChar
              | NewIORef | ReadIORef | WriteIORef
              | NewArray | ArrayGet | ArraySet
              | GetField | SetField
@@ -172,10 +171,6 @@ export
 Show ExtPrim where
   show CCall = "CCall"
   show SchemeCall = "SchemeCall"
-  show PutStr = "PutStr"
-  show GetStr = "GetStr"
-  show PutChar = "PutChar"
-  show GetChar = "GetChar"
   show NewIORef = "NewIORef"
   show ReadIORef = "ReadIORef"
   show WriteIORef = "WriteIORef"
@@ -194,10 +189,6 @@ toPrim : Name -> ExtPrim
 toPrim pn@(NS _ n)
     = cond [(n == UN "prim__schemeCall", SchemeCall),
             (n == UN "prim__cCall", CCall),
-            (n == UN "prim__putStr", PutStr),
-            (n == UN "prim__getStr", GetStr),
-            (n == UN "prim__putChar", PutChar),
-            (n == UN "prim__getChar", GetChar),
             (n == UN "prim__newIORef", NewIORef),
             (n == UN "prim__readIORef", ReadIORef),
             (n == UN "prim__writeIORef", WriteIORef),
@@ -405,14 +396,6 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
   schExtCommon i SchemeCall [ret, fn, args, world]
        = pure $ mkWorld ("(apply (eval (string->symbol " ++ !(schExp i fn) ++")) "
                     ++ !(readArgs i args) ++ ")")
-  schExtCommon i PutStr [arg, world]
-      = pure $ "(begin (display " ++ !(schExp i arg) ++ ") " ++ mkWorld (schConstructor 0 []) ++ ")" -- code for MkUnit
-  schExtCommon i GetStr [world]
-      = pure $ mkWorld "(blodwen-get-line (current-input-port))"
-  schExtCommon i PutChar [arg, world]
-      = pure $ "(begin (display " ++ !(schExp i arg) ++ ") " ++ mkWorld (schConstructor 0 []) ++ ")" -- code for MkUnit
-  schExtCommon i GetChar [world]
-      = pure $ mkWorld "(blodwen-get-char (current-input-port))"
   schExtCommon i NewIORef [_, val, world]
       = pure $ mkWorld $ "(box " ++ !(schExp i val) ++ ")"
   schExtCommon i ReadIORef [_, ref, world]
