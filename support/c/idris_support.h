@@ -8,6 +8,9 @@ int idris2_isNull(void*);
 char* idris2_getString(void *p);
 int idris2_getErrno();
 
+char* idris2_getStr();
+void idris2_putStr(char* f);
+
 void idris2_sleep(int sec);
 void idris2_usleep(int usec);
 int idris2_time();

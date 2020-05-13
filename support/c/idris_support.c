@@ -1,6 +1,9 @@
 #include "idris_support.h"
-#include <string.h>
+#include "idris_file.h"
+
 #include <errno.h>
+#include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 int idris2_isNull(void* ptr) {
@@ -13,6 +16,22 @@ char* idris2_getString(void *p) {
 
 int idris2_getErrno() {
     return errno;
+}
+
+char* idris2_getStr() {
+    char *inp = idris2_readLine(stdin);
+    // Remove trailing newline; easier to do this than in PrimIO which
+    // doesn't have the relevant functions available yet
+    for(char *c = inp; *c != '\0'; ++c) {
+        if (*c == '\n' || *c == '\r') {
+            *c = '\0';
+        }
+    }
+    return inp;
+}
+
+void idris2_putStr(char* f) {
+    idris2_writeLine(stdout, f);
 }
 
 void idris2_sleep(int sec) {
