@@ -1,5 +1,7 @@
 include config.mk
 
+CFLAGS += -Wno-unused-variable -Wno-unused-label
+
 .PHONY: idris2 clean
 
 all: idris2
