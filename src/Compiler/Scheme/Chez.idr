@@ -107,12 +107,12 @@ mutual
   tySpec ty = throw (GenericMsg (getFC ty) ("Can't pass argument of type " ++ show ty ++ " to foreign function"))
 
   handleRet : String -> String -> String
-  handleRet "void" op = op ++ " " ++ mkWorld (schConstructor 0 [])
+  handleRet "void" op = op ++ " " ++ mkWorld (schConstructor chezString (UN "") (Just 0) [])
   handleRet _ op = mkWorld op
 
   getFArgs : NamedCExp -> Core (List (NamedCExp, NamedCExp))
-  getFArgs (NmCon fc _ 0 _) = pure []
-  getFArgs (NmCon fc _ 1 [ty, val, rest]) = pure $ (ty, val) :: !(getFArgs rest)
+  getFArgs (NmCon fc _ (Just 0) _) = pure []
+  getFArgs (NmCon fc _ (Just 1) [ty, val, rest]) = pure $ (ty, val) :: !(getFArgs rest)
   getFArgs arg = throw (GenericMsg (getFC arg) ("Badly formed c call argument list " ++ show arg))
 
   chezExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String

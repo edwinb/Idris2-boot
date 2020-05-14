@@ -28,7 +28,7 @@ mutual
     AUnderApp : FC -> Name -> (missing : Nat) -> (args : List AVar) -> ANF
     AApp : FC -> (closure : AVar) -> (arg : AVar) -> ANF
     ALet : FC -> (var : Int) -> ANF -> ANF -> ANF
-    ACon : FC -> Name -> (tag : Int) -> List AVar -> ANF
+    ACon : FC -> Name -> (tag : Maybe Int) -> List AVar -> ANF
     AOp : FC -> PrimFn arity -> Vect arity AVar -> ANF
     AExtPrim : FC -> Name -> List AVar -> ANF
     AConCase : FC -> AVar -> List AConAlt -> Maybe ANF -> ANF
@@ -39,7 +39,7 @@ mutual
 
   public export
   data AConAlt : Type where
-       MkAConAlt : Name -> (tag : Int) -> (args : List Int) ->
+       MkAConAlt : Name -> (tag : Maybe Int) -> (args : List Int) ->
                    ANF -> AConAlt
 
   public export
@@ -49,7 +49,7 @@ mutual
 public export
 data ANFDef : Type where
      MkAFun : (args : List Int) -> ANF -> ANFDef
-     MkACon : (tag : Int) -> (arity : Nat) -> ANFDef
+     MkACon : (tag : Maybe Int) -> (arity : Nat) -> ANFDef
      MkAForeign : (ccs : List String) -> (fargs : List CFType) ->
                   CFType -> ANFDef
      MkAError : ANF -> ANFDef

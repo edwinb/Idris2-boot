@@ -243,7 +243,7 @@ mutual
   pickAlt rec env stk (CCon fc n t args) [] def
       = traverseOpt (eval rec env stk) def
   pickAlt {vars} {free} rec env stk (CCon fc n t args) (MkConAlt n' t' args' sc :: alts) def
-      = if t == t'
+      = if matches n t n' t'
            then case checkLengthMatch args args' of
                      Nothing => pure Nothing
                      Just m =>
@@ -253,6 +253,11 @@ mutual
                                     (rewrite sym (appendAssociative args' vars free) in
                                              sc))
            else pickAlt rec env stk (CCon fc n t args) alts def
+    where
+      matches : Name -> Maybe Int -> Name -> Maybe Int -> Bool
+      matches _ (Just t) _ (Just t') = t == t'
+      matches n Nothing n' Nothing = n == n'
+      matches _ _ _ _ = False
   pickAlt rec env stk _ _ _ = pure Nothing
 
   pickConstAlt : {auto c : Ref Ctxt Defs} ->

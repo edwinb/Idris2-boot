@@ -30,7 +30,7 @@ data VMInst : Type where
      DECLARE : Reg -> VMInst
      START : VMInst -- start of the main body of the function
      ASSIGN : Reg -> Reg -> VMInst
-     MKCON : Reg -> (tag : Int) -> (args : List Reg) -> VMInst
+     MKCON : Reg -> (tag : Maybe Int) -> (args : List Reg) -> VMInst
      MKCLOSURE : Reg -> Name -> (missing : Nat) -> (args : List Reg) -> VMInst
      MKCONSTANT : Reg -> Constant -> VMInst
      
@@ -40,7 +40,7 @@ data VMInst : Type where
      EXTPRIM : Reg -> Name -> List Reg -> VMInst
 
      CASE : Reg -> -- scrutinee 
-            (alts : List (Int, List VMInst)) -> -- based on constructor tag
+            (alts : List (Either Int Name, List VMInst)) -> -- based on constructor tag
             (def : Maybe (List VMInst)) ->
             VMInst
      CONSTCASE : Reg -> -- scrutinee 
@@ -131,9 +131,11 @@ toVM t res (AConCase fc (ALocal scr) alts def)
     projectArgs i (arg :: args)
         = PROJECT (Loc arg) (Loc scr) i :: projectArgs (i + 1) args
 
-    toVMConAlt : AConAlt -> (Int, List VMInst)
-    toVMConAlt (MkAConAlt n tag args code)
-        = (tag, projectArgs 0 args ++ toVM t res code)
+    toVMConAlt : AConAlt -> (Either Int Name, List VMInst)
+    toVMConAlt (MkAConAlt n (Just tag) args code)
+        = (Left tag, projectArgs 0 args ++ toVM t res code)
+    toVMConAlt (MkAConAlt n Nothing args code)
+        = (Right n, projectArgs 0 args ++ toVM t res code)
 toVM t res (AConstCase fc (ALocal scr) alts def)
     = [CONSTCASE (Loc scr) (map toVMConstAlt alts) (map (toVM t res) def)]
   where
@@ -161,7 +163,7 @@ findVars (EXTPRIM (Loc r) _ _) = [r]
 findVars (CASE _ alts d)
     = concatMap findVarAlt alts ++ fromMaybe [] (map (concatMap findVars) d)
   where
-    findVarAlt : (Int, List VMInst) -> List Int
+    findVarAlt : (Either Int Name, List VMInst) -> List Int
     findVarAlt (t, code) = concatMap findVars code
 findVars (CONSTCASE _ alts d)
     = concatMap findConstVarAlt alts ++ fromMaybe [] (map (concatMap findVars) d)
