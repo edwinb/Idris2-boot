@@ -7,8 +7,9 @@ import Core.Context
 import Core.FC
 import Core.TT
 
-import Data.Vect
 import Data.LengthMatch
+import Data.NameMap
+import Data.Vect
 
 %default covering
 
@@ -419,3 +420,27 @@ mergeLamDef n
          Just def <- lookupCtxtExact n (gamma defs) | Nothing => pure ()
          let Just cexpr =  compexpr def             | Nothing => pure ()
          setCompiled n !(mergeLam cexpr)
+
+export
+compileAndInlineAll : {auto c : Ref Ctxt Defs} ->
+                      Core ()
+compileAndInlineAll
+    = do defs <- get Ctxt
+         let ns = keys (toIR defs)
+         cns <- filterM nonErased ns
+
+         traverse_ compileDef cns
+
+         traverse_ inlineDef cns
+         traverse_ mergeLamDef cns
+         traverse_ fixArityDef cns
+         traverse_ inlineDef cns
+         traverse_ mergeLamDef cns
+         traverse_ fixArityDef cns
+  where
+    nonErased : Name -> Core Bool
+    nonErased n
+        = do defs <- get Ctxt
+             Just gdef <- lookupCtxtExact n (gamma defs)
+                  | Nothing => pure False
+             pure (multiplicity gdef /= erased)

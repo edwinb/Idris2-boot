@@ -287,8 +287,10 @@ static VAL mkstrlen(VM* vm, const char * str, size_t len, int outer) {
     String * cl = allocStr(vm, len, outer);
     // hdr.u8 used to mark a null string
     cl->hdr.u8 = str == NULL;
-    if (!cl->hdr.u8)
+    if (!cl->hdr.u8) {
       memcpy(cl->str, str, len);
+      cl->str[len] = '\0';
+    }
     return (VAL)cl;
 }
 

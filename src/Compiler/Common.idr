@@ -33,7 +33,6 @@ public export
 record CompileData where
   constructor MkCompileData
   allNames : List Name -- names which need to be compiled
-  nameTags : NameTags -- a mapping from type names to constructor tags
   mainExpr : CExp [] -- main expression to execute. This also appears in
                      -- the definitions below as MN "__mainExpression" 0
   lambdaLifted : List (Name, LiftedDef)
@@ -84,21 +83,13 @@ getAllDesc (n@(Resolved i) :: rest) arr defs
        case !(lookupCtxtExact n (gamma defs)) of
             Nothing => getAllDesc rest arr defs
             Just def =>
-              do coreLift $ writeArray arr i i
-                 let refs = refersToRuntime def
-                 getAllDesc (keys refs ++ rest) arr defs
+              if multiplicity def /= erased
+                 then do coreLift $ writeArray arr i i
+                         let refs = refersToRuntime def
+                         getAllDesc (keys refs ++ rest) arr defs
+                 else getAllDesc rest arr defs
 getAllDesc (n :: rest) arr defs
   = getAllDesc rest arr defs
-
--- Calculate a unique tag for each type constructor name we're compiling
--- This is so that type constructor names get globally unique tags
-mkNameTags : Defs -> NameTags -> Int -> List Name -> Core NameTags
-mkNameTags defs tags t [] = pure tags
-mkNameTags defs tags t (n :: ns)
-    = case !(lookupDefExact n (gamma defs)) of
-           Just (TCon _ _ _ _ _ _ _ _)
-              => mkNameTags defs (insert n t tags) (t + 1) ns
-           _ => mkNameTags defs tags t ns
 
 natHackNames : List Name
 natHackNames
@@ -206,33 +197,20 @@ getCompileData tm_in
          let allNs = mapMaybe (maybe Nothing (Just . Resolved))
                               !(coreLift (toList arr))
          cns <- traverse toFullNames allNs
-         -- Initialise the type constructor list with explicit names for
-         -- the primitives (this is how we look up the tags)
-         -- Use '1' for '->' constructor
-         let tyconInit = insert (UN "->") 1 $
-                         insert (UN "Type") 2 $
-                            primTags 3 empty
-                                     [IntType, IntegerType, StringType,
-                                      CharType, DoubleType, WorldType]
-         tycontags <- mkNameTags defs tyconInit 100 cns
-         logTime ("Compile defs " ++ show (length cns) ++ "/" ++ show asize) $
-           traverse_ (compileDef tycontags) cns
-         logTime "Inline" $ traverse_ inlineDef cns
-         logTime "Merge lambda" $ traverse_ mergeLamDef cns
-         logTime "Fix arity" $ traverse_ fixArityDef cns
-         -- Do another round, since merging lambdas might expose more
-         -- optimisation opportunities, especially a really important one
-         -- for io_bind.
-         logTime "Inline" $ traverse_ inlineDef cns
-         logTime "Merge lambda" $ traverse_ mergeLamDef cns
-         logTime "Fix arity" $ traverse_ fixArityDef cns
-         logTime "Forget names" $ traverse_ mkForgetDef cns
 
-         compiledtm <- fixArityExp !(compileExp tycontags tm)
+         -- Do a round of merging/arity fixing for any names which were
+         -- unknown due to cyclic modules (i.e. declared in one, defined in
+         -- another)
+         rcns <- filterM nonErased cns
+         logTime "Merge lambda" $ traverse_ mergeLamDef rcns
+         logTime "Fix arity" $ traverse_ fixArityDef rcns
+         logTime "Forget names" $ traverse_ mkForgetDef rcns
+
+         compiledtm <- fixArityExp !(compileExp tm)
          let mainname = MN "__mainExpression" 0
          (liftedtm, ldefs) <- liftBody mainname compiledtm
 
-         lifted_in <- logTime "Lambda lift" $ traverse lambdaLift cns
+         lifted_in <- logTime "Lambda lift" $ traverse lambdaLift rcns
 
          let lifted = (mainname, MkLFun [] [] liftedtm) ::
                       ldefs ++ concat lifted_in
@@ -243,7 +221,7 @@ getCompileData tm_in
          defs <- get Ctxt
          maybe (pure ())
                (\f => do coreLift $ putStrLn $ "Dumping case trees to " ++ f
-                         dumpCases defs f cns)
+                         dumpCases defs f rcns)
                (dumpcases sopts)
          maybe (pure ())
                (\f => do coreLift $ putStrLn $ "Dumping lambda lifted defs to " ++ f
@@ -257,13 +235,15 @@ getCompileData tm_in
                (\f => do coreLift $ putStrLn $ "Dumping VM defs to " ++ f
                          dumpVMCode f vmcode)
                (dumpvmcode sopts)
-         pure (MkCompileData cns tycontags compiledtm
+         pure (MkCompileData rcns compiledtm
                              lifted anf vmcode)
   where
-    primTags : Int -> NameTags -> List Constant -> NameTags
-    primTags t tags [] = tags
-    primTags t tags (c :: cs)
-        = primTags (t + 1) (insert (UN (show c)) t tags) cs
+    nonErased : Name -> Core Bool
+    nonErased n
+        = do defs <- get Ctxt
+             Just gdef <- lookupCtxtExact n (gamma defs)
+                  | Nothing => pure True
+             pure (multiplicity gdef /= erased)
 
 -- Some things missing from Prelude.File
 

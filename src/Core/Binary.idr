@@ -27,7 +27,7 @@ import Data.Buffer
 -- TTC files can only be compatible if the version number is the same
 export
 ttcVersion : Int
-ttcVersion = 24
+ttcVersion = 25
 
 export
 checkTTCVersion : String -> Int -> Int -> Core ()
@@ -200,7 +200,8 @@ readTTCFile : TTC extra =>
               Ref Bin Binary -> Core (TTCFile extra)
 readTTCFile modns as b
       = do hdr <- fromBuf b
-           when (hdr /= "TTC") $ corrupt "TTC header"
+           chunk <- get Bin
+           when (hdr /= "TTC") $ corrupt ("TTC header in " ++ show modns ++ " " ++ show hdr)
            ver <- fromBuf b
            checkTTCVersion (show modns) ver ttcVersion
            ifaceHash <- fromBuf b
@@ -449,7 +450,7 @@ getImportHashes : String -> Ref Bin Binary ->
                   Core (List (List String, Int))
 getImportHashes file b
     = do hdr <- fromBuf {a = String} b
-         when (hdr /= "TTC") $ corrupt "TTC header"
+         when (hdr /= "TTC") $ corrupt ("TTC header in " ++ file ++ " " ++ show hdr)
          ver <- fromBuf {a = Int} b
          checkTTCVersion file ver ttcVersion
          ifaceHash <- fromBuf {a = Int} b
@@ -458,7 +459,7 @@ getImportHashes file b
 getHash : String -> Ref Bin Binary -> Core Int
 getHash file b
     = do hdr <- fromBuf {a = String} b
-         when (hdr /= "TTC") $ corrupt "TTC header"
+         when (hdr /= "TTC") $ corrupt ("TTC header in " ++ file ++ " " ++ show hdr)
          ver <- fromBuf {a = Int} b
          checkTTCVersion file ver ttcVersion
          fromBuf b

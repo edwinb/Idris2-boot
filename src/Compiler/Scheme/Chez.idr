@@ -328,7 +328,6 @@ compileToSS c appdir tm outfile
          traverse_ copyLib libs
          cdata <- getCompileData tm
          let ns = allNames cdata
-         let tags = nameTags cdata
          let ctm = forget (mainExpr cdata)
 
          defs <- get Ctxt

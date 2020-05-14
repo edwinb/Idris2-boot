@@ -5,6 +5,7 @@ Erasable args: []
 Detaggable arg types: []
 Specialise args: []
 Inferrable args: []
+Compiled: Constructor tag Just 0 arity 1 (newtype by 0)
 Refers to: []
 Refers to (runtime): []
 Main> Main.MkBar ==> DataCon 0 1
@@ -13,6 +14,7 @@ Erasable args: []
 Detaggable arg types: []
 Specialise args: []
 Inferrable args: []
+Compiled: Constructor tag Just 0 arity 1
 Refers to: []
 Refers to (runtime): []
 Main> Bye for now!

@@ -1,5 +1,7 @@
 module Idris.ProcessIdr
 
+import Compiler.Inline
+
 import Core.Binary
 import Core.Context
 import Core.Directory
@@ -287,6 +289,8 @@ processMod srcf ttcf msg sourcecode
                 setNS ns
                 errs <- logTime "Processing decls" $
                             processDecls (decls mod)
+
+                logTime "Compile defs" $ compileAndInlineAll
 
                 -- Save the import hashes for the imports we just read.
                 -- If they haven't changed next time, and the source
