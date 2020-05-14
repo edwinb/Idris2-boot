@@ -37,6 +37,8 @@ int idris2_fileErrno() {
         return 2;
     case EACCES:
         return 3;
+    case EEXIST:
+        return 4;
     default:
         return (errno + 5);
     }

@@ -60,7 +60,7 @@ export
 changeDir : String -> IO Bool
 changeDir dir
     = do ok <- primIO (prim_changeDir dir)
-         pure (ok /= 0)
+         pure (ok == 0)
 
 export
 currentDir : IO (Maybe String)

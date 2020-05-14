@@ -7,8 +7,9 @@
 #include <unistd.h>
 
 char* idris2_currentDirectory() {
-   char cwd[1024]; // probably ought to deal with the unlikely event of this being too small
-   return getcwd(cwd, sizeof(cwd)); // freed by RTS
+   char* cwd = malloc(1024); // probably ought to deal with the unlikely event of this being too small
+   getcwd(cwd, 1024);
+   return cwd; // freed by RTS
 }
 
 int idris2_changeDir(char* dir) {
