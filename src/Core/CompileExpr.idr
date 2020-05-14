@@ -6,6 +6,7 @@ import Core.FC
 import Core.Name
 import Core.TT
 
+import Data.NameMap
 import Data.Vect
 
 %default covering

@@ -10,6 +10,7 @@ import Core.Context
 import Core.Directory
 import Core.Options
 import Core.TT
+import Core.TTC
 import Utils.Binary
 
 import Data.IOArray
@@ -29,12 +30,33 @@ record Codegen where
   ||| Execute an Idris 2 expression directly.
   executeExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> Core ()
 
+-- Say which phase of compilation is the last one to use - it saves time if 
+-- you only ask for what you need.
+public export
+data UsePhase = Cases | Lifted | ANF | VMCode
+
+Eq UsePhase where
+  (==) Cases Cases = True
+  (==) Lifted Lifted = True
+  (==) ANF ANF = True
+  (==) VMCode VMCode = True
+  (==) _ _ = False
+
+Ord UsePhase where
+  compare x y = compare (tag x) (tag y)
+    where
+      tag : UsePhase -> Int
+      tag Cases = 0
+      tag Lifted = 0
+      tag ANF = 0
+      tag VMCode = 0
+
 public export
 record CompileData where
   constructor MkCompileData
-  allNames : List Name -- names which need to be compiled
   mainExpr : CExp [] -- main expression to execute. This also appears in
                      -- the definitions below as MN "__mainExpression" 0
+  namedDefs : List (Name, FC, NamedDef)
   lambdaLifted : List (Name, LiftedDef)
        -- ^ lambda lifted definitions, if required. Only the top level names
        -- will be in the context, and (for the moment...) I don't expect to
@@ -56,7 +78,8 @@ compile : {auto c : Ref Ctxt Defs} ->
 compile {c} cg tm out
     = do makeExecDirectory
          d <- getDirs
-         compileExpr cg c (exec_dir d) tm out
+         logTime "Code generation overall" $
+             compileExpr cg c (exec_dir d) tm out
 
 ||| execute
 ||| As with `compile`, produce a functon that executes
@@ -70,26 +93,72 @@ execute {c} cg tm
          executeExpr cg c (exec_dir d) tm
          pure ()
 
+-- If an entry isn't already decoded, get the minimal entry we need for
+-- compilation, and record the Binary so that we can put it back when we're
+-- done (so that we don't obliterate the definition)
+getMinimalDef : ContextEntry -> Core (GlobalDef, Maybe Binary)
+getMinimalDef (Decoded def) = pure (def, Nothing)
+getMinimalDef (Coded bin)
+    = do b <- newRef Bin bin
+         cdef <- fromBuf b
+         refsRList <- fromBuf b
+         let refsR = map fromList refsRList
+         fc <- fromBuf b
+         mul <- fromBuf b
+         name <- fromBuf b
+         let def
+             = MkGlobalDef fc name (Erased fc False) [] [] [] [] mul
+                           [] Public (MkTotality Unchecked IsCovering)
+                           [] Nothing refsR False False True
+                           None cdef Nothing []
+         pure (def, Just bin)
+
 -- ||| Recursively get all calls in a function definition
 getAllDesc : {auto c : Ref Ctxt Defs} ->
              List Name -> -- calls to check
-             IOArray Int -> -- which nodes have been visited. If the entry is
-                            -- present, it's visited
+             IOArray (Int, Maybe Binary) ->
+                            -- which nodes have been visited. If the entry is
+                            -- present, it's visited. Keep the binary entry, if
+                            -- we partially decoded it, so that we can put back
+                            -- the full definition later.
+                            -- (We only need to decode the case tree IR, and
+                            -- it's expensive to decode the whole thing)
              Defs -> Core ()
 getAllDesc [] arr defs = pure ()
 getAllDesc (n@(Resolved i) :: rest) arr defs
   = do Nothing <- coreLift $ readArray arr i
            | Just _ => getAllDesc rest arr defs
-       case !(lookupCtxtExact n (gamma defs)) of
+       case !(lookupContextEntry n (gamma defs)) of
             Nothing => getAllDesc rest arr defs
-            Just def =>
-              if multiplicity def /= erased
-                 then do coreLift $ writeArray arr i i
-                         let refs = refersToRuntime def
-                         getAllDesc (keys refs ++ rest) arr defs
-                 else getAllDesc rest arr defs
+            Just (_, entry) =>
+              do (def, bin) <- getMinimalDef entry
+                 addDef n def 
+                 let refs = refersToRuntime def
+                 if multiplicity def /= erased
+                    then do coreLift $ writeArray arr i (i, bin)
+                            let refs = refersToRuntime def
+                            refs' <- traverse toResolvedNames (keys refs)
+                            getAllDesc (refs' ++ rest) arr defs
+                    else getAllDesc rest arr defs
 getAllDesc (n :: rest) arr defs
   = getAllDesc rest arr defs
+
+getNamedDef : {auto c : Ref Ctxt Defs} ->
+              Name -> Core (Maybe (Name, FC, NamedDef))
+getNamedDef n
+    = do defs <- get Ctxt
+         case !(lookupCtxtExact n (gamma defs)) of
+              Nothing => pure Nothing
+              Just def => case namedcompexpr def of
+                               Nothing => pure Nothing
+                               Just d => pure (Just (n, location def, d))
+
+replaceEntry : {auto c : Ref Ctxt Defs} ->
+               (Int, Maybe Binary) -> Core ()
+replaceEntry (i, Nothing) = pure ()
+replaceEntry (i, Just b)
+    = do addContextEntry (Resolved i) b
+         pure ()
 
 natHackNames : List Name
 natHackNames
@@ -182,8 +251,8 @@ dumpVMCode fn lns
 -- Return the names, the type tags, and a compiled version of the expression
 export
 getCompileData : {auto c : Ref Ctxt Defs} ->
-                 ClosedTerm -> Core CompileData
-getCompileData tm_in
+                 UsePhase -> ClosedTerm -> Core CompileData
+getCompileData phase tm_in
     = do defs <- get Ctxt
          sopts <- getSession
          let ns = getRefs (Resolved (-1)) tm_in
@@ -194,8 +263,9 @@ getCompileData tm_in
          asize <- getNextEntry
          arr <- coreLift $ newArray asize
          logTime "Get names" $ getAllDesc (natHackNames' ++ keys ns) arr defs
-         let allNs = mapMaybe (maybe Nothing (Just . Resolved))
-                              !(coreLift (toList arr))
+
+         let entries = mapMaybe id !(coreLift (toList arr))
+         let allNs = map (Resolved . fst) entries
          cns <- traverse toFullNames allNs
 
          -- Do a round of merging/arity fixing for any names which were
@@ -210,13 +280,20 @@ getCompileData tm_in
          let mainname = MN "__mainExpression" 0
          (liftedtm, ldefs) <- liftBody mainname compiledtm
 
-         lifted_in <- logTime "Lambda lift" $ traverse lambdaLift rcns
+         namedefs <- traverse getNamedDef rcns
+         lifted_in <- if phase >= Lifted
+                         then logTime "Lambda lift" $ traverse lambdaLift rcns
+                         else pure []
 
          let lifted = (mainname, MkLFun [] [] liftedtm) ::
                       ldefs ++ concat lifted_in
 
-         anf <- logTime "Get ANF" $ traverse (\ (n, d) => pure (n, !(toANF d))) lifted
-         vmcode <- logTime "Get VM Code" $ pure (allDefs anf)
+         anf <- if phase >= ANF
+                   then logTime "Get ANF" $ traverse (\ (n, d) => pure (n, !(toANF d))) lifted
+                   else pure []
+         vmcode <- if phase >= VMCode
+                      then logTime "Get VM Code" $ pure (allDefs anf)
+                      else pure []
 
          defs <- get Ctxt
          maybe (pure ())
@@ -235,7 +312,13 @@ getCompileData tm_in
                (\f => do coreLift $ putStrLn $ "Dumping VM defs to " ++ f
                          dumpVMCode f vmcode)
                (dumpvmcode sopts)
-         pure (MkCompileData rcns compiledtm
+
+         -- We're done with our minimal context now, so put it back the way
+         -- it was. Back ends shouldn't look at the global context, because
+         -- it'll have to decode the definitions again.
+         traverse_ replaceEntry entries
+         pure (MkCompileData compiledtm
+                             (mapMaybe id namedefs)
                              lifted anf vmcode)
   where
     nonErased : Name -> Core Bool

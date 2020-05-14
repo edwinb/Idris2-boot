@@ -282,8 +282,8 @@ mkStruct _ = pure ""
 schFgnDef : {auto c : Ref Ctxt Defs} ->
             {auto l : Ref Loaded (List String)} ->
             {auto s : Ref Structs (List String)} ->
-            String -> FC -> Name -> CDef -> Core (String, String)
-schFgnDef appdir fc n (MkForeign cs args ret)
+            String -> FC -> Name -> NamedDef -> Core (String, String)
+schFgnDef appdir fc n (MkNmForeign cs args ret)
     = do let argns = mkArgs 0 args
          let allargns = map fst argns
          let useargns = map fst (filter snd argns)
@@ -301,15 +301,8 @@ schFgnDef _ _ _ _ = pure ("", "")
 getFgnCall : {auto c : Ref Ctxt Defs} ->
              {auto l : Ref Loaded (List String)} ->
              {auto s : Ref Structs (List String)} ->
-             String -> Name -> Core (String, String)
-getFgnCall appdir n
-    = do defs <- get Ctxt
-         case !(lookupCtxtExact n (gamma defs)) of
-           Nothing => throw (InternalError ("Compiling undefined name " ++ show n))
-           Just def => case compexpr def of
-                          Nothing =>
-                             throw (InternalError ("No compiled definition for " ++ show n))
-                          Just d => schFgnDef appdir (location def) n d
+             String -> (Name, FC, NamedDef) -> Core (String, String)
+getFgnCall appdir (n, fc, d) = schFgnDef appdir fc n d
 
 startChez : String -> String
 startChez target = unlines
@@ -326,15 +319,15 @@ compileToSS c appdir tm outfile
     = do ds <- getDirectives Chez
          libs <- findLibs ds
          traverse_ copyLib libs
-         cdata <- getCompileData tm
-         let ns = allNames cdata
+         cdata <- getCompileData Cases tm
+         let ndefs = namedDefs cdata
          let ctm = forget (mainExpr cdata)
 
          defs <- get Ctxt
          l <- newRef {t = List String} Loaded ["libc", "libc 6"]
          s <- newRef {t = List String} Structs []
-         fgndefs <- traverse (getFgnCall appdir) ns
-         compdefs <- traverse (getScheme chezExtPrim chezString defs) ns
+         fgndefs <- traverse (getFgnCall appdir) ndefs
+         compdefs <- traverse (getScheme chezExtPrim chezString) ndefs
          let code = fastAppend (map snd fgndefs ++ compdefs)
          main <- schExp chezExtPrim chezString 0 ctm
          chez <- coreLift findChez

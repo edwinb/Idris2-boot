@@ -448,11 +448,6 @@ export
 getScheme : {auto c : Ref Ctxt Defs} ->
             (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String) ->
             (schString : String -> String) ->
-            Defs -> Name -> Core String
-getScheme schExtPrim schString defs n
-    = case !(lookupCtxtExact n (gamma defs)) of
-           Nothing => throw (InternalError ("Compiling undefined name " ++ show n))
-           Just d => case namedcompexpr d of
-                          Nothing =>
-                             throw (InternalError ("No compiled definition for " ++ show n))
-                          Just d => schDef schExtPrim schString n d
+            (Name, FC, NamedDef) -> Core String
+getScheme schExtPrim schString (n, fc, d)
+    = schDef schExtPrim schString n d

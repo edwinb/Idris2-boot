@@ -245,8 +245,8 @@ mkStruct _ = pure ""
 schFgnDef : {auto c : Ref Ctxt Defs} ->
             {auto l : Ref Loaded (List String)} ->
             {auto s : Ref Structs (List String)} ->
-            FC -> Name -> CDef -> Core (String, String)
-schFgnDef fc n (MkForeign cs args ret)
+            FC -> Name -> NamedDef -> Core (String, String)
+schFgnDef fc n (MkNmForeign cs args ret)
     = do let argns = mkArgs 0 args
          let allargns = map fst argns
          let useargns = map fst (filter snd argns)
@@ -264,30 +264,23 @@ schFgnDef _ _ _ = pure ("", "")
 getFgnCall : {auto c : Ref Ctxt Defs} ->
              {auto l : Ref Loaded (List String)} ->
              {auto s : Ref Structs (List String)} ->
-             Name -> Core (String, String)
-getFgnCall n
-    = do defs <- get Ctxt
-         case !(lookupCtxtExact n (gamma defs)) of
-           Nothing => throw (InternalError ("Compiling undefined name " ++ show n))
-           Just def => case compexpr def of
-                          Nothing =>
-                             throw (InternalError ("No compiled definition for " ++ show n))
-                          Just d => schFgnDef (location def) n d
+             (Name, FC, NamedDef) -> Core (String, String)
+getFgnCall (n, fc, d) = schFgnDef fc n d
 
 -- TODO Include libraries from the directives
 compileToSCM : Ref Ctxt Defs ->
                ClosedTerm -> (outfile : String) -> Core ()
 compileToSCM c tm outfile
-    = do cdata <- getCompileData tm
-         let ns = allNames cdata
+    = do cdata <- getCompileData Cases tm
+         let ndefs = namedDefs cdata
          -- let tags = nameTags cdata
          let ctm = forget (mainExpr cdata)
 
          defs <- get Ctxt
          l <- newRef {t = List String} Loaded []
          s <- newRef {t = List String} Structs []
-         fgndefs <- traverse getFgnCall ns
-         compdefs <- traverse (getScheme gambitPrim gambitString defs) ns
+         fgndefs <- traverse getFgnCall ndefs
+         compdefs <- traverse (getScheme gambitPrim gambitString) ndefs
          let code = fastAppend (map snd fgndefs ++ compdefs) ++
                     concat (map fst fgndefs)
          main <- schExp gambitPrim gambitString 0 ctm

@@ -246,7 +246,7 @@ export
 data Arr : Type where
 
 -- A context entry. If it's never been looked up, we haven't decoded the
--- binary blod yet, so decode it first time
+-- binary blob yet, so decode it first time
 public export
 data ContextEntry : Type where
      Coded : Binary -> ContextEntry

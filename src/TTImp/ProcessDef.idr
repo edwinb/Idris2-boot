@@ -542,7 +542,10 @@ calcRefs rt at fn
          let tree = if rt then tree_rt else tree_ct
          let metas = getMetas tree
          traverse_ addToSave (keys metas)
-         let refs = addRefs at metas tree
+         let refs_all = addRefs at metas tree
+         refs <- if rt
+                    then dropErased (keys refs_all) refs_all
+                    else pure refs_all
 
          logC 5 (do fulln <- getFullName fn
                     refns <- traverse getFullName (keys refs)
@@ -551,6 +554,16 @@ calcRefs rt at fn
             then addDef fn (record { refersToRuntimeM = Just refs } gdef)
             else addDef fn (record { refersToM = Just refs } gdef)
          traverse_ (calcRefs rt at) (keys refs)
+  where
+    dropErased : List Name -> NameMap Bool -> Core (NameMap Bool)
+    dropErased [] refs = pure refs
+    dropErased (n :: ns) refs
+        = do defs <- get Ctxt
+             Just gdef <- lookupCtxtExact n (gamma defs)
+                  | Nothing => dropErased ns refs
+             if multiplicity gdef /= erased
+                then dropErased ns refs
+                else dropErased ns (delete n refs)
 
 -- Compile run time case trees for the given name
 mkRunTime : {auto c : Ref Ctxt Defs} ->
