@@ -53,6 +53,8 @@ data CLOpt
   NoBanner |
    ||| Run Idris 2 in quiet mode
   Quiet |
+   ||| Run Idris 2 in verbose mode (cancels quiet if it's the default)
+  Verbose |
    ||| Add a package as a dependency
   PkgPath String |
    ||| Build or install a given package, depending on PkgCommand
@@ -136,6 +138,8 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
               (Just "Suppress the banner"),
            MkOpt ["--quiet", "-q"] [] [Quiet]
               (Just "Quiet mode; display fewer messages"),
+           MkOpt ["--verbose"] [] [Verbose]
+              (Just "Verbose mode (default)"),
            MkOpt ["--version", "-v"] [] [Version]
               (Just "Display version string"),
            MkOpt ["--help", "-h", "-?"] [] [Help]

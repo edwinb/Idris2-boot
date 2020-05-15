@@ -119,6 +119,10 @@ banner = "     ____    __     _         ___                                     
          "\n" ++
          "Welcome to Idris 2.  Enjoy yourself!"
 
+checkVerbose : List CLOpt -> Bool
+checkVerbose [] = False
+checkVerbose (Verbose :: _) = True
+checkVerbose (_ :: xs) = checkVerbose xs
 
 stMain : List CLOpt -> Core ()
 stMain opts
@@ -152,6 +156,8 @@ stMain opts
               do True <- preOptions opts
                      | False => pure ()
 
+                 when (checkVerbose opts) $ -- override Quiet if implicitly set
+                     setOutput (REPL False)
                  u <- newRef UST initUState
                  updateREPLOpts
                  session <- getSession
