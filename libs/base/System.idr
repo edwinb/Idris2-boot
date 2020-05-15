@@ -27,7 +27,7 @@ export
 getArgs : IO (List String)
 getArgs = primIO prim__getArgs
 
-%foreign "C:getenv,libc"
+%foreign "C:getenv,libc 6"
 prim_getEnv : String -> PrimIO (Ptr String)
 
 export
@@ -38,7 +38,7 @@ getEnv var
            then pure Nothing
            else pure (Just (prim__getString env))
 
-%foreign "C:system,libc"
+%foreign "C:system,libc 6"
          "scheme:blodwen-system"
 prim_system : String -> PrimIO Int
 

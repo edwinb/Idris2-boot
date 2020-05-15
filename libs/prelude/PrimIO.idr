@@ -41,9 +41,9 @@ io_bind (MkIO fn) k
                       MkIO res = k x' in
                       res w')
 
-%foreign "C:putchar,libc"
+%foreign "C:putchar,libc 6"
 prim__putChar : Char -> (1 x : %World) -> IORes ()
-%foreign "C:getchar,libc"
+%foreign "C:getchar,libc 6"
 %extern prim__getChar : (1 x : %World) -> IORes Char
 
 -- A pointer representing a given parameter type

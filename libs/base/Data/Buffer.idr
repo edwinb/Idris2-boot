@@ -12,9 +12,6 @@ support fn = "C:" ++ fn ++ ", libidris2_support"
 %foreign support "idris2_getBufferSize"
 prim__bufferSize : AnyPtr -> Int
 
-%foreign support "idris2_isNull"
-prim__nullPtr : AnyPtr -> Int
-
 export
 rawSize : Buffer -> IO Int
 rawSize (MkBuffer buf _ _)
@@ -30,7 +27,7 @@ export
 newBuffer : Int -> IO (Maybe Buffer)
 newBuffer size
     = do buf <- primIO (prim__newBuffer size)
-         if prim__nullPtr buf /= 0
+         if prim__nullAnyPtr buf /= 0
             then pure Nothing
             else pure $ Just $ MkBuffer buf size 0
 
@@ -158,7 +155,7 @@ export
 createBufferFromFile : String -> IO (Either FileError Buffer)
 createBufferFromFile fn
     = do buf <- primIO (prim__readBufferFromFile fn)
-         if prim__nullPtr buf /= 0
+         if prim__nullAnyPtr buf /= 0
             then pure (Left FileReadError)
             else do let sz = prim__bufferSize buf
                     pure (Right (MkBuffer buf sz sz))

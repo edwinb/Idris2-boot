@@ -36,7 +36,6 @@ schHeader libs
     "(require racket/math)\n" ++ -- for math ops
     "(require racket/promise)\n" ++ -- for force/delay
     "(require racket/system)\n" ++ -- for system
-    "(require rnrs/bytevectors-6)\n" ++ -- for buffers
     "(require rnrs/io/ports-6)\n" ++ -- for file handling
     "(require srfi/19)\n" ++ -- for file handling and data
     "(require ffi/unsafe ffi/unsafe/define)\n" ++ -- for calling C
@@ -96,6 +95,9 @@ data Loaded : Type where
 -- Label for noting which struct types are declared
 data Structs : Type where
 
+-- Label for noting which foreign names are declared
+data Done : Type where
+
 cftySpec : FC -> CFType -> Core String
 cftySpec fc CFUnit = pure "_void"
 cftySpec fc CFInt = pure "_int"
@@ -144,12 +146,15 @@ handleRet : CFType -> String -> String
 handleRet CFUnit op = op ++ " " ++ mkWorld (schConstructor racketString (UN "") (Just 0) [])
 handleRet ret op = mkWorld (cToRkt ret op)
 
-cCall : {auto c : Ref Ctxt Defs} ->
+cCall : {auto f : Ref Done (List String) } ->
+        {auto c : Ref Ctxt Defs} ->
         {auto l : Ref Loaded (List String)} ->
         FC -> (cfn : String) -> (clib : String) ->
         List (Name, CFType) -> CFType -> Core (String, String)
 cCall fc cfn libspec args ret
     = do loaded <- get Loaded
+         bound <- get Done
+
          let (libn, vers) = getLibVers libspec
          lib <- if libn `elem` loaded
                    then pure ""
@@ -161,9 +166,12 @@ cCall fc cfn libspec args ret
          argTypes <- traverse (\a => do s <- cftySpec fc (snd a)
                                         pure (a, s)) args
          retType <- cftySpec fc ret
-         let cbind = "(define-" ++ libn ++ " " ++ cfn ++
-                     " (_fun " ++ showSep " " (map snd argTypes) ++ " -> " ++
-                         retType ++ "))\n"
+         cbind <- if cfn `elem` bound
+                     then pure ""
+                     else do put Done (cfn :: bound)
+                             pure $ "(define-" ++ libn ++ " " ++ cfn ++
+                                    " (_fun " ++ showSep " " (map snd argTypes) ++ " -> " ++
+                                        retType ++ "))\n"
          let call = "(" ++ cfn ++ " " ++
                     showSep " " !(traverse useArg argTypes) ++ ")"
 
@@ -216,7 +224,8 @@ schemeCall fc sfn argns ret
 -- Use a calling convention to compile a foreign def.
 -- Returns any preamble needed for loading libraries, and the body of the
 -- function call.
-useCC : {auto c : Ref Ctxt Defs} ->
+useCC : {auto f : Ref Done (List String) } ->
+        {auto c : Ref Ctxt Defs} ->
         {auto l : Ref Loaded (List String)} ->
         FC -> List String -> List (Name, CFType) -> CFType -> Core (String, String)
 useCC fc [] args ret
@@ -255,7 +264,8 @@ mkStruct (CFIORes t) = mkStruct t
 mkStruct (CFFun a b) = do mkStruct a; mkStruct b
 mkStruct _ = pure ""
 
-schFgnDef : {auto c : Ref Ctxt Defs} ->
+schFgnDef : {auto f : Ref Done (List String) } ->
+            {auto c : Ref Ctxt Defs} ->
             {auto l : Ref Loaded (List String)} ->
             {auto s : Ref Structs (List String)} ->
             FC -> Name -> NamedDef -> Core (String, String)
@@ -273,7 +283,8 @@ schFgnDef fc n (MkNmForeign cs args ret)
                 body ++ "))\n")
 schFgnDef _ _ _ = pure ("", "")
 
-getFgnCall : {auto c : Ref Ctxt Defs} ->
+getFgnCall : {auto f : Ref Done (List String) } ->
+             {auto c : Ref Ctxt Defs} ->
              {auto l : Ref Loaded (List String)} ->
              {auto s : Ref Structs (List String)} ->
              (Name, FC, NamedDef) -> Core (String, String)
@@ -287,6 +298,7 @@ compileToRKT c tm outfile
          let ctm = forget (mainExpr cdata)
 
          defs <- get Ctxt
+         f <- newRef {t = List String} Done empty
          l <- newRef {t = List String} Loaded []
          s <- newRef {t = List String} Structs []
          fgndefs <- traverse getFgnCall ndefs

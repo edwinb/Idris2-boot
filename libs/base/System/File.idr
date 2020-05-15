@@ -32,7 +32,7 @@ prim__readChars : Int -> FilePtr -> PrimIO (Ptr String)
 prim__writeLine : FilePtr -> String -> PrimIO Int
 %foreign support "idris2_eof"
 prim__eof : FilePtr -> PrimIO Int
-%foreign "C:fflush,libc"
+%foreign "C:fflush,libc 6"
 prim__flush : FilePtr -> PrimIO Int
 
 %foreign support "idris2_fileRemove"
