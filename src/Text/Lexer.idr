@@ -163,12 +163,12 @@ hexDigits = some hexDigit
 ||| Recognise a single octal digit
 ||| /[0-8]/
 octDigit : Lexer
-octDigit = pred isHexDigit
+octDigit = pred isOctDigit
 
 ||| Recognise one or more octal digits
 ||| /[0-8]+/
 octDigits : Lexer
-octDigits = some hexDigit
+octDigits = some octDigit
 
 ||| Recognise a single alpha character
 ||| /[A-Za-z]/
@@ -304,6 +304,11 @@ intLit = opt (is '-') <+> digits
 ||| /0[Xx][0-9A-Fa-f]+/
 hexLit : Lexer
 hexLit = approx "0x" <+> hexDigits
+
+||| Recognise an octal literal, prefixed by "0o"
+||| /0[Xx][0-9A-Fa-f]+/
+octLit : Lexer
+octLit = exact "0o" <+> octDigits
 
 ||| Recognise `start`, then recognise all input until a newline is encountered,
 ||| and consume the newline. Will succeed if end-of-input is encountered before

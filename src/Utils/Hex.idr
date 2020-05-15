@@ -2,7 +2,6 @@ module Utils.Hex
 
 import Data.Primitives.Views
 
-export
 hexDigit : Int -> Char
 hexDigit 0 = '0'
 hexDigit 1 = '1'

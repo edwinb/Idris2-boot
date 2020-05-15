@@ -2,6 +2,7 @@ module Parser.Lexer
 
 import public Text.Lexer
 import Utils.Hex
+import Utils.Octal
 import Utils.String
 
 %default total
@@ -233,6 +234,15 @@ fromHexLit str
                   Nothing => 0 -- can't happen if the literal lexed correctly
                   Just n => cast n
 
+fromOctLit : String -> Integer
+fromOctLit str
+  = if length str <= 2
+       then 0
+       else let num = assert_total (strTail (strTail str)) in
+             case fromOct (reverse num) of
+                  Nothing => 0 -- can't happen if the literal lexed correctly
+                  Just n => cast n
+
 rawTokens : TokenMap Token
 rawTokens =
     [(comment, Comment),
@@ -243,6 +253,7 @@ rawTokens =
     map (\x => (exact x, Symbol)) symbols ++
     [(doubleLit, \x => DoubleLit (cast x)),
      (hexLit, \x => Literal (fromHexLit x)),
+     (octLit, \x => Literal (fromOctLit x)),
      (digits, \x => Literal (cast x)),
      (stringLit, \x => StrLit (stripQuotes x)),
      (charLit, \x => CharLit (stripQuotes x)),

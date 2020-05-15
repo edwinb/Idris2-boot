@@ -121,6 +121,7 @@ modules =
 
     Utils.Binary,
     Utils.Hex,
+    Utils.Octal,
     Utils.Shunting,
     Utils.String,
 
