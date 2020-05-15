@@ -34,9 +34,7 @@ schHeader : String -> String
 schHeader libs
   = "#lang racket/base\n" ++
     "(require racket/math)\n" ++ -- for math ops
-    "(require racket/promise)\n" ++ -- for force/delay
     "(require racket/system)\n" ++ -- for system
-    "(require rnrs/io/ports-6)\n" ++ -- for file handling
     "(require srfi/19)\n" ++ -- for file handling and data
     "(require ffi/unsafe ffi/unsafe/define)\n" ++ -- for calling C
     libs ++
