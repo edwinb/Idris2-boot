@@ -27,7 +27,7 @@ import Data.Buffer
 -- TTC files can only be compatible if the version number is the same
 export
 ttcVersion : Int
-ttcVersion = 26
+ttcVersion = 27
 
 export
 checkTTCVersion : String -> Int -> Int -> Core ()
@@ -117,10 +117,23 @@ HasNames e => HasNames (TTCFile e) where
       fullRW gam (Just (MkRewriteNs e r))
           = pure $ Just $ MkRewriteNs !(full gam e) !(full gam r)
 
-      fullPrim : Context -> PrimNames -> Core PrimNames
-      fullPrim gam (MkPrimNs mi ms mc)
-          = pure $ MkPrimNs !(full gam mi) !(full gam ms) !(full gam mc)
+      fullPrimCast : Context -> PrimCastNames -> Core PrimCastNames
+      fullPrimCast gam (MkPrimCastNames i str c)
+          = pure $ MkPrimCastNames !(full gam i) !(full gam str) !(full gam c)
 
+      fullPrimBuiltin : Context -> PrimBuiltinNames -> Core PrimBuiltinNames
+      fullPrimBuiltin gam (MkPrimBuiltinNames natZero natSucc natToInteger integerToNat
+                             natAdd natSub natMul natDiv natRem natEq natLT natLTE natGT natGTE)
+          = pure $ MkPrimBuiltinNames  !(full gam natZero) !(full gam natSucc) !(full gam natToInteger)
+                     !(full gam integerToNat) !(full gam natAdd) !(full gam natSub) !(full gam natMul)
+                     !(full gam natDiv) !(full gam natRem) !(full gam natEq) !(full gam natLT)
+                     !(full gam natLTE) !(full gam natGT) !(full gam natGTE)
+
+      fullPrim : Context -> PrimNames -> Core PrimNames
+      fullPrim gam (MkPrimNames primCastNames primBuiltinNames)
+          = do castNames    <- fullPrimCast    gam primCastNames
+               builtinNames <- fullPrimBuiltin gam primBuiltinNames
+               pure $ MkPrimNames castNames builtinNames
 
   -- I don't think we ever actually want to call this, because after we read
   -- from the file we're going to add them to learn what the resolved names
@@ -155,9 +168,23 @@ HasNames e => HasNames (TTCFile e) where
       resolvedRW gam (Just (MkRewriteNs e r))
           = pure $ Just $ MkRewriteNs !(resolved gam e) !(resolved gam r)
 
+      resolvedPrimCast : Context -> PrimCastNames -> Core PrimCastNames
+      resolvedPrimCast gam (MkPrimCastNames i str c)
+          = pure $ MkPrimCastNames !(resolved gam i) !(resolved gam str) !(resolved gam c)
+
+      resolvedPrimBuiltin : Context -> PrimBuiltinNames -> Core PrimBuiltinNames
+      resolvedPrimBuiltin gam (MkPrimBuiltinNames natZero natSucc natToInteger integerToNat
+                                 natAdd natSub natMul natDiv natRem natEq natLT natLTE natGT natGTE)
+          = pure $ MkPrimBuiltinNames !(resolved gam natZero) !(resolved gam natSucc) !(resolved gam natToInteger)
+                     !(resolved gam integerToNat) !(resolved gam natAdd) !(resolved gam natSub) !(resolved gam natMul)
+                     !(resolved gam natDiv) !(resolved gam natRem) !(resolved gam natEq) !(resolved gam natLT)
+                     !(resolved gam natLTE) !(resolved gam natGT) !(resolved gam natGTE)
+
       resolvedPrim : Context -> PrimNames -> Core PrimNames
-      resolvedPrim gam (MkPrimNs mi ms mc)
-          = pure $ MkPrimNs !(resolved gam mi) !(resolved gam ms) !(resolved gam mc)
+      resolvedPrim gam (MkPrimNames primCastNames primBuiltinNames)
+          = do castNames    <- resolvedPrimCast    gam primCastNames
+               builtinNames <- resolvedPrimBuiltin gam primBuiltinNames
+               pure $ MkPrimNames castNames builtinNames
 
 
 asName : List String -> Maybe (List String) -> Name -> Name
@@ -331,11 +358,34 @@ updateRewrite r
          put Ctxt (record { options->rewritenames $= (r <+>) } defs)
 
 export
-updatePrimNames : PrimNames -> PrimNames -> PrimNames
-updatePrimNames p
+updatePrimCastNames : PrimCastNames -> PrimCastNames -> PrimCastNames
+updatePrimCastNames p
     = record { fromIntegerName $= ((fromIntegerName p) <+>),
                fromStringName $= ((fromStringName p) <+>),
                fromCharName $= ((fromCharName p) <+>) }
+export
+updatePrimBuiltinNames : PrimBuiltinNames -> PrimBuiltinNames -> PrimBuiltinNames
+updatePrimBuiltinNames p
+    = record { builtinNatZero $= ((builtinNatZero p) <+>),
+               builtinNatSucc $= ((builtinNatSucc p) <+>),
+               builtinNatToInteger $= ((builtinNatToInteger p) <+>),
+               builtinIntegerToNat $= ((builtinIntegerToNat p) <+>),
+               builtinNatAdd $= ((builtinNatAdd p) <+>),
+               builtinNatSub $= ((builtinNatSub p) <+>),
+               builtinNatMul $= ((builtinNatMul p) <+>),
+               builtinNatDiv $= ((builtinNatDiv p) <+>),
+               builtinNatMod $= ((builtinNatMod p) <+>),
+               builtinNatEq  $= ((builtinNatEq  p) <+>),
+               builtinNatLT  $= ((builtinNatLT  p) <+>),
+               builtinNatLTE $= ((builtinNatLTE p) <+>),
+               builtinNatGT  $= ((builtinNatGT  p) <+>),
+               builtinNatGTE $= ((builtinNatGTE p) <+>) }
+
+export
+updatePrimNames : PrimNames -> PrimNames -> PrimNames
+updatePrimNames p
+    = record { primCastNames    $= updatePrimCastNames . primCastNames $ p,
+               primBuiltinNames $= updatePrimBuiltinNames . primBuiltinNames $ p }
 
 export
 updatePrims : {auto c : Ref Ctxt Defs} ->

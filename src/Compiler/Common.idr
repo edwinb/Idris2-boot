@@ -164,9 +164,7 @@ natHackNames : List Name
 natHackNames
     = [UN "prim__add_Integer",
        UN "prim__sub_Integer",
-       UN "prim__mul_Integer",
-       NS ["Prelude"] (UN "natToInteger"),
-       NS ["Prelude"] (UN "integerToNat")]
+       UN "prim__mul_Integer"]
 
 export
 fastAppend : List String -> String
@@ -257,7 +255,8 @@ getCompileData phase tm_in
          sopts <- getSession
          let ns = getRefs (Resolved (-1)) tm_in
          tm <- toFullNames tm_in
-         natHackNames' <- traverse toResolvedNames natHackNames
+         builtins <- getBuiltins
+         natHackNames' <- traverse toResolvedNames (natHackNames ++ getDefinedBuiltinNames builtins)
          -- make an array of Bools to hold which names we've found (quicker
          -- to check than a NameMap!)
          asize <- getNextEntry
