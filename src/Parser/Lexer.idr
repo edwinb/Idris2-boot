@@ -48,10 +48,6 @@ Show Token where
       dotSep [x] = x
       dotSep (x :: xs) = x ++ concat ["." ++ y | y <- xs]
 
-export
-Show (TokenData Token) where
-  show t = show (line t, col t, tok t)
-
 ||| In `comment` we are careful not to parse closing delimiters as
 ||| valid comments. i.e. you may not write many dashes followed by
 ||| a closing brace and call it a valid comment.
