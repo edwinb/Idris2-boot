@@ -10,4 +10,4 @@ PDFS=$(patsubst %.md,%.pdf,$(DOCS))
 all: $(PDFS)
 
 clean:
-	rm -f $(PDFS)
+	rm $(PDFS)

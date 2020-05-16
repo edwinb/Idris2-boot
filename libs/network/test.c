@@ -46,7 +46,7 @@ void test_peek_and_poke_buffer() {
 }
 
 
-int main(void) {
+int main(int argc, char**argv) {
   test_sockaddr_port_returns_explicitly_assigned_port();
   test_sockaddr_port_returns_random_port_when_bind_port_is_0();
   test_peek_and_poke_buffer();

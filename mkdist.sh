@@ -18,7 +18,7 @@ rsync -avm --include-from='srcfiles' -f 'hide,! */' dist idris2-$1
 # Copy run time support for Idris 2
 cp -r support idris2-$1/support
 # Copy top level files and docs
-cp *.md CONTRIBUTORS config.mk Makefile LICENSE *.ipkg idris2-$1
+cp *.md CONTRIBUTORS Makefile LICENSE *.ipkg idris2-$1
 
 tar zcvf idris2-$1.tgz idris2-$1
 shasum -a 256 idris2-$1.tgz > idris2-$1.tgz.sha256
@@ -28,3 +28,5 @@ echo "\tmake clean?"
 echo "\tmake dist/idris2.c?"
 echo "\ttag the release?"
 echo "\tset the -O2 flag?"
+
+

@@ -1,40 +1,44 @@
-include ../../../config.mk
+IDRIS           := idris2
+MACHINE         := $(shell $(CC) -dumpmachine)
 
-IDRIS := idris2
+ifneq (, $(findstring darwin, $(MACHINE)))
+	OS      :=darwin
+else ifneq (, $(findstring cygwin, $(MACHINE)))
+	OS      :=windows
+else ifneq (, $(findstring mingw, $(MACHINE)))
+	OS      :=windows
+else ifneq (, $(findstring windows, $(MACHINE)))
+	OS      :=windows
+else
+	OS      :=unix
+endif
+
+ifeq ($(OS), darwin)
+        SHLIB_SUFFIX    :=dylib
+else ifeq ($(OS), windows)
+        SHLIB_SUFFIX    :=dll
+else
+        SHLIB_SUFFIX    :=so
+endif
+
+LIBTARGET = libidrisreadline.$(SHLIB_SUFFIX)
 INSTALLDIR = `${IDRIS} --libdir`/readline/lib
 
-TARGET = libidrisreadline
+HDRS = idris_readline.h
+OBJS = idris_readline.o
 
-LDFLAGS += -lreadline
+READLINE_LIBS := -lreadline
+READLINE_FLAGS := -fPIC
 
-SRCS = $(wildcard *.c)
-OBJS = $(SRCS:.c=.o)
-DEPS = $(OBJS:.o=.d)
+CFLAGS = $(READLINE_FLAGS)
 
-
-all: $(TARGET)$(SHLIB_SUFFIX)
-
-$(TARGET)$(SHLIB_SUFFIX): $(OBJS)
-	$(CC) -shared $(LDFLAGS) -o $@ $^
-
-
--include $(DEPS)
-
-%.d: %.c
-	@$(CPP) $(CFLAGS) $< -MM -MT $(@:.d=.o) >$@
-
-
-.PHONY: clean
-
-clean :
-	rm -f $(OBJS) $(TARGET)$(SHLIB_SUFFIX)
-
-cleandep: clean
-	rm -f $(DEPS)
-
-
-.PHONY: install
-
+$(LIBTARGET): $(OBJS)
+	$(CC) -o $(LIBTARGET) -shared $(OBJS) $(READLINE_LIBS) $(READLINE_FLAGS)
+	
 install:
 	@if ! [ -d $(INSTALLDIR) ]; then mkdir -p $(INSTALLDIR); fi
-	install $(TARGET)$(SHLIB_SUFFIX) $(wildcard *.h) $(INSTALLDIR)
+	install $(LIBTARGET) $(HDRS) $(INSTALLDIR)
+clean:
+	rm $(OBJS) $(LIBTARGET)
+
+.PHONY: install clean

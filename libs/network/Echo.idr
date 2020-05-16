@@ -5,7 +5,7 @@ import Network.Socket
 import Network.Socket.Data
 import Network.Socket.Raw
 
-%cg chez libidris_net
+%cg chez libidris_net.so
 
 runServer : IO (Either String (Port, ThreadID))
 runServer = do
