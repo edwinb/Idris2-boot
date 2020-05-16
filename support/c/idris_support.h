@@ -15,4 +15,6 @@ void idris2_sleep(int sec);
 void idris2_usleep(int usec);
 int idris2_time();
 
+char* idris2_getEnvPair(int i);
+
 #endif

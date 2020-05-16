@@ -6,6 +6,8 @@
 #include <string.h>
 #include <time.h>
 
+extern char** environ;
+
 int idris2_isNull(void* ptr) {
     return (ptr == NULL);
 }
@@ -52,4 +54,8 @@ void idris2_usleep(int usec) {
 
 int idris2_time() {
     return time(NULL); // RTS needs to have 32 bit integers at least
+}
+
+char* idris2_getEnvPair(int i) {
+    return *(environ + i);
 }
