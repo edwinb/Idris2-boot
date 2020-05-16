@@ -36,7 +36,7 @@ install it as follows:
     make install-fromc
 
 This will, by default, install into ``${HOME}/.idris2``. You can change this
-by editing the options at the beginning of the ``Makefile``. For example,
+by editing the options in ``config.mk``. For example,
 to install into ``/usr/local``, you can edit the ``PREFIX`` as follows::
 
     PREFIX ?= /usr/local

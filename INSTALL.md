@@ -25,7 +25,7 @@ if you have cloned directly from https://github.com/edwinb/Idris2
 The above commands will build the executable, build the libraries, run the
 tests (if Idris 1 is available), then if all is well, install everything. The
 default installation directory is `$HOME/.idris2`. You can change this by
-setting the `PREFIX` variable in the `Makefile`.
+setting the `PREFIX` variable in `config.mk`.
 
 Other settings you can change in the `Makefile` are:
 
