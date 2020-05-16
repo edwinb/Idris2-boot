@@ -1066,7 +1066,7 @@ reverse = prim__strReverse
 public export
 substr : (index : Nat) -> (len : Nat) -> (subject : String) -> String
 substr s e subj
-    = if s < length subj
+    = if natToInteger s < natToInteger (length subj)
          then prim__strSubstr (prim__cast_IntegerInt (natToInteger s))
                               (prim__cast_IntegerInt (natToInteger e))
                               subj

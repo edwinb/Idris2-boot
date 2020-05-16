@@ -91,34 +91,32 @@ strTail : Nat -> StrLen -> StrLen
 strTail start (MkStrLen str len)
     = MkStrLen (substr start len str) (minus len start)
 
-||| If the string is recognised, returns the index at which the token ends
-scan : Recognise c -> Nat -> StrLen -> Maybe Nat
-scan Empty idx str = pure idx
-scan Fail idx str = Nothing
-scan (Lookahead positive r) idx str = do
-  guard (isJust (scan r idx str) == positive)
-  pure idx
-scan (Pred f) idx str = do
-  c <- strIndex str idx
-  guard (f c)
-  pure (1 + idx)
-scan (SeqEat r1 r2) idx str
-    = do idx' <- scan r1 idx str
+-- If the string is recognised, returns the index at which the token
+-- ends
+scan : Recognise c -> List Char -> List Char -> Maybe (List Char, List Char)
+scan Empty tok str = pure (tok, str)
+scan Fail tok str = Nothing
+scan (Lookahead positive r) tok str
+    = if isJust (scan r tok str) == positive
+         then pure (tok, str)
+         else Nothing
+scan (Pred f) tok [] = Nothing
+scan (Pred f) tok (c :: str)
+    = if f c
+         then Just (c :: tok, str)
+         else Nothing
+scan (SeqEat r1 r2) tok str
+    = do (tok', rest) <- scan r1 tok str
          -- TODO: Can we prove totality instead by showing idx has increased?
-         assert_total (scan r2 idx' str)
-scan (SeqEmpty r1 r2) idx str
-    = do idx' <- scan r1 idx str
-         scan r2 idx' str
-scan (SeqSame r1 r2) idx str
-    = do idx' <- scan r1 idx str
-         scan r2 idx' str
-scan (Alt r1 r2) idx str
-    = maybe (scan r2 idx str) Just (scan r1 idx str)
-
-takeToken : Lexer -> StrLen -> Maybe (String, StrLen)
-takeToken lex str
-    = do i <- scan lex 0 str -- i must be > 0 if successful
-         pure (substr 0 i (getString str), strTail i str)
+         assert_total (scan r2 tok' rest)
+scan (SeqEmpty r1 r2) tok str
+    = do (tok', rest) <- scan r1 tok str
+         scan r2 tok' rest
+scan (SeqSame r1 r2) tok str
+    = do (tok', rest) <- scan r1 tok str
+         scan r2 tok' rest
+scan (Alt r1 r2) tok str
+    = maybe (scan r2 tok str) Just (scan r1 tok str)
 
 ||| A mapping from lexers to the tokens they produce.
 ||| This is a list of pairs `(Lexer, String -> tokenType)`
@@ -136,55 +134,53 @@ record TokenData a where
   col : Int
   tok : a
 
-||| `fspanEnd 0` returns the index at which the span stopped together
-||| with the leftover string.
-||| BEWARE: It is NOT a `span` starting from the string's end!
-fspanEnd : Nat -> (Char -> Bool) -> String -> (Nat, String)
-fspanEnd k p "" = (k, "")
-fspanEnd k p xxs
-    = assert_total $
-      let x = prim__strHead xxs
-          xs = prim__strTail xxs in
-          if p x then fspanEnd (S k) p xs
-                 else (k, xxs)
-
-||| Faster version of 'span' from the prelude (avoids unpacking)
 export
-fspan : (Char -> Bool) -> String -> (String, String)
-fspan p xs
-    = let (end, rest) = fspanEnd 0 p xs in
-          (substr 0 end xs, rest)
+Show a => Show (TokenData a) where
+  show t = show (line t) ++ ":" ++ show (col t) ++ ":" ++ show (tok t)
 
 tokenise : (TokenData a -> Bool) ->
            (line : Int) -> (col : Int) ->
            List (TokenData a) -> TokenMap a ->
-           StrLen -> (List (TokenData a), (Int, Int, StrLen))
+           List Char -> (List (TokenData a), (Int, Int, List Char))
 tokenise pred line col acc tmap str
     = case getFirstToken tmap str of
            Just (tok, line', col', rest) =>
            -- assert total because getFirstToken must consume something
                if pred tok
-                  then (reverse acc, (line, col, MkStrLen "" 0))
+                  then (reverse acc, (line, col, []))
                   else assert_total (tokenise pred line' col' (tok :: acc) tmap rest)
            Nothing => (reverse acc, (line, col, str))
   where
     countNLs : List Char -> Nat
     countNLs str = List.length (filter (== '\n') str)
 
-    getCols : String -> Int -> Int
+    getCols : List Char -> Int -> Int
     getCols x c
-         = case fspan (/= '\n') (reverse x) of
-                (incol, "") => c + cast (length incol)
+         = case span (/= '\n') (reverse x) of
+                (incol, []) => c + cast (length incol)
                 (incol, _) => cast (length incol)
 
-    getFirstToken : TokenMap a -> StrLen -> Maybe (TokenData a, Int, Int, StrLen)
+    getFirstToken : TokenMap a -> List Char ->
+                    Maybe (TokenData a, Int, Int, List Char)
     getFirstToken [] str = Nothing
     getFirstToken ((lex, fn) :: ts) str
-        = case takeToken lex str of
-               Just (tok, rest) => Just (MkToken line col (fn tok),
-                                         line + cast (countNLs (unpack tok)),
+        = case scan lex [] str of
+               Just (tok, rest) => Just (MkToken line col (fn (pack (reverse tok))),
+                                         line + cast (countNLs tok),
                                          getCols tok col, rest)
                Nothing => getFirstToken ts str
+
+-- faster than the prelude version since there's no intermediate StrM
+funpack' : String -> List Char -> List Char
+funpack' "" acc = reverse acc
+funpack' str acc
+    = assert_total $
+        let x = prim__strHead str
+            xs = prim__strTail str in
+            funpack' xs (x :: acc)
+
+funpack : String -> List Char
+funpack str = funpack' str []
 
 ||| Given a mapping from lexers to token generating functions (the
 ||| TokenMap a) and an input string, return a list of recognised tokens,
@@ -193,12 +189,12 @@ tokenise pred line col acc tmap str
 export
 lex : TokenMap a -> String -> (List (TokenData a), (Int, Int, String))
 lex tmap str
-   = let (ts, (l, c, str')) = tokenise (const False) 0 0 [] tmap (mkStr str) in
-         (ts, (l, c, getString str'))
+    = let (ts, (l, c, str')) = tokenise (const False) 0 0 [] tmap (funpack str) in
+          (ts, (l, c, pack str'))
 
 export
 lexTo : (TokenData a -> Bool) ->
         TokenMap a -> String -> (List (TokenData a), (Int, Int, String))
 lexTo pred tmap str
-   = let (ts, (l, c, str')) = tokenise pred 0 0 [] tmap (mkStr str) in
-         (ts, (l, c, getString str'))
+    = let (ts, (l, c, str')) = tokenise pred 0 0 [] tmap (funpack str) in
+          (ts, (l, c, pack str'))
