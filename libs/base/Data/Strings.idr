@@ -185,3 +185,135 @@ isSuffixOf a b = isSuffixOf (unpack a) (unpack b)
 export
 isInfixOf : String -> String -> Bool
 isInfixOf a b = isInfixOf (unpack a) (unpack b)
+
+public export
+data StrM : String -> Type where
+    StrNil : StrM ""
+    StrCons : (x : Char) -> (xs : String) -> StrM (strCons x xs)
+
+public export -- primitives, so assert_total and believe_me needed
+strM : (x : String) -> StrM x
+strM "" = StrNil
+strM x
+    = assert_total $ believe_me $
+        StrCons (prim__strHead x) (prim__strTail x)
+
+parseNumWithoutSign : List Char -> Integer -> Maybe Integer
+parseNumWithoutSign []        acc = Just acc
+parseNumWithoutSign (c :: cs) acc =
+  if (c >= '0' && c <= '9')
+  then parseNumWithoutSign cs ((acc * 10) + (cast ((ord c) - (ord '0'))))
+  else Nothing
+
+||| Convert a positive number string to a Num.
+|||
+||| ```idris example
+||| parsePositive "123"
+||| ```
+||| ```idris example
+||| parsePositive {a=Int} " +123"
+||| ```
+public export
+parsePositive : Num a => String -> Maybe a
+parsePositive s = parsePosTrimmed (trim s) 
+  where
+    parsePosTrimmed : String -> Maybe a
+    parsePosTrimmed s with (strM s)
+      parsePosTrimmed ""             | StrNil         = Nothing
+      parsePosTrimmed (strCons '+' xs) | (StrCons '+' xs) = 
+        map fromInteger (parseNumWithoutSign (unpack xs) 0)
+      parsePosTrimmed (strCons x xs) | (StrCons x xs) = 
+        if (x >= '0' && x <= '9') 
+        then  map fromInteger (parseNumWithoutSign (unpack xs)  (cast (ord x - ord '0')))
+        else Nothing
+
+||| Convert a number string to a Num.
+|||
+||| ```idris example
+||| parseInteger " 123"
+||| ```
+||| ```idris example
+||| parseInteger {a=Int} " -123"
+||| ```
+public export
+parseInteger : (Num a, Neg a) => String -> Maybe a
+parseInteger s = parseIntTrimmed (trim s) 
+  where
+    parseIntTrimmed : String -> Maybe a
+    parseIntTrimmed s with (strM s)
+      parseIntTrimmed ""             | StrNil         = Nothing
+      parseIntTrimmed (strCons x xs) | (StrCons x xs) = 
+        if (x == '-') 
+          then map (\y => negate (fromInteger y)) (parseNumWithoutSign (unpack xs) 0)
+          else if (x == '+') 
+            then map fromInteger (parseNumWithoutSign (unpack xs) (cast {from=Int} 0))
+            else if (x >= '0' && x <= '9')
+            then map fromInteger (parseNumWithoutSign (unpack xs) (cast (ord x - ord '0')))
+              else Nothing
+
+
+||| Convert a number string to a Double.
+|||
+||| ```idris example
+||| parseDouble "+123.123e-2"
+||| ```
+||| ```idris example
+||| parseDouble {a=Int} " -123.123E+2"
+||| ```
+||| ```idris example
+||| parseDouble {a=Int} " +123.123"
+||| ```
+export -- it's a bit too slow at compile time
+parseDouble : String -> Maybe Double
+parseDouble = mkDouble . wfe . trim
+  where
+    intPow : Integer -> Integer -> Double
+    intPow base exp = assert_total $ if exp > 0 then (num base exp) else 1 / (num base exp)
+      where
+        num : Integer -> Integer -> Double
+        num base 0 = 1
+        num base e = if e < 0
+                     then cast base * num base (e + 1)
+                     else cast base * num base (e - 1)
+
+    natpow : Double -> Nat -> Double
+    natpow x Z = 1
+    natpow x (S n) = x * (natpow x n)
+
+    mkDouble : Maybe (Double, Double, Integer) -> Maybe Double
+    mkDouble (Just (w, f, e)) = let ex = intPow 10 e in
+                                Just $ (w * ex + f * ex)
+    mkDouble Nothing = Nothing
+
+    wfe : String -> Maybe (Double, Double, Integer)
+    wfe cs = case split (== '.') cs of
+               (wholeAndExp :: []) =>
+                 case split (\c => c == 'e' || c == 'E') wholeAndExp of
+                   (whole::exp::[]) =>
+                     do
+                       w <- cast {from=Integer} <$> parseInteger whole
+                       e <- parseInteger exp
+                       pure (w, 0, e)
+                   (whole::[]) =>
+                     do
+                       w <- cast {from=Integer} <$> parseInteger whole
+                       pure (w, 0, 0)
+                   _ => Nothing
+               (whole::fracAndExp::[]) =>
+                 case split (\c => c == 'e' || c == 'E') fracAndExp of
+                   (""::exp::[]) => Nothing
+                   (frac::exp::[]) =>
+                     do
+                       w <- cast {from=Integer} <$> parseInteger whole
+                       f <- (/ (natpow 10 (length frac))) <$>
+                            (cast <$> parseNumWithoutSign (unpack frac) 0)
+                       e <- parseInteger exp
+                       pure (w, if w < 0 then (-f) else f, e)
+                   (frac::[]) =>
+                     do
+                       w <- cast {from=Integer} <$> parseInteger whole
+                       f <- (/ (natpow 10 (length frac))) <$>
+                            (cast <$> parseNumWithoutSign (unpack frac) 0)
+                       pure (w, if w < 0 then (-f) else f, 0)
+                   _ => Nothing
+               _ => Nothing
