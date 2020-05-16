@@ -1,25 +1,48 @@
-LIBTARGET = libidris2_support.a
-DYLIBTARGET = libidris2_support.so
+include $(IDRIS2_CURDIR)/config.mk
 
-.PHONY: build clean install
+TARGET = libidris2_support
 
-OBJS = getline.o idris_buffer.o idris_directory.o idris_file.o \
-       idris_support.o
+LIBTARGET = $(TARGET).a
+DYLIBTARGET = $(TARGET)$(SHLIB_SUFFIX)
 
-CFLAGS := -fPIC -O2 ${CFLAGS}
+CFLAGS += -O2
 
-build : $(LIBTARGET) $(DYLIBTARGET)
+SRCS = $(wildcard *.c)
+OBJS = $(SRCS:.c=.o)
+DEPS = $(OBJS:.o=.d)
 
-$(LIBTARGET) : $(OBJS)
-	ar rc $(LIBTARGET) $(OBJS)
-	ranlib $(LIBTARGET)
 
-$(DYLIBTARGET) : $(OBJS)
-	$(CC) -shared $(OBJS) -fPIC -o $(DYLIBTARGET)
+all: build
 
-install: $(LIBTARGET) $(DYLIBTARGET)
-	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/lib
-	install $(LIBTARGET) $(DYLIBTARGET) ${PREFIX}/idris2-${IDRIS2_VERSION}/lib
+.PHONY: build
+
+build: $(LIBTARGET) $(DYLIBTARGET)
+
+$(LIBTARGET): $(OBJS)
+	$(AR) rc $@ $^
+	$(RANLIB) $@
+
+$(DYLIBTARGET): $(OBJS)
+	$(CC) -shared $(LDFLAGS) -o $@ $^
+
+
+-include $(DEPS)
+
+%.d: %.c
+	@$(CPP) $(CFLAGS) $< -MM -MT $(@:.d=.o) >$@
+
+
+.PHONY: clean
 
 clean:
 	rm -f $(OBJS) $(DYLIBTARGET) $(LIBTARGET)
+
+cleandep: clean
+	rm -f $(DEPS)
+
+
+.PHONY: install
+
+install: build
+	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/lib
+	install $(LIBTARGET) $(DYLIBTARGET) ${PREFIX}/idris2-${IDRIS2_VERSION}/lib

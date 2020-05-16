@@ -15,5 +15,7 @@
 /libs/**/build
 /tests/**/output
 /tests/**/*.so
+/tests/**/*.dylib
+/tests/**/*.dll
 
 /src/YafflePaths.idr

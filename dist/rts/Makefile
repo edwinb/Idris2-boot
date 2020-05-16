@@ -6,14 +6,12 @@ OBJS =idris_rts.o idris_heap.o idris_gc.o idris_gmp.o idris_bitstring.o \
 HDRS =idris_rts.h idris_heap.h idris_gc.h idris_gmp.h idris_bitstring.h \
       idris_opts.h idris_stats.h idris_stdfgn.h idris_net.h \
       idris_buffer.h idris_utf8.h getline.h
-CFLAGS :=$(CFLAGS)
-CFLAGS +=$(GMP_INCLUDE_DIR) $(GMP) -DIDRIS_TARGET_OS="\"$(OS)\""
-CFLAGS +=-DIDRIS_TARGET_TRIPLE="\"$(MACHINE)\""
+
+CFLAGS += $(GMP_INCLUDE_DIR) -DIDRIS_TARGET_OS="\"$(OS)\""
+CFLAGS += -DIDRIS_TARGET_TRIPLE="\"$(MACHINE)\""
 
 ifeq ($(OS), windows)
 	OBJS += windows/win_utils.o
-else
-	CFLAGS += -fPIC
 endif
 
 ifndef IDRIS_GMP
@@ -27,6 +25,8 @@ LIBTARGET = libidris_rts.a
 
 build: $(LIBTARGET)
 
+$(OBJS): $(HDRS)
+
 $(LIBTARGET) : $(OBJS)
 	$(AR) rc $(LIBTARGET) $(OBJS)
 	$(RANLIB) $(LIBTARGET)
@@ -37,5 +37,3 @@ install :
 
 clean :
 	rm -f $(OBJS) $(LIBTARGET) $(DYLIBTARGET)
-
-$(OBJS): $(HDRS)

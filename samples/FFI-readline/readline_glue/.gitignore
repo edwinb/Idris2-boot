@@ -1,8 +1,7 @@
-/network-tests
-
 *.d
 *.o
 *.obj
 *.so
 *.dylib
 *.dll
+
