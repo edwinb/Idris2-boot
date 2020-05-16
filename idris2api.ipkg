@@ -1,6 +1,11 @@
 package idris2api
 
 modules =
+    Algebra,
+    Algebra.Preorder,
+    Algebra.Semiring,
+    Algebra.ZeroOneOmega,
+
     Compiler.Common,
     Compiler.CompileExpr,
     Compiler.Inline,
