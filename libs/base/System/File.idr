@@ -13,6 +13,9 @@ FilePtr = AnyPtr
 support : String -> String
 support fn = "C:" ++ fn ++ ", libidris2_support"
 
+libc : String -> String
+libc fn = "C:" ++ fn ++ ", libc 6"
+
 %foreign support "idris2_openFile"
 prim__open : String -> String -> Int -> PrimIO FilePtr
 %foreign support "idris2_closeFile"
@@ -55,6 +58,9 @@ prim__stdin : FilePtr
 prim__stdout : FilePtr
 %foreign support "idris2_stderr"
 prim__stderr : FilePtr
+
+%foreign libc "chmod"
+prim__chmod : String -> Int -> PrimIO Int
 
 modeStr : Mode -> String
 modeStr Read              = "r"
@@ -242,3 +248,38 @@ writeFile fn contents = do
                          pure (Left err)
      closeFile h
      pure (Right ())
+
+namespace FileMode 
+  public export
+  data FileMode = Read | Write | Execute
+
+public export
+record Permissions where
+  constructor MkPermissions
+  user   : List FileMode
+  group  : List FileMode
+  others : List FileMode
+
+mkMode : Permissions -> Int
+mkMode p
+    = getMs (user p) * 64 + getMs (group p) * 8 + getMs (others p)
+  where
+    getM : FileMode -> Int
+    getM Read = 4
+    getM Write = 2
+    getM Execute = 1
+
+    getMs : List FileMode -> Int
+    getMs = sum . map getM
+
+export
+chmodRaw : String -> Int -> IO (Either FileError ())
+chmodRaw fname p
+    = do ok <- primIO $ prim__chmod fname p
+         if ok == 0
+            then pure (Right ())
+            else returnError
+
+export
+chmod : String -> Permissions -> IO (Either FileError ())
+chmod fname p = chmodRaw fname (mkMode p)
