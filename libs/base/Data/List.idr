@@ -298,6 +298,7 @@ tail (x :: xs) = xs
 
 ||| Retrieve the last element of a non-empty list.
 ||| @ ok proof that the list is non-empty
+public export
 last : (l : List a) -> {auto ok : NonEmpty l} -> a
 last [] impossible
 last [x] = x
@@ -326,6 +327,7 @@ tail' (x::xs) = Just xs
 ||| Attempt to retrieve the last element of a non-empty list.
 |||
 ||| If the list is empty, return `Nothing`.
+export
 last' : List a -> Maybe a
 last' [] = Nothing
 last' [x] = Just x
