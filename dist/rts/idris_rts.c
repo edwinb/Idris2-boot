@@ -572,6 +572,7 @@ VAL idris_concat(VM* vm, VAL l, VAL r) {
     String * cl = allocStr(vm, llen + rlen, 0);
     memcpy(cl->str, ls, llen);
     memcpy(cl->str + llen, rs, rlen);
+    cl->str[llen+rlen] = '\0';
     return (VAL)cl;
 }
 

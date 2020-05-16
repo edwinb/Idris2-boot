@@ -41,7 +41,9 @@
           (b (max 0 off))
           (x (max 0 len))
           (end (min l (+ b x))))
-          (substring s b end)))
+          (if (> b l)
+              ""
+              (substring s b end))))
 
 (define either-left
   (lambda (x)

@@ -105,7 +105,7 @@ char* idris_utf8_advance(char* str, int i) {
 
 int idris_utf8_findOffset(char* str, int i) {
     int offset = 0;
-    while(i > 0) {
+    while(i > 0 && str != '\0') {
         int len = idris_utf8_charlen(str);
         str+=len;
         offset+=len;

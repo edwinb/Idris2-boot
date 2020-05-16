@@ -1065,8 +1065,12 @@ reverse = prim__strReverse
 ||| @ subject The string to return a portion of
 public export
 substr : (index : Nat) -> (len : Nat) -> (subject : String) -> String
-substr s e = prim__strSubstr (prim__cast_IntegerInt (natToInteger s))
-                             (prim__cast_IntegerInt (natToInteger e))
+substr s e subj
+    = if s < length subj
+         then prim__strSubstr (prim__cast_IntegerInt (natToInteger s))
+                              (prim__cast_IntegerInt (natToInteger e))
+                              subj
+         else ""
 
 ||| Adds a character to the front of the specified string.
 |||
