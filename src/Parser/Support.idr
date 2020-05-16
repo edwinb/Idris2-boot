@@ -7,6 +7,7 @@ import public Text.Parser
 
 import Core.TT
 import Data.List.Views
+import Utils.Either
 
 %default total
 
@@ -47,22 +48,18 @@ eoi
     isEOI _ = False
 
 export
+mapParseError : ParseError (TokenData Token) -> ParseError
+mapParseError (Error err [])      = ParseFail err Nothing []
+mapParseError (Error err (t::ts)) = ParseFail err (Just (line t, col t)) (map tok (t::ts))
+
+export
 runParserTo : Maybe LiterateStyle -> (TokenData Token -> Bool) ->
               String -> Grammar (TokenData Token) e ty -> Either ParseError ty
 runParserTo lit pred str p
-    = case unlit lit str of
-           Left l => Left $ LitFail l
-           Right str =>
-             case lexTo pred str of
-               Left err => Left $ LexFail err
-               Right toks =>
-                  case parse p toks of
-                       Left (Error err []) =>
-                              Left $ ParseFail err Nothing []
-                       Left (Error err (t :: ts)) =>
-                              Left $ ParseFail err (Just (line t, col t))
-                                                   (map tok (t :: ts))
-                       Right (val, _) => Right val
+    = do str    <- mapError LitFail $ unlit lit str
+         toks   <- mapError LexFail $ lexTo pred str
+         parsed <- mapError mapParseError $ parse p toks
+         Right (fst parsed)
 
 export
 runParser : Maybe LiterateStyle -> String -> Grammar (TokenData Token) e ty -> Either ParseError ty
@@ -74,7 +71,6 @@ parseFile fn p
     = do Right str <- readFile fn
              | Left err => pure (Left (FileFail err))
          pure (runParser (isLitFile fn) str p)
-
 
 -- Some basic parsers used by all the intermediate forms
 
