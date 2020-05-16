@@ -296,6 +296,21 @@ tail : (l : List a) -> {auto ok : NonEmpty l} -> List a
 tail [] impossible
 tail (x :: xs) = xs
 
+||| Retrieve the last element of a non-empty list.
+||| @ ok proof that the list is non-empty
+last : (l : List a) -> {auto ok : NonEmpty l} -> a
+last [] impossible
+last [x] = x
+last (x::y::ys) = last (y::ys)
+
+||| Return all but the last element of a non-empty list.
+||| @ ok proof the list is non-empty
+public export
+init : (l : List a) -> {auto ok : NonEmpty l} -> List a
+init [] impossible
+init [x] = []
+init (x::y::ys) = x :: init (y::ys)
+
 ||| Attempt to get the head of a list. If the list is empty, return `Nothing`.
 export
 head' : List a -> Maybe a
@@ -307,6 +322,23 @@ export
 tail' : List a -> Maybe (List a)
 tail' []      = Nothing
 tail' (x::xs) = Just xs
+
+||| Attempt to retrieve the last element of a non-empty list.
+|||
+||| If the list is empty, return `Nothing`.
+last' : List a -> Maybe a
+last' [] = Nothing
+last' [x] = Just x
+last' (x::y::ys) = last' (y::ys)
+
+||| Attempt to return all but the last element of a non-empty list.
+|||
+||| If the list is empty, return `Nothing`.
+export
+init' : List a -> Maybe (List a)
+init' [] = Nothing
+init' [x] = Just []
+init' (x::y::ys) = Just (x :: !(init' (y::ys)))
 
 ||| Convert any Foldable structure to a list.
 export
@@ -323,7 +355,6 @@ export
 mergeReplicate : a -> List a -> List a
 mergeReplicate sep []      = []
 mergeReplicate sep (y::ys) = sep :: y :: mergeReplicate sep ys
-
 
 ||| Insert some separator between the elements of a list.
 |||
@@ -358,6 +389,38 @@ mapMaybe f (x::xs) =
   case f x of
     Nothing => mapMaybe f xs
     Just j  => j :: mapMaybe f xs
+
+--------------------------------------------------------------------------------
+-- Special folds
+--------------------------------------------------------------------------------
+
+||| Foldl a non-empty list without seeding the accumulator.
+||| @ ok proof that the list is non-empty
+public export
+foldl1 : (a -> a -> a) -> (l : List a)  -> {auto ok : NonEmpty l} -> a
+foldl1 f [] impossible
+foldl1 f (x::xs) = foldl f x xs
+
+||| Foldr a non-empty list without seeding the accumulator.
+||| @ ok proof that the list is non-empty
+public export
+foldr1 : (a -> a -> a) -> (l : List a)  -> {auto ok : NonEmpty l} -> a
+foldr1 f [] impossible
+foldr1 f [x] = x
+foldr1 f (x::y::ys) = f x (foldr1 f (y::ys))
+
+||| Foldl without seeding the accumulator. If the list is empty, return `Nothing`.
+public export
+foldl1' : (a -> a -> a) -> List a -> Maybe a
+foldl1' f [] = Nothing
+foldl1' f (x::xs) = Just (foldl f x xs)
+
+||| Foldr without seeding the accumulator. If the list is empty, return `Nothing`.
+public export
+foldr1' : (a -> a -> a) -> List a -> Maybe a
+foldr1' f [] = Nothing
+foldr1' f [x] = Just x
+foldr1' f (x::y::ys) = Just (f x !(foldr1' f (y::ys)))
 
 --------------------------------------------------------------------------------
 -- Sorting

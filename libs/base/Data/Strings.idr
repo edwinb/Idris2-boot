@@ -6,15 +6,6 @@ export
 singleton : Char -> String
 singleton c = strCons c ""
 
-partial
-foldr1 : (a -> a -> a) -> List a -> a
-foldr1 _ [x] = x
-foldr1 f (x::xs) = f x (foldr1 f xs)
-
-partial
-foldl1 : (a -> a -> a) -> List a -> a
-foldl1 f (x::xs) = foldl f x xs
-
 -- This works quickly because when string-append builds the result, it allocates
 -- enough room in advance so there's only one allocation, rather than lots!
 export
@@ -52,7 +43,7 @@ words s = map pack (words' (unpack s))
 ||| ```
 unwords' : List (List Char) -> List Char
 unwords' [] = []
-unwords' ws = assert_total (foldr1 addSpace ws) where
+unwords' (x::xs) = assert_total (foldr1 addSpace (x::xs)) where
   addSpace : List Char -> List Char -> List Char
   addSpace w s = w ++ (' ' :: s)
 
