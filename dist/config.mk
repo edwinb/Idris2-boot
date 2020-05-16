@@ -1,6 +1,6 @@
 include $(IDRIS2_CURDIR)/config.mk
 
-CFLAGS += -O2 -std=c99 -pipe -fdata-sections -ffunction-sections -D_POSIX_C_SOURCE=200809L
+CFLAGS += $(OPT) -std=c99 -pipe -fdata-sections -ffunction-sections -D_POSIX_C_SOURCE=200809L
 
 ifeq ($(OS),bsd)
 	GMP_INCLUDE_DIR = -I/usr/local/include

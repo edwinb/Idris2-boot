@@ -6,7 +6,7 @@ PREFIX ?= $(HOME)/.idris2
 OPT =
 
 # clang compiles the output much faster than gcc!
-CC ?= clang
+CC := clang
 
 ##################################################################
 
