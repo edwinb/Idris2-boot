@@ -103,6 +103,7 @@ prim_exit : Int -> PrimIO ()
 
 ||| Programs can either terminate successfully, or end in a caught
 ||| failure.
+public export
 data ExitCode : Type where
   ||| Terminate successfully.
   ExitSuccess : ExitCode
