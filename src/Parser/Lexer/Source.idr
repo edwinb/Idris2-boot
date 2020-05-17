@@ -1,6 +1,8 @@
-module Parser.Lexer
+module Parser.Lexer.Source
 
 import public Text.Lexer
+
+import Parser.Lexer.Common
 import Utils.Hex
 import Utils.Octal
 import Utils.String
@@ -8,45 +10,49 @@ import Utils.String
 %default total
 
 public export
-data Token = NSIdent (List String)
-           | HoleIdent String
-           | Literal Integer
-           | StrLit String
-           | CharLit String
-           | DoubleLit Double
-           | Symbol String
-           | Keyword String
-           | Unrecognised String
-           | Comment String
-           | DocComment String
-           | CGDirective String
-           | RecordField String
-           | Pragma String
-           | EndInput
+data SourceToken
+  -- Literals
+  = CharLit    String
+  | DoubleLit  Double
+  | IntegerLit Integer
+  | StringLit  String
+  -- Identifiers
+  | HoleIdent String
+  | NSIdent   (List String)
+  | Symbol    String
+  -- Comments
+  | Comment    String
+  | DocComment String
+  -- Special
+  | CGDirective  String
+  | EndInput
+  | Keyword      String
+  | Pragma       String
+  | RecordField  String
+  | Unrecognised String
 
 export
-Show Token where
-  show (HoleIdent x) = "hole identifier " ++ x
-  show (Literal x) = "literal " ++ show x
-  show (StrLit x) = "string " ++ show x
-  show (CharLit x) = "character " ++ show x
-  show (DoubleLit x) = "double " ++ show x
-  show (Symbol x) = "symbol " ++ x
-  show (Keyword x) = x
+Show SourceToken where
+  -- Literals
+  show (CharLit    c) = "character " ++ show c
+  show (DoubleLit  d) = "double "    ++ show d
+  show (IntegerLit n) = "integer "   ++ show n
+  show (StringLit  s) = "string "    ++ s
+  -- Identifiers
+  show (HoleIdent i) = "hole identifier " ++ i
+  show (NSIdent [i]) = "identifier "      ++ i
+  show (NSIdent  ns) = "namespaced identifier " ++ dotSep ns
+  show (Symbol    s) = "symbol " ++ s
+  -- Comments
+  show (Comment    c) = "comment"     ++ c
+  show (DocComment c) = "doc comment" ++ c
+  -- Special
+  show (CGDirective  d) = "CGDirective " ++ d
+  show EndInput         = "end of input"
+  show (Keyword      k) = k
+  show (Pragma       p) = "pragma " ++ p
+  show (RecordField  f) = "record field " ++ f
   show (Unrecognised x) = "Unrecognised " ++ x
-  show (Comment _) = "comment"
-  show (DocComment _) = "doc comment"
-  show (CGDirective x) = "CGDirective " ++ x
-  show (RecordField x) = "record field " ++ x
-  show (Pragma x) = "pragma " ++ x
-  show EndInput = "end of input"
-  show (NSIdent [x]) = "identifier " ++ x
-  show (NSIdent xs) = "namespaced identifier " ++ dotSep (reverse xs)
-    where
-      dotSep : List String -> String
-      dotSep [] = ""
-      dotSep [x] = x
-      dotSep (x :: xs) = x ++ concat ["." ++ y | y <- xs]
 
 ||| In `comment` we are careful not to parse closing delimiters as
 ||| valid comments. i.e. you may not write many dashes followed by
@@ -176,7 +182,7 @@ cgDirective
            is '}')
          <|> many (isNot '\n'))
 
-mkDirective : String -> Token
+mkDirective : String -> SourceToken
 mkDirective str = CGDirective (trim (substr 3 (length str) str))
 
 -- Reserved words
@@ -239,7 +245,7 @@ fromOctLit str
                   Nothing => 0 -- can't happen if the literal lexed correctly
                   Just n => cast n
 
-rawTokens : TokenMap Token
+rawTokens : TokenMap SourceToken
 rawTokens =
     [(comment, Comment),
      (blockComment, Comment),
@@ -248,11 +254,15 @@ rawTokens =
      (holeIdent, \x => HoleIdent (assert_total (strTail x)))] ++
     map (\x => (exact x, Symbol)) symbols ++
     [(doubleLit, \x => DoubleLit (cast x)),
-     (hexLit, \x => Literal (fromHexLit x)),
-     (octLit, \x => Literal (fromOctLit x)),
-     (digits, \x => Literal (cast x)),
-     (stringLit, \x => StrLit (stripQuotes x)),
-     (charLit, \x => CharLit (stripQuotes x)),
+     (hexLit, \x => IntegerLit (fromHexLit x)),
+     (octLit, \x => IntegerLit (fromOctLit x)),
+     (digits, \x => IntegerLit (cast x)),
+     (stringLit, \x => case isLTE 2 (length x) of
+                            Yes prf => StringLit (stripQuotes x {ok=prf})
+                            No  _   => Unrecognised x),
+     (charLit, \x => case (isLTE 3 (length x) , isLTE 2 (length x)) of
+                            (Yes _, Yes prf) => CharLit (stripQuotes x {ok=prf})
+                            (_    , _      ) => Unrecognised x),
      (recField, \x => RecordField (assert_total $ strTail x)),
      (nsIdent, parseNSIdent),
      (ident Normal, parseIdent),
@@ -261,18 +271,18 @@ rawTokens =
      (validSymbol, Symbol),
      (symbol, Unrecognised)]
   where
-    parseNSIdent : String -> Token
+    parseNSIdent : String -> SourceToken
     parseNSIdent = NSIdent . reverse . split (== '.')
 
-    parseIdent : String -> Token
+    parseIdent : String -> SourceToken
     parseIdent x =
       if x `elem` keywords
         then Keyword x
         else NSIdent [x]
 
 export
-lexTo : (TokenData Token -> Bool) ->
-        String -> Either (Int, Int, String) (List (TokenData Token))
+lexTo : (TokenData SourceToken -> Bool) ->
+        String -> Either (Int, Int, String) (List (TokenData SourceToken))
 lexTo pred str
     = case lexTo pred rawTokens str of
            -- Add the EndInput token so that we'll have a line and column
@@ -281,12 +291,12 @@ lexTo pred str
                                       [MkToken l c EndInput])
            (_, fail) => Left fail
     where
-      notComment : TokenData Token -> Bool
+      notComment : TokenData SourceToken -> Bool
       notComment t = case tok t of
                           Comment _ => False
                           DocComment _ => False -- TODO!
                           _ => True
 
 export
-lex : String -> Either (Int, Int, String) (List (TokenData Token))
+lex : String -> Either (Int, Int, String) (List (TokenData SourceToken))
 lex = lexTo (const False)

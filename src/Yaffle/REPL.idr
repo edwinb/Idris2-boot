@@ -21,7 +21,7 @@ import TTImp.ProcessDecls
 import TTImp.TTImp
 import TTImp.Unelab
 
-import Parser.Support
+import Parser.Source
 
 %default covering
 
@@ -151,7 +151,7 @@ repl : {auto c : Ref Ctxt Defs} ->
 repl
     = do coreLift (putStr "Yaffle> ")
          inp <- coreLift getLine
-         case runParser Nothing inp command of
+         case runSourceParser Nothing inp command of
               Left err => do coreLift (printLn err)
                              repl
               Right cmd =>

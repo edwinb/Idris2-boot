@@ -21,8 +21,7 @@ import Idris.REPLOpts
 import Idris.SetOptions
 import Idris.Syntax
 import Idris.Version
-import Parser.Lexer
-import Parser.Support
+import Parser.Package
 import Utils.Binary
 
 import System
@@ -111,7 +110,7 @@ data DescField : Type where
   PPreclean    : FC -> String -> DescField
   PPostclean   : FC -> String -> DescField
 
-field : String -> Rule DescField
+field : String -> PackageRule DescField
 field fname
       = strField PVersion "version"
     <|> strField PAuthors "authors"
@@ -131,42 +130,41 @@ field fname
     <|> strField PPostinstall "postinstall"
     <|> strField PPreclean "preclean"
     <|> strField PPostclean "postclean"
-    <|> do exactIdent "depends"; symbol "="
+    <|> do property "depends"; assignment
            ds <- sepBy1 (symbol ",") unqualifiedName
            pure (PDepends ds)
-    <|> do exactIdent "modules"; symbol "="
+    <|> do property "modules"; assignment
            ms <- sepBy1 (symbol ",")
                       (do start <- location
                           ns <- nsIdent
                           end <- location
                           pure (MkFC fname start end, ns))
            pure (PModules ms)
-    <|> do exactIdent "main"; symbol "="
+    <|> do property "main"; assignment
            start <- location
            m <- nsIdent
            end <- location
            pure (PMainMod (MkFC fname start end) m)
-    <|> do exactIdent "executable"; symbol "="
+    <|> do property "executable"; assignment
            e <- unqualifiedName
            pure (PExec e)
   where
     getStr : (FC -> String -> DescField) -> FC ->
-             String -> Constant -> EmptyRule DescField
-    getStr p fc fld (Str s) = pure (p fc s)
-    getStr p fc fld _ = fail $ fld ++ " field must be a string"
+             String -> String -> EmptyPackageRule DescField
+    getStr p fc fld s = pure (p fc s)
 
-    strField : (FC -> String -> DescField) -> String -> Rule DescField
+    strField : (FC -> String -> DescField) -> String -> PackageRule DescField
     strField p f
         = do start <- location
-             exactIdent f
-             symbol "="
-             c <- constant
+             property f
+             assignment
+             c <- string
              end <- location
              getStr p (MkFC fname start end) f c
 
-parsePkgDesc : String -> Rule (String, List DescField)
+parsePkgDesc : String -> PackageRule (String, List DescField)
 parsePkgDesc fname
-    = do exactIdent "package"
+    = do property "package"
          name <- unqualifiedName
          fields <- many (field fname)
          pure (name, fields)
@@ -432,9 +430,9 @@ processPackage : {auto c : Ref Ctxt Defs} ->
                  {auto o : Ref ROpts REPLOpts} ->
                  PkgCommand -> String -> Core ()
 processPackage cmd file
-    = do Right (pname, fs) <- coreLift $ parseFile file
+    = do Right (pname, fs) <- coreLift $ parsePackageFile file
                                   (do desc <- parsePkgDesc file
-                                      eoi
+                                      eof
                                       pure desc)
              | Left err => throw (ParseFail (getParseErrorLoc file err) err)
          pkg <- addFields fs (initPkgDesc pname)
@@ -478,9 +476,9 @@ findIpkg fname
    = do Just (dir, ipkgn, up) <- coreLift findIpkgFile
              | Nothing => pure fname
         coreLift $ changeDir dir
-        Right (pname, fs) <- coreLift $ parseFile ipkgn
+        Right (pname, fs) <- coreLift $ parsePackageFile ipkgn
                                  (do desc <- parsePkgDesc ipkgn
-                                     eoi
+                                     eof
                                      pure desc)
               | Left err => throw (ParseFail (getParseErrorLoc ipkgn err) err)
         pkg <- addFields fs (initPkgDesc pname)

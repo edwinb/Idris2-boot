@@ -32,7 +32,9 @@ unaryOp _ _ = Nothing
 castString : Vect 1 (NF vars) -> Maybe (NF vars)
 castString [NPrimVal fc (I i)] = Just (NPrimVal fc (Str (show i)))
 castString [NPrimVal fc (BI i)] = Just (NPrimVal fc (Str (show i)))
-castString [NPrimVal fc (Ch i)] = Just (NPrimVal fc (Str (stripQuotes (show i))))
+castString [NPrimVal fc (Ch i)] = case isLTE 2 (length $ show i) of
+                                       Yes prf => Just $ NPrimVal fc (Str $ stripQuotes $ show i)
+                                       No  _   => Nothing
 castString [NPrimVal fc (Db i)] = Just (NPrimVal fc (Str (show i)))
 castString _ = Nothing
 
