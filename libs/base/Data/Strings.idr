@@ -43,7 +43,7 @@ words s = map pack (words' (unpack s))
 ||| ```
 unwords' : List (List Char) -> List Char
 unwords' [] = []
-unwords' (x::xs) = assert_total (foldr1 addSpace (x::xs)) where
+unwords' ws@(_::_) = assert_total (foldr1 addSpace ws) where
   addSpace : List Char -> List Char -> List Char
   addSpace w s = w ++ (' ' :: s)
 

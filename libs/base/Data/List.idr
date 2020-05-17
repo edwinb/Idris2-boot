@@ -33,10 +33,10 @@ drop (S n) (x::xs) = drop n xs
 ||| @ f the function to iterate
 ||| @ x the initial value that will be the head of the list
 public export
-iterate : (f : a -> Maybe a) -> (x : a) -> List a
-iterate f x  = x :: case f x of
+unfold : (f : a -> Maybe a) -> (x : a) -> List a
+unfold f x  = x :: case f x of
   Nothing => []
-  Just y => iterate f y
+  Just y => unfold f y
 
 public export
 takeWhile : (p : a -> Bool) -> List a -> List a
@@ -339,8 +339,7 @@ tail' (x::xs) = Just xs
 export
 last' : List a -> Maybe a
 last' [] = Nothing
-last' [x] = Just x
-last' (x::y::ys) = last' (y::ys)
+last' xs@(_::_) = Just (last xs)
 
 ||| Attempt to return all but the last element of a non-empty list.
 |||
@@ -348,8 +347,7 @@ last' (x::y::ys) = last' (y::ys)
 export
 init' : List a -> Maybe (List a)
 init' [] = Nothing
-init' [x] = Just []
-init' (x::y::ys) = Just (x :: !(init' (y::ys)))
+init' xs@(_::_) = Just (init xs)
 
 ||| Convert any Foldable structure to a list.
 export
@@ -424,14 +422,13 @@ foldr1 f (x::y::ys) = f x (foldr1 f (y::ys))
 public export
 foldl1' : (f : a -> a -> a) -> List a -> Maybe a
 foldl1' f [] = Nothing
-foldl1' f (x::xs) = Just (foldl f x xs)
+foldl1' f xs@(_::_) = Just (foldl1 f xs)
 
 ||| Foldr without seeding the accumulator. If the list is empty, return `Nothing`.
 public export
 foldr1' : (f : a -> a -> a) -> List a -> Maybe a
 foldr1' f [] = Nothing
-foldr1' f [x] = Just x
-foldr1' f (x::y::ys) = Just (f x !(foldr1' f (y::ys)))
+foldr1' f xs@(_::_) = Just (foldr1 f xs)
 
 --------------------------------------------------------------------------------
 -- Sorting
