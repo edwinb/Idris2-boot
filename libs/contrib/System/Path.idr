@@ -14,32 +14,30 @@ private
 isWindows : Bool
 isWindows = os `elem` ["windows", "mingw32", "cygwin32"]
 
-||| The character that seperates directories in the path
-||| on the platform.
+||| The character that seperates directories in the path.
 export
 dirSeperator : Char
 dirSeperator = if isWindows then '\\' else '/'
 
-||| The character that seperates multiple paths on the platform.
+||| The character that seperates multiple paths.
 export
 pathSeperator : Char
 pathSeperator = if isWindows then ';' else ':'
 
-||| A structure wrapping a Windows' path prefix.
+||| Windows' path prefixes.
 |||
-||| @ UNC Windows' Uniform Naming Convention, e.g.,
-|||   a network sharing directory: `\\host\c$\Windows\System32`;
-||| @ Disk the drive, e.g., "C:". The disk character
-|||   is in upper case.
+||| @ UNC Windows' Uniform Naming Convention, e.g., a network sharing
+|||   directory: `\\host\c$\Windows\System32`
+||| @ Disk the drive, e.g., "C:". The disk character is in upper case
 public export
 data Volumn = UNC String String
             | Disk Char
 
-||| A single body of a path.
+||| A single body of path.
 |||
-||| @ CurDir represents ".";
-||| @ ParentDir represents "..";
-||| @ Normal common directory or file.
+||| @ CurDir "."
+||| @ ParentDir ".."
+||| @ Normal common directory or file
 public export
 data Body = CurDir
           | ParentDir
@@ -47,11 +45,11 @@ data Body = CurDir
 
 ||| A cross-platform file system path.
 |||
-||| The function `parse` is most common way to construct a Path,
-||| from String, and the function `show` converts the Path to String.
+||| The function `parse` is the most common way to construct a Path
+||| from String, and the function `show` converts in reverse.
 |||
-||| Trailing separator is only used for display but is ignored
-||| while comparing paths
+||| Trailing separator is only used for display and is ignored while
+||| comparing paths.
 |||
 ||| @ volum Windows' path prefix (only on Windows)
 ||| @ hasRoot whether the path contains a root
@@ -84,7 +82,7 @@ Eq Path where
                                               && l2 == r2 
                                               && l3 == r3
 
-||| Returns a empty path that represents "".
+||| An empty path that represents "".
 public export
 emptyPath : Path
 emptyPath = MkPath Nothing False [] False
@@ -96,7 +94,7 @@ emptyPath = MkPath Nothing False [] False
 |||
 ||| - On Windows, a path is absolute if it has a volumn and starts
 |||   with the root. e.g., `c:\\windows` is absolute, while `c:temp`
-|||   and `\temp` are not, or has UNC volumn prefix.
+|||   and `\temp` are not. In addition, a path with UNC volumn is absolute.
 export
 isAbsolute : Path -> Bool
 isAbsolute p = if isWindows
@@ -110,13 +108,13 @@ export
 isRelative : Path -> Bool
 isRelative = not . isAbsolute
 
-||| Appends the right path to the left path.
+||| Appends the right path to the left one.
 |||
 ||| If the path on the right is absolute, it replaces the left path.
 |||
 ||| On Windows:
 |||
-||| - If path has a root but no volumn (e.g., \windows), it replaces
+||| - If path has a root but no volumn (e.g., `\windows`), it replaces
 |||   everything except for the volumn (if any) of self.
 ||| - If path has a volumn but no root, it replaces self.
 export
@@ -138,7 +136,7 @@ parent p with (p.body)
   parent p | (x::xs) = Just $ record { body = (init (x::xs)),
                                        hasTrailSep = False } p
 
-||| Returns a list of all parent paths of the path, longest first,
+||| Returns a list of all parent of the path, longest first,
 ||| without self. 
 |||
 ||| For example, the parent of the path, and the parent of the
@@ -148,7 +146,7 @@ export
 parents : Path -> List Path
 parents p = drop 1 $ unfold parent p
 
-||| Determines whether base is one of the parents of the path or is
+||| Determines whether base is either one of the parents of the path or is
 ||| identical to the path.
 |||
 ||| Trailing seperator is ignored.
@@ -161,7 +159,7 @@ startWith b p = b `elem` (unfold parent p)
 ||| If the path is a normal file, this is the file name. If it's the
 ||| path of a directory, this is the directory name.
 |||
-||| Reutrns Nothing if the final body is ".." or ".".
+||| Reutrns Nothing if the final body is ".." or "."
 export
 fileName : Path -> Maybe String
 fileName p = case last' p.body of
@@ -243,7 +241,7 @@ Show Volumn where
   show (UNC server share) = "\\\\" ++ server ++ "\\" ++ share
   show (Disk disk) = singleton disk ++ ":"
 
-||| Display the path in the platform specific format.
+||| Display the path in the format on the platform.
 export
 Show Path where
   show p = let sep = singleton dirSeperator
@@ -300,9 +298,9 @@ bodySeperator : Grammar PathToken True ()
 bodySeperator = (match $ PTPunct '\\') <|> (match $ PTPunct '/')
 
 -- Example: \\?\
--- Windows can automatically translate '/' to '\\'. The verbatim
--- prefix, for example, `\\?\`, disables the transition. Here we
--- simply parse and ignore it.
+-- Windows will automatically translate '/' to '\\'. The verbatim prefix,
+-- i.e., `\\?\`, disables the transition. 
+-- Here, we simply parse then ignore it.
 private
 verbatim : Grammar PathToken True ()
 verbatim = do count (exactly 2) $ match $ PTPunct '\\'
@@ -372,11 +370,11 @@ parsePath = do vol <- optional parseVolumn
 |||
 ||| The parser is relaxed to accept invalid inputs. Relaxing rules:
 |||
-||| - Both slash('/') and backslash('\\') are parsed as directory
-|||   seperator, regardless of the platform.
-||| - Invalid characters in path body, e.g., glob like "/root/*";
-||| - Ignoring the verbatim prefix("\\\\?\\") that disables the
-|||   automatic translation from slash to backslash (Windows only);
+||| - Both slash('/') and backslash('\\') are parsed as directory seperator,
+|||   regardless of the platform;
+||| - Invalid characters in path body in allowed, e.g., glob like "/root/*";
+||| - Ignoring the verbatim prefix(`\\?\`) that disables the automatic
+|||   translation from slash to backslash (Windows only);
 |||
 ||| ```idris example
 ||| parse "C:\\Windows/System32"
