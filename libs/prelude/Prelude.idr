@@ -1404,6 +1404,11 @@ Show a => Show (Maybe a) where
   showPrec d Nothing  = "Nothing"
   showPrec d (Just x) = showCon d "Just" (showArg x)
 
+export
+(Show a, Show b) => Show (Either a b) where
+  showPrec d (Left x)  = showCon d "Left" $ showArg x
+  showPrec d (Right x) = showCon d "Right" $ showArg x
+
 --------
 -- IO --
 --------
