@@ -306,7 +306,7 @@ hexLit : Lexer
 hexLit = approx "0x" <+> hexDigits
 
 ||| Recognise an octal literal, prefixed by "0o"
-||| /0[Xx][0-9A-Fa-f]+/
+||| /0o[0-7]+/
 octLit : Lexer
 octLit = exact "0o" <+> octDigits
 
