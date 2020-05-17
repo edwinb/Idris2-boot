@@ -19,10 +19,9 @@ endif
 export IDRIS2_VERSION := ${MAJOR}.${MINOR}.${PATCH}
 IDRIS2_VERSION_TAG := ${IDRIS2_VERSION}${VER_TAG}
 
-export IDRIS2_CURDIR = $(CURDIR)
-export IDRIS2_PATH = ${IDRIS2_CURDIR}/libs/prelude/build/ttc:${IDRIS2_CURDIR}/libs/base/build/ttc:${IDRIS2_CURDIR}/libs/network/build/ttc
-export IDRIS2_LIBS = ${IDRIS2_CURDIR}/libs/network
-export IDRIS2_DATA = ${IDRIS2_CURDIR}/support
+export IDRIS2_PATH = ${CURDIR}/libs/prelude/build/ttc:${CURDIR}/libs/base/build/ttc:${CURDIR}/libs/network/build/ttc
+export IDRIS2_LIBS = ${CURDIR}/libs/network
+export IDRIS2_DATA = ${CURDIR}/support
 
 IDRIS_VERSION := $(shell idris --version)
 VALID_IDRIS_VERSION_REGEXP = "1.3.2.*"

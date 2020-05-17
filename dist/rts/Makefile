@@ -1,4 +1,4 @@
-include ../config.mk
+include ../../config.mk
 
 OBJS =idris_rts.o idris_heap.o idris_gc.o idris_gmp.o idris_bitstring.o \
       idris_opts.o idris_stats.o idris_utf8.o idris_stdfgn.o \
@@ -7,19 +7,25 @@ HDRS =idris_rts.h idris_heap.h idris_gc.h idris_gmp.h idris_bitstring.h \
       idris_opts.h idris_stats.h idris_stdfgn.h idris_net.h \
       idris_buffer.h idris_utf8.h getline.h
 
-CFLAGS += -O2 $(GMP_INCLUDE_DIR) -DIDRIS_TARGET_OS="\"$(OS)\""
-CFLAGS += -DIDRIS_TARGET_TRIPLE="\"$(MACHINE)\""
+CFLAGS += -O2 -std=c99 -pipe -fdata-sections -ffunction-sections
+CFLAGS += $(GMP_INCLUDE_DIR) -DIDRIS_TARGET_OS="\"$(OS)\""
+CFLAGS += -DIDRIS_TARGET_TRIPLE="\"$(MACHINE)\"" -D_POSIX_C_SOURCE=200809L
+
+ifdef USE_GMP
+	CFLAGS += -DIDRIS_GMP
+endif
 
 ifeq ($(OS), windows)
 	OBJS += windows/win_utils.o
 endif
 
-ifndef IDRIS_GMP
+ifndef USE_GMP
 	OBJS += mini-gmp.o
 	HDRS += mini-gmp.h
 endif
 
 LIBTARGET = libidris_rts.a
+
 
 .PHONY: build install clean
 

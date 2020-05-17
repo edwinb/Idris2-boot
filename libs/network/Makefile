@@ -1,4 +1,4 @@
-include $(IDRIS2_CURDIR)/config.mk
+include ../../config.mk
 
 INSTALLDIR = `${IDRIS2} --libdir`/network/lib
 
