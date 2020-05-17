@@ -75,6 +75,74 @@
                 chr))
         void))
 
+;; Buffers
+
+(define (blodwen-new-buffer size)
+  (make-bytevector size 0))
+
+(define (blodwen-buffer-size buf)
+  (bytevector-length buf))
+
+(define (blodwen-buffer-setbyte buf loc val)
+  (bytevector-u8-set! buf loc val))
+
+(define (blodwen-buffer-getbyte buf loc)
+  (bytevector-u8-ref buf loc))
+
+(define (blodwen-buffer-setint buf loc val)
+  (bytevector-s32-set! buf loc val (native-endianness)))
+
+(define (blodwen-buffer-getint buf loc)
+  (bytevector-s32-ref buf loc (native-endianness)))
+
+(define (blodwen-buffer-setdouble buf loc val)
+  (bytevector-ieee-double-set! buf loc val (native-endianness)))
+
+(define (blodwen-buffer-getdouble buf loc)
+  (bytevector-ieee-double-ref buf loc (native-endianness)))
+
+(define (blodwen-stringbytelen str)
+  (bytevector-length (string->utf8 str)))
+
+(define (blodwen-buffer-setstring buf loc val)
+  (let* [(strvec (string->utf8 val))
+         (len (bytevector-length strvec))]
+    (bytevector-copy! strvec 0 buf loc len)))
+
+(define (blodwen-buffer-getstring buf loc len)
+  (let [(newvec (make-bytevector len))]
+    (bytevector-copy! buf loc newvec 0 len)
+    (utf8->string newvec)))
+
+(define (blodwen-buffer-copydata buf start len dest loc)
+  (bytevector-copy! buf start dest loc len))
+
+(define (blodwen-read-bytevec fname)
+  (guard
+    (x (#t #f))
+    (let* [(h (open-file-input-port fname
+                                    (file-options)
+                                    (buffer-mode line) #f))
+           (vec (get-bytevector-all h))]
+      (begin (close-port h)
+             vec))))
+
+(define (blodwen-isbytevec v)
+(if (bytevector? v)
+    0
+    -1))
+
+(define (blodwen-write-bytevec fname vec max)
+  (guard
+    (x (#t -1))
+    (let* [(h (open-file-output-port fname (file-options no-fail)
+                                     (buffer-mode line) #f))]
+      (begin (put-bytevector h vec 0 max)
+             (close-port h)
+             0))))
+
+
+
 ;; Threads
 
 (define blodwen-thread-data (make-thread-parameter #f))
