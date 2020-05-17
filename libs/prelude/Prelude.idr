@@ -580,6 +580,12 @@ interface Foldable (t : Type -> Type) where
   foldl : (func : acc -> elem -> acc) -> (init : acc) -> (input : t elem) -> acc
   foldl f z t = foldr (flip (.) . flip f) id t z
 
+||| Similar to `foldl`, but uses a function wrapping its result in a `Monad`.
+||| Consequently, the final value is wrapped in the same `Monad`.
+public export
+foldlM : (Foldable t, Monad m) => (funcM: a -> b -> m a) -> (init: a) -> (input: t b) -> m a
+foldlM fm a0 = foldl (\ma,b => ma >>= flip fm b) (pure a0)
+
 ||| Combine each element of a structure into a monoid.
 public export
 concat : (Foldable t, Monoid a) => t a -> a
