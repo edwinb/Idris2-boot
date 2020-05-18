@@ -51,7 +51,7 @@ data Body = CurDir
 ||| Trailing separator is only used for display and is ignored while
 ||| comparing paths.
 |||
-||| @ volum Windows' path prefix (only on Windows)
+||| @ volumn Windows' path prefix (only on Windows)
 ||| @ hasRoot whether the path contains a root
 ||| @ body path bodies
 ||| @ hasTrailSep whether the path terminates with a separator
@@ -310,9 +310,9 @@ bodySeperator : Grammar PathToken True ()
 bodySeperator = (match $ PTPunct '\\') <|> (match $ PTPunct '/')
 
 -- Example: \\?\
--- Windows will automatically translate '/' to '\\'. The verbatim prefix,
--- i.e., `\\?\`, disables the transition. 
--- Here, we simply parse then ignore it.
+-- Windows can automatically translate '/' to '\\'. The verbatim prefix,
+-- i.e., `\\?\`, disables the translation. 
+-- Here, we simply parse and then ignore it.
 private
 verbatim : Grammar PathToken True ()
 verbatim = do count (exactly 2) $ match $ PTPunct '\\'
