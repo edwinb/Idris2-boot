@@ -304,12 +304,12 @@ getFgnCall : {auto c : Ref Ctxt Defs} ->
              String -> (Name, FC, NamedDef) -> Core (String, String)
 getFgnCall appdir (n, fc, d) = schFgnDef appdir fc n d
 
-startChez : String -> String
-startChez target = unlines
+startChez : String -> String -> String
+startChez appdir target = unlines
     [ "#!/bin/sh"
     , ""
-    , "export LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH:$(dirname \"" ++ target ++ "\")\""
-    , "\"" ++ target ++ "\" \"$@\""
+    , "export LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH:`dirname $0`/\"" ++ appdir ++ "\"\""
+    , "`dirname $0`/\"" ++ target ++ "\" \"$@\""
     ]
 
 ||| Compile a TT expression to Chez Scheme
@@ -356,9 +356,9 @@ compileToSO appDirRel outSsAbs
          coreLift $ system tmpFileAbs
          pure ()
 
-makeSh : String -> String -> Core ()
-makeSh outShRel outAbs
-    = do Right () <- coreLift $ writeFile outShRel (startChez outAbs)
+makeSh : String -> String -> String -> Core ()
+makeSh outShRel appdir outAbs
+    = do Right () <- coreLift $ writeFile outShRel (startChez appdir outAbs)
             | Left err => throw (FileErr outShRel err)
          pure ()
 
@@ -366,15 +366,20 @@ makeSh outShRel outAbs
 compileExpr : Bool -> Ref Ctxt Defs -> (execDir : String) ->
               ClosedTerm -> (outfile : String) -> Core (Maybe String)
 compileExpr makeitso c execDir tm outfile
-    = do let appDirRel = execDir ++ dirSep ++ outfile ++ "_app"
-         coreLift $ mkdirs (splitDir appDirRel)
+    = do let appDirRel = outfile ++ "_app" -- relative to build dir
+         let appDirGen = execDir ++ dirSep ++ appDirRel -- relative to here
+
+         coreLift $ mkdirs (splitDir appDirGen)
          cwd <- coreLift currentDir
-         let outSsAbs = cwd ++ dirSep ++ appDirRel ++ dirSep ++ outfile ++ ".ss"
-         let outSoAbs = cwd ++ dirSep ++ appDirRel ++ dirSep ++ outfile ++ ".so"
-         compileToSS c appDirRel tm outSsAbs
-         logTime "Make SO" $ when makeitso $ compileToSO appDirRel outSsAbs
+         let outSsFile = appDirRel ++ dirSep ++ outfile ++ ".ss"
+         let outSoFile = appDirRel ++ dirSep ++ outfile ++ ".so"
+         let outSsAbs = cwd ++ dirSep ++ execDir ++ dirSep ++ outSsFile
+         let outSoAbs = cwd ++ dirSep ++ execDir ++ dirSep ++ outSoFile
+
+         compileToSS c appDirGen tm outSsAbs
+         logTime "Make SO" $ when makeitso $ compileToSO appDirGen outSsAbs
          let outShRel = execDir ++ dirSep ++ outfile
-         makeSh outShRel (if makeitso then outSoAbs else outSsAbs)
+         makeSh outShRel appDirRel (if makeitso then outSoFile else outSsFile)
          coreLift $ chmod outShRel 0o755
          pure (Just outShRel)
 
