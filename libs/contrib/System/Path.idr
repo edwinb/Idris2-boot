@@ -114,34 +114,38 @@ isRelative = not . isAbsolute
 |||
 ||| On Windows:
 |||
-||| - If path has a root but no volumn (e.g., `\windows`), it replaces
-|||   everything except for the volumn (if any) of self.
-||| - If path has a volumn but no root, it replaces self.
+||| - If the right path has a root but no volumn (e.g., `\windows`), it
+|||   replaces everything except for the volumn (if any) of left.
+||| - If the right path has a volumn but no root, it replaces left.
+|||
+||| ```idris example
+||| pure $ !(parse "/usr") `append` !(parse "local/etc")
+||| ```
 export
-append : Path -> Path -> Path
-append a b = if isAbsolute b || isJust b.volumn
-                then b
-                else if hasRoot b
-                  then record { volumn = a.volumn } b
-                  else record { body = a.body ++ b.body,
-                                hasTrailSep = b.hasTrailSep } a
+append : (left : Path) -> (right : Path) -> Path
+append l r = if isAbsolute r || isJust r.volumn
+                then r
+                else if hasRoot r
+                  then record { volumn = l.volumn } r
+                  else record { body = l.body ++ r.body,
+                                hasTrailSep = r.hasTrailSep } l
 
 ||| Returns the path without its final component, if there is one.
 |||
-||| Returns None if the path terminates in a root or volumn.
+||| Returns Nothing if the path terminates in a root or volumn.
 export
 parent : Path -> Maybe Path
-parent p with (p.body)
-  parent p | [] = Nothing
-  parent p | (x::xs) = Just $ record { body = (init (x::xs)),
-                                       hasTrailSep = False } p
+parent p = case p.body of
+                [] => Nothing
+                (x::xs) => Just $ record { body = init (x::xs),
+                                           hasTrailSep = False } p
 
-||| Returns a list of all parent of the path, longest first,
-||| without self. 
+||| Returns a list of all parents of the path, longest first,
+||| self excluded. 
 |||
 ||| For example, the parent of the path, and the parent of the
 ||| parent of the path, and so on. The list terminates in a
-||| root or volumn.
+||| root or volumn (if any).
 export
 parents : Path -> List Path
 parents p = drop 1 $ unfold parent p
@@ -203,7 +207,7 @@ extension p = pure $ snd $ splitFileName !(fileName p)
 
 ||| Updates the file name of the path.
 ||| 
-||| If no file name, this is equivalent to appending the name.
+||| If no file name, this is equivalent to appending the name;
 ||| Otherwise it is equivalent to appending the name to the parent.
 export
 setFileName : (name : String) -> Path -> Path
@@ -225,6 +229,14 @@ setExtension : (ext : String) -> Path -> Maybe Path
 setExtension ext p = do name <- fileName p
                         let (stem, _) = splitFileName name
                         pure $ setFileName (stem ++ "." ++ ext) p
+
+public export
+Semigroup Path where
+  (<+>) = append
+
+public export
+Monoid Path where
+  neutral = emptyPath
 
 --------------------------------------------------------------------------------
 -- Show
@@ -356,7 +368,7 @@ parseBody = do text <- match PTText
                pure $ case text of
                            ".." => ParentDir
                            "." => CurDir
-                           normal => Normal normal
+                           s => Normal s
 
 private
 parsePath : Grammar PathToken False Path
@@ -366,18 +378,20 @@ parsePath = do vol <- optional parseVolumn
                trailSep <- optional bodySeperator
                pure $ MkPath vol (isJust root) body (isJust trailSep)
 
-||| Parse the path from string.
+||| Attempt to parse a String into Path.
 |||
 ||| The parser is relaxed to accept invalid inputs. Relaxing rules:
 |||
 ||| - Both slash('/') and backslash('\\') are parsed as directory seperator,
 |||   regardless of the platform;
 ||| - Invalid characters in path body in allowed, e.g., glob like "/root/*";
-||| - Ignoring the verbatim prefix(`\\?\`) that disables the automatic
-|||   translation from slash to backslash (Windows only);
+||| - Ignoring the verbatim prefix(`\\?\`) that disables the forward
+|||   slash (Windows only).
 |||
 ||| ```idris example
 ||| parse "C:\\Windows/System32"
+||| ```
+||| ```idris example
 ||| parse "/usr/local/etc/*"
 ||| ```
 export
@@ -386,15 +400,11 @@ parse str = case parse parsePath !(lexPath str) of
                  Right (p, []) => Just p
                  _ => Nothing
 
-||| Parse the parts of the path and appends together.
+||| Attempt to parse the parts of a path and appends together.
 |||
 ||| ```idris example
 ||| parseParts ["/usr", "local/etc"]
 ||| ```
 export
 parseParts : (parts : List String) -> Maybe Path
-parseParts parts
-    = case traverse parse parts of
-           Nothing => Nothing
-           Just [] => Just emptyPath
-           Just (x::xs) => Just $ foldl1 append (x::xs)
+parseParts parts = map concat (traverse parse parts)
