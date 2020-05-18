@@ -287,7 +287,7 @@ In ``TestStore.idr``:
 Chapter 11
 ----------
 
-In ``Streams.idr`` add ``import Data.Stream`` for ``iterate``.
+In ``Streams.idr`` add ``import Data.Stream`` and rename ``iterate`` to ``unfold``.
 
 In ``Arith.idr`` and ``ArithTotal.idr``, the ``Divides`` view now has explicit
 arguments for the dividend and remainder, so they need to be explicit in
