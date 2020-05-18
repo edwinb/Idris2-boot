@@ -299,10 +299,14 @@ pathTokenMap = toTokenMap $
   ]
 
 private
-lexPath : String -> Maybe (List PathToken)
+lexPath : String -> Either String (List PathToken)
 lexPath str
     = case lex pathTokenMap str of
-           (tokens, _, _, "") => Just $ map TokenData.tok tokens
+           (tokens, _, _, "") => Right (map TokenData.tok tokens)
+           (tokens, l, c, rest) => Left ("Unrecognized tokens "
+                                     ++ show rest
+                                     ++ " at col "
+                                     ++ show c)
 
 -- match both '/' and '\\' regardless of the platform.
 private
@@ -365,10 +369,12 @@ parseVolumn = verbatimUnc
 private
 parseBody : Grammar PathToken True Body
 parseBody = do text <- match PTText
-               pure $ case text of
-                           ".." => ParentDir
-                           "." => CurDir
-                           s => Normal s
+               the (Grammar _ False _) $ 
+                   case text of
+                        " " => fail "Empty body"
+                        ".." => pure ParentDir
+                        "." => pure CurDir
+                        s => pure (Normal s)
 
 private
 parsePath : Grammar PathToken False Path
@@ -379,6 +385,8 @@ parsePath = do vol <- optional parseVolumn
                pure $ MkPath vol (isJust root) body (isJust trailSep)
 
 ||| Attempt to parse a String into Path.
+|||
+||| Returns a error message if the parser fails.
 |||
 ||| The parser is relaxed to accept invalid inputs. Relaxing rules:
 |||
@@ -395,10 +403,12 @@ parsePath = do vol <- optional parseVolumn
 ||| parse "/usr/local/etc/*"
 ||| ```
 export
-parse : String -> Maybe Path
+parse : String -> Either String Path
 parse str = case parse parsePath !(lexPath str) of
-                 Right (p, []) => Just p
-                 _ => Nothing
+                 Right (p, []) => Right p
+                 Right (p, ts) => Left ("Unrecognised tokens remaining : " 
+                                     ++ show (map text ts))
+                 Left (Error msg ts) => Left (msg ++ " : " ++ show (map text ts))
 
 ||| Attempt to parse the parts of a path and appends together.
 |||
@@ -406,5 +416,5 @@ parse str = case parse parsePath !(lexPath str) of
 ||| parseParts ["/usr", "local/etc"]
 ||| ```
 export
-parseParts : (parts : List String) -> Maybe Path
+parseParts : (parts : List String) -> Either String Path
 parseParts parts = map concat (traverse parse parts)
