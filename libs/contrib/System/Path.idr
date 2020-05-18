@@ -100,7 +100,8 @@ isAbsolute : Path -> Bool
 isAbsolute p = if isWindows
                  then case p.volumn of
                            Just (UNC _ _) => True
-                           _ => p.hasRoot
+                           Just (Disk _) => p.hasRoot
+                           Nothing => False
                  else p.hasRoot
 
 ||| Returns true if the path is relative, i.e., not absolute.
@@ -163,7 +164,7 @@ startWith b p = b `elem` (unfold parent p)
 ||| If the path is a normal file, this is the file name. If it's the
 ||| path of a directory, this is the directory name.
 |||
-||| Reutrns Nothing if the final body is ".." or "."
+||| Returns Nothing if the final body is ".." or "."
 export
 fileName : Path -> Maybe String
 fileName p = case last' p.body of
