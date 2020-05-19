@@ -98,11 +98,11 @@ emptyPath = MkPath Nothing False [] False
 export
 isAbsolute : Path -> Bool
 isAbsolute p = if isWindows
-                 then case p.volumn of
-                           Just (UNC _ _) => True
-                           Just (Disk _) => p.hasRoot
-                           Nothing => False
-                 else p.hasRoot
+                  then case p.volumn of
+                            Just (UNC _ _) => True
+                            Just (Disk _) => p.hasRoot
+                            Nothing => False
+                  else p.hasRoot
 
 ||| Returns true if the path is relative, i.e., not absolute.
 export
@@ -124,12 +124,13 @@ isRelative = not . isAbsolute
 ||| ```
 export
 append : (left : Path) -> (right : Path) -> Path
+append l emptyPath = l
 append l r = if isAbsolute r || isJust r.volumn
                 then r
                 else if hasRoot r
-                  then record { volumn = l.volumn } r
-                  else record { body = l.body ++ r.body,
-                                hasTrailSep = r.hasTrailSep } l
+                        then record { volumn = l.volumn } r
+                        else record { body = l.body ++ r.body,
+                                      hasTrailSep = r.hasTrailSep } l
 
 ||| Returns the path without its final component, if there is one.
 |||
@@ -229,7 +230,10 @@ export
 setExtension : (ext : String) -> Path -> Maybe Path
 setExtension ext p = do name <- fileName p
                         let (stem, _) = splitFileName name
-                        pure $ setFileName (stem ++ "." ++ ext) p
+                        let filename = if ext == "" 
+                                          then stem 
+                                          else (stem ++ "." ++ ext)
+                        pure $ setFileName filename p
 
 public export
 Semigroup Path where
