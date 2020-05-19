@@ -8,9 +8,9 @@ main
          s <- rawSize buf
          printLn s
 
-         setInt buf 1 94
+         setInt32 buf 1 94
          setString buf 5 "AAAA"
-         val <- getInt buf 1
+         val <- getInt32 buf 1
          printLn val
 
          setDouble buf 10 94.42
