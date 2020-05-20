@@ -3,7 +3,10 @@ Idris 2
 
 [![Build Status](https://travis-ci.org/edwinb/Idris2.svg?branch=master)](https://travis-ci.org/edwinb/Idris2)
 
-This is a pre-alpha implementation of Idris 2, the successor to Idris.
+This is the bootstrapping version of Idris 2, the successor to Idris. Its sole
+purpose is to build [Idris 2 proper](https://github.com/idris-lang/Idris2).
+Most likely, you will want to install that directly, unless you're following
+the bootstrapping path from scratch.
 
 *** Please note: To build, this requires Idris version 1.3.2 ***
 

@@ -116,6 +116,7 @@ banner = "     ____    __     _         ___                                     
          "  _/ // /_/ / /  / (__  )   / __/      https://www.idris-lang.org           \n" ++
          " /___/\\__,_/_/  /_/____/   /____/      Type :? for help                     \n" ++
          "\n" ++
+         "[BOOTSTRAP VERSION: No longer developed, except as a bootstrapping step.]\n" ++
          "Welcome to Idris 2.  Enjoy yourself!"
 
 checkVerbose : List CLOpt -> Bool

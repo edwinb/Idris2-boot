@@ -3,7 +3,7 @@ include config.mk
 # current Idris2 version components
 MAJOR=0
 MINOR=1
-PATCH=0
+PATCH=1
 
 GIT_SHA1=
 VER_TAG=
@@ -29,9 +29,9 @@ VALID_IDRIS_VERSION_REGEXP = "1.3.2.*"
 
 -include custom.mk
 
-.PHONY: ttimp idris2 idris2-fromc prelude test base clean lib_clean check_version idris2c dist/idris2.c
+.PHONY: ttimp idris2boot idris2-fromc prelude test base clean lib_clean check_version idris2c dist/idris2.c
 
-all: idris2 libs install-support test
+all: idris2boot libs install-support test
 
 # test requires an Idris install! Maybe we should do a version in Idris2?
 all-fromc: idris2-fromc libs
@@ -40,7 +40,7 @@ check_version:
 	@echo "Using Idris 1 version: $(IDRIS_VERSION)"
 	@if [ $(shell expr $(IDRIS_VERSION) : $(VALID_IDRIS_VERSION_REGEXP)) -eq 0 ]; then echo "Wrong idris version, expected version matching $(VALID_IDRIS_VERSION_REGEXP)"; exit 1; fi
 
-idris2: dist/idris2.c idris2-fromc
+idris2boot: dist/idris2.c idris2-fromc
 
 # Just build the C, assuming already built from Idris source.
 # Separate rule to avoid having to build the C if Idris 1 isn't available.
@@ -53,7 +53,7 @@ else
 	@sed -i '1 s|^.*$$|char* idris2_prefix = "${PREFIX}";|' dist/idris2.c
 endif
 	${MAKE} -C dist
-	@cp dist/idris2 ./idris2
+	@cp dist/idris2 ./idris2boot
 
 # bit of a hack here, to get the prefix into the generated C!
 dist/idris2.c: src/YafflePaths.idr check_version
@@ -71,17 +71,17 @@ src/YafflePaths.idr:
 	echo 'module YafflePaths; export yversion : ((Nat,Nat,Nat), String); yversion = ((${MAJOR},${MINOR},${PATCH}), "${GIT_SHA1}")' > src/YafflePaths.idr
 
 prelude:
-	${MAKE} -C libs/prelude IDRIS2=../../idris2
+	${MAKE} -C libs/prelude IDRIS2=../../idris2boot
 
 base: prelude
-	${MAKE} -C libs/base IDRIS2=../../idris2
+	${MAKE} -C libs/base IDRIS2=../../idris2boot
 
 network: prelude
-	${MAKE} -C libs/network IDRIS2=../../idris2
-	${MAKE} -C libs/network test IDRIS2=../../idris2
+	${MAKE} -C libs/network IDRIS2=../../idris2boot
+	${MAKE} -C libs/network test IDRIS2=../../idris2boot
 
 contrib: prelude
-	${MAKE} -C libs/contrib IDRIS2=../../idris2
+	${MAKE} -C libs/contrib IDRIS2=../../idris2boot
 
 libs : prelude base network contrib
 
@@ -124,10 +124,10 @@ install-support: support
 install-exec:
 	mkdir -p ${PREFIX}/bin
 	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/lib
-	install idris2 ${PREFIX}/bin
+	install idris2boot ${PREFIX}/bin
 
 install-libs: libs
-	${MAKE} -C libs/prelude install IDRIS2=../../idris2
-	${MAKE} -C libs/base install IDRIS2=../../idris2
-	${MAKE} -C libs/network install IDRIS2=../../idris2 IDRIS2_VERSION=${IDRIS2_VERSION}
-	${MAKE} -C libs/contrib install IDRIS2=../../idris2
+	${MAKE} -C libs/prelude install IDRIS2=../../idris2boot
+	${MAKE} -C libs/base install IDRIS2=../../idris2boot
+	${MAKE} -C libs/network install IDRIS2=../../idris2boot IDRIS2_VERSION=${IDRIS2_VERSION}
+	${MAKE} -C libs/contrib install IDRIS2=../../idris2boot
