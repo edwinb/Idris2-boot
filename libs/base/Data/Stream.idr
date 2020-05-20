@@ -23,8 +23,8 @@ repeat x = x :: repeat x
 ||| @ f the function to iterate
 ||| @ x the initial value that will be the head of the stream
 public export
-iterate : (f : a -> a) -> (x : a) -> Stream a
-iterate f x = x :: iterate f (f x)
+unfold : (f : a -> a) -> (x : a) -> Stream a
+unfold f x = x :: unfold f (f x)
 
 ||| Get the nth element of a stream
 public export

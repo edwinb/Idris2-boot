@@ -4,7 +4,6 @@ import Data.Strings
 
 %default total
 
-
 infixl 5 +>
 infixr 5 <+
 
@@ -71,12 +70,12 @@ public export
 shrink : (n : Nat) -> (input : String) -> String
 shrink n str = dropLast n (drop n str)
 
-||| Concatenate the strings from a `Foldable` containing strings, separated by
-||| the given string.
+||| Concatenate the strings from a list of strings, separated by
+||| the given seperator.
 public export
-join : (sep : String) -> Foldable t => (xs : t String) -> String
-join sep xs = drop (length sep)
-                   (foldl (\acc, x => acc ++ sep ++ x) "" xs)
+join : (sep : String) -> List String -> String
+join sep [] = ""
+join sep (x::xs) = foldl1 (\a, b => a ++ sep ++ b) (x::xs)
 
 ||| Get a character from a string if the string is long enough.
 public export
