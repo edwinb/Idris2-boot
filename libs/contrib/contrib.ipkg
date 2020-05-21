@@ -26,6 +26,7 @@ modules = Control.Delayed,
           Text.Lexer.Core,
 
           System.Clock,
+          System.Path,
           System.Random,
           Syntax.WithProof,
           Syntax.PreorderReasoning
