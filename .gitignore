@@ -5,7 +5,7 @@
 
 *.dSYM
 
-/idris2
+/idris2boot
 /runtests
 
 /dist/idris2.c
