@@ -71,16 +71,16 @@ currentDir
             else pure (Just (prim__getString res))
 
 export
-dirOpen : String -> IO (Either FileError Directory)
-dirOpen d
+openDir : String -> IO (Either FileError Directory)
+openDir d
     = do res <- primIO (prim_openDir d)
          if prim__nullAnyPtr res /= 0
             then returnError
             else ok (MkDir res)
 
 export
-dirClose : Directory -> IO ()
-dirClose (MkDir d) = primIO (prim_closeDir d)
+closeDir : Directory -> IO ()
+closeDir (MkDir d) = primIO (prim_closeDir d)
 
 export
 dirEntry : Directory -> IO (Either FileError String)

@@ -1,6 +1,6 @@
 ##### Options which a user might set before building go here #####
 
-PREFIX ?= $(HOME)/.idris2
+PREFIX ?= $(HOME)/.idris2boot
 
 # Add any optimisation/profiling flags for C here (e.g. -O2)
 OPT =

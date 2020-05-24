@@ -210,8 +210,8 @@ fileStatusTime (FHandle f)
             else returnError
 
 export
-fileRemove : String -> IO (Either FileError ())
-fileRemove fname
+removeFile : String -> IO (Either FileError ())
+removeFile fname
     = do res <- primIO (prim__fileRemove fname)
          if res == 0
             then ok ()
