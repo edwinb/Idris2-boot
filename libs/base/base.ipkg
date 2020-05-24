@@ -36,6 +36,7 @@ modules = Control.App,
           Language.Reflection.TTImp,
 
           System,
+          System.Clock,
           System.Concurrency.Raw,
           System.Directory,
           System.File,
