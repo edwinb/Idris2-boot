@@ -25,7 +25,7 @@ export IDRIS2_LIBS = ${IDRIS2_CURDIR}/libs/network
 export IDRIS2_DATA = ${IDRIS2_CURDIR}/support
 
 IDRIS_VERSION := $(shell idris --version)
-VALID_IDRIS_VERSION_REGEXP = "1.3.2.*"
+VALID_IDRIS_VERSION_REGEXP = "1.3.[2-9].*"
 
 -include custom.mk
 
