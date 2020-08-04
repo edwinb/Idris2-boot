@@ -947,7 +947,7 @@ Ord a => Ord (List a) where
 
 namespace List
   public export
-  (++) : (1 xs : List a) -> List a -> List a
+  (++) : (1 xs, ys : List a) -> List a
   [] ++ ys = ys
   (x :: xs) ++ ys = x :: xs ++ ys
 

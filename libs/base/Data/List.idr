@@ -1,5 +1,6 @@
 module Data.List
 
+import Data.List1
 import Decidable.Equality
 
 public export
@@ -161,11 +162,11 @@ break : (a -> Bool) -> List a -> (List a, List a)
 break p xs = span (not . p) xs
 
 public export
-split : (a -> Bool) -> List a -> List (List a)
+split : (a -> Bool) -> List a -> List1 (List a)
 split p xs =
   case break p xs of
     (chunk, [])          => [chunk]
-    (chunk, (c :: rest)) => chunk :: split p rest
+    (chunk, (c :: rest)) => chunk :: List1.toList (split p rest)
 
 public export
 splitAt : (n : Nat) -> (xs : List a) -> (List a, List a)
@@ -216,7 +217,7 @@ tails xs = xs :: case xs of
 ||| ```
 |||
 public export
-splitOn : Eq a => a -> List a -> List (List a)
+splitOn : Eq a => a -> List a -> List1 (List a)
 splitOn a = split (== a)
 
 ||| Replaces all occurences of the first argument with the second argument in a list.
@@ -614,7 +615,7 @@ appendAssociative (x::xs) c r =
   let inductiveHypothesis = appendAssociative xs c r in
     rewrite inductiveHypothesis in Refl
 
-revOnto : (xs, vs : _) -> reverseOnto xs vs = reverse vs ++ xs
+revOnto : (xs, vs : List a) -> reverseOnto xs vs = reverse vs ++ xs
 revOnto xs [] = Refl
 revOnto xs (v :: vs)
     = rewrite revOnto (v :: xs) vs in
@@ -636,15 +637,18 @@ lemma_val_not_nil : {x : t} -> {xs : List t} -> ((x :: xs) = Prelude.Nil {a = t}
 lemma_val_not_nil Refl impossible
 
 public export
-lemma_x_eq_xs_neq : {x : t} -> {xs : List t} -> {y : t} -> {ys : List t} -> (x = y) -> (xs = ys -> Void) -> ((x :: xs) = (y :: ys) -> Void)
+lemma_x_eq_xs_neq : {x : t} -> {xs : List t} -> {y : t} -> {ys : List t} ->
+                    (x = y) -> (xs = ys -> Void) -> (the (List t) (x :: xs) = (y :: ys) -> Void)
 lemma_x_eq_xs_neq Refl p Refl = p Refl
 
 public export
-lemma_x_neq_xs_eq : {x : t} -> {xs : List t} -> {y : t} -> {ys : List t} -> (x = y -> Void) -> (xs = ys) -> ((x :: xs) = (y :: ys) -> Void)
+lemma_x_neq_xs_eq : {x : t} -> {xs : List t} -> {y : t} -> {ys : List t} -> (x = y -> Void) ->
+                    (xs = ys) -> (the (List t) (x :: xs) = (y :: ys) -> Void)
 lemma_x_neq_xs_eq p Refl Refl = p Refl
 
 public export
-lemma_x_neq_xs_neq : {x : t} -> {xs : List t} -> {y : t} -> {ys : List t} -> (x = y -> Void) -> (xs = ys -> Void) -> ((x :: xs) = (y :: ys) -> Void)
+lemma_x_neq_xs_neq : {x : t} -> {xs : List t} -> {y : t} -> {ys : List t} ->
+                     (x = y -> Void) -> (xs = ys -> Void) -> (the (List t) (x :: xs) = (y :: ys) -> Void)
 lemma_x_neq_xs_neq p p' Refl = p Refl
 
 public export
@@ -659,5 +663,3 @@ implementation DecEq a => DecEq (List a) where
     decEq (x :: xs) (y :: ys) | No p with (decEq xs ys)
       decEq (x :: xs) (y :: xs) | (No p) | (Yes Refl) = No (\eq => lemma_x_neq_xs_eq p Refl eq)
       decEq (x :: xs) (y :: ys) | (No p) | (No p') = No (\eq => lemma_x_neq_xs_neq p p' eq)
-
-
