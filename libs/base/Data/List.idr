@@ -318,7 +318,7 @@ public export
 last : (l : List a) -> {auto ok : NonEmpty l} -> a
 last [] impossible
 last [x] = x
-last (x::y::ys) = last (y::ys)
+last (x::y::ys) = List.last (y::ys)
 
 ||| Return all but the last element of a non-empty list.
 ||| @ ok proof the list is non-empty

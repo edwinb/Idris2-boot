@@ -8,6 +8,14 @@ record List1 a where
   head : a
   tail : List a
 
+export
+last : List1 a -> a
+last (x :: xs) = go x xs where
+
+  go : a -> List a -> a
+  go x [] = x
+  go _ (y :: ys) = go y ys
+
 public export
 toList : (1 xs : List1 a) -> List a
 toList (x :: xs) = x :: xs
