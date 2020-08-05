@@ -12,6 +12,10 @@ public export
 toList : (1 xs : List1 a) -> List a
 toList (x :: xs) = x :: xs
 
+export
+cons : (1 x : a) -> (1 xs : List1 a) -> List1 a
+cons x xs = x :: toList xs
+
 public export
 reverseOnto : (1 acc : List1 a) -> (1 xs : List a) -> List1 a
 reverseOnto acc []        = acc
