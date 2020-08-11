@@ -1696,3 +1696,123 @@ export
       = if y > x
            then countFrom x (+ (y - x))
            else countFrom x (\n => n - (x - y))
+
+
+
+-- Primitive casts needed to build Idris2
+--
+-- The BitsN types are not supported in Idris2-boot, but in order to bootstrap
+-- Idris2 (which uses these primitive casts in its prelude) these functions need
+-- to be present.
+
+export
+prim__cast_Bits8Integer : a -> b
+prim__cast_Bits8Integer _ = idris_crash "Unsupported primitive cast Bits8Integer in Idris2-boot"
+
+export
+prim__cast_Bits16Integer : a -> b
+prim__cast_Bits16Integer _ = idris_crash "Unsupported primitive cast Bits16Integer in Idris2-boot"
+
+export
+prim__cast_Bits32Integer : a -> b
+prim__cast_Bits32Integer _ = idris_crash "Unsupported primitive cast Bits32Integer in Idris2-boot"
+
+export
+prim__cast_Bits64Integer : a -> b
+prim__cast_Bits64Integer _ = idris_crash "Unsupported primitive cast Bits64Integer in Idris2-boot"
+
+export
+prim__cast_Bits8Int : a -> b
+prim__cast_Bits8Int _ = idris_crash "Unsupported primitive cast Bits8Int in Idris2-boot"
+
+export
+prim__cast_Bits16Int : a -> b
+prim__cast_Bits16Int _ = idris_crash "Unsupported primitive cast Bits16Int in Idris2-boot"
+
+export
+prim__cast_Bits32Int : a -> b
+prim__cast_Bits32Int _ = idris_crash "Unsupported primitive cast Bits32Int in Idris2-boot"
+
+export
+prim__cast_Bits64Int : a -> b
+prim__cast_Bits64Int _ = idris_crash "Unsupported primitive cast Bits64Int in Idris2-boot"
+
+export
+prim__cast_IntBits8 : a -> b
+prim__cast_IntBits8 _ = idris_crash "Unsupported primitive cast IntBits8 in Idris2-boot"
+
+export
+prim__cast_IntegerBits8 : a -> b
+prim__cast_IntegerBits8 _ = idris_crash "Unsupported primitive cast IntegerBits8 in Idris2-boot"
+
+export
+prim__cast_Bits16Bits8 : a -> b
+prim__cast_Bits16Bits8 _ = idris_crash "Unsupported primitive cast Bits16Bits8 in Idris2-boot"
+
+export
+prim__cast_Bits32Bits8 : a -> b
+prim__cast_Bits32Bits8 _ = idris_crash "Unsupported primitive cast Bits32Bits8 in Idris2-boot"
+
+export
+prim__cast_Bits64Bits8 : a -> b
+prim__cast_Bits64Bits8 _ = idris_crash "Unsupported primitive cast Bits64Bits8 in Idris2-boot"
+
+export
+prim__cast_IntBits16 : a -> b
+prim__cast_IntBits16 _ = idris_crash "Unsupported primitive cast IntBits16 in Idris2-boot"
+
+export
+prim__cast_IntegerBits16 : a -> b
+prim__cast_IntegerBits16 _ = idris_crash "Unsupported primitive cast IntegerBits16 in Idris2-boot"
+
+export
+prim__cast_Bits8Bits16 : a -> b
+prim__cast_Bits8Bits16 _ = idris_crash "Unsupported primitive cast Bits8Bits16 in Idris2-boot"
+
+export
+prim__cast_Bits32Bits16 : a -> b
+prim__cast_Bits32Bits16 _ = idris_crash "Unsupported primitive cast Bits32Bits16 in Idris2-boot"
+
+export
+prim__cast_Bits64Bits16 : a -> b
+prim__cast_Bits64Bits16 _ = idris_crash "Unsupported primitive cast Bits64Bits16 in Idris2-boot"
+
+export
+prim__cast_IntBits32 : a -> b
+prim__cast_IntBits32 _ = idris_crash "Unsupported primitive cast IntBits32 in Idris2-boot"
+
+export
+prim__cast_IntegerBits32 : a -> b
+prim__cast_IntegerBits32 _ = idris_crash "Unsupported primitive cast IntegerBits32 in Idris2-boot"
+
+export
+prim__cast_Bits8Bits32 : a -> b
+prim__cast_Bits8Bits32 _ = idris_crash "Unsupported primitive cast Bits8Bits32 in Idris2-boot"
+
+export
+prim__cast_Bits16Bits32 : a -> b
+prim__cast_Bits16Bits32 _ = idris_crash "Unsupported primitive cast Bits16Bits32 in Idris2-boot"
+
+export
+prim__cast_Bits64Bits32 : a -> b
+prim__cast_Bits64Bits32 _ = idris_crash "Unsupported primitive cast Bits64Bits32 in Idris2-boot"
+
+export
+prim__cast_IntBits64 : a -> b
+prim__cast_IntBits64 _ = idris_crash "Unsupported primitive cast IntBits64 in Idris2-boot"
+
+export
+prim__cast_IntegerBits64 : a -> b
+prim__cast_IntegerBits64 _ = idris_crash "Unsupported primitive cast IntegerBits64 in Idris2-boot"
+
+export
+prim__cast_Bits8Bits64 : a -> b
+prim__cast_Bits8Bits64 _ = idris_crash "Unsupported primitive cast Bits8Bits64 in Idris2-boot"
+
+export
+prim__cast_Bits16Bits64 : a -> b
+prim__cast_Bits16Bits64 _ = idris_crash "Unsupported primitive cast Bits16Bits64 in Idris2-boot"
+
+export
+prim__cast_Bits32Bits64 : a -> b
+prim__cast_Bits32Bits64 _ = idris_crash "Unsupported primitive cast Bits32Bits64 in Idris2-boot"
