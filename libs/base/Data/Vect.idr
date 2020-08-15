@@ -2,6 +2,7 @@ module Data.Vect
 
 import Data.List
 import Data.Nat
+import Data.Nat.Views
 import public Data.Fin
 
 import Decidable.Equality
@@ -897,4 +898,26 @@ overLength {m} n xs with (cmp m n)
   overLength {m = plus n (S x)} n xs | (CmpGT x)
          = Just (S x ** rewrite plusCommutative (S x) n in xs)
 
+--------------------------------------------------------------------------------
+-- Sort
+--------------------------------------------------------------------------------
 
+export
+insertionSortBy : (elem -> elem -> Ordering) -> Vect n elem -> Vect n elem
+insertionSortBy _ [] = []
+insertionSortBy order (x :: xs) = mergeBy order (fromList [x]) (insertionSortBy order xs)
+
+export
+mergeSortBy : {n : Nat} -> (elem -> elem -> Ordering) -> Vect n elem -> Vect n elem
+mergeSortBy _ [] = []
+mergeSortBy _ [x] = [x]
+mergeSortBy order xs = case half n of
+                          HalfEven k => let (as, bs) = splitAt k xs
+                                        in mergeBy order (mergeSortBy order as) (mergeSortBy order bs)
+                          HalfOdd k => let (y::ys) = xs
+                                           (as, bs) = splitAt k ys
+                                       in mergeBy order (mergeSortBy order (y::as)) (mergeSortBy order bs)
+
+export
+sort : Ord elem => {len : Nat} -> Vect len elem -> Vect len elem
+sort = mergeSortBy {n = len} compare
