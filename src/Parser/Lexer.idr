@@ -251,8 +251,12 @@ rawTokens =
      (hexLit, \x => Literal (fromHexLit x)),
      (octLit, \x => Literal (fromOctLit x)),
      (digits, \x => Literal (cast x)),
-     (stringLit, \x => StrLit (stripQuotes x)),
-     (charLit, \x => CharLit (stripQuotes x)),
+     (stringLit, \x => case isLTE 2 (length x) of
+                            Yes prf => StrLit (stripQuotes x)
+                            No  _   => Unrecognised x),
+     (charLit, \x => case isLTE 2 (length x) of
+                          Yes prf => CharLit (stripQuotes x)
+                          No  _   => Unrecognised x),
      (recField, \x => RecordField (assert_total $ strTail x)),
      (nsIdent, parseNSIdent),
      (ident Normal, parseIdent),

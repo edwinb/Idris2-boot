@@ -20,7 +20,9 @@ ideTokens : TokenMap Token
 ideTokens =
     map (\x => (exact x, Symbol)) symbols ++
     [(digits, \x => Literal (cast x)),
-     (stringLit, \x => StrLit (stripQuotes x)),
+     (stringLit, \x => case isLTE 2 (length x) of
+                            Yes prf => StrLit (stripQuotes x)
+                            No  _   => Unrecognised x),
      (identAllowDashes, \x => NSIdent [x]),
      (space, Comment)]
 
