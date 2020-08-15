@@ -733,17 +733,17 @@ processCatch cmd
                            pure $ REPLError !(display err)
                            )
 
-parseEmptyCmd : EmptyRule (Maybe REPLCmd)
+parseEmptyCmd : EmptySourceRule (Maybe REPLCmd)
 parseEmptyCmd = eoi *> (pure Nothing)
 
-parseCmd : EmptyRule (Maybe REPLCmd)
+parseCmd : EmptySourceRule (Maybe REPLCmd)
 parseCmd = do c <- command; eoi; pure $ Just c
 
 export
-parseRepl : String -> Either ParseError (Maybe REPLCmd)
+parseRepl : String -> Either (ParsingError SourceToken) (Maybe REPLCmd)
 parseRepl inp
     = case fnameCmd [(":load ", Load), (":l ", Load), (":cd ", CD)] inp of
-           Nothing => runParser Nothing inp (parseEmptyCmd <|> parseCmd)
+           Nothing => runSourceParser Nothing inp (parseEmptyCmd <|> parseCmd)
            Just cmd => Right $ Just cmd
   where
     -- a right load of hackery - we can't tokenise the filename using the

@@ -192,7 +192,7 @@ modTime fname
          pure t
 
 export
-getParseErrorLoc : String -> ParseError -> FC
+getParseErrorLoc : String -> ParsingError SourceToken -> FC
 getParseErrorLoc fname (ParseFail _ (Just pos) _) = MkFC fname pos pos
 getParseErrorLoc fname (LexFail (l, c, _)) = MkFC fname (l, c) (l, c)
 getParseErrorLoc fname (LitFail (MkLitErr l c _)) = MkFC fname (l, 0) (l, 0)
@@ -204,13 +204,13 @@ readHeader : {auto c : Ref Ctxt Defs} ->
 readHeader path
     = do Right res <- coreLift (readFile path)
             | Left err => throw (FileErr path err)
-         case runParserTo (isLitFile path) isColon res (progHdr path) of
+         case runSourceParserTo (isLitFile path) isColon res (progHdr path) of
               Left err => throw (ParseFail (getParseErrorLoc path err) err)
               Right mod => pure mod
   where
     -- Stop at the first :, that's definitely not part of the header, to
     -- save lexing the whole file unnecessarily
-    isColon : TokenData Token -> Bool
+    isColon : TokenData SourceToken -> Bool
     isColon t
         = case tok t of
                Symbol ":" => True
@@ -262,7 +262,7 @@ processMod srcf ttcf msg sourcecode
            else -- needs rebuilding
              do iputStrLn msg
                 Right mod <- logTime ("Parsing " ++ srcf) $
-                            pure (runParser (isLitFile srcf) sourcecode (do p <- prog srcf; eoi; pure p))
+                            pure (runSourceParser (isLitFile srcf) sourcecode (do p <- prog srcf; eoi; pure p))
                       | Left err => pure (Just [ParseFail (getParseErrorLoc srcf err) err])
                 initHash
                 resetNextVar

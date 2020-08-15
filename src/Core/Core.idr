@@ -1,12 +1,13 @@
 module Core.Core
 
-import Core.Env
-import Core.TT
-import Data.Vect
-import Parser.Support
-
 import public Control.Catchable
 import public Data.IORef
+
+import Core.Env
+import Core.TT
+
+import Data.Vect
+import Parser.Source
 import System
 
 %default covering
@@ -94,7 +95,7 @@ data Error
     | GenericMsg FC String
     | TTCError TTCErrorMsg
     | FileErr String FileError
-    | ParseFail FC ParseError
+    | ParseFail FC (ParsingError SourceToken)
     | ModuleNotFound FC (List String)
     | CyclicImports (List (List String))
     | ForceNeeded

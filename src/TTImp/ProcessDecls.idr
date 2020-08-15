@@ -6,6 +6,7 @@ import Core.Env
 import Core.Metadata
 import Core.UnifyState
 
+import Parser.Source
 import Parser.Support
 
 import TTImp.BindImplicits
@@ -102,7 +103,7 @@ processTTImpFile : {auto c : Ref Ctxt Defs} ->
                    {auto u : Ref UST UState} ->
                    String -> Core Bool
 processTTImpFile fname
-    = do Right tti <- logTime "Parsing" $ coreLift $ parseFile fname
+    = do Right tti <- logTime "Parsing" $ coreLift $ parseSourceFile fname
                             (do decls <- prog fname
                                 eoi
                                 pure decls)
