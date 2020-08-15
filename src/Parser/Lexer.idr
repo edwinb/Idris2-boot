@@ -107,6 +107,39 @@ blockComment = is '{' <+> is '-' <+> toEndComment 1
 docComment : Lexer
 docComment = is '|' <+> is '|' <+> is '|' <+> many (isNot '\n')
 
+--
+-- Symbols
+--
+
+export
+isOpChar : Char -> Bool
+isOpChar c = inLatin || inArrows || inMathematicalOperators
+  where
+    inRange : (Int, Int) -> Lazy Bool
+    inRange (lowerBound, upperBound) = (c >= chr lowerBound && c <= chr upperBound)
+    inLatin = c `elem` (unpack ":!#$%&*+./<=>?@\\^|-~")
+    inArrows = inRange (8592, 8703)
+    inMathematicalOperators = inRange (8704, 8959)
+
+nonOpCharUnicode : Char -> Bool
+nonOpCharUnicode c = (c > chr 160) && not (isOpChar c)
+
+
+validSymbol : Lexer
+validSymbol = some (pred isOpChar)
+
+||| Special symbols - things which can't be a prefix of another symbol, and
+||| don't match 'validSymbol'
+export
+symbols : List String
+symbols
+  = [".(", -- for things such as Foo.Bar.(+)
+     "@{",
+     "[|", "|]",
+     "(", ")", "{", "}", "[", "]", ",", ";", "_",
+     "`(", "`"]
+
+--
 -- Identifier Lexer
 -- There are multiple variants.
 
@@ -114,14 +147,14 @@ data Flavour = Capitalised | AllowDashes | Normal
 
 isIdentStart : Flavour -> Char -> Bool
 isIdentStart _           '_' = True
-isIdentStart Capitalised  x  = isUpper x || x > chr 160
-isIdentStart _            x  = isAlpha x || x > chr 160
+isIdentStart Capitalised  c  = isUpper c || nonOpCharUnicode c
+isIdentStart _            c  = isAlpha c || nonOpCharUnicode c
 
 isIdentTrailing : Flavour -> Char -> Bool
 isIdentTrailing AllowDashes '-'  = True
 isIdentTrailing _           '\'' = True
 isIdentTrailing _           '_'  = True
-isIdentTrailing _            x   = isAlphaNum x || x > chr 160
+isIdentTrailing _            c   = isAlphaNum c || nonOpCharUnicode c
 
 %inline
 isIdent : Flavour -> String -> Bool
@@ -160,6 +193,10 @@ recField = is '.' <+> ident Normal
 pragma : Lexer
 pragma = is '%' <+> ident Normal
 
+--
+-- Literal Lexers
+--
+
 doubleLit : Lexer
 doubleLit
     = digits <+> is '.' <+> digits <+> opt
@@ -194,32 +231,13 @@ keywords = ["data", "module", "where", "let", "in", "do", "record",
 special : List String
 special = ["%lam", "%pi", "%imppi", "%let"]
 
--- Special symbols - things which can't be a prefix of another symbol, and
--- don't match 'validSymbol'
-export
-symbols : List String
-symbols
-    = [".(", -- for things such as Foo.Bar.(+)
-       "@{",
-       "[|", "|]",
-       "(", ")", "{", "}", "[", "]", ",", ";", "_",
-       "`(", "`"]
-
-
-export
-isOpChar : Char -> Bool
-isOpChar c = c `elem` (unpack ":!#$%&*+./<=>?@\\^|-~")
-
-validSymbol : Lexer
-validSymbol = some (pred isOpChar)
-
 -- Valid symbols which have a special meaning so can't be operators
 export
 reservedSymbols : List String
 reservedSymbols
     = symbols ++
-      ["%", "\\", ":", "=", "|", "|||", "<-", "->", "=>", "?", "!",
-       "&", "**", ".."]
+      ["%", "\\", ":", "=", "|", "|||", "?", "!", "&", "**",
+       "..", "<-", "->", "=>", "←", "→", "⇒"]
 
 fromHexLit : String -> Integer
 fromHexLit str

@@ -39,6 +39,15 @@ export
 plhs : ParseOpts
 plhs = MkParseOpts False False
 
+leftArrow : Rule ()
+leftArrow = symbol "<-" <|> symbol "←"
+
+rightArrow : Rule ()
+rightArrow = symbol "->" <|> symbol "→"
+
+doubleRightArrow : Rule ()
+doubleRightArrow = symbol "=>" <|> symbol "⇒"
+
 atom : FileName -> Rule PTerm
 atom fname
     = do start <- location
@@ -436,11 +445,10 @@ mutual
 
   bindSymbol : Rule (PiInfo PTerm)
   bindSymbol
-      = do symbol "->"
+      = do rightArrow
            pure Explicit
-    <|> do symbol "=>"
+    <|> do doubleRightArrow
            pure AutoImplicit
-
 
   explicitPi : FileName -> IndentInfo -> Rule PTerm
   explicitPi fname indents
@@ -461,7 +469,7 @@ mutual
            commit
            binders <- pibindList fname start indents
            symbol "}"
-           symbol "->"
+           rightArrow
            scope <- typeExpr pdef fname indents
            end <- location
            pure (pibindAll (MkFC fname start end) AutoImplicit binders scope)
@@ -475,7 +483,7 @@ mutual
            t <- simpleExpr fname indents
            binders <- pibindList fname start indents
            symbol "}"
-           symbol "->"
+           rightArrow
            scope <- typeExpr pdef fname indents
            end <- location
            pure (pibindAll (MkFC fname start end) (DefImplicit t) binders scope)
@@ -501,7 +509,7 @@ mutual
            symbol "{"
            binders <- pibindList fname start indents
            symbol "}"
-           symbol "->"
+           rightArrow
            scope <- typeExpr pdef fname indents
            end <- location
            pure (pibindAll (MkFC fname start end) Implicit binders scope)
@@ -511,7 +519,7 @@ mutual
       = do start <- location
            symbol "\\"
            binders <- bindList fname start indents
-           symbol "=>"
+           doubleRightArrow
            mustContinue indents Nothing
            scope <- expr pdef fname indents
            end <- location
@@ -614,7 +622,7 @@ mutual
 
   caseRHS : FileName -> FilePos -> IndentInfo -> PTerm -> Rule PClause
   caseRHS fname start indents lhs
-      = do symbol "=>"
+      = do doubleRightArrow
            mustContinue indents Nothing
            rhs <- expr pdef fname indents
            atEnd indents
@@ -703,7 +711,7 @@ mutual
            -- If the name doesn't begin with a lower case letter, we should
            -- treat this as a pattern, so fail
            validPatternVar n
-           symbol "<-"
+           leftArrow
            val <- expr pdef fname indents
            atEnd indents
            end <- location
@@ -729,7 +737,7 @@ mutual
            (do atEnd indents
                end <- location
                pure [DoExp (MkFC fname start end) e])
-             <|> (do symbol "<-"
+             <|> (do leftArrow
                      val <- expr pnowith fname indents
                      alts <- block (patAlt fname)
                      atEnd indents
@@ -1196,7 +1204,7 @@ getRight (Right v) = Just v
 constraints : FileName -> IndentInfo -> EmptyRule (List (Maybe Name, PTerm))
 constraints fname indents
     = do tm <- appExpr pdef fname indents
-         symbol "=>"
+         doubleRightArrow
          more <- constraints fname indents
          pure ((Nothing, tm) :: more)
   <|> do symbol "("
@@ -1204,7 +1212,7 @@ constraints fname indents
          symbol ":"
          tm <- expr pdef fname indents
          symbol ")"
-         symbol "=>"
+         doubleRightArrow
          more <- constraints fname indents
          pure ((Just n, tm) :: more)
   <|> pure []
@@ -1218,7 +1226,7 @@ implBinds fname indents
          symbol ":"
          tm <- expr pdef fname indents
          symbol "}"
-         symbol "->"
+         rightArrow
          more <- implBinds fname indents
          pure ((n, rig, tm) :: more)
   <|> pure []
