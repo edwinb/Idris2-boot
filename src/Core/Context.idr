@@ -120,7 +120,7 @@ Show Def where
   show (ExternDef arity) = "<external def with arity " ++ show arity ++ ">"
   show (ForeignDef a cs) = "<foreign def with arity " ++ show a ++
                            " " ++ show cs ++">"
-  show (Builtin {arity} _) = "<builtin with arith " ++ show arity ++ ">"
+  show (Builtin {arity} _) = "<builtin with arity " ++ show arity ++ ">"
   show (Hole _ p) = "Hole" ++ if p then " [impl]" else ""
   show (BySearch c depth def) = "Search in " ++ show def
   show (Guess tm _ cs) = "Guess " ++ show tm ++ " when " ++ show cs
